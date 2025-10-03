@@ -222,7 +222,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
               <TabContent 
                 dashboardData={dashboardData} 
                 selectedPeriod={selectedPeriod} 
-                clientData={clientData} 
+                clientData={clientData}
+                activeTab={activeTab}
               />
             </Tabs>
           </div>
