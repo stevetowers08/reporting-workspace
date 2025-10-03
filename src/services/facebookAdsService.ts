@@ -58,9 +58,38 @@ export class FacebookAdsService {
     }
   }
 
+  static async validateTokenScopes(): Promise<{ hasBusinessManagement: boolean; scopes: string[] }> {
+    try {
+      const token = this.getAccessToken();
+      if (!token) {
+        return { hasBusinessManagement: false, scopes: [] };
+      }
+
+      // Try to access business management endpoint to check if permission is available
+      const businessResponse = await fetch(`${this.BASE_URL}/me/businesses?fields=id&access_token=${token}`);
+      const hasBusinessManagement = businessResponse.ok;
+
+      return { 
+        hasBusinessManagement, 
+        scopes: hasBusinessManagement ? ['ads_read', 'ads_management', 'business_management'] : ['ads_read', 'ads_management']
+      };
+    } catch (error) {
+      console.error('Token scope validation error:', error);
+      return { hasBusinessManagement: false, scopes: [] };
+    }
+  }
+
   static async getAdAccounts(): Promise<any[]> {
     try {
       const token = this.getAccessToken();
+      if (!token) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
+      }
+
+      // Debug token info (without exposing the token)
+      console.log('Facebook token length:', token.length);
+      console.log('Facebook token starts with:', token.substring(0, 10) + '...');
+
       const allAccounts: any[] = [];
 
       // Fetch user accounts and business accounts in parallel for better performance
@@ -79,7 +108,16 @@ export class FacebookAdsService {
 
         // Get accounts from Business Managers
         fetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
-          .then(response => response.ok ? response.json() : { data: [] })
+          .then(response => {
+            if (!response.ok) {
+              if (response.status === 403) {
+                console.warn('Business Management permission not available or not granted. Skipping business accounts.');
+                return { data: [] };
+              }
+              throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+          })
           .then(async businessData => {
             console.log('Business Managers found:', businessData.data?.length || 0);
 
