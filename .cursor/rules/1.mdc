@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+- Use "use client" at top of file when using useState, useEffect (Next.js)
+- Use TypeScript strict mode
+- Follow project's existing code style
+- Write tests for all new features
+- Never use console.log in production code

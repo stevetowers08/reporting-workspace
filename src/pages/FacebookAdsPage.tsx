@@ -1,0 +1,353 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatabaseService } from "@/services/databaseService";
+import { EventMetricsService } from "@/services/eventMetricsService";
+import {
+    ArrowLeft,
+    BarChart3,
+    Calendar,
+    Eye,
+    TrendingUp
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+interface FacebookAdAccountData {
+    clientId: string;
+    venueName: string;
+    logoUrl?: string;
+    status: 'active' | 'paused' | 'inactive';
+    facebookAccount: {
+        accountId: string;
+        accountName: string;
+        connected: boolean;
+    };
+    metrics: {
+        impressions: number;
+        clicks: number;
+        spend: number;
+        leads: number;
+        ctr: number;
+        cpc: number;
+        cpm: number;
+        reach: number;
+        frequency: number;
+    };
+    shareableLink: string;
+}
+
+const FacebookAdsPage = () => {
+    const [facebookAccounts, setFacebookAccounts] = useState<FacebookAdAccountData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedPeriod, setSelectedPeriod] = useState("30d");
+
+    useEffect(() => {
+        loadFacebookAdsData();
+    }, [selectedPeriod]);
+
+    const loadFacebookAdsData = async () => {
+        try {
+            setLoading(true);
+            const clients = await DatabaseService.getAllClients();
+            const dateRange = getDateRange(selectedPeriod);
+
+            const accountsData: FacebookAdAccountData[] = [];
+
+            for (const client of clients) {
+                // Only include clients that have Facebook ads connected
+                const hasFacebookAds = client.accounts?.facebookAds && client.accounts.facebookAds !== 'none';
+
+                if (!hasFacebookAds) continue;
+
+                try {
+                    // Get comprehensive metrics for this client
+                    const metrics = await EventMetricsService.getComprehensiveMetrics(
+                        client.id,
+                        dateRange,
+                        client.accounts,
+                        client.conversion_actions
+                    );
+
+                    const accountData: FacebookAdAccountData = {
+                        clientId: client.id,
+                        venueName: client.name,
+                        logoUrl: client.logo_url,
+                        status: client.status,
+                        facebookAccount: {
+                            accountId: client.accounts.facebookAds!,
+                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                            connected: true
+                        },
+                        metrics: {
+                            impressions: metrics.facebookMetrics.impressions,
+                            clicks: metrics.facebookMetrics.clicks,
+                            spend: metrics.facebookMetrics.spend,
+                            leads: metrics.facebookMetrics.leads,
+                            ctr: metrics.facebookMetrics.ctr,
+                            cpc: metrics.facebookMetrics.cpc,
+                            cpm: metrics.facebookMetrics.cpm || 0,
+                            reach: metrics.facebookMetrics.reach || 0,
+                            frequency: metrics.facebookMetrics.frequency || 0
+                        },
+                        shareableLink: client.shareable_link
+                    };
+
+                    accountsData.push(accountData);
+                } catch (error) {
+                    console.error(`Error loading metrics for client ${client.name}:`, error);
+                    // Still add the client with zero metrics if there's an error
+                    accountsData.push({
+                        clientId: client.id,
+                        venueName: client.name,
+                        logoUrl: client.logo_url,
+                        status: client.status,
+                        facebookAccount: {
+                            accountId: client.accounts.facebookAds!,
+                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                            connected: true
+                        },
+                        metrics: {
+                            impressions: 0,
+                            clicks: 0,
+                            spend: 0,
+                            leads: 0,
+                            ctr: 0,
+                            cpc: 0,
+                            cpm: 0,
+                            reach: 0,
+                            frequency: 0
+                        },
+                        shareableLink: client.shareable_link
+                    });
+                }
+            }
+
+            setFacebookAccounts(accountsData);
+        } catch (error) {
+            console.error('Error loading Facebook ads data:', error);
+            setFacebookAccounts([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getDateRange = (period: string) => {
+        const end = new Date();
+        const start = new Date();
+
+        switch (period) {
+            case '7d':
+                start.setDate(end.getDate() - 7);
+                break;
+            case '30d':
+                start.setDate(end.getDate() - 30);
+                break;
+            case '90d':
+                start.setDate(end.getDate() - 90);
+                break;
+            default:
+                start.setDate(end.getDate() - 30);
+        }
+
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    };
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    const formatNumber = (num: number) => {
+        return new Intl.NumberFormat('en-US').format(num);
+    };
+
+    const formatPercentage = (num: number) => {
+        return `${(num * 100).toFixed(1)}%`;
+    };
+
+    return (
+        <div className="page-bg-light">
+            {/* Header */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link to="/ad-accounts">
+                            <Button variant="ghost" size="sm">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Back to All Ads
+                            </Button>
+                        </Link>
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+                                <span className="text-white font-bold text-sm">f</span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900">Facebook Ads</span>
+                        </div>
+                    </div>
+
+                    {/* Period Selector */}
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <select
+                            value={selectedPeriod}
+                            onChange={(e) => setSelectedPeriod(e.target.value)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="7d">Last 7 days</option>
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d">Last 90 days</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-8">
+                <div className="max-w-7xl mx-auto">
+                    {/* Facebook Ads Table */}
+                    <Card className="card-bg-light">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">f</span>
+                                </div>
+                                Facebook Ads Performance
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <span className="ml-3 text-gray-600">Loading Facebook ads data...</span>
+                                </div>
+                            ) : facebookAccounts.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <span className="text-blue-600 font-bold text-xl">f</span>
+                                    </div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Facebook Ads Found</h3>
+                                    <p className="text-gray-500 mb-4">No clients have Facebook ad accounts connected yet.</p>
+                                    <Link to="/admin">
+                                        <Button>
+                                            <BarChart3 className="h-4 w-4 mr-2" />
+                                            Manage Clients
+                                        </Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-gray-200">
+                                                <th className="text-left py-2 px-4 font-semibold text-gray-900">Venue</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Impressions</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Clicks</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CTR</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Spend</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CPC</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Leads</th>
+                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CPM</th>
+                                                <th className="text-center py-2 px-4 font-semibold text-gray-900">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {facebookAccounts.map((account) => (
+                                                <tr key={account.clientId} className="border-b border-gray-100 hover:bg-gray-50">
+                                                    <td className="py-2 px-4">
+                                                        <div className="flex items-center gap-3">
+                                                            {account.logoUrl ? (
+                                                                <img
+                                                                    src={account.logoUrl}
+                                                                    alt={`${account.venueName} logo`}
+                                                                    className="w-8 h-8 object-cover rounded-lg border border-gray-200"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                                                                    <BarChart3 className="h-4 w-4 text-white" />
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <div className="font-medium text-gray-900 text-sm">{account.venueName}</div>
+                                                                <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${account.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                                        account.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                                                            'bg-gray-100 text-gray-800'
+                                                                    }`}>
+                                                                    {account.status}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatNumber(account.metrics.impressions)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatNumber(account.metrics.clicks)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatPercentage(account.metrics.ctr)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatCurrency(account.metrics.spend)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatCurrency(account.metrics.cpc)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-green-600 text-sm">
+                                                            {formatNumber(account.metrics.leads)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-right">
+                                                        <div className="font-medium text-gray-900 text-sm">
+                                                            {formatCurrency(account.metrics.cpm)}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-2 px-4 text-center">
+                                                        <Link to={`/share/${account.clientId}`}>
+                                                            <Button variant="outline" size="sm">
+                                                                <Eye className="h-4 w-4 mr-2" />
+                                                                View Dashboard
+                                                            </Button>
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default FacebookAdsPage;

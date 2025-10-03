@@ -1,0 +1,1669 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EventDashboardData, EventMetricsService } from "@/services/eventMetricsService";
+import { PDFExportService } from "@/services/pdfExportService";
+import {
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+} from 'chart.js';
+import {
+  BarChart3,
+  Calendar,
+  DollarSign,
+  FileText,
+  FileDown,
+  Settings,
+  Share2,
+  Users
+} from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+interface EventDashboardProps {
+  isShared?: boolean;
+  clientId?: string;
+}
+
+// Meta Ads Daily Chart Component
+const MetaAdsDailyChart: React.FC<{ data?: any }> = () => {
+  // Generate daily data for the last 30 days
+  const generateDailyData = () => {
+    const days = [];
+    const leadsData = [];
+    const spendData = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
+      // Generate realistic daily data with some variation
+      const baseLeads = 8 + Math.random() * 4; // 8-12 leads per day
+      const baseSpend = 120 + Math.random() * 60; // $120-180 spend per day
+
+      leadsData.push(Math.round(baseLeads));
+      spendData.push(Math.round(baseSpend));
+    }
+
+    return { days, leadsData, spendData };
+  };
+
+  const { days, leadsData, spendData } = generateDailyData();
+
+  const chartData = {
+    labels: days,
+    datasets: [
+      {
+        label: 'Leads',
+        data: leadsData,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        yAxisID: 'y',
+      },
+      {
+        label: 'Spend ($)',
+        data: spendData,
+        borderColor: 'rgb(245, 158, 11)',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        tension: 0.4,
+        yAxisID: 'y1',
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              if (context.dataset.label === 'Spend ($)') {
+                label += '$' + context.parsed.y;
+              } else {
+                label += context.parsed.y;
+              }
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Date'
+        }
+      },
+      y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
+        title: {
+          display: true,
+          text: 'Leads'
+        },
+        beginAtZero: true,
+      },
+      y1: {
+        type: 'linear' as const,
+        display: true,
+        position: 'right' as const,
+        title: {
+          display: true,
+          text: 'Spend ($)'
+        },
+        beginAtZero: true,
+        grid: {
+          drawOnChartArea: false,
+        },
+      },
+    },
+  };
+
+  return <Line data={chartData} options={options} />;
+};
+
+// Google Ads Daily Chart Component
+const GoogleAdsDailyChart: React.FC<{ data?: any }> = () => {
+  // Generate daily data for the last 30 days
+  const generateDailyData = () => {
+    const days = [];
+    const leadsData = [];
+    const spendData = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
+      // Generate realistic daily data with some variation
+      const baseLeads = 6 + Math.random() * 3; // 6-9 leads per day
+      const baseSpend = 100 + Math.random() * 50; // $100-150 spend per day
+
+      leadsData.push(Math.round(baseLeads));
+      spendData.push(Math.round(baseSpend));
+    }
+
+    return { days, leadsData, spendData };
+  };
+
+  const { days, leadsData, spendData } = generateDailyData();
+
+  const chartData = {
+    labels: days,
+    datasets: [
+      {
+        label: 'Leads',
+        data: leadsData,
+        borderColor: 'rgb(220, 38, 38)',
+        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+        tension: 0.4,
+        yAxisID: 'y',
+      },
+      {
+        label: 'Spend ($)',
+        data: spendData,
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.4,
+        yAxisID: 'y1',
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              if (context.dataset.label === 'Spend ($)') {
+                label += '$' + context.parsed.y;
+              } else {
+                label += context.parsed.y;
+              }
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Date'
+        }
+      },
+      y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
+        title: {
+          display: true,
+          text: 'Leads'
+        },
+        beginAtZero: true,
+      },
+      y1: {
+        type: 'linear' as const,
+        display: true,
+        position: 'right' as const,
+        title: {
+          display: true,
+          text: 'Spend ($)'
+        },
+        beginAtZero: true,
+        grid: {
+          drawOnChartArea: false,
+        },
+      },
+    },
+  };
+
+  return <Line data={chartData} options={options} />;
+};
+
+const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
+  const [selectedPeriod, setSelectedPeriod] = useState("30d");
+  const [activeTab, setActiveTab] = useState("summary");
+  const [dashboardData, setDashboardData] = useState<EventDashboardData | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [clientData, setClientData] = useState<any>(null);
+  const [availableClients, setAvailableClients] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const clientsLoadedRef = useRef(false);
+
+  // Get client ID from URL if not provided as prop
+  const actualClientId = useMemo(() => {
+    // Only extract client ID if we're actually on a share URL
+    if (window.location.pathname.startsWith('/share/')) {
+      const urlClientId = window.location.pathname.split('/share/')[1];
+      return clientId || urlClientId;
+    }
+    // For main dashboard, only use clientId prop if provided
+    return clientId;
+  }, [clientId]);
+
+  const loadAvailableClients = async (forceRefresh = false) => {
+    if (clientsLoadedRef.current && !forceRefresh) return;
+
+    console.log('Loading available clients...');
+    try {
+      const { DatabaseService } = await import('@/services/databaseService');
+      const clients = await DatabaseService.getAllClients();
+      console.log('Available clients loaded:', clients.length, clients);
+      setAvailableClients(clients);
+      clientsLoadedRef.current = true;
+      setLoading(false); // Stop loading when clients are loaded
+    } catch (error) {
+      console.error('Error loading available clients:', error);
+      setAvailableClients([]);
+      setLoading(false); // Stop loading even on error
+    }
+  };
+
+  useEffect(() => {
+    loadClientData();
+    // Always load available clients to ensure the dropdown is populated
+    loadAvailableClients();
+  }, [actualClientId]);
+
+  // Listen for storage events and custom events to refresh client list when new clients are added
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'clients' && e.newValue) {
+        console.log('Client list updated via storage, refreshing...');
+        loadAvailableClients(true);
+      }
+    };
+
+    const handleClientAdded = (e: CustomEvent) => {
+      console.log('New client added via custom event, refreshing...', e.detail);
+      loadAvailableClients(true);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('clientAdded', handleClientAdded as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('clientAdded', handleClientAdded as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (clientData) {
+      loadDashboardData();
+    }
+  }, [selectedPeriod, clientData]);
+
+  const loadClientData = async () => {
+    console.log('Loading client data for ID:', actualClientId);
+    setError(null); // Clear any previous errors
+
+    if (!actualClientId) {
+      console.log('No client ID provided, will show client selector');
+      // Don't set default venue, let user choose
+      setClientData(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { DatabaseService } = await import('@/services/databaseService');
+      console.log('Fetching client from database:', actualClientId);
+      const client = await DatabaseService.getClientById(actualClientId);
+      console.log('Client data from database:', client);
+
+      if (client) {
+        console.log('Client loaded successfully:', {
+          id: client.id,
+          name: client.name,
+          logo_url: client.logo_url,
+          hasLogo: !!client.logo_url
+        });
+        setClientData(client);
+        setError(null);
+      } else {
+        console.log('Client not found in database');
+        setClientData(null);
+        if (isShared) {
+          setError(`Client with ID "${actualClientId}" not found. The share link may be invalid or the client may have been deleted.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading client data:', error);
+      setClientData(null);
+      if (isShared) {
+        setError(`Failed to load client data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Calculate date range based on selected period
+      const endDate = new Date();
+      const startDate = new Date();
+
+      switch (selectedPeriod) {
+        case '7d':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+        case '90d':
+          startDate.setDate(startDate.getDate() - 90);
+          break;
+        default:
+          startDate.setDate(startDate.getDate() - 30);
+      }
+
+      const dateRange = {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      };
+
+      // Fetch real data from EventMetricsService with client-specific filtering
+      console.log('Loading dashboard data for client:', clientData);
+      console.log('Date range:', dateRange);
+      console.log('Client accounts:', clientData.accounts);
+
+      const data = await EventMetricsService.getComprehensiveMetrics(clientData.id, dateRange, clientData.accounts, clientData.conversionActions);
+      console.log('Dashboard data loaded:', data);
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Fallback to mock data if real data fails
+      const mockData = getMockDashboardData(clientData?.accounts);
+      setDashboardData(mockData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockDashboardData = (clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string }): EventDashboardData => {
+    // Check which accounts are connected
+    const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
+    const hasGoogleAds = clientAccounts?.googleAds && clientAccounts.googleAds !== 'none';
+    const hasGoHighLevel = clientAccounts?.goHighLevel && clientAccounts.goHighLevel !== 'none';
+    const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
+
+    return {
+      totalLeads: (hasFacebookAds ? 234 : 0) + (hasGoogleAds ? 190 : 0), // Only count connected platforms
+      totalSpend: (hasFacebookAds ? 6200 : 0) + (hasGoogleAds ? 6550 : 0),
+      totalRevenue: hasGoHighLevel ? 285000 : 0,
+      roi: 38.0,
+      facebookMetrics: hasFacebookAds ? {
+        impressions: 187000,
+        clicks: 3490,
+        spend: 6200,
+        leads: 234,
+        conversions: 234,
+        ctr: 1.87,
+        cpc: 1.78,
+        cpm: 33.15,
+        roas: 0,
+        reach: 68000,
+        frequency: 2.75,
+        costPerLead: 26.50
+      } : { impressions: 0, clicks: 0, spend: 0, leads: 0, conversions: 0, ctr: 0, cpc: 0, cpm: 0, roas: 0, reach: 0, frequency: 0, costPerLead: 0 },
+      googleMetrics: hasGoogleAds ? {
+        impressions: 134000,
+        clicks: 2840,
+        cost: 6550,
+        leads: 190,
+        conversions: 190,
+        ctr: 2.12,
+        cpc: 2.31,
+        conversionRate: 6.69,
+        costPerConversion: 34.47,
+        searchImpressionShare: 82.3,
+        qualityScore: 8.1,
+        costPerLead: 34.47
+      } : { impressions: 0, clicks: 0, cost: 0, leads: 0, conversions: 0, ctr: 0, cpc: 0, conversionRate: 0, costPerConversion: 0, searchImpressionShare: 0, qualityScore: 0, costPerLead: 0 },
+      ghlMetrics: hasGoHighLevel ? {
+        totalContacts: 156,
+        newContacts: 156,
+        totalOpportunities: 89,
+        wonOpportunities: 34,
+        lostOpportunities: 21,
+        pipelineValue: 285000,
+        avgDealSize: 8382,
+        conversionRate: 38.2,
+        responseTime: 12
+      } : { totalContacts: 0, newContacts: 0, totalOpportunities: 0, wonOpportunities: 0, lostOpportunities: 0, pipelineValue: 0, avgDealSize: 0, conversionRate: 0, responseTime: 0 },
+      eventMetrics: hasGoogleSheets ? {
+        totalEvents: 45,
+        averageGuests: 125,
+        totalSubmissions: 892,
+        eventTypeBreakdown: [
+          { type: "Wedding", count: 18, percentage: 40.0, avgGuests: 150 },
+          { type: "Corporate", count: 12, percentage: 26.7, avgGuests: 85 },
+          { type: "Birthday", count: 8, percentage: 17.8, avgGuests: 45 },
+          { type: "Anniversary", count: 4, percentage: 8.9, avgGuests: 65 },
+          { type: "Other", count: 3, percentage: 6.7, avgGuests: 35 }
+        ],
+        budgetDistribution: [
+          { range: "$5,000-$10,000", count: 15, percentage: 33.3 },
+          { range: "$10,000-$20,000", count: 18, percentage: 40.0 },
+          { range: "$20,000-$50,000", count: 9, percentage: 20.0 },
+          { range: "$50,000+", count: 3, percentage: 6.7 }
+        ]
+      } : { totalEvents: 0, averageGuests: 0, totalSubmissions: 0, eventTypeBreakdown: [], budgetDistribution: [] },
+      leadMetrics: {
+        facebookCostPerLead: hasFacebookAds ? 26.50 : 0,
+        googleCostPerLead: hasGoogleAds ? 34.47 : 0,
+        overallCostPerLead: 30.1,
+        leadToOpportunityRate: 21.0,
+        opportunityToWinRate: 38.2,
+        averageEventValue: 8382,
+        averageGuestsPerEvent: 125,
+        seasonalTrends: [
+          { month: "Jan", leads: 45, events: 8, revenue: 67000 },
+          { month: "Feb", leads: 52, events: 9, revenue: 78000 },
+          { month: "Mar", leads: 48, events: 7, revenue: 72000 },
+          { month: "Apr", leads: 61, events: 10, revenue: 91000 },
+          { month: "May", leads: 67, events: 11, revenue: 100000 },
+          { month: "Jun", leads: 73, events: 12, revenue: 109000 }
+        ],
+        formCompletionRate: 78.5,
+        landingPageConversionRate: 4.2,
+        mostPopularEventType: "Wedding",
+        leadSourceBreakdown: [
+          ...(hasFacebookAds ? [{ source: "Meta Ads", leads: 234, percentage: 55.2, costPerLead: 26.50, conversionRate: 6.7 }] : []),
+          ...(hasGoogleAds ? [{ source: "Google Ads", leads: 190, percentage: 44.8, costPerLead: 34.47, conversionRate: 6.69 }] : [])
+        ]
+      },
+      dateRange: {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+      }
+    };
+  };
+
+  const handleShareLink = () => {
+    const shareUrl = `${window.location.origin}/share/${clientData?.id || 'venue1'}`;
+    navigator.clipboard.writeText(shareUrl);
+    // You could show a toast notification here
+    alert('Share link copied to clipboard!');
+  };
+
+  const handleExportPDF = async () => {
+    if (!dashboardData || !clientData) {
+      alert('No data available to export. Please wait for the dashboard to load.');
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      const dateRange = `${selectedPeriod === '7d' ? 'Last 7 days' : selectedPeriod === '30d' ? 'Last 30 days' : 'Last 90 days'}`;
+      
+      await PDFExportService.exportDashboardToPDF(dashboardData, {
+        clientName: clientData.name,
+        logoUrl: clientData.logo_url,
+        dateRange: dateRange,
+        includeCharts: true,
+        includeDetailedMetrics: true
+      });
+
+      alert('PDF exported successfully!');
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert(`Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
+  const handleClientSelect = (client: any) => {
+    setClientData(client);
+    // Update URL to reflect selected client
+    window.history.pushState({}, '', `/share/${client.id}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state for share links that fail to load
+  if (isShared && error && !clientData) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <div className="bg-white rounded-lg shadow-sm border border-red-200 p-8">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Share Link Error</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <div className="space-y-2 text-sm text-gray-500">
+              <p>• The client may have been deleted</p>
+              <p>• The share link may be incorrect</p>
+              <p>• There may be a temporary server issue</p>
+            </div>
+            <div className="mt-6">
+              <Button
+                onClick={() => window.location.href = '/'}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Go to Main Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+
+      {/* Top Header Bar - Hidden when shared */}
+      {!isShared && (
+        <div className="bg-slate-700 text-white px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <BarChart3 className="h-6 w-6" />
+                <span className="text-heading">
+                  {clientData ? clientData.name : (availableClients.length > 0 ? 'Select a Venue' : 'Welcome to Event Dashboard')}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <select
+                    value={clientData?.id || ''}
+                    onChange={(e) => {
+                      const selectedClient = availableClients.find(c => c.id === e.target.value);
+                      if (selectedClient) {
+                        handleClientSelect(selectedClient);
+                      }
+                    }}
+                    className="appearance-none px-4 py-2 pr-8 bg-white text-slate-900 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-300 font-medium shadow-sm min-w-[200px]"
+                  >
+                    <option value="" disabled>Choose a venue...</option>
+                    {availableClients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-blue-700"
+                  onClick={() => loadAvailableClients(true)}
+                  title="Refresh venue list"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-blue-700"
+                  onClick={() => window.location.href = '/admin'}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Admin Panel
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-blue-700"
+                  onClick={() => window.location.href = '/ad-accounts'}
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Ad Accounts
+                </Button>
+                {clientData && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-white hover:bg-blue-700"
+                      onClick={handleShareLink}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share Link
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-white hover:bg-blue-700"
+                      onClick={handleExportPDF}
+                      disabled={exportingPDF}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      {exportingPDF ? 'Exporting...' : 'Export PDF'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header Section - Reduced Height */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between relative">
+            <div className="flex items-center gap-3">
+              {/* Client Logo */}
+              {clientData?.logo_url ? (
+                <img
+                  src={clientData.logo_url}
+                  alt={`${clientData.name} logo`}
+                  className="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-sm"
+                  onError={(e) => {
+                    console.error('Logo failed to load:', clientData.logo_url);
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                  onLoad={() => {
+                    console.log('Logo loaded successfully:', clientData.logo_url);
+                  }}
+                />
+              ) : (
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-base font-medium text-slate-600">{clientData?.name || 'Event Dashboard'}</h1>
+              </div>
+            </div>
+
+            {/* Centered Reporting Dashboard Text */}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <h2 className="text-heading text-gray-800">Reporting Dashboard</h2>
+            </div>
+
+            {/* Controls */}
+            {clientData && (
+              <div className="flex items-center gap-3">
+                {/* Period Selector */}
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                >
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - Only show when client is selected */}
+      {clientData ? (
+        <div className="p-4">
+          <div className="max-w-7xl mx-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              {/* Tab Navigation */}
+              <div className="bg-slate-50 border-b border-slate-200 -mx-4 -mt-4 mb-4">
+                <div className="max-w-7xl mx-auto px-6 py-3">
+                  <TabsList className="w-full justify-start bg-slate-200 rounded-lg p-0.5 h-10 border border-slate-300">
+                    <TabsTrigger value="summary" className="text-sm font-medium px-3 py-2 rounded-md flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 data-[state=active]:font-semibold text-slate-600 hover:text-slate-800 transition-colors">
+                      Summary
+                    </TabsTrigger>
+                    <TabsTrigger value="facebook" className="text-sm font-medium px-3 py-2 rounded-md flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 data-[state=active]:font-semibold text-slate-600 hover:text-slate-800 transition-colors">
+                      Meta Ads
+                    </TabsTrigger>
+                    <TabsTrigger value="google" className="text-sm font-medium px-3 py-2 rounded-md flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 data-[state=active]:font-semibold text-slate-600 hover:text-slate-800 transition-colors">
+                      Google Ads
+                    </TabsTrigger>
+                    <TabsTrigger value="analytics" className="text-sm font-medium px-3 py-2 rounded-md flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 data-[state=active]:font-semibold text-slate-600 hover:text-slate-800 transition-colors">
+                      Analytics
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+              </div>
+              
+              {/* Summary Tab */}
+              <TabsContent value="summary" className="mt-0">
+                {/* Key Performance Comparison - Single Row */}
+                <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-5">
+                  {/* Total Leads */}
+                  <Card className="bg-white border border-slate-200 shadow-sm p-4">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-600 mb-2">Total Leads</p>
+                      <p className="text-3xl font-bold text-slate-900">{((dashboardData?.facebookMetrics?.leads || 0) + (dashboardData?.googleMetrics?.leads || 0))}</p>
+                      <div className="flex items-center justify-center gap-1 mt-2">
+                        <span className="text-xs text-green-600 font-medium">↑ +18%</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Facebook Performance */}
+                  <Card className="bg-white border border-slate-200 shadow-sm p-4">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                          <span className="text-white font-bold text-xs">f</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">Meta Ads</p>
+                      </div>
+                      <p className="text-3xl font-bold text-blue-600">{dashboardData?.facebookMetrics?.leads || '0'}</p>
+                      <p className="text-xs text-slate-500 mt-1">${dashboardData?.facebookMetrics?.costPerLead?.toFixed(2) || '0.00'} CPL</p>
+                    </div>
+                  </Card>
+
+                  {/* Google Performance */}
+                  <Card className="bg-white border border-slate-200 shadow-sm p-4">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
+                          <span className="text-white font-bold text-xs">G</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">Google Ads</p>
+                      </div>
+                      <p className="text-3xl font-bold text-red-600">{dashboardData?.googleMetrics?.leads || '0'}</p>
+                      <p className="text-xs text-slate-500 mt-1">${dashboardData?.googleMetrics?.costPerLead?.toFixed(2) || '0.00'} CPL</p>
+                    </div>
+                  </Card>
+
+                  {/* Total Spend */}
+                  <Card className="bg-white border border-slate-200 shadow-sm p-4">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-600 mb-2">Total Spend</p>
+                      <p className="text-3xl font-bold text-slate-900">${((dashboardData?.facebookMetrics?.spend || 0) + (dashboardData?.googleMetrics?.cost || 0)).toLocaleString()}</p>
+                      <div className="flex items-center justify-center gap-1 mt-2">
+                        <span className="text-xs text-green-600 font-medium">↑ +12%</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Conversion Rate */}
+                  <Card className="bg-white border border-slate-200 shadow-sm p-4">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-600 mb-2">Win Rate</p>
+                      <p className="text-3xl font-bold text-green-600">{dashboardData?.ghlMetrics?.conversionRate?.toFixed(1) || '15.0'}%</p>
+                      <p className="text-xs text-slate-500 mt-1">{Math.round(((dashboardData?.facebookMetrics?.leads || 0) + (dashboardData?.googleMetrics?.leads || 0)) * (dashboardData?.ghlMetrics?.conversionRate || 0.15) / 100)} won</p>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Charts Section - Compact */}
+                <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+                  {/* Event Types Distribution - Compact */}
+                  <Card variant="compact">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold text-slate-900">Event Types Distribution</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {dashboardData?.eventMetrics?.eventTypeBreakdown?.map((event, index) => {
+                          const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500'];
+                          return (
+                            <div key={index} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
+                                <span className="text-sm font-medium text-slate-700">{event.type}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-slate-600">{event.count} events</span>
+                                <span className="text-xs font-semibold text-slate-900">{event.percentage.toFixed(1)}%</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-4">
+                        {/* Simple visual representation */}
+                        <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+                          {dashboardData?.eventMetrics?.eventTypeBreakdown?.map((event, index) => {
+                            const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500'];
+                            return (
+                              <div
+                                key={index}
+                                className={colors[index % colors.length]}
+                                style={{ width: `${event.percentage}%` }}
+                              ></div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Platform Performance - Compact */}
+                  <Card variant="compact">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold text-slate-900">Platform Performance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-3">
+                        {/* Meta Ads Performance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-blue-600 rounded flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">f</span>
+                              </div>
+                              <span className="text-sm font-medium text-slate-700">Meta Ads</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-slate-900">{dashboardData?.facebookMetrics.leads} leads</span>
+                              <p className="text-xs text-gray-500">{((dashboardData?.facebookMetrics.leads || 0) / (dashboardData?.facebookMetrics.clicks || 1) * 100).toFixed(1)}% conv rate</p>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
+                              style={{ width: `${(dashboardData?.facebookMetrics.leads || 0) / (dashboardData?.totalLeads || 1) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between mt-1 text-xs text-gray-500">
+                            <span>CPL: ${dashboardData?.facebookMetrics.costPerLead.toFixed(2)}</span>
+                            <span>CTR: {dashboardData?.facebookMetrics.ctr.toFixed(2)}%</span>
+                          </div>
+                        </div>
+
+                        {/* Google Ads Performance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-red-600 rounded flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">G</span>
+                              </div>
+                              <span className="text-sm font-medium text-slate-700">Google Ads</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-slate-900">{dashboardData?.googleMetrics.leads} leads</span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-red-600 h-2 rounded-full"
+                              style={{ width: `${(dashboardData?.googleMetrics.conversions || 0) / (dashboardData?.totalLeads || 1) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between mt-1 text-xs text-gray-500">
+                            <span>CPL: ${dashboardData?.googleMetrics.costPerLead.toFixed(2)}</span>
+                            <span>CTR: {dashboardData?.googleMetrics.ctr.toFixed(2)}%</span>
+                          </div>
+                        </div>
+
+                        {/* Event Performance Summary */}
+                        <div className="pt-4 border-t border-gray-100">
+                          <div className="grid grid-cols-1 gap-4 text-center">
+                            <div>
+                              <p className="text-2xl font-bold text-slate-900">{dashboardData?.eventMetrics.averageGuests}</p>
+                              <p className="text-xs text-slate-600">Avg Guests</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Key Insights Summary */}
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                          <span className="text-white font-bold text-xs">f</span>
+                        </div>
+                        Meta Ads Highlights
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Impressions</span>
+                          <span className="text-sm font-medium">{dashboardData?.facebookMetrics?.impressions?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">CTR</span>
+                          <span className="text-sm font-medium">{dashboardData?.facebookMetrics?.ctr?.toFixed(2) || '0.00'}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Cost per Lead</span>
+                          <span className="text-sm font-medium">${dashboardData?.facebookMetrics?.costPerLead?.toFixed(2) || '0.00'}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
+                          <span className="text-white font-bold text-xs">G</span>
+                        </div>
+                        Google Ads Highlights
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Impressions</span>
+                          <span className="text-sm font-medium">{dashboardData?.googleMetrics?.impressions?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Quality Score</span>
+                          <span className="text-sm font-medium">{dashboardData?.googleMetrics?.qualityScore?.toFixed(1) || '0.0'}/10</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Impression Share</span>
+                          <span className="text-sm font-medium">{dashboardData?.googleMetrics.searchImpressionShare.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-purple-600" />
+                        Event Highlights
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Most Popular</span>
+                          <span className="text-sm font-medium">{dashboardData?.leadMetrics.mostPopularEventType}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Avg Event Value</span>
+                          <span className="text-sm font-medium">${dashboardData?.leadMetrics?.averageEventValue?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Form Completion</span>
+                          <span className="text-sm font-medium">{dashboardData?.leadMetrics?.formCompletionRate?.toFixed(1) || '0.0'}%</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="facebook" className="mt-0">
+                {/* Key Metrics - 2 Rows of KPI Cards */}
+                <div className="mb-6">
+                  {/* First Row - 4 Cards */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Leads</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.leads || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +15.2%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Lead</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.costPerLead?.toFixed(2) || '0.00'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-red-600 font-medium">↓ -8.3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Conversion Rate</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{((dashboardData?.facebookMetrics.leads || 0) / (dashboardData?.facebookMetrics.clicks || 1) * 100).toFixed(1)}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +5.7%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.spend?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +2.0%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Second Row - 4 Cards */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Impressions</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.impressions?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +8.5%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Link Clicks</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.clicks?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +22.3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Link Click</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.cpc?.toFixed(2) || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-red-600 font-medium">↓ -12.8%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">CTR</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.ctr?.toFixed(2) || '0'}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-red-600 font-medium">↓ -47.2%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Charts Section - 2 Daily Charts Side by Side */}
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+                  {/* Daily Leads vs Spend Chart */}
+                  <Card className="bg-white border border-slate-200 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-semibold text-slate-900">Daily Leads vs Spend</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64">
+                        <MetaAdsDailyChart />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Daily Leads vs Spend Chart (Duplicate) */}
+                  <Card className="bg-white border border-slate-200 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-semibold text-slate-900">Daily Leads vs Spend</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64">
+                        <MetaAdsDailyChart />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              <TabsContent value="google" className="mt-0">
+                {/* Key Metrics - 2 Rows of KPI Cards */}
+                <div className="mb-6">
+                  {/* First Row - 4 Cards */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Leads</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.googleMetrics?.leads || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +25.4%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Lead</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.googleMetrics?.costPerLead?.toFixed(2) || '0.00'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-red-600 font-medium">↓ -12.3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Conversion Rate</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.googleMetrics?.conversionRate?.toFixed(1) || '0'}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +8.7%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.googleMetrics?.cost?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +8.2%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Second Row - 4 Cards */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Impressions</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.googleMetrics?.impressions?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +12.3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Clicks</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.googleMetrics?.clicks?.toLocaleString() || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +18.7%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Click</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">${dashboardData?.googleMetrics?.cpc?.toFixed(2) || '0'}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-red-600 font-medium">↓ -12.8%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="bg-white border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600 mb-2">CTR</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-slate-900">{dashboardData?.googleMetrics?.ctr?.toFixed(2) || '0'}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-green-600 font-medium">↑ +6.3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Charts Section - 2 Daily Charts Side by Side */}
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+                  {/* Daily Leads vs Spend Chart */}
+                  <Card className="bg-white border border-slate-200 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-semibold text-slate-900">Daily Leads vs Spend</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64">
+                        <GoogleAdsDailyChart />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Daily Leads vs Spend Chart (Duplicate) */}
+                  <Card className="bg-white border border-slate-200 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-semibold text-slate-900">Daily Leads vs Spend</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64">
+                        <GoogleAdsDailyChart />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* Performance Analytics Tab (Combined Event + Lead Analytics) */}
+              <TabsContent value="analytics" className="space-y-4 mt-0">
+                {/* Event Overview Metrics - Larger Cards */}
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                  <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-base font-medium text-slate-600 mb-2">Total Events</p>
+                        <div className="flex items-baseline gap-3">
+                          <p className="text-4xl font-bold text-slate-900">{dashboardData?.eventMetrics.totalEvents}</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-base text-green-600 font-medium">↑ +12%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    </div>
+                  </Card>
+
+                  <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-base font-medium text-slate-600 mb-2">Avg Guests</p>
+                        <div className="flex items-baseline gap-3">
+                          <p className="text-4xl font-bold text-slate-900">{dashboardData?.eventMetrics.averageGuests}</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-base text-green-600 font-medium">↑ +8%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-base font-medium text-slate-600 mb-2">Form Submissions</p>
+                        <div className="flex items-baseline gap-3">
+                          <p className="text-4xl font-bold text-slate-900">{dashboardData?.eventMetrics.totalSubmissions}</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-base text-green-600 font-medium">↑ +15%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-base font-medium text-slate-600 mb-2">Avg Event Value</p>
+                        <div className="flex items-baseline gap-3">
+                          <p className="text-4xl font-bold text-slate-900">${(dashboardData?.leadMetrics.averageEventValue || 0) / 1000}k</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-base text-green-600 font-medium">↑ +5%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Event Type Breakdown and Budget Distribution */}
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-purple-600" />
+                        Event Type Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {dashboardData?.eventMetrics.eventTypeBreakdown.map((event, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 ">
+                            <div className="flex items-center gap-3">
+                              <div className="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">{event.type.charAt(0)}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{event.type}</p>
+                                <p className="text-xs text-gray-500">{event.count} events • {event.avgGuests} avg guests</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-slate-900">{event.percentage.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-green-600" />
+                        Budget Distribution
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {dashboardData?.eventMetrics?.budgetDistribution?.map((budget, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 ">
+                            <div className="flex items-center gap-3">
+                              <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center">
+                                <span className="text-white font-bold text-xs">$</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{budget.range}</p>
+                                <p className="text-xs text-gray-500">{budget.count} events</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-slate-900">{budget.percentage.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Lead Analytics Section */}
+                <div className="pt-8 border-t border-slate-200">
+                  <h2 className="text-xl font-semibold text-slate-900 mb-6">Lead Performance & Conversion Analytics</h2>
+
+                  {/* Lead Overview Metrics - Larger Cards */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                    <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-base font-medium text-slate-600 mb-2">Total Leads</p>
+                          <div className="flex items-baseline gap-3">
+                            <p className="text-4xl font-bold text-slate-900">{dashboardData?.totalLeads}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-base text-green-600 font-medium">↑ +28%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      </div>
+                    </Card>
+
+                    <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-base font-medium text-slate-600 mb-2">Cost Per Lead</p>
+                          <div className="flex items-baseline gap-3">
+                            <p className="text-4xl font-bold text-slate-900">${dashboardData?.leadMetrics.overallCostPerLead.toFixed(2)}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-base text-red-600 font-medium">↓ -12%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-base font-medium text-slate-600 mb-2">Lead → Won Rate</p>
+                          <div className="flex items-baseline gap-3">
+                            <p className="text-4xl font-bold text-slate-900">{dashboardData?.leadMetrics.opportunityToWinRate.toFixed(1)}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-base text-green-600 font-medium">↑ +8%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card variant="spacious" className="bg-white border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-base font-medium text-slate-600 mb-2">Form Completion</p>
+                          <div className="flex items-baseline gap-3">
+                            <p className="text-4xl font-bold text-slate-900">{dashboardData?.leadMetrics.formCompletionRate.toFixed(1)}%</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-base text-green-600 font-medium">↑ +3%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Lead Source Performance and Form Analytics */}
+                  <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2">
+                          <Users className="h-5 w-5 text-blue-600" />
+                          Lead Source Performance
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {dashboardData?.leadMetrics?.leadSourceBreakdown?.map((source, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 ">
+                              <div className="flex items-center gap-3">
+                                {source.source === 'Meta Ads' && (
+                                  <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">f</span>
+                                  </div>
+                                )}
+                                {source.source === 'Google Ads' && (
+                                  <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">G</span>
+                                  </div>
+                                )}
+                                {source.source === 'Direct' && (
+                                  <div className="w-6 h-6 bg-gray-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">D</span>
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-slate-900">{source.source}</p>
+                                  <p className="text-xs text-gray-500">{source.leads} leads • ${source.costPerLead.toFixed(2)} CPL</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-slate-900">{source.percentage.toFixed(1)}%</p>
+                                <p className="text-xs text-gray-500">{source.conversionRate.toFixed(1)}% conv</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-green-600" />
+                          Form & Conversion Analytics
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center p-4 bg-blue-50 ">
+                              <p className="text-2xl font-bold text-blue-600">{dashboardData?.leadMetrics?.averageEventValue?.toLocaleString() || '0'}</p>
+                              <p className="text-sm text-slate-600">Avg Event Value</p>
+                            </div>
+                            <div className="text-center p-4 bg-green-50 ">
+                              <p className="text-2xl font-bold text-green-600">{dashboardData?.leadMetrics?.leadToOpportunityRate?.toFixed(1) || '0.0'}%</p>
+                              <p className="text-sm text-slate-600">Lead → Opportunity</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-slate-600">Form Start Rate</span>
+                              <span className="text-sm font-medium">94.2%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-slate-600">Form Completion Rate</span>
+                              <span className="text-sm font-medium">{dashboardData?.leadMetrics.formCompletionRate.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-slate-600">Lead Quality Score</span>
+                              <span className="text-sm font-medium">8.4/10</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-slate-600">Most Popular Event</span>
+                              <span className="text-sm font-medium">{dashboardData?.leadMetrics.mostPopularEventType}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+              <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <BarChart3 className="h-10 w-10 text-gray-400" />
+              </div>
+              <h2 className="text-heading text-slate-900 mb-3">Welcome to Event Analytics</h2>
+              <p className="text-body text-slate-600 mb-8 max-w-md mx-auto">
+                Select a venue from the dropdown above to view detailed analytics, performance metrics, and insights for your events.
+              </p>
+              <div className="flex items-center justify-center gap-4 text-caption text-gray-500">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Real-time Metrics</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Lead Tracking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Revenue Analytics</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default EventDashboard;

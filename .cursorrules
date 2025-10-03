@@ -1,0 +1,250 @@
+# Cursor AI Rules for Marketing Analytics Dashboard
+
+## Project Context
+
+This is a **Marketing Analytics Dashboard** built with React, TypeScript, and modern web technologies. The application integrates with Facebook Ads and Google Ads APIs to provide comprehensive advertising analytics.
+
+### Key Technologies
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Radix UI
+- **Backend**: Supabase (PostgreSQL), React Query
+- **Integrations**: Facebook Marketing API, Google Ads API, OAuth 2.0
+- **Testing**: Jest, Playwright, MSW
+- **AI Development**: Cursor AI for code generation and assistance
+
+### Project Goals
+- Unified dashboard for multi-platform advertising analytics
+- Real-time campaign metrics and performance tracking
+- Client management and reporting capabilities
+- Accessible, responsive, and performant user interface
+
+## Coding Standards
+
+### TypeScript
+- **Strict Mode**: Always use TypeScript strict mode
+- **Type Safety**: Define interfaces for all data structures
+- **Imports**: Prefer named imports over default imports
+- **No Any**: Avoid `any` type, use proper typing or `unknown`
+- **Path Mapping**: Use `@/` alias for src directory imports
+
+### React
+- **Functional Components**: Use functional components with hooks
+- **TypeScript Props**: Define proper interfaces for component props
+- **Error Boundaries**: Wrap components in error boundaries
+- **React Query**: Use React Query for all server state management
+- **Performance**: Use `useMemo` and `useCallback` for optimization
+
+### File Organization
+- **Components**: PascalCase (e.g., `EventDashboard.tsx`)
+- **Services**: camelCase with `Service` suffix (e.g., `facebookAdsService.ts`)
+- **Types**: camelCase with `.ts` extension (e.g., `dashboard.ts`)
+- **Pages**: PascalCase (e.g., `FacebookAdsPage.tsx`)
+- **Directories**: lowercase with hyphens (e.g., `mcp-servers`)
+
+### Naming Conventions
+- **Variables**: camelCase (e.g., `userData`, `campaignMetrics`)
+- **Functions**: camelCase (e.g., `fetchCampaignData`, `calculateROI`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+- **Types/Interfaces**: PascalCase (e.g., `CampaignData`, `UserProfile`)
+- **React Props**: camelCase (e.g., `isLoading`, `onDataUpdate`)
+
+## Best Practices
+
+### Code Quality
+- **Single Responsibility**: Each function/component should have one clear purpose
+- **DRY Principle**: Don't repeat yourself, extract common logic
+- **Error Handling**: Implement proper error handling with try-catch blocks
+- **Logging**: Use structured logging with `debugLogger`
+- **Comments**: Add comments for complex business logic
+
+### Performance
+- **Code Splitting**: Use dynamic imports for large components
+- **Memoization**: Use React.memo, useMemo, useCallback appropriately
+- **Bundle Size**: Keep bundle size optimized
+- **Caching**: Implement proper caching strategies with React Query
+
+### Accessibility
+- **ARIA Labels**: Include proper ARIA labels and roles
+- **Keyboard Navigation**: Ensure full keyboard accessibility
+- **Color Contrast**: Maintain WCAG 2.1 AA compliance
+- **Screen Readers**: Test with screen readers
+
+### Security
+- **Environment Variables**: Never expose sensitive data in client code
+- **Input Validation**: Validate all user inputs
+- **HTTPS**: Use HTTPS for all communications
+- **Token Management**: Implement secure token storage and refresh
+
+## AI Development Guidelines
+
+### Using Cursor AI Effectively
+- **Be Specific**: Include file names, function names, and context in prompts
+- **Provide Examples**: Show expected input/output when requesting code
+- **Iterate**: Refine prompts based on AI responses
+- **Ask Questions**: Use AI to explain concepts and best practices
+
+### Code Generation Prompts
+- **Components**: "Create a React component for [purpose] with TypeScript"
+- **Services**: "Generate a service for [API] with proper error handling"
+- **Tests**: "Write tests for [component/service] using Jest/Playwright"
+- **Refactoring**: "Refactor this code to improve [performance/readability/type safety]"
+
+### Debugging with AI
+- **Error Messages**: Copy full error messages when asking for help
+- **Context**: Include relevant code context and file information
+- **Specificity**: Ask specific questions about problematic code
+- **Follow-up**: Ask follow-up questions to clarify AI responses
+
+## Testing Standards
+
+### Unit Tests
+- **Coverage**: Maintain high test coverage for components and services
+- **Mocking**: Use MSW for API mocking, Jest mocks for modules
+- **Structure**: Follow Arrange, Act, Assert pattern
+- **Naming**: Use descriptive test names
+
+### Integration Tests
+- **API Testing**: Test API integrations with proper mocking
+- **Database Testing**: Test database operations with test data
+- **Error Cases**: Test error handling and edge cases
+
+### E2E Tests
+- **User Flows**: Test complete user workflows
+- **Accessibility**: Use ARIA snapshots for accessibility testing
+- **Performance**: Include Lighthouse audits
+- **Cross-browser**: Test on multiple browsers
+
+## Documentation Standards
+
+### Code Documentation
+- **JSDoc**: Use JSDoc for complex functions
+- **README**: Keep README files updated
+- **Comments**: Add comments for business logic
+- **Type Definitions**: Document complex types and interfaces
+
+### AI Documentation
+- **Update PROJECT_STATUS.md**: Track progress and blockers
+- **Update ARCHITECTURE.md**: Document new components/services
+- **Update INTEGRATIONS_GUIDE.md**: Document new API integrations
+- **Use AI**: Generate documentation with Cursor AI
+
+## Common Patterns
+
+### Service Layer Pattern
+```typescript
+export class ApiService {
+  private baseUrl: string;
+  private accessToken: string | null = null;
+
+  async authenticate(): Promise<AuthResult> {
+    // Implementation
+  }
+
+  async fetchData<T>(endpoint: string): Promise<T> {
+    // Implementation with error handling
+  }
+
+  private normalizeData(raw: any): NormalizedData {
+    // Data normalization
+  }
+}
+```
+
+### React Component Pattern
+```typescript
+interface ComponentProps {
+  data: DataType;
+  isLoading: boolean;
+  onUpdate: (data: DataType) => void;
+}
+
+export const Component: React.FC<ComponentProps> = ({ 
+  data, 
+  isLoading, 
+  onUpdate 
+}) => {
+  // Component implementation
+};
+```
+
+### Error Handling Pattern
+```typescript
+try {
+  const result = await apiCall();
+  return result;
+} catch (error) {
+  debugLogger.error('SERVICE', 'API call failed', error);
+  throw new Error('User-friendly error message');
+}
+```
+
+## Integration Guidelines
+
+### API Integrations
+- **Authentication**: Implement OAuth 2.0 flows
+- **Rate Limiting**: Handle API rate limits gracefully
+- **Error Handling**: Implement retry logic and fallbacks
+- **Data Normalization**: Normalize data from different APIs
+
+### Database Operations
+- **Transactions**: Use transactions for related operations
+- **Indexing**: Ensure proper database indexes
+- **Validation**: Validate data before database operations
+- **Security**: Use Row Level Security policies
+
+## Performance Guidelines
+
+### Frontend Optimization
+- **Lazy Loading**: Implement code splitting and lazy loading
+- **Image Optimization**: Use proper image formats and sizes
+- **Bundle Analysis**: Regularly analyze bundle size
+- **Caching**: Implement proper caching strategies
+
+### Backend Optimization
+- **Query Optimization**: Optimize database queries
+- **Pagination**: Implement pagination for large datasets
+- **Caching**: Use Redis for frequently accessed data
+- **CDN**: Use CDN for static assets
+
+## Security Guidelines
+
+### Data Protection
+- **Encryption**: Encrypt sensitive data at rest
+- **HTTPS**: Use HTTPS for all communications
+- **Input Validation**: Validate all inputs server-side
+- **SQL Injection**: Use parameterized queries
+
+### Authentication
+- **JWT Tokens**: Use JWT for session management
+- **Token Refresh**: Implement automatic token refresh
+- **Role-based Access**: Implement proper access control
+- **Audit Logging**: Log all security-relevant actions
+
+## Troubleshooting
+
+### Common Issues
+- **TypeScript Errors**: Use AI to fix type issues
+- **React Errors**: Check component lifecycle and state management
+- **API Errors**: Verify endpoints and authentication
+- **Build Errors**: Check imports and dependencies
+
+### AI-Assisted Debugging
+- **Use Inline Chat**: `Ctrl + I` on problematic code
+- **Provide Context**: Include error messages and relevant code
+- **Ask Specific Questions**: Be precise about the issue
+- **Follow AI Suggestions**: Implement recommended solutions
+
+## Resources
+
+### Documentation
+- **Project Docs**: See `docs/ai/` directory for complete documentation
+- **External Docs**: React, TypeScript, Supabase, Facebook/Google APIs
+- **AI Help**: Use Cursor AI for code generation and debugging
+
+### Learning
+- **AI Prompts**: Use AI to explain concepts and best practices
+- **Code Examples**: Ask AI to generate examples and patterns
+- **Refactoring**: Use AI to improve code quality and performance
+
+---
+
+**Remember**: This project is designed for AI-assisted development. Use Cursor AI effectively to generate code, debug issues, and learn best practices. Always follow the established patterns and maintain code quality standards.
