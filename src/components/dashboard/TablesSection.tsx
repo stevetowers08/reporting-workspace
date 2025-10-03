@@ -75,27 +75,27 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
               <tbody>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-blue-600">Meta Ads</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.leads.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.facebookMetrics.spend.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.facebookMetrics.costPerLead.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.ctr.toFixed(2)}%</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.roas.toFixed(2)}x</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.leads?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.facebookMetrics.spend?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.facebookMetrics.costPerLead?.toFixed(2) || '0.00'}</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.ctr?.toFixed(2) || '0.00'}%</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.facebookMetrics.roas?.toFixed(2) || '0.00'}x</td>
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium text-green-600">Google Ads</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.googleMetrics.leads.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.googleMetrics.cost.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.googleMetrics.costPerLead.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.googleMetrics.ctr.toFixed(2)}%</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.googleMetrics.leads?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.googleMetrics.cost?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.googleMetrics.costPerLead?.toFixed(2) || '0.00'}</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.googleMetrics.ctr?.toFixed(2) || '0.00'}%</td>
                   <td className="py-3 px-4 text-right">-</td>
                 </tr>
                 <tr className="bg-gray-50 font-medium">
                   <td className="py-3 px-4">Total</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.totalLeads.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.totalSpend.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">${dashboardData.leadMetrics.overallCostPerLead.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.totalLeads?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.totalSpend?.toLocaleString() || '0'}</td>
+                  <td className="py-3 px-4 text-right">${dashboardData.leadMetrics.overallCostPerLead?.toFixed(2) || '0.00'}</td>
                   <td className="py-3 px-4 text-right">-</td>
-                  <td className="py-3 px-4 text-right">{dashboardData.roi.toFixed(2)}x</td>
+                  <td className="py-3 px-4 text-right">{dashboardData.roi?.toFixed(2) || '0.00'}x</td>
                 </tr>
               </tbody>
             </table>

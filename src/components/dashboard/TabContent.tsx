@@ -54,25 +54,25 @@ export const TabContent: React.FC<TabContentProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
-                    {dashboardData.facebookMetrics.leads.toLocaleString()}
+                        {dashboardData.facebookMetrics.leads?.toLocaleString() || '0'}
                   </div>
                   <div className="text-sm text-gray-600">Leads</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    ${dashboardData.facebookMetrics.spend.toLocaleString()}
+                        ${dashboardData.facebookMetrics.spend?.toLocaleString() || '0'}
                   </div>
                   <div className="text-sm text-gray-600">Spend</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <div className="text-2xl font-bold text-purple-600">
-                    ${dashboardData.facebookMetrics.costPerLead.toFixed(2)}
+                        ${dashboardData.facebookMetrics.costPerLead?.toFixed(2) || '0.00'}
                   </div>
                   <div className="text-sm text-gray-600">Cost per Lead</div>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
-                    {dashboardData.facebookMetrics.roas.toFixed(2)}x
+                        {dashboardData.facebookMetrics.roas?.toFixed(2) || '0.00'}x
                   </div>
                   <div className="text-sm text-gray-600">ROAS</div>
                 </div>
@@ -94,25 +94,25 @@ export const TabContent: React.FC<TabContentProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    {dashboardData.googleMetrics.leads.toLocaleString()}
+                        {dashboardData.googleMetrics.leads?.toLocaleString() || '0'}
                   </div>
                   <div className="text-sm text-gray-600">Leads</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
-                    ${dashboardData.googleMetrics.cost.toLocaleString()}
+                        ${dashboardData.googleMetrics.cost?.toLocaleString() || '0'}
                   </div>
                   <div className="text-sm text-gray-600">Cost</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <div className="text-2xl font-bold text-purple-600">
-                    ${dashboardData.googleMetrics.costPerLead.toFixed(2)}
+                        ${dashboardData.googleMetrics.costPerLead?.toFixed(2) || '0.00'}
                   </div>
                   <div className="text-sm text-gray-600">Cost per Lead</div>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
-                    {dashboardData.googleMetrics.qualityScore.toFixed(1)}
+                        {dashboardData.googleMetrics.qualityScore?.toFixed(1) || '0.0'}
                   </div>
                   <div className="text-sm text-gray-600">Quality Score</div>
                 </div>

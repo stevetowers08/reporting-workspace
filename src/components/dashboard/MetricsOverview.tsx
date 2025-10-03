@@ -36,7 +36,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   const metrics = [
     {
       title: "Total Leads",
-      value: dashboardData.totalLeads.toLocaleString(),
+      value: (dashboardData.totalLeads || 0).toLocaleString(),
       description: `Generated in last ${periodText}`,
       icon: Users,
       color: "text-blue-600",
@@ -44,7 +44,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
     },
     {
       title: "Total Spend",
-      value: `$${dashboardData.totalSpend.toLocaleString()}`,
+      value: `$${(dashboardData.totalSpend || 0).toLocaleString()}`,
       description: `Across all platforms`,
       icon: DollarSign,
       color: "text-green-600",
@@ -52,7 +52,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
     },
     {
       title: "Total Revenue",
-      value: `$${dashboardData.totalRevenue.toLocaleString()}`,
+      value: `$${(dashboardData.totalRevenue || 0).toLocaleString()}`,
       description: `From event bookings`,
       icon: TrendingUp,
       color: "text-purple-600",
@@ -60,7 +60,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
     },
     {
       title: "ROI",
-      value: `${dashboardData.roi.toFixed(1)}x`,
+      value: `${(dashboardData.roi || 0).toFixed(1)}x`,
       description: `Return on investment`,
       icon: Calendar,
       color: "text-orange-600",
