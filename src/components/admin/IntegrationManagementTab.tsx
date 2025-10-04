@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
-import { DatabaseService } from '@/services/data/databaseService';
+import { IntegrationService } from '@/services/integration/IntegrationService';
+import { IntegrationPlatform } from '@/types/integration';
 import { AlertCircle, CheckCircle, Clock, Copy, Edit, Settings, TestTube, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -78,9 +79,16 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
   };
 
   const testApiConnection = async (platform: string) => {
-    // Get the current credentials from the form
-    const platformCredentials = credentials[platform] || {};
     const config = getPlatformConfig(platform);
+    
+    // For OAuth platforms, just trigger the OAuth flow
+    if (config?.usesOAuth) {
+      await onConnectIntegration(platform);
+      return;
+    }
+    
+    // For API key platforms, get credentials from the form
+    const platformCredentials = credentials[platform] || {};
     
     // Merge form credentials with default credentials
     const finalCredentials: Record<string, string> = {};
@@ -93,12 +101,16 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
     // Save credentials to database before testing
     if (Object.keys(finalCredentials).length > 0) {
       try {
-        await DatabaseService.saveIntegration(platform, {
-          connected: false, // Will be set to true if test passes
-          accountName: `${config?.name || platform} Account`,
-          lastSync: new Date().toISOString(),
-          config: finalCredentials
-        });
+        // For API key platforms like Google AI Studio
+        if (platform === 'google-ai' && finalCredentials.apiKey) {
+          await IntegrationService.saveApiKey(platform as IntegrationPlatform, {
+            apiKey: finalCredentials.apiKey,
+            keyType: 'bearer'
+          }, {
+            id: 'google-ai-studio',
+            name: 'Google AI Studio'
+          });
+        }
       } catch (error) {
         console.error('Failed to save credentials:', error);
       }
@@ -137,6 +149,22 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
       );
     }
 
+    // For OAuth platforms, show simple connect message
+    if (config.usesOAuth) {
+      return (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-medium text-green-800">OAuth Integration</span>
+          </div>
+          <p className="text-xs text-green-700">
+            {config.name} uses OAuth for secure authentication. Click "Connect" to authorize with your account.
+          </p>
+        </div>
+      );
+    }
+
+    // For API key platforms, show credential inputs
     return (
       <div className="space-y-3">
         {config.credentials.map(credential => (

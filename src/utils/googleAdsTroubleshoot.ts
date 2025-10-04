@@ -83,7 +83,7 @@ export class GoogleAdsTroubleshoot {
 
     // Test 2: OAuth Tokens
     try {
-      const tokens = OAuthService.getStoredTokens('google');
+      const tokens = await OAuthService.getStoredTokens('google');
       if (!tokens || !tokens.accessToken) {
         results.push({
           test: 'OAuth Tokens',
@@ -96,7 +96,7 @@ export class GoogleAdsTroubleshoot {
           }
         });
       } else {
-        const isValid = OAuthService.isTokenValid('google');
+        const isValid = await OAuthService.isTokenValid('google');
         results.push({
           test: 'OAuth Tokens',
           status: isValid ? 'pass' : 'warning',
@@ -240,16 +240,16 @@ export class GoogleAdsTroubleshoot {
     }
   }
 
-  static getEnvironmentStatus(): {
+  static async getEnvironmentStatus(): Promise<{
     developerToken: boolean;
     clientId: boolean;
     clientSecret: boolean;
     oauthTokens: boolean;
-  } {
+  }> {
     const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
-    const tokens = OAuthService.getStoredTokens('google');
+    const tokens = await OAuthService.getStoredTokens('google');
 
     return {
       developerToken: !!(developerToken && developerToken !== 'your_google_ads_developer_token'),

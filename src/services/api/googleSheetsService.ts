@@ -23,10 +23,10 @@ export class GoogleSheetsService {
    * Get access token for Google Sheets API
    */
   private static async getAccessToken(): Promise<string | null> {
-    // First try localStorage
-    const tokens = OAuthService.getStoredTokens('google');
+    // First try TokenManager (database-only)
+    const tokens = await OAuthService.getStoredTokens('google');
     if (tokens?.accessToken) {
-      debugLogger.debug('GoogleSheetsService', 'Using tokens from localStorage', { hasAccessToken: true });
+      debugLogger.debug('GoogleSheetsService', 'Using tokens from TokenManager', { hasAccessToken: true });
       return tokens.accessToken;
     }
     

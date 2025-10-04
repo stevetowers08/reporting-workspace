@@ -1,6 +1,7 @@
 import { ClientForm } from "@/components/admin/ClientForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { debugLogger } from '@/lib/debug';
 import { X } from "lucide-react";
 
 interface Client {
@@ -30,6 +31,8 @@ interface EditClientModalProps {
 
 const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClientModalProps) => {
     const handleSubmit = (formData: any) => {
+        debugLogger.log('EditClientModal', 'handleSubmit called', { formData, clientId: client.id });
+        
         // Transform form data to match expected format
         const updates = {
             name: formData.name,
@@ -47,6 +50,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
             }
         };
         
+        debugLogger.log('EditClientModal', 'Calling onUpdateClient', { clientId: client.id, updates });
         onUpdateClient(client.id, updates);
     };
 

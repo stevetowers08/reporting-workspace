@@ -4,6 +4,10 @@
       "command": "node",
       "args": ["playwright-server.js"],
       "cwd": "./mcp-servers"
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }

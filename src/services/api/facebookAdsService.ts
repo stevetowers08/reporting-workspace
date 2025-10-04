@@ -1,4 +1,5 @@
 import { debugLogger, debugService } from '@/lib/debug';
+import { TokenManager } from '@/services/auth/TokenManager';
 
 export interface FacebookAdsMetrics {
   impressions: number;
@@ -53,76 +54,49 @@ export class FacebookAdsService {
   private static readonly API_VERSION = 'v19.0';
   private static readonly BASE_URL = `https://graph.facebook.com/${this.API_VERSION}`;
 
-  // Get access token from unified credential service
+  // Get access token from TokenManager
   static async getAccessToken(): Promise<string> {
     try {
-      // First try unified credential service
-      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
-      const token = await UnifiedCredentialService.getAccessToken('facebookAds');
+      // First try TokenManager (database-only)
+      const token = await TokenManager.getAccessToken('facebookAds');
       
       if (token) {
-        debugLogger.debug('FacebookAdsService', 'Using Facebook token from unified credential service');
+        debugLogger.debug('FacebookAdsService', 'Using Facebook token from TokenManager');
         return token;
       }
 
-      // Fallback to localStorage
-      const oauthTokens = localStorage.getItem('oauth_tokens_facebook');
-      if (oauthTokens) {
-        try {
-          const tokens = JSON.parse(oauthTokens);
-          if (tokens.accessToken) {
-            debugLogger.debug('FacebookAdsService', 'Using OAuth Facebook token from localStorage');
-            return tokens.accessToken;
-          }
-        } catch (error) {
-          debugLogger.warn('FacebookAdsService', 'Failed to parse OAuth Facebook tokens', error);
-        }
-      }
-
-      // Fallback to environment variable
-      const envToken = import.meta.env.VITE_FACEBOOK_ACCESS_TOKEN;
-      if (envToken && envToken !== 'your_facebook_access_token') {
-        debugLogger.debug('FacebookAdsService', 'Using environment Facebook token');
-        return envToken;
-      }
-
-      // Debug: Check what's actually available
-      debugLogger.debug('FacebookAdsService', 'Available localStorage keys', Object.keys(localStorage));
-      debugLogger.debug('FacebookAdsService', 'OAuth tokens in localStorage', localStorage.getItem('oauth_tokens_facebook'));
+      // SECURITY: Environment tokens should NEVER be used in client-side code
+      // This exposes API keys in the client bundle and is a critical security vulnerability
+      // All authentication must go through OAuth flows only
       
-      throw new Error('No Facebook access token found. Please authenticate through OAuth or set VITE_FACEBOOK_ACCESS_TOKEN environment variable.');
+      throw new Error('No Facebook access token found. Please authenticate through OAuth.');
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error getting access token', error);
       throw error;
     }
   }
 
-  // Rate limiting state
-  private static lastRequestTime = 0;
+  // SECURITY FIX: Instance-based rate limiting to prevent race conditions
+  private static requestQueue: Promise<any> = Promise.resolve();
   private static readonly MIN_REQUEST_INTERVAL = 100; // 100ms between requests (10 requests/second max)
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
-  // Rate-limited fetch with retry logic
+  // Rate-limited fetch with retry logic - SECURITY FIX: Proper queuing to prevent race conditions
   static async rateLimitedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // Rate limiting: ensure minimum interval between requests
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      const delay = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      debugLogger.debug('FacebookAdsService', `Rate limiting: waiting ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    this.lastRequestTime = Date.now();
+    // Queue requests to prevent race conditions
+    return this.requestQueue = this.requestQueue.then(async () => {
+      // Rate limiting: ensure minimum interval between requests
+      await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
 
-    // Retry logic with exponential backoff
-    for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
-      try {
-        debugLogger.debug('FacebookAdsService', `API request attempt ${attempt}/${this.MAX_RETRIES}`, { url });
-        
-        // Add timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      // Retry logic with exponential backoff
+      for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+        try {
+          debugLogger.debug('FacebookAdsService', `API request attempt ${attempt}/${this.MAX_RETRIES}`, { url });
+          
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
         const response = await fetch(url, {
           ...options,
@@ -868,9 +842,9 @@ export class FacebookAdsService {
     }
   }
 
-  static disconnect(): void {
-    // Clear OAuth tokens
-    localStorage.removeItem('oauth_tokens_facebook');
+  static async disconnect(): Promise<void> {
+    // Clear OAuth tokens using TokenManager
+    await TokenManager.removeTokens('facebookAds');
     debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected');
   }
 }

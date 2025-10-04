@@ -1,25 +1,63 @@
 import { QueryClient } from '@tanstack/react-query';
+import { debugLogger } from './debug';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-      refetchOnWindowFocus: false,
-      refetchOnMount: false, // Prevent unnecessary refetches
-      refetchOnReconnect: false, // Prevent refetch on network reconnect
+      // Enhanced caching strategy
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 minutes
+      refetchOnWindowFocus: false, // Don't refetch when window gains focus
+      refetchOnMount: true, // Refetch when component mounts (but respect staleTime)
+      refetchOnReconnect: true, // Refetch when network reconnects
+      refetchInterval: false, // No automatic polling by default
+      
+      // Smart retry logic
       retry: (failureCount, error: any) => {
-        // Don't retry on 4xx errors
+        // Don't retry on client errors (4xx)
         if (error?.status >= 400 && error?.status < 500) {
+          debugLogger.warn('QueryClient', 'Not retrying 4xx error', { 
+            status: error.status, 
+            failureCount 
+          });
           return false;
         }
-        // Retry up to 2 times for other errors (reduced from 3)
-        return failureCount < 2;
+        
+        // Don't retry on network errors after 2 attempts
+        if (error?.message?.includes('network') && failureCount >= 2) {
+          debugLogger.warn('QueryClient', 'Not retrying network error after 2 attempts', { 
+            failureCount 
+          });
+          return false;
+        }
+        
+        // Retry up to 3 times for server errors (5xx)
+        const shouldRetry = failureCount < 3;
+        debugLogger.info('QueryClient', 'Retry decision', { 
+          failureCount, 
+          shouldRetry, 
+          errorStatus: error?.status 
+        });
+        return shouldRetry;
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Max 10 second delay
+      
+      // Exponential backoff with jitter
+      retryDelay: (attemptIndex) => {
+        const baseDelay = Math.min(1000 * 2 ** attemptIndex, 10000); // Max 10 seconds
+        const jitter = Math.random() * 1000; // Add up to 1 second of jitter
+        return baseDelay + jitter;
+      },
+      
+      // Network mode handling
+      networkMode: 'online', // Only run queries when online
     },
+    
     mutations: {
+      // Don't retry mutations by default
       retry: false,
+      
+      // Network mode for mutations
+      networkMode: 'online',
     },
   },
 });
@@ -44,6 +82,8 @@ export const queryKeys = {
   integrations: {
     all: ['integrations'] as const,
     platform: (platform: string) => [...queryKeys.integrations.all, platform] as const,
+    display: () => [...queryKeys.integrations.all, 'display'] as const,
+    tokens: (platform: string) => [...queryKeys.integrations.all, 'tokens', platform] as const,
   },
   facebookAds: {
     all: ['facebookAds'] as const,

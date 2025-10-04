@@ -1,5 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { OAuthService } from '../auth/oauthService';
+import { TokenManager } from '@/services/auth/TokenManager';
 
 export interface GoogleAdsMetrics {
   impressions: number;
@@ -50,80 +50,74 @@ export class GoogleAdsService {
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
+  /**
+   * Fetch customer ID programmatically after OAuth authentication
+   * This follows Google Ads API best practices for getting customer ID
+   */
+  static async fetchCustomerId(accessToken: string): Promise<string | null> {
+    const developerToken = this.getDeveloperToken();
+    
+    if (!accessToken || !developerToken) {
+      debugLogger.error('GoogleAdsService', 'Missing access token or developer token for customer ID fetch');
+      return null;
+    }
+
+    try {
+      debugLogger.debug('GoogleAdsService', 'Fetching customer ID programmatically');
+      
+      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        debugLogger.error('GoogleAdsService', 'Failed to fetch accessible customers', { 
+          status: response.status, 
+          statusText: response.statusText 
+        });
+        return null;
+      }
+
+      const data = await response.json();
+      const customers = data.resourceNames || [];
+      
+      if (customers.length === 0) {
+        debugLogger.warn('GoogleAdsService', 'No accessible customers found');
+        return null;
+      }
+
+      // Get the first customer ID (most common use case)
+      const customerId = customers[0].split('/').pop();
+      debugLogger.info('GoogleAdsService', 'Successfully fetched customer ID', { customerId });
+      
+      return customerId;
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Error fetching customer ID', error);
+      return null;
+    }
+  }
+
   private static getDeveloperToken(): string {
     // Use environment variable directly for development
     return import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || '';
   }
 
   private static async getAccessToken(): Promise<string | null> {
-    // First try localStorage
-    const tokens = OAuthService.getStoredTokens('google');
-    if (tokens?.accessToken) {
-      debugLogger.debug('GoogleAdsService', 'Using tokens from localStorage', { hasAccessToken: true });
-      return tokens.accessToken;
+    // First try TokenManager (database-only)
+    const token = await TokenManager.getAccessToken('googleAds');
+    if (token) {
+      debugLogger.debug('GoogleAdsService', 'Using token from TokenManager', { hasAccessToken: true });
+      return token;
     }
     
-    // Fallback to database
-    try {
-      const { DatabaseService } = await import('@/services/data/databaseService');
-      const integrations = await DatabaseService.getIntegrations();
-      const googleIntegration = integrations.find(i => i.platform === 'googleAds' && i.connected);
-      
-      if (googleIntegration?.config?.tokens?.accessToken) {
-        const dbTokens = googleIntegration.config.tokens;
-        
-        // Check if token is expired
-        if (dbTokens.expiresIn) {
-          const now = Date.now();
-          const expiresAt = dbTokens.expiresIn * 1000; // Convert to milliseconds
-          const isExpired = now >= expiresAt;
-          
-          if (isExpired && dbTokens.refreshToken) {
-            debugLogger.debug('GoogleAdsService', 'Token expired, attempting refresh', { 
-              expiredAt: new Date(expiresAt).toISOString(),
-              now: new Date(now).toISOString()
-            });
-            
-            try {
-              // Refresh the token
-              const refreshedTokens = await OAuthService.refreshAccessToken('google');
-              debugLogger.debug('GoogleAdsService', 'Token refreshed successfully', { hasNewToken: !!refreshedTokens.accessToken });
-              
-              // Update database with new tokens
-              await DatabaseService.saveIntegration('googleAds', {
-                connected: true,
-                accountName: 'Google Ads Account',
-                lastSync: new Date().toISOString(),
-                config: { 
-                  tokens: { 
-                    accessToken: refreshedTokens.accessToken,
-                    refreshToken: refreshedTokens.refreshToken || dbTokens.refreshToken,
-                    expiresIn: refreshedTokens.expiresIn,
-                    tokenType: refreshedTokens.tokenType,
-                    scope: refreshedTokens.scope
-                  } 
-                }
-              });
-              
-              return refreshedTokens.accessToken;
-            } catch (refreshError) {
-              debugLogger.error('GoogleAdsService', 'Token refresh failed', refreshError);
-              // Continue with expired token - it might still work for a short time
-            }
-          }
-        }
-        
-        debugLogger.debug('GoogleAdsService', 'Using tokens from database', { hasAccessToken: true });
-        return dbTokens.accessToken;
-      }
-    } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to get tokens from database', error);
-    }
+    // SECURITY: Environment tokens should NEVER be used in client-side code
+    // This exposes API keys in the client bundle and is a critical security vulnerability
+    // All authentication must go through OAuth flows only
     
-    debugLogger.debug('GoogleAdsService', 'No access token found', { 
-      hasLocalStorageTokens: !!tokens,
-      hasAccessToken: !!tokens?.accessToken 
-    });
+    debugLogger.warn('GoogleAdsService', 'No Google access token found. Please authenticate through OAuth.');
     return null;
   }
 
@@ -557,9 +551,9 @@ export class GoogleAdsService {
     }
   }
 
-  static disconnect(): void {
-    // Clear OAuth tokens
-    localStorage.removeItem('oauth_tokens_google');
+  static async disconnect(): Promise<void> {
+    // Clear OAuth tokens using TokenManager
+    await TokenManager.removeTokens('googleAds');
     console.log('Google Ads disconnected');
   }
 }

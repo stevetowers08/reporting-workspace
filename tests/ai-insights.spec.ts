@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('AI Insights System', () => {
   test.beforeEach(async ({ page }) => {
@@ -10,8 +10,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should display AI Insights tab in admin panel', async ({ page }) => {
-    // Navigate to admin panel
-    await page.click('text=Admin');
+    // Navigate directly to admin panel
+    await page.goto('/admin');
     await page.waitForLoadState('networkidle');
 
     // Check if AI Insights tab exists
@@ -23,7 +23,7 @@ test.describe('AI Insights System', () => {
 
     // Verify AI Insights admin content is displayed
     await expect(page.locator('text=AI Insights Configuration')).toBeVisible();
-    await expect(page.locator('text=System Prompts')).toBeVisible();
+    await expect(page.locator('text=System Prompt Configuration')).toBeVisible();
   });
 
   test('should allow creating and managing system prompts', async ({ page }) => {

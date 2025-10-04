@@ -2,6 +2,8 @@ import { debugLogger } from '@/lib/debug';
 import { GoogleAiService } from '@/services/ai/googleAiService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { DatabaseService } from '@/services/data/databaseService';
+import { IntegrationService } from '@/services/integration/IntegrationService';
+import { IntegrationPlatform } from '@/types/integration';
 
 export interface Client {
   id: string;
@@ -55,56 +57,8 @@ export class AdminService {
     try {
       debugLogger.info('AdminService', 'Loading integrations');
       
-      // Get integrations from database
-      const dbIntegrations = await DatabaseService.getIntegrations();
-      
-      // Define platform configurations
-      const platforms = [
-        { key: 'facebook', name: 'Facebook Ads', platform: 'facebookAds' },
-        { key: 'google', name: 'Google Ads', platform: 'googleAds' },
-        { key: 'gohighlevel', name: 'GoHighLevel', platform: 'goHighLevel' },
-        { key: 'googlesheets', name: 'Google Sheets', platform: 'googleSheets' },
-        { key: 'google-ai', name: 'Google AI Studio', platform: 'google-ai' }
-      ];
-      
-      const integrations: IntegrationDisplay[] = platforms.map(platform => {
-        // Special handling for Google AI Studio (uses API key, not OAuth)
-        if (platform.platform === 'google-ai') {
-          const dbIntegration = dbIntegrations.find(i => i.platform === platform.platform);
-          const isConnected = !!(dbIntegration?.config?.apiKey);
-          
-          return {
-            id: platform.key,
-            name: platform.name,
-            platform: platform.platform,
-            status: isConnected ? 'connected' : 'not connected',
-            lastSync: isConnected ? 'Recently' : 'Never',
-            clientsUsing: 0,
-            accountName: isConnected ? 'Google AI Studio' : undefined
-          };
-        }
-        
-        // Check localStorage first
-        const hasLocalTokens = OAuthService.getStoredTokens(platform.key) !== null;
-        const isLocalTokenValid = OAuthService.isTokenValid(platform.key);
-        
-        // Check database
-        const dbIntegration = dbIntegrations.find(i => i.platform === platform.platform && i.connected);
-        const hasDbTokens = !!(dbIntegration?.config?.tokens?.accessToken || dbIntegration?.config?.accessToken);
-        
-        // Use either localStorage or database tokens
-        const isConnected = (hasLocalTokens && isLocalTokenValid) || hasDbTokens;
-        
-        return {
-          id: platform.key,
-          name: platform.name,
-          platform: platform.platform,
-          status: isConnected ? 'connected' : 'not connected',
-          lastSync: isConnected ? 'Recently' : 'Never',
-          clientsUsing: 0,
-          accountName: isConnected ? `${platform.name} Account` : undefined
-        };
-      });
+      // Use the new unified integration service
+      const integrations = await IntegrationService.getIntegrationDisplay();
       
       debugLogger.info('AdminService', 'Loaded integrations', { count: integrations.length });
       return integrations;
@@ -164,11 +118,12 @@ export class AdminService {
           const isValid = await GoogleAiService.testConnection();
           
           if (isValid) {
-            await DatabaseService.saveIntegration('google-ai', {
-              connected: true,
-              accountName: 'Google AI Studio',
-              lastSync: new Date().toISOString(),
-              config: { apiKey }
+            await IntegrationService.saveApiKey('google-ai', {
+              apiKey,
+              keyType: 'bearer'
+            }, {
+              id: 'google-ai-studio',
+              name: 'Google AI Studio'
             });
             debugLogger.info('AdminService', 'Google AI Studio connected successfully');
           } else {
@@ -224,13 +179,8 @@ export class AdminService {
       // Revoke tokens
       await OAuthService.revokeTokens(oauthPlatform);
       
-      // Update database to mark as disconnected
-      await DatabaseService.saveIntegration(platform, {
-        connected: false,
-        accountName: undefined,
-        lastSync: undefined,
-        config: { tokens: {} }
-      });
+      // Update database to mark as disconnected using new service
+      await IntegrationService.disconnect(platform as IntegrationPlatform);
       
       // For Facebook, also call the service disconnect
       if (platform === 'facebookAds') {

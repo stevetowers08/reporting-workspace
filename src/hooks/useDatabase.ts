@@ -1,6 +1,8 @@
 import { queryKeys } from '@/lib/queryClient';
 import type { Client } from '@/services/data/databaseService';
 import { DatabaseService } from '@/services/data/databaseService';
+import { IntegrationService } from '@/services/integration/IntegrationServiceV2';
+import { IntegrationPlatform } from '@/types/integration';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 // Client hooks
@@ -76,7 +78,7 @@ export const useDeleteClient = () => {
 export const useIntegrations = () => {
   return useQuery({
     queryKey: queryKeys.integrations.all,
-    queryFn: () => DatabaseService.getIntegrations(),
+    queryFn: () => IntegrationService.getAllIntegrations(),
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 };
@@ -84,7 +86,7 @@ export const useIntegrations = () => {
 export const useIntegration = (platform: string) => {
   return useQuery({
     queryKey: queryKeys.integrations.platform(platform),
-    queryFn: () => DatabaseService.getIntegration(platform),
+    queryFn: () => IntegrationService.getIntegration(platform as IntegrationPlatform),
     enabled: !!platform,
     staleTime: 10 * 60 * 1000,
   });
@@ -94,8 +96,8 @@ export const useSaveIntegration = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ platform, data }: { platform: string; data: any }) =>
-      DatabaseService.saveIntegration(platform, data),
+    mutationFn: ({ platform, config }: { platform: string; config: any }) =>
+      IntegrationService.saveIntegration(platform as IntegrationPlatform, config),
     onSuccess: (updatedIntegration) => {
       // Update the specific integration in cache
       queryClient.setQueryData(
@@ -106,6 +108,77 @@ export const useSaveIntegration = () => {
       // Invalidate integrations list
       queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all });
     },
+  });
+};
+
+export const useIntegrationDisplay = () => {
+  return useQuery({
+    queryKey: queryKeys.integrations.display(),
+    queryFn: () => IntegrationService.getIntegrationDisplay(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useIntegrationTokens = (platform: string) => {
+  return useQuery({
+    queryKey: queryKeys.integrations.tokens(platform),
+    queryFn: () => IntegrationService.getTokens(platform as IntegrationPlatform),
+    enabled: !!platform,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useRefreshTokens = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ platform, tokens }: { platform: string; tokens: any }) =>
+      IntegrationService.refreshTokens(platform as IntegrationPlatform, tokens),
+    onSuccess: (updatedIntegration, { platform }) => {
+      // Update the specific integration in cache
+      queryClient.setQueryData(
+        queryKeys.integrations.platform(platform),
+        updatedIntegration
+      );
+      
+      // Invalidate tokens cache
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.integrations.tokens(platform) 
+      });
+      
+      // Invalidate integrations list
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all });
+    },
+  });
+};
+
+export const useDisconnectIntegration = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (platform: string) =>
+      IntegrationService.disconnect(platform as IntegrationPlatform),
+    onSuccess: (_, platform) => {
+      // Remove from cache
+      queryClient.removeQueries({ 
+        queryKey: queryKeys.integrations.platform(platform) 
+      });
+      queryClient.removeQueries({ 
+        queryKey: queryKeys.integrations.tokens(platform) 
+      });
+      
+      // Invalidate integrations list
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all });
+    },
+  });
+};
+
+export const useTestApiConnection = () => {
+  return useQuery({
+    queryKey: ['api-connection-test'],
+    queryFn: () => IntegrationService.testConnection(),
+    staleTime: 30 * 1000, // 30 seconds
+    retry: 1,
   });
 };
 

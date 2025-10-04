@@ -1,9 +1,12 @@
 import DebugPanel from "@/components/DebugPanel";
+import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
+import { ErrorProvider } from "@/contexts/ErrorContext";
+import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AdminPanel from "@/pages/AdminPanel";
-import ErrorBoundary from "@/pages/ErrorBoundary";
 import EventDashboard from "@/pages/EventDashboard";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import Fallback from "@/pages/Fallback";
@@ -34,33 +37,41 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <div className="page-bg-light">
-            <Routes>
-              <Route path="/" element={<HomePageWrapper />} />
-              <Route path="/dashboard/:clientId" element={<EventDashboard />} />
-              <Route path="/admin" element={<AdminPanel />} />
-              <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
-              <Route path="/ad-accounts" element={<AdAccountsOverview />} />
-              <Route path="/facebook-ads" element={<FacebookAdsPage />} />
-              <Route path="/google-ads" element={<GoogleAdsPage />} />
-              <Route path="/oauth/callback" element={<OAuthCallback />} />
-              <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
-              {/* Fallback for unknown routes */}
-              <Route path="*" element={<Fallback />} />
-            </Routes>
+    <AppErrorBoundary>
+      <ErrorProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <div className="page-bg-light">
+              <Routes>
+                <Route path="/" element={<HomePageWrapper />} />
+                <Route path="/dashboard/:clientId" element={<EventDashboard />} />
+                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
+                <Route path="/ad-accounts" element={<AdAccountsOverview />} />
+                <Route path="/facebook-ads" element={<FacebookAdsPage />} />
+                <Route path="/google-ads" element={<GoogleAdsPage />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
+                {/* Fallback for unknown routes */}
+                <Route path="*" element={<Fallback />} />
+              </Routes>
 
-            {/* Debug Panel */}
-            <DebugPanel
-              isOpen={showDebugPanel}
-              onClose={() => setShowDebugPanel(false)}
-            />
-          </div>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </QueryClientProvider>
+              {/* Error Notifications */}
+              <ErrorNotificationContainer />
+
+              {/* Network Status Indicator */}
+              <NetworkStatusIndicator />
+
+              {/* Debug Panel */}
+              <DebugPanel
+                isOpen={showDebugPanel}
+                onClose={() => setShowDebugPanel(false)}
+              />
+            </div>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ErrorProvider>
+    </AppErrorBoundary>
   );
 };
 

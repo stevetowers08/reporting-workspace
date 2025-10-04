@@ -72,10 +72,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
   return (
     <div className={`${containerClasses} ${className}`}>
       <div className="text-center">
-        <div className="relative">
-          <div className={`animate-spin rounded-full ${sizeClasses[size]} border-b-2 border-blue-600 mx-auto mb-4`}></div>
-          <div className={`absolute inset-0 rounded-full border-2 border-blue-200 ${sizeClasses[size]}`}></div>
-        </div>
+        <div className={`animate-spin rounded-full ${sizeClasses[size]} border-2 border-blue-200 border-t-blue-600 mx-auto mb-4`}></div>
         <p className={`text-slate-600 ${textSizeClasses[size]} font-medium`}>{message}</p>
         {submessage && (
           <p className="text-slate-500 text-sm mt-1">{submessage}</p>

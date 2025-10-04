@@ -1,6 +1,5 @@
 import {
     CHART_COLORS,
-    formatChartValue,
     generateDateLabels,
     getDefaultChartOptions,
     getLineDatasetConfig
@@ -57,18 +56,6 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
 
   return (
     <div>
-      {/* Chart Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <div className="text-lg font-semibold text-slate-900">Daily Lead Trends</div>
-          <div className="text-sm text-slate-500">Last 30 days</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xl font-bold text-blue-600">{formatChartValue(totalLeads)}</div>
-          <div className="text-sm text-slate-500">Total • {avgDailyLeads} avg/day</div>
-        </div>
-      </div>
-      
       {/* Chart */}
       <div className="h-64">
         <Line data={chartData} options={options} />

@@ -9,6 +9,7 @@ import { PDFExportService } from "@/services/export/pdfExportService";
 import { LeadQualityMetricsComponent } from '@/components/analytics/LeadQualityMetrics';
 import { LeadQualityTable } from '@/components/analytics/LeadQualityTable';
 
+import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
 import { useAvailableClients, useClientData, useDashboardData } from '@/hooks/useDashboardQueries';
 import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -19,7 +20,6 @@ const MetaAdsMetricsCards = lazy(() => import('@/components/dashboard/MetaAdsMet
 const GoogleAdsMetricsCards = lazy(() => import('@/components/dashboard/GoogleAdsMetricsCards').then(m => ({ default: m.GoogleAdsMetricsCards })));
 const EventSalesMetricsCards = lazy(() => import('@/components/dashboard/EventSalesMetricsCards').then(m => ({ default: m.EventSalesMetricsCards })));
 const PlatformPerformanceStatusChart = lazy(() => import('@/components/dashboard/PlatformPerformanceStatusChart').then(m => ({ default: m.PlatformPerformanceStatusChart })));
-const LeadByDayChart = lazy(() => import('@/components/dashboard/LeadByDayChart').then(m => ({ default: m.LeadByDayChart })));
 const KeyInsights = lazy(() => import('@/components/dashboard/KeyInsights').then(m => ({ default: m.KeyInsights })));
 const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDemographics').then(m => ({ default: m.MetaAdsDemographics })));
 const MetaAdsPlatformBreakdown = lazy(() => import('@/components/dashboard/MetaAdsPlatformBreakdown').then(m => ({ default: m.MetaAdsPlatformBreakdown })));
@@ -225,9 +225,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                   <h3 className="text-lg font-semibold text-slate-900">Leads by Day</h3>
                 </div>
                 <div className="h-64">
-                  <Suspense fallback={<ComponentLoader />}>
-                    <LeadByDayChart data={dashboardData} />
-                  </Suspense>
+                  <LeadByDayChart data={dashboardData} />
                 </div>
               </Card>
 
