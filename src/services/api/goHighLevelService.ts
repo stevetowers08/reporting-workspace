@@ -161,7 +161,7 @@ export class GoHighLevelService {
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
           redirect_uri: credentials.redirect_uri,
-          user_type: 'Company',
+          user_type: 'Sub-account',
           ...(locationId && { locationId })
         })
       });
@@ -229,7 +229,7 @@ export class GoHighLevelService {
           refresh_token: refreshToken,
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
-          user_type: 'Company'
+          user_type: 'Sub-account'
         })
       });
 
