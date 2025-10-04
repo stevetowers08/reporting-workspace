@@ -36,6 +36,26 @@ A comprehensive web application for tracking and analyzing advertising performan
 5. **Open in browser**
    Navigate to `http://localhost:8080`
 
+## 🚀 Deployment
+
+### Vercel (Recommended)
+This project is configured for automatic deployment via Vercel with GitHub integration.
+
+```bash
+# Deploy to production
+npx vercel --prod
+
+# Deploy to preview
+npx vercel
+```
+
+**After deployment:**
+1. Configure environment variables in Vercel dashboard
+2. Update OAuth redirect URIs in Google Cloud Console and Facebook Developer Console
+3. Add your Vercel URL to authorized domains
+
+See [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md) for detailed instructions.
+
 ## 📚 Documentation
 
 ### For Non-Coders

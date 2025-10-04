@@ -92,9 +92,54 @@ npm run test:run
 
 ## Deployment Options
 
-### Option 1: Static Hosting (Recommended)
+### Option 1: Vercel Deployment (Recommended)
+This project is configured for automatic deployment via Vercel with GitHub integration.
+
+#### Automatic Deployment Setup
+1. **Connect Repository**: The project is already connected to Vercel via GitHub
+2. **Environment Variables**: Configure in Vercel dashboard
+3. **Automatic Deployments**: Every push to `main` branch triggers deployment
+
+#### Manual Deployment Commands
+```bash
+# Deploy to production
+npx vercel --prod
+
+# Deploy to preview
+npx vercel
+
+# Check deployment status
+npx vercel ls
+```
+
+#### Vercel Configuration
+- **Framework**: Vite
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Install Command**: `npm ci`
+
+#### Environment Variables in Vercel
+Configure these in the Vercel dashboard under Settings → Environment Variables:
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_FACEBOOK_CLIENT_ID=your-facebook-app-id
+VITE_FACEBOOK_CLIENT_SECRET=your-facebook-app-secret
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_GOOGLE_CLIENT_SECRET=your-google-client-secret
+VITE_GHL_CLIENT_ID=your-ghl-client-id
+```
+
+#### OAuth Configuration for Vercel
+After deployment, update OAuth settings:
+1. **Google Cloud Console**:
+   - Add `https://your-app.vercel.app/oauth/callback` to Authorized redirect URIs
+   - Add `https://your-app.vercel.app` to Authorized JavaScript origins
+2. **Facebook Developer Console**:
+   - Add `https://your-app.vercel.app/oauth/callback` to Valid OAuth Redirect URIs
+
+### Option 2: Other Static Hosting
 Deploy the `dist/` folder to:
-- **Vercel**: `vercel --prod`
 - **Netlify**: Drag and drop `dist/` folder
 - **AWS S3 + CloudFront**: Upload to S3 bucket
 - **GitHub Pages**: Push to `gh-pages` branch
