@@ -162,13 +162,19 @@ export class GoHighLevelService {
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
           redirect_uri: credentials.redirect_uri,
-          user_type: 'Company',
-          ...(locationId && { locationId })
+          user_type: 'Company'
         })
       });
 
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json().catch(() => ({}));
+        const errorText = await tokenResponse.text();
+        let errorData = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { rawError: errorText };
+        }
+        
         debugLogger.error('GoHighLevelService', 'Token exchange failed', {
           status: tokenResponse.status,
           statusText: tokenResponse.statusText,
@@ -179,11 +185,10 @@ export class GoHighLevelService {
             client_id: credentials.client_id,
             client_secret: credentials.client_secret ? '***' : 'MISSING',
             redirect_uri: credentials.redirect_uri,
-            user_type: 'Company',
-            locationId: locationId || 'NOT_PROVIDED'
+            user_type: 'Company'
           }
         });
-        throw new Error(`Token exchange failed: ${errorData.error || errorData.message || tokenResponse.statusText}`);
+        throw new Error(`Token exchange failed: ${errorData.error || errorData.message || errorData.rawError || tokenResponse.statusText}`);
       }
 
       const tokenData = await tokenResponse.json();
