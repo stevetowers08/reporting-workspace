@@ -1,3 +1,5 @@
+import { GHLIntegrationCard } from '@/components/integration/GHLIntegrationCard';
+import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LoadingSpinner, LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Button } from '@/components/ui/button';
@@ -7,7 +9,7 @@ import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
 import { IntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
-import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
+import { debugLogger } from '@/lib/debug';
 import { AlertCircle, CheckCircle, Clock, Copy, Edit, Settings, TestTube, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -16,9 +18,9 @@ interface IntegrationManagementTabProps {
   loading: boolean;
   testing: Record<string, boolean>;
   testResults: Record<string, TestResult>;
-  onConnectIntegration: (_platform: string) => void;
-  onDisconnectIntegration: (_platform: string) => void;
-  onTestConnection: (_platform: string) => Promise<TestResult>;
+  onConnectIntegration: (platform: string) => void;
+  onDisconnectIntegration: (platform: string) => void;
+  onTestConnection: (platform: string) => Promise<TestResult>;
 }
 
 export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> = ({
@@ -205,8 +207,18 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {integrations.map((integration) => (
+    <div className="space-y-6">
+      {/* Go High Level Integration */}
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">CRM & Marketing Automation</h3>
+        <GHLIntegrationCard />
+      </div>
+
+      {/* Other Integrations */}
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">Advertising Platforms</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {integrations.map((integration) => (
         <div key={integration.id} className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
           {/* Header */}
           <div className="flex items-center gap-4 mb-4">
@@ -368,6 +380,8 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   );
 };

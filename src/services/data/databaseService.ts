@@ -542,6 +542,69 @@ export class DatabaseService {
     }
   }
 
+  // Go High Level Methods
+  static async saveGHLConnection(connectionData: {
+    accessToken: string;
+    refreshToken?: string;
+    locationId: string;
+    expiresIn?: number;
+  }): Promise<void> {
+    try {
+      debugDatabase.query('saveGHLConnection', 'integrations');
+      
+      // Update or create GHL integration
+      const { error } = await supabase
+        .from('integrations')
+        .upsert({
+          platform: 'goHighLevel',
+          connected: true,
+          account_id: connectionData.locationId,
+          config: {
+            accessToken: connectionData.accessToken,
+            refreshToken: connectionData.refreshToken,
+            expiresIn: connectionData.expiresIn,
+            connectedAt: new Date().toISOString()
+          },
+          last_sync: new Date().toISOString()
+        }, {
+          onConflict: 'platform'
+        });
+
+      if (error) {
+        debugDatabase.error('saveGHLConnection', 'integrations', error);
+        throw error;
+      }
+
+      debugDatabase.success('saveGHLConnection', 'integrations', 'GHL connection saved');
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error saving GHL connection', error);
+      throw error;
+    }
+  }
+
+  static async getGHLConnection(): Promise<any | null> {
+    try {
+      debugDatabase.query('getGHLConnection', 'integrations');
+      
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('platform', 'goHighLevel')
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        debugDatabase.error('getGHLConnection', 'integrations', error);
+        throw error;
+      }
+
+      debugDatabase.success('getGHLConnection', 'integrations', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error getting GHL connection', error);
+      throw error;
+    }
+  }
+
   // Google Ads Config Methods
   static async getGoogleAdsConfigs(): Promise<any[]> {
     try {

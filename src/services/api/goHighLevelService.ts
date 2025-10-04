@@ -1,19 +1,28 @@
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 
-export interface GoHighLevelMetrics {
-  totalContacts: number;
-  newContacts: number;
-  totalOpportunities: number;
-  wonOpportunities: number;
-  lostOpportunities: number;
-  pipelineValue: number;
-  avgDealSize: number;
-  conversionRate: number;
-  responseTime: number;
-  wonRevenue: number;
+// Browser API types
+declare const fetch: typeof globalThis.fetch;
+declare const crypto: globalThis.Crypto;
+declare const TextEncoder: typeof globalThis.TextEncoder;
+declare const URLSearchParams: typeof globalThis.URLSearchParams;
+
+export interface GHLAccount {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+  website: string;
+  timezone: string;
+  currency: string;
+  status: string;
 }
 
-export interface GoHighLevelContact {
+export interface GHLContact {
   id: string;
   firstName: string;
   lastName: string;
@@ -21,230 +30,370 @@ export interface GoHighLevelContact {
   phone: string;
   source: string;
   tags: string[];
-  customFields: Record<string, any>;
-  dateAdded: string;
-  lastActivity: string;
+  customFields: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface GoHighLevelOpportunity {
+export interface GHLCampaign {
   id: string;
   name: string;
-  contactId: string;
-  pipelineId: string;
-  stageId: string;
-  status: 'open' | 'won' | 'lost' | 'abandoned';
-  monetaryValue: number;
-  dateCreated: string;
-  dateModified: string;
-  source: string;
+  status: string;
+  type: string;
+  startDate: string;
+  endDate?: string;
+  budget?: number;
+  metrics: {
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    cost: number;
+  };
+}
+
+export interface GHLAppCredentials {
+  id: string;
+  client_id: string;
+  client_secret: string;
+  shared_secret: string;
+  redirect_uri: string;
+  environment: string;
+  is_active: boolean;
 }
 
 export class GoHighLevelService {
-  private static apiKey: string | null = null;
+  private static readonly API_BASE_URL = 'https://rest.gohighlevel.com/v1';
+  private static readonly OAUTH_BASE_URL = 'https://services.leadconnectorhq.com';
+  
+  private static accessToken: string | null = null;
   private static locationId: string | null = null;
-  private static baseUrl = 'https://services.leadconnectorhq.com';
 
-  static async authenticate(apiKey: string, locationId: string): Promise<boolean> {
+  /**
+   * Get GHL app credentials from database
+   */
+  private static async getCredentials(): Promise<GHLAppCredentials | null> {
     try {
-      // Validate API key with GHL API
-      const response = await fetch(`${this.baseUrl}/locations/${locationId}`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Version': '2021-07-28',
-          'Content-Type': 'application/json'
-        }
-      });
+      const { data, error } = await supabase
+        .from('ghl_app_credentials')
+        .select('*')
+        .eq('is_active', true)
+        .eq('environment', import.meta.env.DEV ? 'development' : 'production')
+        .single();
 
-      if (response.ok) {
-        this.apiKey = apiKey;
-        this.locationId = locationId;
-        return true;
+      if (error) {
+        debugLogger.error('GoHighLevelService', 'Failed to get credentials', error);
+        return null;
       }
-      return false;
+
+      return data;
     } catch (error) {
-      debugLogger.error('GoHighLevelService', 'Go High Level authentication failed', error);
-      return false;
+      debugLogger.error('GoHighLevelService', 'Error getting credentials', error);
+      return null;
     }
   }
 
-  static async getContacts(limit: number = 100, startAfter?: string): Promise<GoHighLevelContact[]> {
-    if (!this.apiKey || !this.locationId) {
-      throw new Error('Go High Level not authenticated');
-    }
-
+  /**
+   * Generate OAuth authorization URL
+   */
+  static async getAuthorizationUrl(): Promise<string> {
     try {
+      const credentials = await this.getCredentials();
+      if (!credentials) {
+        throw new Error('GHL credentials not found');
+      }
+
+      const scopes = [
+        'locations.read',
+        'contacts.read',
+        'campaigns.read',
+        'analytics.read',
+        'webhooks.write'
+      ].join(' ');
+
+      const baseUrl = 'https://marketplace.gohighlevel.com/oauth/chooselocation';
       const params = new URLSearchParams({
-        locationId: this.locationId,
-        limit: limit.toString()
+        response_type: 'code',
+        client_id: credentials.client_id,
+        redirect_uri: credentials.redirect_uri,
+        scope: scopes
       });
 
-      if (startAfter) {
-        params.append('startAfter', startAfter);
-      }
+      const authUrl = `${baseUrl}?${params.toString()}`;
 
-      const response = await fetch(`${this.baseUrl}/contacts/?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Version': '2021-07-28',
-          'Content-Type': 'application/json'
-        }
+      debugLogger.info('GoHighLevelService', 'Generated authorization URL', {
+        clientId: credentials.client_id,
+        redirectUri: credentials.redirect_uri
       });
 
-      if (!response.ok) {
-        throw new Error(`GHL API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      return (data.contacts || []).map((contact: any) => ({
-        id: contact.id,
-        firstName: contact.firstName || '',
-        lastName: contact.lastName || '',
-        email: contact.email || '',
-        phone: contact.phone || '',
-        source: contact.source || '',
-        tags: contact.tags || [],
-        customFields: contact.customFields || {},
-        dateAdded: contact.dateAdded,
-        lastActivity: contact.lastActivity
-      }));
+      return authUrl;
     } catch (error) {
-      debugLogger.error('GoHighLevelService', 'Error fetching GHL contacts', error);
+      debugLogger.error('GoHighLevelService', 'Failed to generate authorization URL', error);
       throw error;
     }
   }
 
-  static async getOpportunities(pipelineId?: string): Promise<GoHighLevelOpportunity[]> {
-    if (!this.apiKey || !this.locationId) {
-      throw new Error('Go High Level not authenticated');
-    }
-
+  /**
+   * Exchange authorization code for access token
+   */
+  static async exchangeCodeForToken(code: string, locationId?: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    locationId: string;
+  }> {
     try {
-      const params = new URLSearchParams({
-        locationId: this.locationId,
-        limit: '100'
-      });
-
-      if (pipelineId) {
-        params.append('pipelineId', pipelineId);
+      const credentials = await this.getCredentials();
+      if (!credentials) {
+        throw new Error('GHL credentials not found');
       }
 
-      const response = await fetch(`${this.baseUrl}/opportunities/?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Version': '2021-07-28',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`GHL API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      return (data.opportunities || []).map((opp: any) => ({
-        id: opp.id,
-        name: opp.name,
-        contactId: opp.contactId,
-        pipelineId: opp.pipelineId,
-        stageId: opp.stageId,
-        status: opp.status,
-        monetaryValue: parseFloat(opp.monetaryValue || '0'),
-        dateCreated: opp.dateCreated,
-        dateModified: opp.dateModified,
-        source: opp.source || ''
-      }));
-    } catch (error) {
-      debugLogger.error('GoHighLevelService', 'Error fetching GHL opportunities', error);
-      throw error;
-    }
-  }
-
-  static async getMetrics(dateRange?: { start: string; end: string }): Promise<GoHighLevelMetrics> {
-    if (!this.apiKey || !this.locationId) {
-      throw new Error('Go High Level not authenticated');
-    }
-
-    try {
-      // Fetch contacts and opportunities to calculate metrics
-      const [contacts, opportunities] = await Promise.all([
-        this.getContacts(1000),
-        this.getOpportunities()
-      ]);
-
-      // Filter by date range if provided
-      const filteredContacts = dateRange
-        ? contacts.filter(c => c.dateAdded >= dateRange.start && c.dateAdded <= dateRange.end)
-        : contacts;
-
-      const filteredOpportunities = dateRange
-        ? opportunities.filter(o => o.dateCreated >= dateRange.start && o.dateCreated <= dateRange.end)
-        : opportunities;
-
-      const wonOpportunities = filteredOpportunities.filter(o => o.status === 'won');
-      const lostOpportunities = filteredOpportunities.filter(o => o.status === 'lost');
-
-      const totalRevenue = wonOpportunities.reduce((sum, opp) => sum + opp.monetaryValue, 0);
-      const pipelineValue = filteredOpportunities
-        .filter(o => o.status === 'open')
-        .reduce((sum, opp) => sum + opp.monetaryValue, 0);
-
-      return {
-        totalContacts: contacts.length,
-        newContacts: filteredContacts.length,
-        totalOpportunities: filteredOpportunities.length,
-        wonOpportunities: wonOpportunities.length,
-        lostOpportunities: lostOpportunities.length,
-        pipelineValue,
-        avgDealSize: wonOpportunities.length > 0
-          ? totalRevenue / wonOpportunities.length
-          : 0,
-        conversionRate: filteredOpportunities.length > 0
-          ? (wonOpportunities.length / filteredOpportunities.length) * 100
-          : 0,
-        responseTime: 0, // Placeholder - would need actual response time data
-        wonRevenue: totalRevenue
-      };
-    } catch (error) {
-      debugLogger.error('GoHighLevelService', 'Error fetching GHL metrics', error);
-      throw error;
-    }
-  }
-
-  static async createContact(contactData: Partial<GoHighLevelContact>): Promise<GoHighLevelContact> {
-    if (!this.apiKey || !this.locationId) {
-      throw new Error('Go High Level not authenticated');
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/contacts/`, {
+      const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Version': '2021-07-28',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...contactData,
-          locationId: this.locationId
+          grant_type: 'authorization_code',
+          code,
+          client_id: credentials.client_id,
+          client_secret: credentials.client_secret,
+          redirect_uri: credentials.redirect_uri
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`GHL API error: ${response.statusText}`);
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        debugLogger.error('GoHighLevelService', 'Token exchange failed', {
+          status: tokenResponse.status,
+          error: errorData
+        });
+        throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
       }
 
-      const data = await response.json();
-      return data.contact;
+      const tokenData = await tokenResponse.json();
+      
+      // Extract locationId from token response or use provided one
+      const finalLocationId = tokenData.locationId || locationId;
+      
+      if (!finalLocationId) {
+        throw new Error('Location ID not found in token response');
+      }
+
+      this.accessToken = tokenData.access_token;
+      this.locationId = finalLocationId;
+
+      debugLogger.info('GoHighLevelService', 'Successfully exchanged code for token', {
+        hasAccessToken: !!tokenData.access_token,
+        locationId: finalLocationId,
+        expiresIn: tokenData.expires_in
+      });
+
+      return {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresIn: tokenData.expires_in,
+        locationId: finalLocationId
+      };
     } catch (error) {
-      debugLogger.error('GoHighLevelService', 'Error creating GHL contact', error);
+      debugLogger.error('GoHighLevelService', 'Failed to exchange code for token', error);
       throw error;
     }
   }
 
+  /**
+   * Set access token and location ID for API calls
+   */
+  static setCredentials(accessToken: string, locationId: string): void {
+    this.accessToken = accessToken;
+    this.locationId = locationId;
+    debugLogger.info('GoHighLevelService', 'Credentials set', { locationId });
+  }
+
+  /**
+   * Make authenticated API request
+   */
+  private static async makeApiRequest<T>(
+    endpoint: string,
+    options: globalThis.RequestInit = {}
+  ): Promise<T> {
+    if (!this.accessToken || !this.locationId) {
+      throw new Error('GHL credentials not set. Please authenticate first.');
+    }
+
+    const url = `${this.API_BASE_URL}${endpoint}`;
+    
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      debugLogger.error('GoHighLevelService', 'API request failed', {
+        url,
+        status: response.status,
+        error: errorData
+      });
+      throw new Error(`API request failed: ${errorData.message || response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get account information
+   */
+  static async getAccountInfo(): Promise<GHLAccount> {
+    try {
+      const account = await this.makeApiRequest<GHLAccount>(`/locations/${this.locationId}`);
+      debugLogger.info('GoHighLevelService', 'Retrieved account info', { 
+        accountId: account.id, 
+        accountName: account.name 
+      });
+      return account;
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get account info', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get contacts
+   */
+  static async getContacts(limit = 100, offset = 0): Promise<GHLContact[]> {
+    try {
+      const response = await this.makeApiRequest<{ contacts: GHLContact[] }>(
+        `/contacts/?locationId=${this.locationId}&limit=${limit}&offset=${offset}`
+      );
+      
+      debugLogger.info('GoHighLevelService', 'Retrieved contacts', { 
+        count: response.contacts?.length || 0 
+      });
+      
+      return response.contacts || [];
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get contacts', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get campaigns
+   */
+  static async getCampaigns(): Promise<GHLCampaign[]> {
+    try {
+      const response = await this.makeApiRequest<{ campaigns: GHLCampaign[] }>(
+        `/campaigns/?locationId=${this.locationId}`
+      );
+      
+      debugLogger.info('GoHighLevelService', 'Retrieved campaigns', { 
+        count: response.campaigns?.length || 0 
+      });
+      
+      return response.campaigns || [];
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get campaigns', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get analytics data
+   */
+  static async getAnalytics(startDate: string, endDate: string): Promise<Record<string, unknown>> {
+    try {
+      const response = await this.makeApiRequest(
+        `/analytics/?locationId=${this.locationId}&startDate=${startDate}&endDate=${endDate}`
+      );
+      
+      debugLogger.info('GoHighLevelService', 'Retrieved analytics', { 
+        startDate, 
+        endDate 
+      });
+      
+      return response as Record<string, unknown>;
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get analytics', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Setup webhook
+   */
+  static async setupWebhook(webhookUrl: string, events: string[]): Promise<Record<string, unknown>> {
+    try {
+      const response = await this.makeApiRequest('/webhooks', {
+        method: 'POST',
+        body: JSON.stringify({
+          locationId: this.locationId,
+          url: webhookUrl,
+          events
+        })
+      });
+      
+      debugLogger.info('GoHighLevelService', 'Webhook setup', { 
+        webhookUrl, 
+        events 
+      });
+      
+      return response as Record<string, unknown>;
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to setup webhook', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify webhook signature
+   */
+  static async verifyWebhookSignature(payload: string, signature: string): Promise<boolean> {
+    try {
+      const credentials = await this.getCredentials();
+      if (!credentials) {
+        return false;
+      }
+
+      // Create HMAC-SHA256 hash
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(credentials.shared_secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+
+      const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+      const expectedSignature = 'sha256=' + Array.from(new Uint8Array(signatureBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      return signature === expectedSignature;
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to verify webhook signature', error);
+      return false;
+    }
+  }
+
+  /**
+   * Disconnect GHL service
+   */
   static disconnect(): void {
-    this.apiKey = null;
+    this.accessToken = null;
     this.locationId = null;
+    debugLogger.info('GoHighLevelService', 'Disconnected from GHL');
+  }
+
+  /**
+   * Check if service is connected
+   */
+  static isConnected(): boolean {
+    return !!(this.accessToken && this.locationId);
   }
 }

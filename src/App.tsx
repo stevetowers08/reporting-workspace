@@ -12,10 +12,10 @@ import EventDashboard from "@/pages/EventDashboard";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
+import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
 import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
-import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -174,7 +174,7 @@ const App = () => {
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                 <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
-                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
                 <Route path="/health" element={<HealthCheckPage />} />
                 {/* Fallback for unknown routes */}

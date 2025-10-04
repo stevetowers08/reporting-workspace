@@ -7,6 +7,7 @@
 - **npm**: Version 8 or higher
 - **Git**: For version control
 - **Cursor IDE**: For AI-assisted development
+- **Supabase Account**: For database and backend services
 
 ### Installation Steps
 
@@ -33,12 +34,19 @@
    npm run setup:supabase
    ```
 
-5. **Start development server**
+5. **Set up MCP Servers (Optional)**
+   ```bash
+   # Install MCP servers for enhanced AI capabilities
+   npm install -g @executeautomation/playwright-mcp-server
+   npm install -g @modelcontextprotocol/server-supabase
+   ```
+
+6. **Start development server**
    ```bash
    npm run dev
    ```
 
-6. **Open in browser**
+7. **Open in browser**
    - Navigate to `http://localhost:8080`
    - The app should load with the dashboard
 

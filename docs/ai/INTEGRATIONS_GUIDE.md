@@ -55,6 +55,32 @@ REACT_APP_FACEBOOK_APP_SECRET=your_app_secret
 REACT_APP_FACEBOOK_REDIRECT_URI=http://localhost:8080/oauth/callback
 ```
 
+#### 4. Common Issues and Fixes
+
+**Demographics Error**: `(#100) age, gender are not valid for fields param`
+- **Problem**: Including `age` and `gender` in the `fields` parameter
+- **Solution**: Use `breakdowns` parameter instead:
+```typescript
+// ❌ INCORRECT
+const fields = ['impressions', 'clicks', 'spend', 'age', 'gender'];
+
+// ✅ CORRECT
+const fields = ['impressions', 'clicks', 'spend'];
+const breakdowns = 'age,gender';
+```
+
+**Platform Error**: `(#100) placement is not valid for breakdowns param`
+- **Problem**: Including `publisher_platform` and `placement` in the `fields` parameter
+- **Solution**: Use `breakdowns` parameter instead:
+```typescript
+// ❌ INCORRECT
+const fields = ['impressions', 'clicks', 'spend', 'publisher_platform', 'placement'];
+
+// ✅ CORRECT
+const fields = ['impressions', 'clicks', 'spend'];
+const breakdowns = 'publisher_platform,placement';
+```
+
 ### Implementation
 
 #### Authentication Service
@@ -388,6 +414,101 @@ export class GoogleAdsService {
       clicks: parseInt(raw.metrics.clicks) || 0,
       spend: parseFloat(raw.metrics.costMicros) / 1000000 || 0, // Convert micros to dollars
       conversions: parseInt(raw.metrics.conversions) || 0
+    };
+  }
+}
+```
+
+## Go High Level Integration
+
+### Setup
+
+#### 1. Create Go High Level Account
+1. Go to [Go High Level](https://gohighlevel.com/)
+2. Create an account and get API access
+3. Generate API key from settings
+4. Get Location ID from your account
+
+#### 2. Environment Variables
+```bash
+# .env.local
+REACT_APP_GHL_API_KEY=your_ghl_api_key
+REACT_APP_GHL_LOCATION_ID=your_ghl_location_id
+```
+
+#### 3. Implementation
+```typescript
+// src/services/goHighLevelService.ts
+export class GoHighLevelService {
+  private baseUrl = 'https://rest.gohighlevel.com/v1';
+  private apiKey: string;
+  private locationId: string;
+
+  constructor() {
+    this.apiKey = process.env.REACT_APP_GHL_API_KEY!;
+    this.locationId = process.env.REACT_APP_GHL_LOCATION_ID!;
+  }
+
+  async getContacts(): Promise<Contact[]> {
+    const response = await fetch(
+      `${this.baseUrl}/contacts/?locationId=${this.locationId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch contacts');
+    }
+
+    const data = await response.json();
+    return data.contacts.map(this.normalizeContact);
+  }
+
+  async getOpportunities(): Promise<Opportunity[]> {
+    const response = await fetch(
+      `${this.baseUrl}/opportunities/?locationId=${this.locationId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch opportunities');
+    }
+
+    const data = await response.json();
+    return data.opportunities.map(this.normalizeOpportunity);
+  }
+
+  private normalizeContact(raw: any): Contact {
+    return {
+      id: raw.id,
+      email: raw.email,
+      phone: raw.phone,
+      firstName: raw.firstName,
+      lastName: raw.lastName,
+      companyName: raw.companyName,
+      source: raw.source,
+      createdAt: raw.createdAt
+    };
+  }
+
+  private normalizeOpportunity(raw: any): Opportunity {
+    return {
+      id: raw.id,
+      contactId: raw.contactId,
+      title: raw.title,
+      value: raw.value,
+      status: raw.status,
+      pipelineId: raw.pipelineId,
+      createdAt: raw.createdAt
     };
   }
 }

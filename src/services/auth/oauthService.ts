@@ -54,10 +54,10 @@ export class OAuthService {
         },
         gohighlevel: {
             // SECURITY: Never hardcode secrets in client-side code!
-            clientId: import.meta.env.VITE_GHL_CLIENT_ID || '',
+            clientId: import.meta.env.VITE_GHL_CLIENT_ID || '68e135aa17f574067cfb7e39-mgcefs9f',
             clientSecret: '', // Client secret should NEVER be in client-side code
-            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
-            scopes: ['contacts.read', 'opportunities.read', 'locations.read'],
+            redirectUri: import.meta.env.DEV ? 'http://localhost:3000/leadconnector/oath' : `${window.location.origin}/leadconnector/oath`,
+            scopes: ['locations.read', 'contacts.read', 'campaigns.read', 'analytics.read', 'webhooks.write'],
             authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation',
             tokenUrl: 'https://services.leadconnectorhq.com/oauth/token'
         }
