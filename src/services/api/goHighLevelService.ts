@@ -160,7 +160,8 @@ export class GoHighLevelService {
           code,
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
-          redirect_uri: credentials.redirect_uri
+          redirect_uri: credentials.redirect_uri,
+          user_type: 'Company'
         })
       });
 
