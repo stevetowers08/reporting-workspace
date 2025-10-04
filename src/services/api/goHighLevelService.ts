@@ -103,10 +103,14 @@ export class GoHighLevelService {
       }
 
       const scopes = [
-        'locations.readonly',
         'contacts.readonly',
-        'campaigns.readonly',
-        'webhooks.write'
+        'locations.readonly',
+        'oauth.readonly',
+        'opportunities.readonly',
+        'funnels/redirect.readonly',
+        'funnels/page.readonly',
+        'funnels/funnel.readonly',
+        'funnels/pagecount.readonly'
       ].join(' ');
 
       const baseUrl = 'https://marketplace.gohighlevel.com/oauth/chooselocation';
