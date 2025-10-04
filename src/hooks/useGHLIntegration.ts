@@ -108,7 +108,24 @@ export const useGHLIntegration = () => {
       debugLogger.info('useGHLIntegration', 'Initiating GHL connection');
       
       const authUrl = await GoHighLevelService.getAuthorizationUrl();
-      window.location.href = authUrl;
+      
+      // Open OAuth flow in new window/tab
+      const authWindow = window.open(authUrl, 'ghl-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+      
+      if (!authWindow) {
+        throw new Error('Failed to open OAuth window. Please allow popups for this site.');
+      }
+      
+      // Monitor the window for completion
+      const checkClosed = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkClosed);
+          setIsConnecting(false);
+          // Refresh connection status after OAuth completes
+          queryClient.invalidateQueries({ queryKey: ['ghl-connection'] });
+        }
+      }, 1000);
+      
     } catch (error) {
       debugLogger.error('useGHLIntegration', 'Failed to initiate connection', error);
       setIsConnecting(false);
