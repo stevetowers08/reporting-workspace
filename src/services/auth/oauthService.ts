@@ -32,8 +32,7 @@ export class OAuthService {
         facebook: {
             // SECURITY: Never hardcode secrets in client-side code!
             // These should be configured server-side only
-            clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || 
-              (import.meta.env.DEV ? '2922447491235718' : ''),
+            clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || '2922447491235718',
             clientSecret: '', // Client secret should NEVER be in client-side code
             redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: ['ads_read', 'ads_management', 'business_management'],
@@ -42,10 +41,8 @@ export class OAuthService {
         },
         google: {
             // SECURITY: Never hardcode secrets in client-side code!
-            clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 
-              (import.meta.env.DEV ? '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com' : ''),
-            clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || 
-              (import.meta.env.DEV ? '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' : ''),
+            clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com',
+            clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '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',
             redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: [
                 'https://www.googleapis.com/auth/adwords',
