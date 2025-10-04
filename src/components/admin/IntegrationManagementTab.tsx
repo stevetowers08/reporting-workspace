@@ -1,4 +1,3 @@
-import { GHLIntegrationCard } from '@/components/integration/GHLIntegrationCard';
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LoadingSpinner, LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
@@ -208,15 +207,9 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
 
   return (
     <div className="space-y-6">
-      {/* Go High Level Integration */}
+      {/* All Integrations */}
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">CRM & Marketing Automation</h3>
-        <GHLIntegrationCard />
-      </div>
-
-      {/* Other Integrations */}
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Advertising Platforms</h3>
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">All Integrations</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {integrations.map((integration) => (
         <div key={integration.id} className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
