@@ -118,7 +118,8 @@ export class GoHighLevelService {
         response_type: 'code',
         client_id: credentials.client_id,
         redirect_uri: credentials.redirect_uri,
-        scope: scopes
+        scope: scopes,
+        version_id: credentials.client_id // GHL uses client_id as version_id
       });
 
       const authUrl = `${baseUrl}?${params.toString()}`;
