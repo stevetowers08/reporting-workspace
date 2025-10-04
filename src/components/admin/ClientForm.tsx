@@ -231,7 +231,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    debugLogger.log('ClientForm', 'Form submission started', { formData, isEdit, clientId });
+    debugLogger.info('ClientForm', 'Form submission started', { formData, isEdit, clientId });
 
     // Validate form
     const newErrors: Record<string, string> = {};
@@ -242,26 +242,26 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      debugLogger.log('ClientForm', 'Form validation failed', newErrors);
+      debugLogger.warn('ClientForm', 'Form validation failed', newErrors);
       return;
     }
 
     // Update AI config if it exists and we're editing
     if (isEdit && clientId && aiConfig) {
       try {
-        debugLogger.log('ClientForm', 'Updating AI config', { clientId, aiConfig });
+        debugLogger.info('ClientForm', 'Updating AI config', { clientId, aiConfig });
         await AIInsightsService.createOrUpdateClientAIConfig(clientId, {
           enabled: aiConfig.enabled,
           frequency: aiConfig.frequency
         });
-        debugLogger.log('ClientForm', 'AI config updated successfully');
+        debugLogger.info('ClientForm', 'AI config updated successfully');
       } catch (error) {
         debugLogger.error('ClientForm', 'Error updating AI config', error);
         console.error('Error updating AI config:', error);
       }
     }
 
-    debugLogger.log('ClientForm', 'Calling onSubmit with formData', formData);
+    debugLogger.info('ClientForm', 'Calling onSubmit with formData', formData);
     onSubmit(formData);
   };
 

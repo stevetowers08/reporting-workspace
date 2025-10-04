@@ -5,23 +5,146 @@ import { ErrorProvider } from "@/contexts/ErrorContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
+import { initSentry } from "@/lib/sentry";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AdminPanel from "@/pages/AdminPanel";
 import EventDashboard from "@/pages/EventDashboard";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
+import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
 import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
 import OAuthCallback from "@/pages/OAuthCallback";
+import { HealthCheck } from "@/pages/health";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+// Health Check Page Component
+const HealthCheckPage = () => {
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const status = await HealthCheck();
+        setHealthStatus(status);
+      } catch (error) {
+        console.error('Health check failed:', error);
+        setHealthStatus({ status: 'error', error: 'Health check failed' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkHealth();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking system health...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">System Health Check</h1>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Status Overview */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-800">Status Overview</h2>
+              <div className={`p-4 rounded-lg ${
+                healthStatus?.status === 'healthy' ? 'bg-green-100 text-green-800' :
+                healthStatus?.status === 'degraded' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-3 ${
+                    healthStatus?.status === 'healthy' ? 'bg-green-500' :
+                    healthStatus?.status === 'degraded' ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}></div>
+                  <span className="font-medium capitalize">{healthStatus?.status || 'Unknown'}</span>
+                </div>
+                <p className="text-sm mt-2">
+                  Last checked: {healthStatus?.timestamp ? new Date(healthStatus.timestamp).toLocaleString() : 'Unknown'}
+                </p>
+              </div>
+            </div>
+
+            {/* Services Status */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-800">Services</h2>
+              <div className="space-y-2">
+                {healthStatus?.services && Object.entries(healthStatus.services).map(([service, status]) => (
+                  <div key={service} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="capitalize">{service.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      status === 'connected' || status === 'operational' || status === 'optimal' ? 'bg-green-100 text-green-800' :
+                      status === 'degraded' || status === 'disconnected' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {String(status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Metrics */}
+          {healthStatus?.metrics && (
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Performance Metrics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-gray-700">Response Time</h3>
+                  <p className="text-2xl font-bold text-blue-600">{healthStatus.metrics.responseTime}ms</p>
+                </div>
+                {healthStatus.metrics.memoryUsage && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-medium text-gray-700">Memory Usage</h3>
+                    <p className="text-2xl font-bold text-green-600">{healthStatus.metrics.memoryUsage}MB</p>
+                  </div>
+                )}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-gray-700">Uptime</h3>
+                  <p className="text-2xl font-bold text-purple-600">{Math.round(healthStatus.metrics.uptime)}s</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Version Info */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Version: {healthStatus?.version || 'Unknown'}</span>
+              <span>Environment: {healthStatus?.environment || 'Unknown'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const App = () => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => {
+    // Initialize production monitoring
+    initSentry();
+    
     debugLogger.info('APP', 'Application started');
 
     // Add keyboard shortcut for debug panel (Ctrl+Shift+D)
@@ -49,9 +172,11 @@ const App = () => {
                 <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
                 <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
+                <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
+                <Route path="/health" element={<HealthCheckPage />} />
                 {/* Fallback for unknown routes */}
                 <Route path="*" element={<Fallback />} />
               </Routes>

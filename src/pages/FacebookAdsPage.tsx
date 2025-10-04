@@ -1,10 +1,11 @@
 "use client";
 
 import { FacebookConnectionPrompt } from "@/components/connection/FacebookConnectionPrompt";
+import { LoadingState } from '@/components/ui/LoadingStates';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingState } from '@/components/ui/LoadingStates';
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventDashboardData, EventMetricsService } from '@/services/data/eventMetricsService';
 import {
@@ -25,10 +26,20 @@ const FacebookAdsPage = () => {
         loadFacebookAdsData();
     }, [selectedPeriod]);
 
-    const checkFacebookConnection = () => {
-        const oauthTokens = localStorage.getItem('oauth_tokens_facebook');
-        const hasToken = oauthTokens && JSON.parse(oauthTokens).accessToken;
-        setIsFacebookConnected(!!hasToken);
+    const checkFacebookConnection = async () => {
+        try {
+            // Check database for Facebook connection
+            const { data, error } = await supabase
+                .from('integrations')
+                .select('connected')
+                .eq('platform', 'facebookAds')
+                .single();
+            
+            setIsFacebookConnected(data?.connected || false);
+        } catch (error) {
+            debugLogger.error('FacebookAdsPage', 'Error checking Facebook connection', error);
+            setIsFacebookConnected(false);
+        }
     };
 
     const loadFacebookAdsData = async () => {
@@ -67,8 +78,17 @@ const FacebookAdsPage = () => {
             case '7d':
                 start.setDate(end.getDate() - 7);
                 break;
+            case '14d':
+                start.setDate(end.getDate() - 14);
+                break;
             case '30d':
                 start.setDate(end.getDate() - 30);
+                break;
+            case 'lastMonth':
+                // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+                start.setMonth(end.getMonth() - 1);
+                start.setDate(1);
+                end.setDate(0); // Last day of previous month
                 break;
             case '90d':
                 start.setDate(end.getDate() - 90);
@@ -112,7 +132,9 @@ const FacebookAdsPage = () => {
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="7d">Last 7 days</option>
+                            <option value="14d">Last 14 days</option>
                             <option value="30d">Last 30 days</option>
+                            <option value="lastMonth">Last month</option>
                             <option value="90d">Last 90 days</option>
                         </select>
                     </div>

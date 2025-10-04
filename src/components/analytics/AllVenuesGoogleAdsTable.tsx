@@ -76,8 +76,8 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         logoUrl: client.logo_url,
                         status: client.status,
                         googleAccount: {
-                            accountId: client.accounts.googleAds!,
-                            accountName: `Google Ads Account (${client.accounts.googleAds})`,
+                            accountId: client.accounts?.googleAds || '',
+                            accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
                             connected: true
                         },
                         metrics: {
@@ -90,7 +90,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                             cpc: metrics.googleMetrics.cpc,
                             conversionRate: metrics.googleMetrics.conversionRate || 0
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     };
 
                     accountsData.push(accountData);
@@ -103,8 +103,8 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         logoUrl: client.logo_url,
                         status: client.status,
                         googleAccount: {
-                            accountId: client.accounts.googleAds!,
-                            accountName: `Google Ads Account (${client.accounts.googleAds})`,
+                            accountId: client.accounts?.googleAds || '',
+                            accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
                             connected: true
                         },
                         metrics: {
@@ -117,7 +117,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                             cpc: 0,
                             conversionRate: 0
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     });
                 }
             }
@@ -139,8 +139,17 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
             case '7d':
                 start.setDate(end.getDate() - 7);
                 break;
+            case '14d':
+                start.setDate(end.getDate() - 14);
+                break;
             case '30d':
                 start.setDate(end.getDate() - 30);
+                break;
+            case 'lastMonth':
+                // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+                start.setMonth(end.getMonth() - 1);
+                start.setDate(1);
+                end.setDate(0); // Last day of previous month
                 break;
             case '90d':
                 start.setDate(end.getDate() - 90);

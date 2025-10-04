@@ -4,19 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import {
-    AlertCircle,
     ArrowRight,
     BarChart3,
-    CheckCircle,
-    Clock,
     FileSpreadsheet,
-    Globe,
     Plus,
-    Settings,
     Users,
     Zap
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 
 interface HomePageProps {
   clients: Array<{
@@ -52,54 +47,18 @@ export const HomePage: React.FC<HomePageProps> = ({
   onGoToAdmin,
   loading = false
 }) => {
-  const [stats, setStats] = useState({
-    totalClients: 0,
-    activeClients: 0,
-    connectedIntegrations: 0,
-    totalIntegrations: 0
-  });
-
   useEffect(() => {
     const activeClients = clients.filter(c => c.status === 'active').length;
     const connectedIntegrations = integrations.filter(i => i.status === 'connected').length;
     
-    setStats({
+    // Update stats if needed in the future
+    console.log('Stats updated:', {
       totalClients: clients.length,
       activeClients,
       connectedIntegrations,
       totalIntegrations: integrations.length
     });
   }, [clients, integrations]);
-
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'facebook':
-        return <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">f</span>
-        </div>;
-      case 'google':
-        return <Globe className="h-6 w-6 text-red-600" />;
-      case 'gohighlevel':
-        return <Zap className="h-6 w-6 text-purple-600" />;
-      case 'googlesheets':
-        return <FileSpreadsheet className="h-6 w-6 text-green-600" />;
-      default:
-        return <Settings className="h-6 w-6 text-slate-600" />;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      case 'not connected':
-        return <Clock className="h-4 w-4 text-slate-400" />;
-      default:
-        return <Clock className="h-4 w-4 text-slate-400" />;
-    }
-  };
 
   if (loading) {
     return <LoadingState message="Loading dashboard..." fullScreen />;
@@ -114,13 +73,12 @@ export const HomePage: React.FC<HomePageProps> = ({
           name: client.name,
           logo_url: client.logo_url
         }))}
-        selectedClientId={null}
+        selectedClientId={undefined}
         onClientSelect={onClientSelect}
         onBackToDashboard={() => {}}
         onGoToAdmin={onGoToAdmin}
         onExportPDF={() => {}}
         onShare={() => {}}
-        onSettings={onGoToAdmin}
         exportingPDF={false}
         isShared={false}
         showVenueSelector={true}

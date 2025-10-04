@@ -42,8 +42,6 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
 
   const leadsData = generateDailyData();
   const days = generateDateLabels(30);
-  const totalLeads = leadsData.reduce((sum, leads) => sum + leads, 0);
-  const avgDailyLeads = (totalLeads / leadsData.length).toFixed(1);
 
   const chartData = {
     labels: days,

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, AlertCircle, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useErrorContext, AppError } from '@/contexts/ErrorContext';
+import { AppError, useErrorContext } from '@/contexts/ErrorContext';
+import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface ErrorNotificationProps {
   error: AppError;

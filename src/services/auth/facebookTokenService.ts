@@ -11,9 +11,9 @@ export interface FacebookTokens {
 
 export class FacebookTokenService {
   /**
-   * Get Facebook tokens from the backend/database
+   * Get Facebook tokens from the database
    */
-  static async getTokensFromBackend(): Promise<FacebookTokens | null> {
+  static async getTokens(): Promise<FacebookTokens | null> {
     try {
       const { data, error } = await supabase
         .from('integrations')
@@ -23,12 +23,12 @@ export class FacebookTokenService {
         .single();
 
       if (error) {
-        debugLogger.error('FacebookTokenService', 'Error fetching Facebook tokens from backend', error);
+        debugLogger.error('FacebookTokenService', 'Error fetching Facebook tokens from database', error);
         return null;
       }
 
       if (!data?.config) {
-        debugLogger.warn('FacebookTokenService', 'No Facebook config found in backend');
+        debugLogger.warn('FacebookTokenService', 'No Facebook config found in database');
         return null;
       }
 
@@ -47,15 +47,15 @@ export class FacebookTokenService {
       debugLogger.warn('FacebookTokenService', 'No access token found in Facebook config');
       return null;
     } catch (error) {
-      debugLogger.error('FacebookTokenService', 'Error getting Facebook tokens from backend', error);
+      debugLogger.error('FacebookTokenService', 'Error getting Facebook tokens from database', error);
       return null;
     }
   }
 
   /**
-   * Store Facebook tokens in the backend/database
+   * Store Facebook tokens in the database
    */
-  static async storeTokensInBackend(tokens: FacebookTokens, userInfo?: any): Promise<boolean> {
+  static async storeTokens(tokens: FacebookTokens, userInfo?: any): Promise<boolean> {
     try {
       const config = {
         accessToken: tokens.accessToken,
@@ -77,88 +77,24 @@ export class FacebookTokenService {
         }, { onConflict: 'platform' });
 
       if (error) {
-        debugLogger.error('FacebookTokenService', 'Error storing Facebook tokens in backend', error);
+        debugLogger.error('FacebookTokenService', 'Error storing Facebook tokens in database', error);
         return false;
       }
 
-      debugLogger.info('FacebookTokenService', 'Facebook tokens stored in backend successfully');
+      debugLogger.info('FacebookTokenService', 'Facebook tokens stored in database successfully');
       return true;
     } catch (error) {
-      debugLogger.error('FacebookTokenService', 'Error storing Facebook tokens in backend', error);
+      debugLogger.error('FacebookTokenService', 'Error storing Facebook tokens in database', error);
       return false;
     }
   }
 
   /**
-   * Get Facebook tokens from localStorage (existing method)
-   */
-  static getTokensFromLocalStorage(): FacebookTokens | null {
-    try {
-      const storedTokens = localStorage.getItem('oauth_tokens_facebook');
-      if (!storedTokens) return null;
-
-      const tokens = JSON.parse(storedTokens);
-      return {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: tokens.expiresIn,
-        tokenType: tokens.tokenType || 'Bearer',
-        scope: tokens.scope
-      };
-    } catch (error) {
-      debugLogger.error('FacebookTokenService', 'Error parsing Facebook tokens from localStorage', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get Facebook tokens from any available source (localStorage first, then backend)
-   */
-  static async getTokens(): Promise<FacebookTokens | null> {
-    // First try localStorage
-    const localTokens = this.getTokensFromLocalStorage();
-    if (localTokens?.accessToken) {
-      debugLogger.debug('FacebookTokenService', 'Using Facebook tokens from localStorage');
-      return localTokens;
-    }
-
-    // Fallback to backend
-    debugLogger.debug('FacebookTokenService', 'No localStorage tokens, fetching from backend');
-    return await this.getTokensFromBackend();
-  }
-
-  /**
-   * Store tokens in both localStorage and backend
-   */
-  static async storeTokens(tokens: FacebookTokens, userInfo?: any): Promise<boolean> {
-    try {
-      // Store in localStorage
-      localStorage.setItem('oauth_tokens_facebook', JSON.stringify({
-        ...tokens,
-        timestamp: Date.now()
-      }));
-
-      // Store in backend
-      await this.storeTokensInBackend(tokens, userInfo);
-
-      debugLogger.info('FacebookTokenService', 'Facebook tokens stored in both localStorage and backend');
-      return true;
-    } catch (error) {
-      debugLogger.error('FacebookTokenService', 'Error storing Facebook tokens', error);
-      return false;
-    }
-  }
-
-  /**
-   * Clear tokens from both localStorage and backend
+   * Clear tokens from database
    */
   static async clearTokens(): Promise<boolean> {
     try {
-      // Clear localStorage
-      localStorage.removeItem('oauth_tokens_facebook');
-      localStorage.removeItem('oauth_state_facebook');
-
-      // Update backend to disconnected
+      // Update database to disconnected
       const { error } = await supabase
         .from('integrations')
         .update({
@@ -169,11 +105,11 @@ export class FacebookTokenService {
         .eq('platform', 'facebookAds');
 
       if (error) {
-        debugLogger.error('FacebookTokenService', 'Error clearing Facebook tokens from backend', error);
+        debugLogger.error('FacebookTokenService', 'Error clearing Facebook tokens from database', error);
         return false;
       }
 
-      debugLogger.info('FacebookTokenService', 'Facebook tokens cleared from both localStorage and backend');
+      debugLogger.info('FacebookTokenService', 'Facebook tokens cleared from database');
       return true;
     } catch (error) {
       debugLogger.error('FacebookTokenService', 'Error clearing Facebook tokens', error);

@@ -25,7 +25,6 @@ export const InternalAdminHeader: React.FC<InternalAdminHeaderProps> = ({
   onGoToAdmin,
   onExportPDF,
   onShare,
-  onSettings,
   exportingPDF,
   isShared = false
 }) => {
@@ -140,26 +139,6 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
 }) => {
   // Helper function to get actual date range
   const getDateRange = (period: string) => {
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (period) {
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case '1y':
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
-    
     const formatDate = (date: Date) => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[date.getMonth()];
@@ -169,6 +148,34 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                     day === 3 || day === 23 ? 'rd' : 'th';
       return `${month} ${day}${suffix}`;
     };
+
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (period) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '14d':
+        startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'lastMonth':
+        // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        return `${formatDate(lastMonth)} - ${formatDate(lastMonthEnd)}`;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
     
     return `${formatDate(startDate)} - ${formatDate(now)}`;
   };
@@ -205,10 +212,10 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           {/* Center: Tabs */}
           <div className="flex-1 max-w-2xl mx-8">
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-              <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1 h-10 inline-flex">
+              <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
                 <TabsTrigger 
                   value="summary" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <BarChart3 size={14} />
                   <span className="hidden sm:inline">Summary</span>
@@ -216,7 +223,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="meta" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <LogoManager platform="meta" size={14} />
                   <span className="hidden sm:inline">Meta</span>
@@ -224,7 +231,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="google" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <LogoManager platform="googleAds" size={14} />
                   <span className="hidden sm:inline">Google</span>
@@ -232,7 +239,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="events" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <Calendar size={14} />
                   <span className="hidden sm:inline">Events</span>
@@ -240,7 +247,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="leads" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <Users size={14} />
                   <span className="hidden sm:inline">Leads</span>
@@ -258,7 +265,9 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
               className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium w-40"
             >
               <option value="7d">Last 7 days</option>
+              <option value="14d">Last 14 days</option>
               <option value="30d">Last 30 days</option>
+              <option value="lastMonth">Last month</option>
               <option value="90d">Last 90 days</option>
               <option value="1y">Last year</option>
             </select>

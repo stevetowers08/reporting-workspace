@@ -1,5 +1,4 @@
 import { debugLogger, debugService } from '@/lib/debug';
-import { TokenManager } from '@/services/auth/TokenManager';
 
 export interface FacebookAdsMetrics {
   impressions: number;
@@ -54,49 +53,51 @@ export class FacebookAdsService {
   private static readonly API_VERSION = 'v19.0';
   private static readonly BASE_URL = `https://graph.facebook.com/${this.API_VERSION}`;
 
-  // Get access token from TokenManager
+  // Get access token from unified credential service (Supabase only)
   static async getAccessToken(): Promise<string> {
     try {
-      // First try TokenManager (database-only)
-      const token = await TokenManager.getAccessToken('facebookAds');
+      // Use unified credential service (Supabase) - PRIMARY SOURCE
+      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
+      const token = await UnifiedCredentialService.getAccessToken('facebookAds');
       
       if (token) {
-        debugLogger.debug('FacebookAdsService', 'Using Facebook token from TokenManager');
+        debugLogger.debug('FacebookAdsService', 'Using Facebook token from Supabase');
         return token;
       }
-
-      // SECURITY: Environment tokens should NEVER be used in client-side code
-      // This exposes API keys in the client bundle and is a critical security vulnerability
-      // All authentication must go through OAuth flows only
       
-      throw new Error('No Facebook access token found. Please authenticate through OAuth.');
+      throw new Error('No Facebook access token found in Supabase. Please authenticate through OAuth.');
     } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Error getting access token', error);
+      debugLogger.error('FacebookAdsService', 'Error getting access token from Supabase', error);
       throw error;
     }
   }
 
-  // SECURITY FIX: Instance-based rate limiting to prevent race conditions
-  private static requestQueue: Promise<any> = Promise.resolve();
+  // Rate limiting state
+  private static lastRequestTime = 0;
   private static readonly MIN_REQUEST_INTERVAL = 100; // 100ms between requests (10 requests/second max)
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
-  // Rate-limited fetch with retry logic - SECURITY FIX: Proper queuing to prevent race conditions
+  // Rate-limited fetch with retry logic
   static async rateLimitedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // Queue requests to prevent race conditions
-    return this.requestQueue = this.requestQueue.then(async () => {
-      // Rate limiting: ensure minimum interval between requests
-      await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL));
+    // Rate limiting: ensure minimum interval between requests
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+      const delay = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      debugLogger.debug('FacebookAdsService', `Rate limiting: waiting ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    this.lastRequestTime = Date.now();
 
-      // Retry logic with exponential backoff
-      for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
-        try {
-          debugLogger.debug('FacebookAdsService', `API request attempt ${attempt}/${this.MAX_RETRIES}`, { url });
-          
-          // Add timeout to prevent hanging requests
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    // Retry logic with exponential backoff
+    for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        debugLogger.debug('FacebookAdsService', `API request attempt ${attempt}/${this.MAX_RETRIES}`, { url });
+        
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
         const response = await fetch(url, {
           ...options,
@@ -177,11 +178,11 @@ export class FacebookAdsService {
       }
     }
     
-    throw new Error('This should never be reached');
+    // This should never be reached, but TypeScript needs a return statement
+    throw new Error('Maximum retry attempts exceeded');
   }
 
-
-  static async authenticate(accessToken?: string, adAccountId?: string): Promise<boolean> {
+  static async authenticate(accessToken?: string, _adAccountId?: string): Promise<boolean> {
     try {
       const token = accessToken || await this.getAccessToken();
 
@@ -226,6 +227,24 @@ export class FacebookAdsService {
 
   static async getAdAccounts(): Promise<any[]> {
     try {
+      // First try to get cached accounts from Supabase integration
+      try {
+        const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
+        const integration = await UnifiedCredentialService.getCredentials('facebookAds');
+        
+        if (integration?.settings?.adAccounts && integration.settings.adAccounts.length > 0) {
+          debugLogger.debug('FacebookAdsService', 'Using cached ad accounts from Supabase', { 
+            count: integration.settings.adAccounts.length 
+          });
+          return integration.settings.adAccounts;
+        }
+      } catch (error) {
+        debugLogger.warn('FacebookAdsService', 'Could not get cached accounts from Supabase', error);
+      }
+
+      // Fallback to API call if no cached data
+      debugLogger.debug('FacebookAdsService', 'No cached accounts found, fetching from Facebook API');
+      
       const token = await this.getAccessToken();
       if (!token) {
         throw new Error('Facebook access token not found. Please authenticate first.');
@@ -268,19 +287,38 @@ export class FacebookAdsService {
 
             if (!businessData.data?.length) {return [];}
 
-            // Fetch ad accounts for all Business Managers in parallel
+            // Fetch ALL ad accounts for all Business Managers in parallel
+            // This includes both owned_ad_accounts AND client_ad_accounts
             const businessAccountPromises = businessData.data.map(async (business: any) => {
               try {
-                const response = await FacebookAdsService.rateLimitedFetch(
+                const allBusinessAccounts: any[] = [];
+                
+                // Fetch owned ad accounts
+                const ownedResponse = await FacebookAdsService.rateLimitedFetch(
                   `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
                 );
-
-                if (response.ok) {
-                  const data = await response.json();
-                  debugLogger.debug('FacebookAdsService', `Business ${business.name} ad accounts`, data.data?.length || 0);
-                  return data.data || [];
+                
+                if (ownedResponse.ok) {
+                  const ownedData = await ownedResponse.json();
+                  const ownedAccounts = ownedData.data || [];
+                  allBusinessAccounts.push(...ownedAccounts);
+                  debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 }
-                return [];
+                
+                // Fetch client ad accounts (accounts managed by this business)
+                const clientResponse = await FacebookAdsService.rateLimitedFetch(
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                );
+                
+                if (clientResponse.ok) {
+                  const clientData = await clientResponse.json();
+                  const clientAccounts = clientData.data || [];
+                  allBusinessAccounts.push(...clientAccounts);
+                  debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
+                }
+                
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
+                return allBusinessAccounts;
               } catch (error) {
                 debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
                 return [];
@@ -311,10 +349,38 @@ export class FacebookAdsService {
         index === self.findIndex(a => a.id === account.id)
       );
 
-      debugLogger.debug('FacebookAdsService', 'Total unique ad accounts', uniqueAccounts.length);
+      debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API', uniqueAccounts.length);
+      
+      // Cache the results in Supabase for future use
+      try {
+        await this.cacheAdAccounts(uniqueAccounts);
+      } catch (error) {
+        debugLogger.warn('FacebookAdsService', 'Failed to cache ad accounts', error);
+      }
+      
       return uniqueAccounts;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook ad accounts', error);
+      throw error;
+    }
+  }
+
+  // Cache ad accounts in Supabase integration
+  private static async cacheAdAccounts(accounts: any[]): Promise<void> {
+    try {
+      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
+      
+      // Update the integration with cached ad accounts
+      await UnifiedCredentialService.updateCredentials('facebookAds', {
+        settings: {
+          adAccounts: accounts
+        },
+        lastUpdated: new Date().toISOString()
+      });
+      
+      debugLogger.debug('FacebookAdsService', 'Cached ad accounts in Supabase', { count: accounts.length });
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Failed to cache ad accounts', error);
       throw error;
     }
   }
@@ -327,6 +393,9 @@ export class FacebookAdsService {
       if (!accountId) {
         throw new Error('No ad account found');
       }
+
+      // Ensure account ID has 'act_' prefix
+      const formattedAccountId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
 
       // Fetch platform breakdown data
       const fields = [
@@ -351,7 +420,7 @@ export class FacebookAdsService {
       }
 
       const response = await fetch(
-        `${this.BASE_URL}/${accountId}/insights?${params}`
+        `${this.BASE_URL}/${formattedAccountId}/insights?${params}`
       );
 
       if (!response.ok) {
@@ -393,6 +462,9 @@ export class FacebookAdsService {
         throw new Error('No ad account found');
       }
 
+      // Ensure account ID has 'act_' prefix
+      const formattedAccountId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
+
       // Fetch demographic breakdown data
       const fields = [
         'impressions',
@@ -416,7 +488,7 @@ export class FacebookAdsService {
       }
 
       const response = await fetch(
-        `${this.BASE_URL}/${accountId}/insights?${params}`
+        `${this.BASE_URL}/${formattedAccountId}/insights?${params}`
       );
 
       if (!response.ok) {
@@ -741,14 +813,14 @@ export class FacebookAdsService {
         paging: data.paging
       });
       
-      // Skip demographic and platform data calls for performance
-      // const demographics = await this.getDemographicBreakdown(accountId, dateRange);
-      // const platformBreakdown = await this.getPlatformBreakdown(accountId, dateRange);
+      // Fetch demographic and platform breakdown data
+      const demographics = await this.getDemographicBreakdown(accountId, dateRange);
+      const platformBreakdown = await this.getPlatformBreakdown(accountId, dateRange);
       
       const metrics = this.parseMetrics(data.data?.[0] || {}, conversionAction);
-      // Skip demographic and platform data for now to improve performance
-      // metrics.demographics = demographics;
-      // metrics.platformBreakdown = platformBreakdown;
+      // Include demographic and platform data
+      metrics.demographics = demographics;
+      metrics.platformBreakdown = platformBreakdown;
       
       return metrics;
     } catch (error) {
@@ -843,8 +915,14 @@ export class FacebookAdsService {
   }
 
   static async disconnect(): Promise<void> {
-    // Clear OAuth tokens using TokenManager
-    await TokenManager.removeTokens('facebookAds');
-    debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected');
+    try {
+      // Disconnect from Supabase
+      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
+      await UnifiedCredentialService.disconnectPlatform('facebookAds');
+      debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected from Supabase');
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error disconnecting Facebook Ads', error);
+      throw error;
+    }
   }
 }

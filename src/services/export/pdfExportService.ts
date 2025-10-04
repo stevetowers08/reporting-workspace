@@ -185,7 +185,7 @@ export class PDFExportService {
   /**
    * Add platform performance comparison
    */
-  private static addPlatformComparison(pdf: jsPDF, data: EventDashboardData, yPosition: number, pageWidth: number): number {
+  private static addPlatformComparison(pdf: jsPDF, data: EventDashboardData, yPosition: number, _pageWidth: number): number {
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text('Platform Performance Comparison', 20, yPosition);
@@ -243,7 +243,7 @@ export class PDFExportService {
   /**
    * Add detailed metrics section
    */
-  private static addDetailedMetrics(pdf: jsPDF, data: EventDashboardData, yPosition: number, pageWidth: number): number {
+  private static addDetailedMetrics(pdf: jsPDF, data: EventDashboardData, yPosition: number, _pageWidth: number): number {
     // Check if we need a new page
     if (yPosition > 250) {
       pdf.addPage();
@@ -297,7 +297,7 @@ export class PDFExportService {
   /**
    * Add charts to PDF (simplified version)
    */
-  private static async addCharts(pdf: jsPDF, data: EventDashboardData, yPosition: number, pageWidth: number): Promise<void> {
+  private static async addCharts(pdf: jsPDF, _data: EventDashboardData, yPosition: number, _pageWidth: number): Promise<void> {
     // For now, we'll add a simple text representation of charts
     // In a full implementation, you could capture actual chart images
     

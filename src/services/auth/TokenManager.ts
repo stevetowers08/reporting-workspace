@@ -148,12 +148,29 @@ export class TokenManager {
 
       // Check OAuth tokens first
       if (config.tokens?.accessToken) {
-        // Check if token is expired
+        // Check if token is expired or needs refresh
         if (config.tokens.expiresAt) {
           const expiresAt = new Date(config.tokens.expiresAt);
-          if (expiresAt < new Date()) {
-            debugLogger.warn('TokenManager', `Token expired for ${platform}`);
-            return null;
+          const now = new Date();
+          const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+          
+          if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD) {
+            debugLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
+            
+            // Attempt automatic refresh
+            if (config.tokens.refreshToken) {
+              try {
+                await this.refreshTokens(platform);
+                // Return the refreshed token by calling getAccessToken again
+                return await this.getAccessToken(platform);
+              } catch (refreshError) {
+                debugLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
+                // Continue with existing token - it might still work
+              }
+            } else {
+              debugLogger.warn('TokenManager', `No refresh token available for ${platform}`);
+              return null;
+            }
           }
         }
         return config.tokens.accessToken;
@@ -235,55 +252,18 @@ export class TokenManager {
   }
 
   /**
-   * Refresh OAuth tokens
+   * Refresh OAuth tokens using OAuth service
    */
-  static async refreshTokens(
-    platform: IntegrationPlatform,
-    newTokens: OAuthTokens
-  ): Promise<void> {
+  static async refreshTokens(platform: IntegrationPlatform): Promise<void> {
     try {
       debugLogger.info('TokenManager', `Refreshing tokens for ${platform}`);
 
-      // Calculate new expiration time
-      const expiresAt = newTokens.expiresIn 
-        ? new Date(Date.now() + (newTokens.expiresIn * 1000)).toISOString()
-        : undefined;
-
-      const { data: existingData, error: fetchError } = await supabase
-        .from('integrations')
-        .select('config')
-        .eq('platform', platform)
-        .single();
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      const existingConfig = existingData.config as IntegrationConfig;
+      // Import OAuth service to handle refresh
+      const { OAuthService } = await import('@/services/auth/oauthService');
       
-      const updatedConfig: IntegrationConfig = {
-        ...existingConfig,
-        tokens: {
-          ...newTokens,
-          expiresAt
-        },
-        lastSync: new Date().toISOString(),
-        syncStatus: 'idle'
-      };
-
-      const { error } = await supabase
-        .from('integrations')
-        .update({
-          config: updatedConfig,
-          last_sync: updatedConfig.lastSync,
-          updated_at: new Date().toISOString()
-        })
-        .eq('platform', platform);
-
-      if (error) {
-        throw error;
-      }
-
+      // Use OAuth service to refresh tokens
+      const refreshedTokens = await OAuthService.refreshAccessToken(platform);
+      
       debugLogger.info('TokenManager', `Tokens refreshed successfully for ${platform}`);
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to refresh tokens for ${platform}`, error);

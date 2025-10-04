@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 
 export interface CredentialConfig {
   // OAuth tokens
@@ -25,6 +25,18 @@ export interface CredentialConfig {
   lastUpdated?: string;
   lastUsed?: string;
   isActive?: boolean;
+  
+  // Platform-specific settings
+  settings?: {
+    adAccounts?: any[];
+    [key: string]: any;
+  };
+  
+  // Additional config data
+  config?: {
+    adAccounts?: any[];
+    [key: string]: any;
+  };
 }
 
 export interface PlatformCredentials {

@@ -210,7 +210,7 @@ export class GoogleAdsService {
     throw new Error('This should never be reached');
   }
 
-  static async authenticate(accessToken?: string, customerId?: string, developerToken?: string): Promise<boolean> {
+  static async authenticate(accessToken?: string, developerToken?: string): Promise<boolean> {
     try {
       const token = accessToken || await this.getAccessToken();
       const devToken = developerToken || this.getDeveloperToken();

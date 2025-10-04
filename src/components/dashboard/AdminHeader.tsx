@@ -1,8 +1,7 @@
 import { Button } from '@/components/ui/button';
-import { TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Calendar, ChevronDown, FileDown, Settings, Share2, Users } from 'lucide-react';
+import { BarChart3, ChevronDown, Facebook, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { LogoManager } from '@/components/ui/LogoManager';
+import { Link } from 'react-router-dom';
 
 interface Client {
   id: string;
@@ -18,7 +17,6 @@ interface AdminHeaderProps {
   onGoToAdmin: () => void;
   onExportPDF: () => void;
   onShare: () => void;
-  onSettings: () => void;
   exportingPDF: boolean;
   isShared?: boolean;
   showVenueSelector?: boolean;
@@ -33,7 +31,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onGoToAdmin,
   onExportPDF,
   onShare,
-  onSettings,
   exportingPDF,
   isShared = false,
   showVenueSelector = true,
@@ -139,15 +136,28 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <div className="flex items-center gap-2">
             {/* Show Back to Dashboard button for admin panel */}
             {isAdminPanel ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onBackToDashboard}
-                className="border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50 bg-white/10"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onBackToDashboard}
+                  className="border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50 bg-white/10"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Back to Dashboard
+                </Button>
+                
+                <Link to="/facebook-ads-reporting">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-400 text-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-400 bg-blue-500/20"
+                  >
+                    <Facebook className="h-4 w-4 mr-2" />
+                    All Accounts
+                  </Button>
+                </Link>
+              </>
             ) : (
               <>
                 {/* Only show Export/Share when a venue is selected */}
@@ -175,6 +185,17 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                     </Button>
                   </>
                 )}
+                
+                <Link to="/facebook-ads-reporting">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-400 text-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-400 bg-blue-500/20"
+                  >
+                    <Facebook className="h-4 w-4 mr-2" />
+                    All Accounts
+                  </Button>
+                </Link>
                 
                 <Button 
                   variant="outline" 

@@ -1,8 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bdmcdyxjdkgitphieklb.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbWNkeXhqZGtnaXRwaGlla2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0Mzk3MDYsImV4cCI6MjA3NTAxNTcwNn0.QwmjIXs7PbTi21GGDNd1Z0EQR2R6B_fwYWCXDFeOCPw';
+// SECURITY: Never hardcode API keys in client-side code!
+// These should be configured through environment variables only
+const getEnvVar = (key: string, fallback?: string) => {
+  // Handle both browser (import.meta.env) and Node.js (process.env) environments
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key] || fallback;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || fallback;
+  }
+  return fallback;
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://bdmcdyxjdkgitphieklb.supabase.co');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbWNkeXhqZGtnaXRwaGlla2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0Mzk3MDYsImV4cCI6MjA3NTAxNTcwNn0.QwmjIXs7PbTi21GGDNd1Z0EQR2R6B_fwYWCXDFeOCPw');
+
+// Validate configuration
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase configuration is missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+}
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -304,7 +322,7 @@ export const supabaseHelpers = {
   // Utility functions
   async healthCheck() {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('clients')
         .select('count')
         .limit(1);

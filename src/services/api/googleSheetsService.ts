@@ -20,78 +20,23 @@ export class GoogleSheetsService {
   private static readonly API_BASE_URL = 'https://sheets.googleapis.com/v4';
 
   /**
-   * Get access token for Google Sheets API
+   * Get access token for Google Sheets API with automatic refresh
    */
   private static async getAccessToken(): Promise<string | null> {
-    // First try TokenManager (database-only)
-    const tokens = await OAuthService.getStoredTokens('google');
-    if (tokens?.accessToken) {
-      debugLogger.debug('GoogleSheetsService', 'Using tokens from TokenManager', { hasAccessToken: true });
-      return tokens.accessToken;
-    }
-    
-    // Fallback to database
     try {
-      const { DatabaseService } = await import('@/services/data/databaseService');
-      const integrations = await DatabaseService.getIntegrations();
-      const googleIntegration = integrations.find(i => i.platform === 'googleSheets' && i.connected);
-      
-      if (googleIntegration?.config?.tokens?.accessToken) {
-        const dbTokens = googleIntegration.config.tokens;
-        
-        // Check if token is expired
-        if (dbTokens.expiresIn) {
-          const now = Date.now();
-          const expiresAt = dbTokens.expiresIn * 1000; // Convert to milliseconds
-          const isExpired = now >= expiresAt;
-          
-          if (isExpired && dbTokens.refreshToken) {
-            debugLogger.debug('GoogleSheetsService', 'Token expired, attempting refresh', { 
-              expiredAt: new Date(expiresAt).toISOString(),
-              now: new Date(now).toISOString()
-            });
-            
-            try {
-              // Refresh the token
-              const refreshedTokens = await OAuthService.refreshAccessToken('google');
-              debugLogger.debug('GoogleSheetsService', 'Token refreshed successfully', { hasNewToken: !!refreshedTokens.accessToken });
-              
-              // Update database with new tokens
-              await DatabaseService.saveIntegration('googleSheets', {
-                connected: true,
-                accountName: 'Google Sheets Account',
-                lastSync: new Date().toISOString(),
-                config: { 
-                  tokens: { 
-                    accessToken: refreshedTokens.accessToken,
-                    refreshToken: refreshedTokens.refreshToken || dbTokens.refreshToken,
-                    expiresIn: refreshedTokens.expiresIn,
-                    tokenType: refreshedTokens.tokenType,
-                    scope: refreshedTokens.scope
-                  } 
-                }
-              });
-              
-              return refreshedTokens.accessToken;
-            } catch (refreshError) {
-              debugLogger.error('GoogleSheetsService', 'Token refresh failed', refreshError);
-              // Continue with expired token - it might still work for a short time
-            }
-          }
-        }
-        
-        debugLogger.debug('GoogleSheetsService', 'Using tokens from database', { hasAccessToken: true });
-        return dbTokens.accessToken;
+      // Use OAuthService which handles automatic token refresh
+      const tokens = await OAuthService.getStoredTokens('google');
+      if (tokens?.accessToken) {
+        debugLogger.debug('GoogleSheetsService', 'Using tokens from OAuthService', { hasAccessToken: true });
+        return tokens.accessToken;
       }
+      
+      debugLogger.error('GoogleSheetsService', 'No access token available from OAuthService');
+      return null;
     } catch (error) {
-      debugLogger.error('GoogleSheetsService', 'Failed to get tokens from database', error);
+      debugLogger.error('GoogleSheetsService', 'Failed to get access token', error);
+      return null;
     }
-    
-    debugLogger.debug('GoogleSheetsService', 'No access token found', { 
-      hasLocalStorageTokens: !!tokens,
-      hasAccessToken: !!tokens?.accessToken 
-    });
-    return null;
   }
 
   /**

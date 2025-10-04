@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { FacebookAdsService } from '@/services/api/facebookAdsService';
+import { FacebookTokenService } from '@/services/auth/facebookTokenService';
 import React, { useEffect, useState } from 'react';
 
 interface TokenInfo {
@@ -37,13 +38,12 @@ const FacebookDebugPanel: React.FC = () => {
         throw new Error('Authentication failed');
       }
 
-      // Get stored tokens to access the token
-      const storedTokens = localStorage.getItem('oauth_tokens_facebook');
-      if (!storedTokens) {
+      // Get stored tokens from database
+      const tokens = await FacebookTokenService.getTokens();
+      if (!tokens) {
         throw new Error('No stored tokens found');
       }
       
-      const tokens = JSON.parse(storedTokens);
       const token = tokens.accessToken;
       
       if (!token) {

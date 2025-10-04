@@ -1,23 +1,22 @@
-import React, { useState } from 'react';
-import { LeadRecord } from '@/types/dashboard';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Eye, 
-  Phone, 
-  Mail, 
-  Calendar,
-  DollarSign,
-  Star,
-  Users,
-  Target
+import { LeadRecord } from '@/types/dashboard';
+import {
+    Calendar,
+    DollarSign,
+    Download,
+    Eye,
+    Mail,
+    Phone,
+    Search,
+    Star,
+    Target,
+    Users
 } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface LeadQualityTableProps {
   leads: LeadRecord[];

@@ -144,7 +144,7 @@ export class AdminService {
       const oauthPlatform = oauthPlatformMap[platform] || platform;
       
       // Generate OAuth URL and redirect
-      const authUrl = OAuthService.generateAuthUrl(oauthPlatform);
+      const authUrl = await OAuthService.generateAuthUrl(oauthPlatform, {}, platform);
       
       debugLogger.info('AdminService', `Redirecting to ${platform} OAuth`, { authUrl });
       

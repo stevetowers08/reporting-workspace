@@ -1,6 +1,7 @@
 // Facebook API Troubleshooting Utility
-import { FacebookAdsService } from '@/services/api/facebookAdsService';
 import { debugLogger } from '@/lib/debug';
+import { FacebookAdsService } from '@/services/api/facebookAdsService';
+import { FacebookTokenService } from '@/services/auth/facebookTokenService';
 
 export class FacebookTroubleshoot {
   static async runFullDiagnostic(): Promise<{
@@ -27,17 +28,18 @@ export class FacebookTroubleshoot {
       errors.push(`Environment check failed: ${error}`);
     }
 
-    // Test 2: Stored Tokens
+    // Test 2: Database Tokens
     try {
-      const oauthTokens = localStorage.getItem('oauth_tokens_facebook');
+      const tokens = await FacebookTokenService.getTokens();
       const tokenCheck = {
-        hasTokens: !!oauthTokens,
-        hasState: !!localStorage.getItem('oauth_state_facebook'),
-        hasAccessToken: oauthTokens ? JSON.parse(oauthTokens).accessToken : false,
-        hasRefreshToken: oauthTokens ? JSON.parse(oauthTokens).refreshToken : false
+        hasTokens: !!tokens,
+        hasAccessToken: !!tokens?.accessToken,
+        hasRefreshToken: !!tokens?.refreshToken,
+        tokenType: tokens?.tokenType,
+        scope: tokens?.scope
       };
       results.storedTokens = tokenCheck;
-      debugLogger.info('FacebookTroubleshoot', 'Stored tokens check', tokenCheck);
+      debugLogger.info('FacebookTroubleshoot', 'Database tokens check', tokenCheck);
     } catch (error) {
       errors.push(`Token check failed: ${error}`);
     }
@@ -46,10 +48,11 @@ export class FacebookTroubleshoot {
     try {
       const { OAuthService } = await import('@/services/auth/oauthService');
       const authUrl = OAuthService.generateAuthUrl('facebook');
+      const tokens = await FacebookTokenService.getTokens();
       const oauthCheck = {
         authUrlGenerated: !!authUrl,
         authUrl: authUrl.substring(0, 50) + '...',
-        hasStoredTokens: !!localStorage.getItem('oauth_tokens_facebook'),
+        hasStoredTokens: !!tokens,
         redirectUri: `${window.location.origin}/oauth/callback`
       };
       results.oauthConfiguration = oauthCheck;
@@ -130,10 +133,14 @@ export class FacebookTroubleshoot {
     }
   }
 
-  static clearTokens(): void {
-    localStorage.removeItem('oauth_tokens_facebook');
-    localStorage.removeItem('oauth_state_facebook');
-    debugLogger.info('FacebookTroubleshoot', 'Cleared Facebook tokens');
+  static async clearTokens(): Promise<void> {
+    try {
+      await FacebookTokenService.clearTokens();
+      debugLogger.info('FacebookTroubleshoot', 'Cleared Facebook tokens from database');
+    } catch (error) {
+      debugLogger.error('FacebookTroubleshoot', 'Failed to clear tokens', error);
+      throw error;
+    }
   }
 
   static generateAuthUrl(): string {

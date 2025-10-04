@@ -52,8 +52,8 @@ export class UserGoogleAdsService {
    * Exchange authorization code for tokens and save user authentication
    */
   static async handleUserAuthCallback(
-    code: string, 
-    state: string, 
+    code: string,
+    _state: string,
     userId: string
   ): Promise<UserGoogleAdsAuth> {
     try {
@@ -68,7 +68,7 @@ export class UserGoogleAdsService {
           client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: `${window.location.origin}/oauth/callback`
+          redirect_uri: import.meta.env.DEV ? 'http://localhost:8080/oauth/callback' : `${window.location.origin}/oauth/callback`
         })
       });
 

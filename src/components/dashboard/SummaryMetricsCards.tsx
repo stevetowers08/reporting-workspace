@@ -20,7 +20,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                   <span className="text-sm text-green-600 font-medium">↑ +18.5%</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 text-left">
                 Meta: {dashboardData?.facebookMetrics?.leads || '0'} • Google: {dashboardData?.googleMetrics?.leads || '0'}
               </div>
             </div>
@@ -37,7 +37,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                   <span className="text-sm text-red-600 font-medium">↓ -5.2%</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 text-left">
                 Meta: ${(dashboardData?.facebookMetrics?.costPerLead || 0).toFixed(2)} • Google: ${(dashboardData?.googleMetrics?.costPerLead || 0).toFixed(2)}
               </div>
             </div>
@@ -54,7 +54,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                   <span className="text-sm text-green-600 font-medium">↑ +5.2%</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 text-left">
                 Meta: ${dashboardData?.facebookMetrics?.spend?.toLocaleString() || '0'} • Google: ${dashboardData?.googleMetrics?.cost?.toLocaleString() || '0'}
               </div>
             </div>
@@ -71,7 +71,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                   <span className="text-sm text-green-600 font-medium">↑ +3.1%</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 text-left">
                 {dashboardData?.leadMetrics?.totalOpportunities || '0'} opportunities from {dashboardData?.totalLeads || '0'} leads
               </div>
             </div>
@@ -88,7 +88,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                   <span className="text-sm text-green-600 font-medium">↑ +12.8%</span>
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 text-left">
                 ${dashboardData?.ghlMetrics?.wonRevenue?.toLocaleString() || '0'} in closed revenue
               </div>
             </div>

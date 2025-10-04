@@ -50,7 +50,7 @@ export class FacebookAdsService {
   // Token management with multiple fallbacks
   static async getAccessToken(): Promise<string> {
     // 1. Try unified credential service
-    // 2. Fallback to localStorage OAuth tokens
+    // 2. Database OAuth tokens
     // 3. Fallback to environment variables
   }
 }

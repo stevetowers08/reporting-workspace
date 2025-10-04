@@ -12,8 +12,8 @@ export interface DebugLog {
 class DebugLogger {
     private logs: DebugLog[] = [];
     private maxLogs = 1000;
-    private isEnabled = import.meta.env.DEV;
-    private enableConsoleOutput = import.meta.env.DEV;
+    private isEnabled = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
+    private enableConsoleOutput = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
     log(level: DebugLog['level'], category: string, message: string, data?: any) {
         if (!this.isEnabled) return;
@@ -123,27 +123,30 @@ export const debugLogger = new DebugLogger();
 debugLogger.loadPersistedLogs();
 
 // Global error handler
-window.addEventListener('error', (event) => {
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
     debugLogger.error('GLOBAL_ERROR', 'Unhandled error', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error
     });
-});
+  });
 
-// Unhandled promise rejection handler
-window.addEventListener('unhandledrejection', (event) => {
+  // Unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', (event) => {
     debugLogger.error('PROMISE_REJECTION', 'Unhandled promise rejection', {
-        reason: event.reason,
-        promise: event.promise
+      reason: event.reason,
+      promise: event.promise
     });
-});
+  });
+}
 
 // API request interceptor
-const originalFetch = window.fetch;
-window.fetch = async (...args) => {
+if (typeof window !== 'undefined') {
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
     const [url, options] = args;
     const startTime = Date.now();
 
@@ -173,16 +176,17 @@ window.fetch = async (...args) => {
         });
         throw error;
     }
-};
+  };
+}
 
 // React component debugging
 export const debugComponent = (componentName: string) => {
-    return {
-        mount: (props?: any) => debugLogger.debug('COMPONENT', `${componentName} mounted`, props),
-        unmount: () => debugLogger.debug('COMPONENT', `${componentName} unmounted`),
-        update: (props?: any, prevProps?: any) => debugLogger.debug('COMPONENT', `${componentName} updated`, { props, prevProps }),
-        render: (props?: any) => debugLogger.debug('COMPONENT', `${componentName} render`, props)
-    };
+  return {
+    mount: (props?: any) => debugLogger.debug('COMPONENT', `${componentName} mounted`, props),
+    unmount: () => debugLogger.debug('COMPONENT', `${componentName} unmounted`),
+    update: (props?: any, prevProps?: any) => debugLogger.debug('COMPONENT', `${componentName} updated`, { props, prevProps }),
+    render: (props?: any) => debugLogger.debug('COMPONENT', `${componentName} render`, props)
+  };
 };
 
 // Database operation debugging

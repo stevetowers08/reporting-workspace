@@ -77,8 +77,8 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         logoUrl: client.logo_url,
                         status: client.status,
                         facebookAccount: {
-                            accountId: client.accounts.facebookAds!,
-                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                            accountId: client.accounts?.facebookAds || '',
+                            accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
                             connected: true
                         },
                         metrics: {
@@ -92,7 +92,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                             reach: metrics.facebookMetrics.reach || 0,
                             frequency: metrics.facebookMetrics.frequency || 0
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     };
 
                     accountsData.push(accountData);
@@ -105,8 +105,8 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         logoUrl: client.logo_url,
                         status: client.status,
                         facebookAccount: {
-                            accountId: client.accounts.facebookAds!,
-                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                            accountId: client.accounts?.facebookAds || '',
+                            accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
                             connected: true
                         },
                         metrics: {
@@ -120,7 +120,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                             reach: 0,
                             frequency: 0
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     });
                 }
             }
@@ -142,8 +142,17 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
             case '7d':
                 start.setDate(end.getDate() - 7);
                 break;
+            case '14d':
+                start.setDate(end.getDate() - 14);
+                break;
             case '30d':
                 start.setDate(end.getDate() - 30);
+                break;
+            case 'lastMonth':
+                // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+                start.setMonth(end.getMonth() - 1);
+                start.setDate(1);
+                end.setDate(0); // Last day of previous month
                 break;
             case '90d':
                 start.setDate(end.getDate() - 90);

@@ -30,17 +30,23 @@ export interface OAuthState {
 export class OAuthService {
     private static readonly OAUTH_CONFIGS: Record<string, OAuthConfig> = {
         facebook: {
-            clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || '2922447491235718',
-            clientSecret: import.meta.env.VITE_FACEBOOK_CLIENT_SECRET || '1931f7ba0db26d624129eedc0d4ee10f',
-            redirectUri: `${window.location.origin}/oauth/callback`,
+            // SECURITY: Never hardcode secrets in client-side code!
+            // These should be configured server-side only
+            clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || 
+              (import.meta.env.DEV ? '2922447491235718' : ''),
+            clientSecret: '', // Client secret should NEVER be in client-side code
+            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: ['ads_read', 'ads_management', 'business_management'],
             authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
             tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token'
         },
         google: {
-            clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com',
-            clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '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',
-            redirectUri: `${window.location.origin}/oauth/callback`,
+            // SECURITY: Never hardcode secrets in client-side code!
+            clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 
+              (import.meta.env.DEV ? '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com' : ''),
+            clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || 
+              (import.meta.env.DEV ? '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' : ''),
+            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: [
                 'https://www.googleapis.com/auth/adwords',
                 'https://www.googleapis.com/auth/spreadsheets.readonly',
@@ -50,9 +56,10 @@ export class OAuthService {
             tokenUrl: 'https://oauth2.googleapis.com/token'
         },
         gohighlevel: {
+            // SECURITY: Never hardcode secrets in client-side code!
             clientId: import.meta.env.VITE_GHL_CLIENT_ID || '',
-            clientSecret: import.meta.env.VITE_GHL_CLIENT_SECRET || '',
-            redirectUri: `${window.location.origin}/oauth/callback`,
+            clientSecret: '', // Client secret should NEVER be in client-side code
+            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: ['contacts.read', 'opportunities.read', 'locations.read'],
             authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation',
             tokenUrl: 'https://services.leadconnectorhq.com/oauth/token'
@@ -180,21 +187,39 @@ export class OAuthService {
             redirect_uri: config.redirectUri
         };
 
-        // Add PKCE code verifier for Google OAuth
+        // Add client secret for all platforms
+        if (config.clientSecret) {
+            tokenParams.client_secret = config.clientSecret;
+            debugLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
+                hasClientSecret: !!config.clientSecret,
+                clientSecretLength: config.clientSecret.length
+            });
+        } else {
+            debugLogger.error('OAuthService', `No client secret found for ${platform}`, {
+                platform,
+                hasClientSecret: !!config.clientSecret
+            });
+        }
+
+        // Add PKCE code verifier for Google OAuth (in addition to client secret)
         if (platform === 'google') {
             const codeVerifier = localStorage.getItem(`oauth_code_verifier_${platform}`);
             if (codeVerifier) {
                 tokenParams.code_verifier = codeVerifier;
-                debugLogger.debug('OAuthService', 'Using PKCE code verifier for token exchange');
-            } else {
-                debugLogger.warn('OAuthService', 'No PKCE code verifier found, using client secret');
-                tokenParams.client_secret = config.clientSecret;
+                debugLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret');
             }
-        } else {
-            tokenParams.client_secret = config.clientSecret;
         }
 
         try {
+            debugLogger.debug('OAuthService', 'Token exchange parameters', {
+                platform,
+                clientId: config.clientId,
+                hasClientSecret: !!config.clientSecret,
+                redirectUri: config.redirectUri,
+                tokenUrl: config.tokenUrl,
+                paramKeys: Object.keys(tokenParams)
+            });
+
             const response = await fetch(config.tokenUrl, {
                 method: 'POST',
                 headers: {

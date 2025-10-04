@@ -1,4 +1,5 @@
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 import { GoogleAdsService } from '@/services/api/googleAdsService';
 import { OAuthService } from '@/services/auth/oauthService';
 
@@ -180,32 +181,37 @@ export class GoogleAdsTroubleshoot {
       });
     }
 
-    // Test 5: Local Storage Check
+    // Test 5: Database Token Check
     try {
-      const googleKeys = Object.keys(localStorage).filter(key => key.includes('google'));
-      const oauthTokens = localStorage.getItem('oauth_tokens_google');
+      // Check database for Google Ads tokens
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('connected, config')
+        .eq('platform', 'googleAds')
+        .single();
       
       results.push({
-        test: 'Local Storage',
-        status: googleKeys.length > 0 ? 'pass' : 'warning',
-        message: `Found ${googleKeys.length} Google-related localStorage keys`,
+        test: 'Database Tokens',
+        status: data?.connected ? 'pass' : 'warning',
+        message: data?.connected ? 'Google Ads tokens found in database' : 'No Google Ads tokens in database',
         details: { 
-          keys: googleKeys,
-          hasOAuthTokens: !!oauthTokens,
-          oauthTokensLength: oauthTokens ? oauthTokens.length : 0
+          connected: data?.connected || false,
+          hasConfig: !!data?.config,
+          configKeys: data?.config ? Object.keys(data.config) : []
         }
       });
     } catch (error) {
       results.push({
-        test: 'Local Storage',
+        test: 'Database Tokens',
         status: 'fail',
-        message: 'Error checking localStorage',
+        message: 'Error checking database tokens',
         details: { error: error.message }
       });
     }
 
     const hasFailures = results.some(r => r.status === 'fail');
     const hasWarnings = results.some(r => r.status === 'warning');
+    console.log('Google Ads troubleshooting completed', { hasWarnings });
 
     return {
       success: !hasFailures,

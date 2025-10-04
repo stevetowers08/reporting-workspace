@@ -100,7 +100,7 @@ NODE_ENV=development
 
 ### Token Storage
 
-- OAuth tokens are stored in localStorage (development only)
+- OAuth tokens are stored in database (secure)
 - For production, implement secure server-side token storage
 - Consider using encrypted cookies or secure database storage
 

@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { IntegrationErrorBoundary } from '@/components/error/IntegrationErrorBoundary';
+import { LoadingSpinner } from '@/components/ui/LoadingStates';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useErrorHandler } from '@/contexts/ErrorContext';
 import { debugLogger } from '@/lib/debug';
 import { OAuthService } from '@/services/auth/oauthService';
@@ -77,6 +77,50 @@ const OAuthCallback = () => {
           setMessage('Successfully connected your Google Ads account!');
           setTimeout(() => {
             navigate('/admin'); // Redirect to admin panel
+          }, 2000);
+          return;
+        }
+
+        // Check if this is Google Sheets integration
+        if (platform === 'google' && integrationPlatform === 'googleSheets') {
+          console.log('🔄 Handling Google Sheets OAuth callback...');
+          
+          // Exchange code for tokens
+          const tokens = await OAuthService.exchangeCodeForTokens(platform, code, state);
+          
+          // Get user info from Google
+          const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+              'Authorization': `Bearer ${tokens.accessToken}`
+            }
+          });
+          
+          const userInfo = await userInfoResponse.json();
+          
+          // Save Google Sheets integration
+          await IntegrationService.saveIntegration('googleSheets', {
+            connected: true,
+            connectedAt: new Date().toISOString(),
+            lastSync: new Date().toISOString(),
+            syncStatus: 'idle',
+            accountInfo: {
+              id: userInfo.id,
+              name: userInfo.name || userInfo.email,
+              email: userInfo.email
+            },
+            tokens: {
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+              expiresIn: tokens.expiresIn,
+              tokenType: tokens.tokenType,
+              scope: tokens.scope
+            }
+          });
+          
+          setStatus('success');
+          setMessage('Successfully connected Google Sheets!');
+          setTimeout(() => {
+            navigate('/admin');
           }, 2000);
           return;
         }

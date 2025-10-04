@@ -134,7 +134,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         onGoToAdmin={() => {}}
         onExportPDF={() => {}}
         onShare={() => {}}
-        onSettings={() => {}}
         exportingPDF={false}
         isShared={false}
         showVenueSelector={false}

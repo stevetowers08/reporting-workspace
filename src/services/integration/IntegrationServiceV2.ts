@@ -8,6 +8,8 @@ import {
   AccountInfo,
   IntegrationDisplay
 } from '@/types/integration';
+import { validateInput, IntegrationConfigSchema, ApiKeyValidationSchema, OAuthTokenValidationSchema, ValidationError } from '@/lib/validation';
+import { checkRateLimit, RateLimitConfigs } from '@/lib/rateLimiting';
 
 /**
  * IntegrationService - API-based integration management
@@ -129,16 +131,25 @@ export class IntegrationService {
    */
   static async saveIntegration(platform: IntegrationPlatform, config: IntegrationConfig): Promise<IntegrationConfig> {
     try {
+      // Rate limiting check
+      const rateLimitResult = checkRateLimit(`integration:${platform}`, RateLimitConfigs.integration);
+      if (!rateLimitResult.allowed) {
+        throw new Error(`Rate limit exceeded for ${platform} integration. Try again in ${rateLimitResult.retryAfter} seconds.`);
+      }
+
+      // Validate input data
+      const validatedConfig = validateInput(IntegrationConfigSchema, config);
+      
       debugLogger.info('IntegrationService', `Saving integration config for ${platform}`);
       
       // Use the appropriate method based on what's in the config
-      if (config.tokens) {
+      if (validatedConfig.tokens) {
         return await this.saveOAuthTokens(
           platform,
-          config.tokens,
-          config.accountInfo || { id: `${platform}-user`, name: `${platform} Account` },
-          config.metadata,
-          config.settings
+          validatedConfig.tokens,
+          validatedConfig.accountInfo || { id: `${platform}-user`, name: `${platform} Account` },
+          validatedConfig.metadata,
+          validatedConfig.settings
         );
       } else if (config.apiKey) {
         return await this.saveApiKey(

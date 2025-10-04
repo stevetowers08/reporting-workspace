@@ -12,7 +12,6 @@ export interface GoogleAdsConfig {
 }
 
 export class GoogleAdsConfigService {
-  private static readonly CONFIG_KEY = 'google_ads_config';
 
   /**
    * Get the active Google Ads configuration

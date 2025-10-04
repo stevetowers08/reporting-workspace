@@ -6,8 +6,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: '/',
   server: {
-    host: "127.0.0.1",
-    port: 8086,
+    host: "localhost",
+    port: 8080,
     strictPort: true,
     open: true,
   },
@@ -41,12 +41,23 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          charts: ['chart.js', 'react-chartjs-2'],
-          ui: ['@radix-ui/react-tabs', '@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-select'],
-          supabase: ['@supabase/supabase-js'],
-          router: ['react-router-dom'],
-          utils: ['clsx', 'tailwind-merge', 'class-variance-authority']
+          // More granular chunking for better caching and loading performance
+          'react-vendor': ['react', 'react-dom'],
+          'ui-vendor': [
+            '@radix-ui/react-tabs', 
+            '@radix-ui/react-dialog', 
+            '@radix-ui/react-popover', 
+            '@radix-ui/react-select',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-dropdown-menu'
+          ],
+          'chart-vendor': ['chart.js', 'react-chartjs-2'],
+          'api-vendor': ['@supabase/supabase-js', '@tanstack/react-query'],
+          'router-vendor': ['react-router-dom'],
+          'utils-vendor': ['clsx', 'tailwind-merge', 'class-variance-authority'],
+          'icons-vendor': ['lucide-react'],
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+          'sentry-vendor': ['@sentry/react', '@sentry/tracing']
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
@@ -59,7 +70,13 @@ export default defineConfig({
       compress: {
         drop_console: true,
         drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove console logs in production
       },
     },
+    // Enable gzip compression
+    reportCompressedSize: true,
+    // Optimize for production
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096, // Inline assets smaller than 4kb
   },
 });

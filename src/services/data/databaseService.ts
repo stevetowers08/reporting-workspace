@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
+import { ClientCreateSchema, ClientUpdateSchema, validateInput } from '@/lib/validation';
 
 // Debug helper for database operations
 const debugDatabase = {
@@ -253,9 +254,26 @@ export class DatabaseService {
     };
   }): Promise<Client> {
     try {
-      const newClient = {
+      // Validate input data
+      const validatedData = validateInput(ClientCreateSchema, {
         name: clientData.name,
-        logo_url: clientData.logo_url,
+        logo_url: clientData.logo_url || '',
+        type: 'venue', // Default type
+        location: 'Unknown', // Default location
+        status: 'active',
+        services: {
+          facebookAds: !!clientData.accounts.facebookAds,
+          googleAds: !!clientData.accounts.googleAds,
+          crm: !!clientData.accounts.goHighLevel,
+          revenue: !!clientData.accounts.googleSheets,
+        },
+        accounts: clientData.accounts,
+        conversion_actions: clientData.conversionActions,
+      });
+
+      const newClient = {
+        name: validatedData.name,
+        logo_url: validatedData.logo_url,
         status: 'active' as const,
         facebook_ads_account_id: clientData.accounts.facebookAds,
         google_ads_account_id: clientData.accounts.googleAds,
@@ -277,8 +295,11 @@ export class DatabaseService {
 
   static async updateClient(id: string, updates: Partial<Client>): Promise<Client> {
     try {
-      const client = await supabaseHelpers.updateClient(id, updates);
-      debugLogger.info('DatabaseService', 'Client updated successfully in database', { id, updates });
+      // Validate input data
+      const validatedUpdates = validateInput(ClientUpdateSchema, updates);
+      
+      const client = await supabaseHelpers.updateClient(id, validatedUpdates);
+      debugLogger.info('DatabaseService', 'Client updated successfully in database', { id, updates: validatedUpdates });
       return client;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error updating client in database', error);
@@ -394,6 +415,225 @@ export class DatabaseService {
       return result;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Health check failed', error);
+      throw error;
+    }
+  }
+
+  // Google Ads User Authentication Methods
+  static async getUserGoogleAdsAuth(userId: string): Promise<any> {
+    try {
+      debugDatabase.query('getUserGoogleAdsAuth', 'user_google_ads_auth');
+      const { data, error } = await supabase
+        .from('user_google_ads_auth')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        debugDatabase.error('getUserGoogleAdsAuth', 'user_google_ads_auth', error);
+        throw error;
+      }
+      
+      debugDatabase.success('getUserGoogleAdsAuth', 'user_google_ads_auth', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error getting user Google Ads auth', error);
+      throw error;
+    }
+  }
+
+  static async saveUserGoogleAdsAuth(userAuth: any): Promise<any> {
+    try {
+      debugDatabase.query('saveUserGoogleAdsAuth', 'user_google_ads_auth');
+      const { data, error } = await supabase
+        .from('user_google_ads_auth')
+        .insert(userAuth)
+        .select()
+        .single();
+      
+      if (error) {
+        debugDatabase.error('saveUserGoogleAdsAuth', 'user_google_ads_auth', error);
+        throw error;
+      }
+      
+      debugDatabase.success('saveUserGoogleAdsAuth', 'user_google_ads_auth', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error saving user Google Ads auth', error);
+      throw error;
+    }
+  }
+
+  static async updateUserGoogleAdsAuth(userAuth: any): Promise<any> {
+    try {
+      debugDatabase.query('updateUserGoogleAdsAuth', 'user_google_ads_auth');
+      const { data, error } = await supabase
+        .from('user_google_ads_auth')
+        .update(userAuth)
+        .eq('user_id', userAuth.user_id)
+        .select()
+        .single();
+      
+      if (error) {
+        debugDatabase.error('updateUserGoogleAdsAuth', 'user_google_ads_auth', error);
+        throw error;
+      }
+      
+      debugDatabase.success('updateUserGoogleAdsAuth', 'user_google_ads_auth', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error updating user Google Ads auth', error);
+      throw error;
+    }
+  }
+
+  static async deleteUserGoogleAdsAuth(userId: string): Promise<boolean> {
+    try {
+      debugDatabase.query('deleteUserGoogleAdsAuth', 'user_google_ads_auth');
+      const { error } = await supabase
+        .from('user_google_ads_auth')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (error) {
+        debugDatabase.error('deleteUserGoogleAdsAuth', 'user_google_ads_auth', error);
+        throw error;
+      }
+      
+      debugDatabase.success('deleteUserGoogleAdsAuth', 'user_google_ads_auth', { deleted: true });
+      return true;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error deleting user Google Ads auth', error);
+      throw error;
+    }
+  }
+
+  static async getActiveGoogleAdsConfig(): Promise<any> {
+    try {
+      debugDatabase.query('getActiveGoogleAdsConfig', 'google_ads_configs');
+      const { data, error } = await supabase
+        .from('google_ads_configs')
+        .select('*')
+        .eq('is_active', true)
+        .single();
+      
+      if (error) {
+        debugDatabase.error('getActiveGoogleAdsConfig', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('getActiveGoogleAdsConfig', 'google_ads_configs', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error getting active Google Ads config', error);
+      throw error;
+    }
+  }
+
+  // Google Ads Config Methods
+  static async getGoogleAdsConfigs(): Promise<any[]> {
+    try {
+      debugDatabase.query('getGoogleAdsConfigs', 'google_ads_configs');
+      const { data, error } = await supabase
+        .from('google_ads_configs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        debugDatabase.error('getGoogleAdsConfigs', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('getGoogleAdsConfigs', 'google_ads_configs', data);
+      return data || [];
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error getting Google Ads configs', error);
+      throw error;
+    }
+  }
+
+  static async saveGoogleAdsConfig(config: any): Promise<any> {
+    try {
+      debugDatabase.query('saveGoogleAdsConfig', 'google_ads_configs');
+      const { data, error } = await supabase
+        .from('google_ads_configs')
+        .insert(config)
+        .select()
+        .single();
+      
+      if (error) {
+        debugDatabase.error('saveGoogleAdsConfig', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('saveGoogleAdsConfig', 'google_ads_configs', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error saving Google Ads config', error);
+      throw error;
+    }
+  }
+
+  static async updateGoogleAdsConfig(id: string, updates: any): Promise<any> {
+    try {
+      debugDatabase.query('updateGoogleAdsConfig', 'google_ads_configs');
+      const { data, error } = await supabase
+        .from('google_ads_configs')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        debugDatabase.error('updateGoogleAdsConfig', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('updateGoogleAdsConfig', 'google_ads_configs', data);
+      return data;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error updating Google Ads config', error);
+      throw error;
+    }
+  }
+
+  static async deleteGoogleAdsConfig(id: string): Promise<boolean> {
+    try {
+      debugDatabase.query('deleteGoogleAdsConfig', 'google_ads_configs');
+      const { error } = await supabase
+        .from('google_ads_configs')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        debugDatabase.error('deleteGoogleAdsConfig', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('deleteGoogleAdsConfig', 'google_ads_configs', { deleted: true });
+      return true;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error deleting Google Ads config', error);
+      throw error;
+    }
+  }
+
+  static async deactivateAllGoogleAdsConfigs(): Promise<void> {
+    try {
+      debugDatabase.query('deactivateAllGoogleAdsConfigs', 'google_ads_configs');
+      const { error } = await supabase
+        .from('google_ads_configs')
+        .update({ is_active: false })
+        .eq('is_active', true);
+      
+      if (error) {
+        debugDatabase.error('deactivateAllGoogleAdsConfigs', 'google_ads_configs', error);
+        throw error;
+      }
+      
+      debugDatabase.success('deactivateAllGoogleAdsConfigs', 'google_ads_configs', { updated: true });
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error deactivating all Google Ads configs', error);
       throw error;
     }
   }

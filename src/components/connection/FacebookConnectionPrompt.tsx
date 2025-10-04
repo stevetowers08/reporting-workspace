@@ -23,7 +23,7 @@ export const FacebookConnectionPrompt: React.FC<FacebookConnectionPromptProps> =
       setErrorMessage('');
 
       // Generate OAuth URL and redirect
-      const authUrl = OAuthService.generateAuthUrl('facebook');
+      const authUrl = await OAuthService.generateAuthUrl('facebook');
       window.location.href = authUrl;
     } catch (error) {
       debugLogger.error('FacebookConnectionPrompt', 'Error initiating Facebook connection', error);

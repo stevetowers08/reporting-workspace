@@ -33,7 +33,7 @@ export const CHART_COLORS = {
 };
 
 // Default chart options matching the reference style
-export const getDefaultChartOptions = (title?: string, subtitle?: string) => ({
+export const getDefaultChartOptions = (title?: string) => ({
   responsive: true,
   maintainAspectRatio: false,
   layout: {

@@ -181,7 +181,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           onGoToAdmin={handleSettings}
           onExportPDF={handleExportPDF}
           onShare={handleShare}
-          onSettings={handleSettings}
           exportingPDF={exportingPDF}
           isShared={isShared}
           showVenueSelector={true}

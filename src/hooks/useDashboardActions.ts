@@ -65,7 +65,6 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
   const handleExportPDF = useCallback(async (
     dashboardData: DashboardData | null, 
     clientData: ClientData | null, 
-    selectedPeriod: string,
     setExportingPDF: (loading: boolean) => void
   ) => {
     if (!dashboardData || !clientData) {

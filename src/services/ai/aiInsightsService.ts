@@ -329,8 +329,16 @@ export class AIInsightsService {
       case '7d':
         start.setDate(now.getDate() - 7);
         break;
+      case '14d':
+        start.setDate(now.getDate() - 14);
+        break;
       case '30d':
         start.setDate(now.getDate() - 30);
+        break;
+      case 'lastMonth':
+        // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+        start.setMonth(now.getMonth() - 1);
+        start.setDate(1);
         break;
       case '90d':
         start.setDate(now.getDate() - 90);

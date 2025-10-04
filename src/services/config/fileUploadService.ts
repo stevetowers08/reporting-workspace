@@ -1,4 +1,5 @@
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 
 export class FileUploadService {
     /**

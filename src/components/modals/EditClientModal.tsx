@@ -31,7 +31,7 @@ interface EditClientModalProps {
 
 const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClientModalProps) => {
     const handleSubmit = (formData: any) => {
-        debugLogger.log('EditClientModal', 'handleSubmit called', { formData, clientId: client.id });
+        debugLogger.info('EditClientModal', 'handleSubmit called', { formData, clientId: client.id });
         
         // Transform form data to match expected format
         const updates = {
@@ -50,7 +50,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
             }
         };
         
-        debugLogger.log('EditClientModal', 'Calling onUpdateClient', { clientId: client.id, updates });
+        debugLogger.info('EditClientModal', 'Calling onUpdateClient', { clientId: client.id, updates });
         onUpdateClient(client.id, updates);
     };
 

@@ -26,7 +26,9 @@ export class GoogleAiService {
   private static readonly MODEL_NAME = 'gemini-2.0-flash-001';
 
   private static getApiKey(): string {
-    const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+    // SECURITY: API keys should NEVER be exposed in client-side code!
+    // This should be handled server-side only
+    const apiKey = ''; // Remove hardcoded API key exposure
     if (!apiKey) {
       throw new Error('Google AI API key not configured');
     }
@@ -119,7 +121,11 @@ export class GoogleAiService {
   }
 
   private static buildPrompt(dashboardData: any, systemPrompt: string, period: string): string {
-    const periodText = period === '7d' ? 'last 7 days' : period === '30d' ? 'last 30 days' : 'last 90 days';
+    const periodText = period === '7d' ? 'last 7 days' : 
+                      period === '14d' ? 'last 14 days' :
+                      period === '30d' ? 'last 30 days' : 
+                      period === 'lastMonth' ? 'last month' :
+                      period === '90d' ? 'last 90 days' : 'last 30 days';
     
     return `${systemPrompt}
 

@@ -97,13 +97,13 @@ const AdAccountsOverview = () => {
                         status: client.status,
                         platforms: {
                             facebookAds: hasFacebookAds ? {
-                                accountId: client.accounts.facebookAds!,
-                                accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                                accountId: client.accounts?.facebookAds || '',
+                                accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
                                 connected: true
                             } : undefined,
                             googleAds: hasGoogleAds ? {
-                                accountId: client.accounts.googleAds!,
-                                accountName: `Google Ads Account (${client.accounts.googleAds})`,
+                                accountId: client.accounts?.googleAds || '',
+                                accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
                                 connected: true
                             } : undefined
                         },
@@ -129,7 +129,7 @@ const AdAccountsOverview = () => {
                                 cpc: metrics.googleMetrics.cpc
                             } : undefined
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     };
 
                     accountsData.push(accountData);
@@ -143,13 +143,13 @@ const AdAccountsOverview = () => {
                         status: client.status,
                         platforms: {
                             facebookAds: hasFacebookAds ? {
-                                accountId: client.accounts.facebookAds!,
-                                accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
+                                accountId: client.accounts?.facebookAds || '',
+                                accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
                                 connected: true
                             } : undefined,
                             googleAds: hasGoogleAds ? {
-                                accountId: client.accounts.googleAds!,
-                                accountName: `Google Ads Account (${client.accounts.googleAds})`,
+                                accountId: client.accounts?.googleAds || '',
+                                accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
                                 connected: true
                             } : undefined
                         },
@@ -159,7 +159,7 @@ const AdAccountsOverview = () => {
                             totalRevenue: 0,
                             roi: 0
                         },
-                        shareableLink: client.shareable_link
+                        shareableLink: client.shareable_link || ''
                     });
                 }
             }
@@ -181,8 +181,17 @@ const AdAccountsOverview = () => {
             case '7d':
                 start.setDate(end.getDate() - 7);
                 break;
+            case '14d':
+                start.setDate(end.getDate() - 14);
+                break;
             case '30d':
                 start.setDate(end.getDate() - 30);
+                break;
+            case 'lastMonth':
+                // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+                start.setMonth(end.getMonth() - 1);
+                start.setDate(1);
+                end.setDate(0); // Last day of previous month
                 break;
             case '90d':
                 start.setDate(end.getDate() - 90);
@@ -241,7 +250,9 @@ const AdAccountsOverview = () => {
                             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="7d">Last 7 days</option>
+                            <option value="14d">Last 14 days</option>
                             <option value="30d">Last 30 days</option>
+                            <option value="lastMonth">Last month</option>
                             <option value="90d">Last 90 days</option>
                         </select>
                     </div>

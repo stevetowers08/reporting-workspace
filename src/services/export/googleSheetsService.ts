@@ -349,7 +349,7 @@ export class GoogleSheetsService {
     };
   }
 
-  static async syncWithGHL(ghlApiKey: string, ghlLocationId: string): Promise<void> {
+  static async syncWithGHL(_ghlApiKey: string, _ghlLocationId: string): Promise<void> {
     // Sync form data with Go High Level contacts
     const formData = await this.getFormData();
 

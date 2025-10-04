@@ -184,7 +184,6 @@ class DatabaseLogoService {
       const logoService = (await import('./logoService')).logoService;
       
       for (const dbLogo of dbLogos) {
-        const serviceLogo = logoService.convertToServiceFormat(dbLogo);
         // Update local cache if needed
         console.log(`Synced logo metadata for ${dbLogo.platform}`);
       }
