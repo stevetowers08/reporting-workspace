@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DatabaseService } from '@/services/databaseService';
-import { OAuthService } from '@/services/oauthService';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingStates';
+import { debugLogger } from '@/lib/debug';
+import { OAuthService } from '@/services/auth/oauthService';
+import { UserGoogleAdsService } from '@/services/auth/userGoogleAdsService';
+import { DatabaseService } from '@/services/data/databaseService';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -27,29 +30,88 @@ const OAuthCallback = () => {
           throw new Error('Missing authorization code or state');
         }
 
-        // Parse state to get platform
+        // Parse state to get platform and user info
         const stateData = JSON.parse(atob(state));
         const platform = stateData.platform;
+        const userId = stateData.userId;
+        const integrationPlatform = stateData.integrationPlatform;
 
-        // Exchange code for tokens
+        // Check if this is a user-specific Google Ads authentication
+        if (platform === 'google' && userId && stateData.scope?.includes('adwords')) {
+          // Handle user-specific Google Ads authentication
+          await UserGoogleAdsService.handleUserAuthCallback(code, state, userId);
+          
+          setStatus('success');
+          setMessage('Successfully connected your Google Ads account!');
+          setTimeout(() => {
+            navigate('/admin'); // Redirect to admin panel
+          }, 2000);
+          return;
+        }
+        
+        // Debug: Log which path we're taking
+        debugLogger.debug('OAuthCallback', 'OAuth path decision', {
+          platform,
+          userId,
+          hasUserId: !!userId,
+          scope: stateData.scope,
+          hasAdwordsScope: stateData.scope?.includes('adwords'),
+          takingUserSpecificPath: platform === 'google' && userId && stateData.scope?.includes('adwords')
+        });
+
+        // Exchange code for tokens (existing logic for other platforms)
+        debugLogger.debug('OAuthCallback', 'Exchanging code for tokens', { platform, codeLength: code.length, state });
         const tokens = await OAuthService.exchangeCodeForTokens(platform, code, state);
+        debugLogger.debug('OAuthCallback', 'Token exchange successful', { 
+          platform,
+          hasAccessToken: !!tokens.accessToken,
+          hasRefreshToken: !!tokens.refreshToken,
+          tokenType: tokens.tokenType,
+          expiresIn: tokens.expiresIn,
+          allTokenKeys: Object.keys(tokens),
+          fullTokens: tokens
+        });
+        
+        // Debug: Check if tokens are stored properly
+        const storedTokens = localStorage.getItem(`oauth_tokens_${platform}`);
+        debugLogger.debug('OAuthCallback', 'Tokens stored in localStorage', { hasStoredTokens: !!storedTokens });
 
-        // Map OAuth platform to integration platform
+        // Use the integration platform from state, or fallback to platform mapping
         const platformMap: Record<string, string> = {
           'facebook': 'facebookAds',
-          'google': 'googleAds', // This will need to be more specific based on scopes
+          'google': 'googleAds',
           'gohighlevel': 'goHighLevel'
         };
 
-        const integrationPlatform = platformMap[platform] || platform;
+        const finalIntegrationPlatform = integrationPlatform || platformMap[platform] || platform;
 
         // Save integration to database
-        await DatabaseService.saveIntegration(integrationPlatform, {
+        debugLogger.debug('OAuthCallback', 'Saving integration', { 
+          platform: finalIntegrationPlatform, 
+          connected: true, 
+          hasAccessToken: !!tokens.accessToken,
+          tokenKeys: Object.keys(tokens),
+          fullTokens: tokens
+        });
+        
+        // Handle different token field names for different platforms
+        const accessToken = tokens.accessToken || tokens.access_token || tokens.accessToken;
+        
+        await DatabaseService.saveIntegration(finalIntegrationPlatform, {
           connected: true,
           accountName: `${platform} Account`,
           lastSync: new Date().toISOString(),
-          config: { tokens: { accessToken: tokens.accessToken } }
+          config: { 
+            tokens: { 
+              accessToken: accessToken,
+              refreshToken: tokens.refreshToken || tokens.refresh_token,
+              expiresIn: tokens.expiresIn || tokens.expires_in,
+              tokenType: tokens.tokenType || tokens.token_type,
+              scope: tokens.scope
+            } 
+          }
         });
+        console.log('Integration saved successfully');
 
         setStatus('success');
         setMessage(`Successfully connected to ${platform}!`);
@@ -78,7 +140,7 @@ const OAuthCallback = () => {
         <CardContent className="text-center">
           {status === 'loading' && (
             <div className="space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
+              <LoadingSpinner size="md" className="mx-auto text-blue-600" />
               <p className="text-gray-600">Processing authentication...</p>
             </div>
           )}

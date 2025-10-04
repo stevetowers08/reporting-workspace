@@ -1,7 +1,7 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { EventDashboardData } from '@/services/eventMetricsService';
-import { TrendingUp, TrendingDown, Target, DollarSign, Users, Calendar } from 'lucide-react';
+import { EventDashboardData } from '@/services/data/eventMetricsService';
+import { DollarSign, Target, TrendingUp, Users } from 'lucide-react';
+import React from 'react';
 
 interface InsightsCardProps {
   dashboardData: EventDashboardData | null;

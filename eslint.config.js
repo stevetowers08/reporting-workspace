@@ -4,7 +4,6 @@ import typescriptParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
-import jest from 'eslint-plugin-jest';
 
 export default [
   js.configs.recommended,
@@ -19,13 +18,18 @@ export default [
           jsx: true,
         },
       },
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        console: 'readonly',
+      },
     },
     plugins: {
       '@typescript-eslint': typescript,
       react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-      jest,
     },
     rules: {
       // TypeScript rules
@@ -57,45 +61,11 @@ export default [
       'no-var': 'error',
       'eqeqeq': ['error', 'always'],
       'curly': ['error', 'all'],
-      
-      // Jest rules
-      'jest/no-disabled-tests': 'warn',
-      'jest/no-focused-tests': 'error',
-      'jest/no-identical-title': 'error',
-      'jest/prefer-to-have-length': 'warn',
-      'jest/valid-expect': 'error',
     },
     settings: {
       react: {
         version: 'detect',
       },
-    },
-  },
-  {
-    files: ['**/*.test.{ts,tsx,js,jsx}', '**/*.spec.{ts,tsx,js,jsx}', 'tests/**/*'],
-    env: {
-      jest: true,
-      'jest/globals': true,
-    },
-    rules: {
-      // Allow console.log in tests
-      'no-console': 'off',
-      
-      // Jest-specific rules
-      'jest/expect-expect': 'error',
-      'jest/no-done-callback': 'error',
-      'jest/no-duplicate-hooks': 'error',
-      'jest/no-export': 'error',
-      'jest/no-standalone-expect': 'error',
-      'jest/no-test-return-statement': 'error',
-      'jest/prefer-expect-assertions': 'off',
-      'jest/prefer-strict-equal': 'warn',
-      'jest/prefer-to-be': 'warn',
-      'jest/prefer-to-contain': 'warn',
-      'jest/prefer-to-have-length': 'warn',
-      'jest/require-top-level-describe': 'error',
-      'jest/valid-describe-callback': 'error',
-      'jest/valid-expect-in-promise': 'error',
     },
   },
   {

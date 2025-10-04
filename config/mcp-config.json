@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "playwright-local": {
+      "command": "node",
+      "args": ["playwright-server.js"],
+      "cwd": "./mcp-servers"
+    }
+  }
+}

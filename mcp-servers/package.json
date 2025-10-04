@@ -1,0 +1,17 @@
+{
+  "name": "playwright-mcp-server",
+  "version": "1.0.0",
+  "description": "Local Playwright MCP Server for Cursor",
+  "main": "playwright-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node playwright-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "playwright": "^1.40.0"
+  },
+  "keywords": ["mcp", "playwright", "browser-automation"],
+  "author": "Your Name",
+  "license": "MIT"
+}

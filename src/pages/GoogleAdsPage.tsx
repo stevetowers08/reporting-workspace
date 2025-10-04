@@ -2,8 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatabaseService } from "@/services/databaseService";
-import { EventMetricsService } from "@/services/eventMetricsService";
+import { LoadingState } from '@/components/ui/LoadingStates';
+import { debugLogger } from '@/lib/debug';
+import { DatabaseService } from "@/services/data/databaseService";
+import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
     ArrowLeft,
     BarChart3,
@@ -52,16 +54,19 @@ const GoogleAdsPage = () => {
             const clients = await DatabaseService.getAllClients();
             const dateRange = getDateRange(selectedPeriod);
 
+            // Filter to only show individual venues (exclude any 'all_venues' type clients)
+            const individualClients = clients.filter(client => client.id !== 'all_venues');
+            
             const accountsData: GoogleAdAccountData[] = [];
 
-            for (const client of clients) {
+            for (const client of individualClients) {
                 // Only include clients that have Google ads connected
                 const hasGoogleAds = client.accounts?.googleAds && client.accounts.googleAds !== 'none';
 
                 if (!hasGoogleAds) continue;
 
                 try {
-                    // Get comprehensive metrics for this client
+                    // Get comprehensive metrics for this individual client only
                     const metrics = await EventMetricsService.getComprehensiveMetrics(
                         client.id,
                         dateRange,
@@ -94,7 +99,7 @@ const GoogleAdsPage = () => {
 
                     accountsData.push(accountData);
                 } catch (error) {
-                    console.error(`Error loading metrics for client ${client.name}:`, error);
+                    debugLogger.error('GoogleAdsPage', `Error loading metrics for client ${client.name}`, error);
                     // Still add the client with zero metrics if there's an error
                     accountsData.push({
                         clientId: client.id,
@@ -123,7 +128,7 @@ const GoogleAdsPage = () => {
 
             setGoogleAccounts(accountsData);
         } catch (error) {
-            console.error('Error loading Google ads data:', error);
+            debugLogger.error('GoogleAdsPage', 'Error loading Google ads data', error);
             setGoogleAccounts([]);
         } finally {
             setLoading(false);
@@ -221,10 +226,7 @@ const GoogleAdsPage = () => {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-                                    <span className="ml-3 text-gray-600">Loading Google ads data...</span>
-                                </div>
+                                <LoadingState message="Loading Google ads data..." />
                             ) : googleAccounts.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">

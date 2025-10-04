@@ -13,5 +13,8 @@ if (!rootElement) {
   throw new Error("Root element not found");
 }
 
+// Clear any existing content in the root element
+rootElement.innerHTML = '';
+
 const root = createRoot(rootElement);
 root.render(<App />);

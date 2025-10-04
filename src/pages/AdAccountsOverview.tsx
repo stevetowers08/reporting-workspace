@@ -2,16 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatabaseService } from "@/services/databaseService";
-import { EventMetricsService } from "@/services/eventMetricsService";
+import { LoadingState } from '@/components/ui/LoadingStates';
+import { debugLogger } from '@/lib/debug';
+import { DatabaseService } from "@/services/data/databaseService";
+import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
     ArrowLeft,
     BarChart3,
     Calendar,
-    DollarSign,
-    Eye,
-    TrendingUp,
-    Users
+    Eye
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -135,7 +134,7 @@ const AdAccountsOverview = () => {
 
                     accountsData.push(accountData);
                 } catch (error) {
-                    console.error(`Error loading metrics for client ${client.name}:`, error);
+                    debugLogger.error('AdAccountsOverview', `Error loading metrics for client ${client.name}`, error);
                     // Still add the client with zero metrics if there's an error
                     accountsData.push({
                         clientId: client.id,
@@ -167,7 +166,7 @@ const AdAccountsOverview = () => {
 
             setAdAccounts(accountsData);
         } catch (error) {
-            console.error('Error loading ad accounts data:', error);
+            debugLogger.error('AdAccountsOverview', 'Error loading ad accounts data', error);
             setAdAccounts([]);
         } finally {
             setLoading(false);
@@ -279,10 +278,7 @@ const AdAccountsOverview = () => {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    <span className="ml-3 text-gray-600">Loading ad accounts data...</span>
-                                </div>
+                                <LoadingState message="Loading ad accounts data..." />
                             ) : adAccounts.length === 0 ? (
                                 <div className="text-center py-12">
                                     <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />

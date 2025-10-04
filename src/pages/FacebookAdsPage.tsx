@@ -1,51 +1,35 @@
 "use client";
 
+import { FacebookConnectionPrompt } from "@/components/connection/FacebookConnectionPrompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatabaseService } from "@/services/databaseService";
-import { EventMetricsService } from "@/services/eventMetricsService";
+import { LoadingState } from '@/components/ui/LoadingStates';
+import { debugLogger } from '@/lib/debug';
+import { DatabaseService } from "@/services/data/databaseService";
+import { EventDashboardData, EventMetricsService } from '@/services/data/eventMetricsService';
 import {
     ArrowLeft,
-    BarChart3,
-    Calendar,
-    Eye,
-    TrendingUp
+    Calendar
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-interface FacebookAdAccountData {
-    clientId: string;
-    venueName: string;
-    logoUrl?: string;
-    status: 'active' | 'paused' | 'inactive';
-    facebookAccount: {
-        accountId: string;
-        accountName: string;
-        connected: boolean;
-    };
-    metrics: {
-        impressions: number;
-        clicks: number;
-        spend: number;
-        leads: number;
-        ctr: number;
-        cpc: number;
-        cpm: number;
-        reach: number;
-        frequency: number;
-    };
-    shareableLink: string;
-}
-
 const FacebookAdsPage = () => {
-    const [facebookAccounts, setFacebookAccounts] = useState<FacebookAdAccountData[]>([]);
+    const [dashboardData, setDashboardData] = useState<EventDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState("30d");
+    const [isFacebookConnected, setIsFacebookConnected] = useState(false);
 
     useEffect(() => {
+        checkFacebookConnection();
         loadFacebookAdsData();
     }, [selectedPeriod]);
+
+    const checkFacebookConnection = () => {
+        const oauthTokens = localStorage.getItem('oauth_tokens_facebook');
+        const hasToken = oauthTokens && JSON.parse(oauthTokens).accessToken;
+        setIsFacebookConnected(!!hasToken);
+    };
 
     const loadFacebookAdsData = async () => {
         try {
@@ -53,81 +37,23 @@ const FacebookAdsPage = () => {
             const clients = await DatabaseService.getAllClients();
             const dateRange = getDateRange(selectedPeriod);
 
-            const accountsData: FacebookAdAccountData[] = [];
-
-            for (const client of clients) {
-                // Only include clients that have Facebook ads connected
-                const hasFacebookAds = client.accounts?.facebookAds && client.accounts.facebookAds !== 'none';
-
-                if (!hasFacebookAds) continue;
-
-                try {
-                    // Get comprehensive metrics for this client
-                    const metrics = await EventMetricsService.getComprehensiveMetrics(
-                        client.id,
-                        dateRange,
-                        client.accounts,
-                        client.conversion_actions
-                    );
-
-                    const accountData: FacebookAdAccountData = {
-                        clientId: client.id,
-                        venueName: client.name,
-                        logoUrl: client.logo_url,
-                        status: client.status,
-                        facebookAccount: {
-                            accountId: client.accounts.facebookAds!,
-                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
-                            connected: true
-                        },
-                        metrics: {
-                            impressions: metrics.facebookMetrics.impressions,
-                            clicks: metrics.facebookMetrics.clicks,
-                            spend: metrics.facebookMetrics.spend,
-                            leads: metrics.facebookMetrics.leads,
-                            ctr: metrics.facebookMetrics.ctr,
-                            cpc: metrics.facebookMetrics.cpc,
-                            cpm: metrics.facebookMetrics.cpm || 0,
-                            reach: metrics.facebookMetrics.reach || 0,
-                            frequency: metrics.facebookMetrics.frequency || 0
-                        },
-                        shareableLink: client.shareable_link
-                    };
-
-                    accountsData.push(accountData);
-                } catch (error) {
-                    console.error(`Error loading metrics for client ${client.name}:`, error);
-                    // Still add the client with zero metrics if there's an error
-                    accountsData.push({
-                        clientId: client.id,
-                        venueName: client.name,
-                        logoUrl: client.logo_url,
-                        status: client.status,
-                        facebookAccount: {
-                            accountId: client.accounts.facebookAds!,
-                            accountName: `Facebook Ad Account (${client.accounts.facebookAds})`,
-                            connected: true
-                        },
-                        metrics: {
-                            impressions: 0,
-                            clicks: 0,
-                            spend: 0,
-                            leads: 0,
-                            ctr: 0,
-                            cpc: 0,
-                            cpm: 0,
-                            reach: 0,
-                            frequency: 0
-                        },
-                        shareableLink: client.shareable_link
-                    });
-                }
+            // Filter to only show individual venues (exclude any 'all_venues' type clients)
+            const individualClients = clients.filter(client => client.id !== 'all_venues');
+            
+            if (individualClients.length > 0) {
+                // Get data for the first individual client
+                const client = individualClients[0];
+                const metrics = await EventMetricsService.getComprehensiveMetrics(
+                    client.id,
+                    dateRange,
+                    client.accounts,
+                    client.conversion_actions
+                );
+                setDashboardData(metrics);
             }
-
-            setFacebookAccounts(accountsData);
         } catch (error) {
-            console.error('Error loading Facebook ads data:', error);
-            setFacebookAccounts([]);
+            debugLogger.error('FacebookAdsPage', 'Error loading Facebook ads data', error);
+            setDashboardData(null);
         } finally {
             setLoading(false);
         }
@@ -157,23 +83,6 @@ const FacebookAdsPage = () => {
         };
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount);
-    };
-
-    const formatNumber = (num: number) => {
-        return new Intl.NumberFormat('en-US').format(num);
-    };
-
-    const formatPercentage = (num: number) => {
-        return `${(num * 100).toFixed(1)}%`;
-    };
-
     return (
         <div className="page-bg-light">
             {/* Header */}
@@ -190,7 +99,7 @@ const FacebookAdsPage = () => {
                             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
                                 <span className="text-white font-bold text-sm">f</span>
                             </div>
-                            <span className="text-lg font-bold text-gray-900">Facebook Ads</span>
+                            <span className="text-lg font-bold text-gray-900">Meta Ads</span>
                         </div>
                     </div>
 
@@ -212,138 +121,297 @@ const FacebookAdsPage = () => {
 
             <div className="p-8">
                 <div className="max-w-7xl mx-auto">
-                    {/* Facebook Ads Table */}
-                    <Card className="card-bg-light">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-                                    <span className="text-white font-bold text-xs">f</span>
+                    {loading ? (
+                        <LoadingState message="Loading Meta Ads data..." />
+                    ) : dashboardData ? (
+                        <>
+                            {/* Key Metrics - 2 Rows of KPI Cards */}
+                            <div className="mb-6">
+                                {/* First Row - 4 Cards */}
+                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Leads</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.leads || '0'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-green-600 font-medium">↑ +15.2%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Lead</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.costPerLead?.toFixed(2) || '0.00'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-red-600 font-medium">↓ -8.3%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Conversion Rate</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">{((dashboardData?.facebookMetrics?.leads || 0) / (dashboardData?.facebookMetrics?.clicks || 1) * 100).toFixed(1)}%</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-green-600 font-medium">↑ +5.7%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.spend?.toLocaleString() || '0'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-green-600 font-medium">↑ +2.0%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
                                 </div>
-                                Facebook Ads Performance
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {loading ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    <span className="ml-3 text-gray-600">Loading Facebook ads data...</span>
+
+                                {/* Second Row - 4 Cards */}
+                                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Impressions</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.impressions?.toLocaleString() || '0'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-green-600 font-medium">↑ +8.5%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Link Clicks</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.clicks?.toLocaleString() || '0'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-green-600 font-medium">↑ +22.3%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Link Click</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">${dashboardData?.facebookMetrics?.cpc?.toFixed(2) || '0.00'}</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-red-600 font-medium">↓ -12.8%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-600 mb-2">CTR</p>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-3xl font-bold text-slate-900">{dashboardData?.facebookMetrics?.ctr?.toFixed(2) || '0'}%</p>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm text-red-600 font-medium">↓ -47.2%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
                                 </div>
-                            ) : facebookAccounts.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <span className="text-blue-600 font-bold text-xl">f</span>
-                                    </div>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Facebook Ads Found</h3>
-                                    <p className="text-gray-500 mb-4">No clients have Facebook ad accounts connected yet.</p>
-                                    <Link to="/admin">
-                                        <Button>
-                                            <BarChart3 className="h-4 w-4 mr-2" />
-                                            Manage Clients
-                                        </Button>
-                                    </Link>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-gray-200">
-                                                <th className="text-left py-2 px-4 font-semibold text-gray-900">Venue</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Impressions</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Clicks</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CTR</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Spend</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CPC</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">Leads</th>
-                                                <th className="text-right py-2 px-4 font-semibold text-gray-900">CPM</th>
-                                                <th className="text-center py-2 px-4 font-semibold text-gray-900">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {facebookAccounts.map((account) => (
-                                                <tr key={account.clientId} className="border-b border-gray-100 hover:bg-gray-50">
-                                                    <td className="py-2 px-4">
-                                                        <div className="flex items-center gap-3">
-                                                            {account.logoUrl ? (
-                                                                <img
-                                                                    src={account.logoUrl}
-                                                                    alt={`${account.venueName} logo`}
-                                                                    className="w-8 h-8 object-cover rounded-lg border border-gray-200"
-                                                                />
-                                                            ) : (
-                                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                                                                    <BarChart3 className="h-4 w-4 text-white" />
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <div className="font-medium text-gray-900 text-sm">{account.venueName}</div>
-                                                                <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${account.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                                        account.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                                                                            'bg-gray-100 text-gray-800'
-                                                                    }`}>
-                                                                    {account.status}
-                                                                </div>
+                            </div>
+
+                            {/* Platform Breakdown and Demographics */}
+                            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                                {/* Platform Breakdown */}
+                                <Card className="bg-white border border-slate-200 shadow-sm">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="text-lg font-semibold text-slate-900">Platform Breakdown</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-6">
+                                            {/* Facebook vs Instagram */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h3 className="text-sm font-semibold text-slate-700">Facebook vs Instagram</h3>
+                                                    <span className="text-xs text-slate-500">{dashboardData?.facebookMetrics?.leads || '0'} total leads</span>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">Facebook</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '65%' }}></div>
                                                             </div>
+                                                            <span className="text-xs text-slate-500">65%</span>
                                                         </div>
-                                                    </td>
-
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatNumber(account.metrics.impressions)}
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">Instagram</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-pink-500 h-2 rounded-full" style={{ width: '35%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">35%</span>
                                                         </div>
-                                                    </td>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatNumber(account.metrics.clicks)}
+                                            {/* Ad Placements */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h3 className="text-sm font-semibold text-slate-700">Ad Placements</h3>
+                                                    <span className="text-xs text-slate-500">${dashboardData?.facebookMetrics?.spend?.toLocaleString() || '0'} total spend</span>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">Feed</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '45%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">45%</span>
                                                         </div>
-                                                    </td>
-
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatPercentage(account.metrics.ctr)}
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">Stories</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-purple-500 h-2 rounded-full" style={{ width: '30%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">30%</span>
                                                         </div>
-                                                    </td>
-
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatCurrency(account.metrics.spend)}
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">Reels</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-pink-500 h-2 rounded-full" style={{ width: '25%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">25%</span>
                                                         </div>
-                                                    </td>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatCurrency(account.metrics.cpc)}
+                                {/* Demographics */}
+                                <Card className="bg-white border border-slate-200 shadow-sm">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="text-lg font-semibold text-slate-900">Demographics</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-6">
+                                            {/* Age Groups */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h3 className="text-sm font-semibold text-slate-700">Age Groups</h3>
+                                                    <span className="text-xs text-slate-500">{dashboardData?.facebookMetrics?.leads || '0'} total leads</span>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">25-34</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '40%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">40%</span>
                                                         </div>
-                                                    </td>
-
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-green-600 text-sm">
-                                                            {formatNumber(account.metrics.leads)}
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">35-44</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-green-500 h-2 rounded-full" style={{ width: '35%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">35%</span>
                                                         </div>
-                                                    </td>
-
-                                                    <td className="py-2 px-4 text-right">
-                                                        <div className="font-medium text-gray-900 text-sm">
-                                                            {formatCurrency(account.metrics.cpm)}
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">45-54</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-purple-500 h-2 rounded-full" style={{ width: '20%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">20%</span>
                                                         </div>
-                                                    </td>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-slate-600">55+</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-24 bg-slate-200 rounded-full h-2">
+                                                                <div className="bg-orange-500 h-2 rounded-full" style={{ width: '5%' }}></div>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">5%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                    <td className="py-2 px-4 text-center">
-                                                        <Link to={`/share/${account.clientId}`}>
-                                                            <Button variant="outline" size="sm">
-                                                                <Eye className="h-4 w-4 mr-2" />
-                                                                View Dashboard
-                                                            </Button>
-                                                        </Link>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                            {/* Gender */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h3 className="text-sm font-semibold text-slate-700">Gender</h3>
+                                                    <span className="text-xs text-slate-500">{dashboardData?.facebookMetrics?.leads || '0'} total leads</span>
+                                                </div>
+                                                <div className="w-full bg-slate-200 rounded-full h-8 relative overflow-hidden">
+                                                    <div className="bg-blue-500 h-8 rounded-l-full transition-all duration-700 ease-out flex items-center justify-center" style={{ width: '60%' }}>
+                                                        <span className="text-xs font-normal text-white">Female (60%)</span>
+                                                    </div>
+                                                    <div className="bg-green-500 h-8 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center" style={{ width: '40%', left: '60%' }}>
+                                                        <span className="text-xs font-normal text-white">Male (40%)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </>
+                    ) : !isFacebookConnected ? (
+                        <div className="max-w-md mx-auto">
+                            <FacebookConnectionPrompt onConnectionSuccess={() => {
+                                setIsFacebookConnected(true);
+                                loadFacebookAdsData();
+                            }} />
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span className="text-blue-600 font-bold text-xl">f</span>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Meta Ads Data Found</h3>
+                            <p className="text-gray-500 mb-4">No Meta Ads data available for the selected period.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

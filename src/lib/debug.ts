@@ -13,6 +13,7 @@ class DebugLogger {
     private logs: DebugLog[] = [];
     private maxLogs = 1000;
     private isEnabled = import.meta.env.DEV;
+    private enableConsoleOutput = import.meta.env.DEV;
 
     log(level: DebugLog['level'], category: string, message: string, data?: any) {
         if (!this.isEnabled) return;
@@ -32,13 +33,15 @@ class DebugLogger {
             this.logs = this.logs.slice(0, this.maxLogs);
         }
 
-        // Console output with styling
-        const style = this.getConsoleStyle(level);
-        console.log(
-            `%c[${category}] ${message}`,
-            style,
-            data || ''
-        );
+        // Console output with styling (only in development)
+        if (this.enableConsoleOutput) {
+            const style = this.getConsoleStyle(level);
+            console.log(
+                `%c[${category}] ${message}`,
+                style,
+                data || ''
+            );
+        }
 
         // Store in localStorage for persistence across refreshes
         this.persistLogs();
@@ -93,7 +96,9 @@ class DebugLogger {
         try {
             localStorage.setItem('debug_logs', JSON.stringify(this.logs.slice(0, 100))); // Keep last 100 logs
         } catch (error) {
-            console.warn('Failed to persist debug logs:', error);
+            if (this.enableConsoleOutput) {
+                console.warn('Failed to persist debug logs:', error);
+            }
         }
     }
 
@@ -105,7 +110,9 @@ class DebugLogger {
                 this.logs = parsed.concat(this.logs);
             }
         } catch (error) {
-            console.warn('Failed to load persisted debug logs:', error);
+            if (this.enableConsoleOutput) {
+                console.warn('Failed to load persisted debug logs:', error);
+            }
         }
     }
 }
