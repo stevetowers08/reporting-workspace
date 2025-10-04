@@ -105,20 +105,21 @@ export class GoHighLevelService {
       const scopes = [
         'contacts.readonly',
         'locations.readonly',
-        'oauth.readonly',
-        'opportunities.readonly',
-        'funnels/redirect.readonly',
-        'funnels/page.readonly',
-        'funnels/funnel.readonly',
-        'funnels/pagecount.readonly'
+        'opportunities.readonly'
       ].join(' ');
 
+      // Generate state parameter for CSRF protection
+      const state = crypto.randomUUID();
+      
       const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
       const params = new URLSearchParams({
         response_type: 'code',
         client_id: credentials.client_id,
         redirect_uri: credentials.redirect_uri,
-        scope: scopes
+        scope: scopes,
+        state: state,
+        access_type: 'offline',
+        prompt: 'consent'
       });
 
       const authUrl = `${baseUrl}?${params.toString()}`;

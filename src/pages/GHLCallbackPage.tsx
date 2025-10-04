@@ -17,13 +17,15 @@ export const GHLCallbackPage: React.FC = () => {
         const code = searchParams.get('code');
         const locationId = searchParams.get('locationId');
         const errorParam = searchParams.get('error');
+        const state = searchParams.get('state');
 
-        console.log('GHL Callback - URL parameters:', { code, locationId, errorParam });
+        console.log('GHL Callback - URL parameters:', { code, locationId, errorParam, state });
 
         debugLogger.info('GHLCallbackPage', 'Processing OAuth callback', {
           hasCode: !!code,
           locationId,
-          hasError: !!errorParam
+          hasError: !!errorParam,
+          hasState: !!state
         });
 
         if (errorParam) {
@@ -32,6 +34,12 @@ export const GHLCallbackPage: React.FC = () => {
 
         if (!code) {
           throw new Error('Authorization code not found in callback');
+        }
+
+        // Note: In a production app, you should validate the state parameter
+        // against the one you generated during authorization
+        if (!state) {
+          console.warn('GHL Callback - No state parameter received (potential CSRF risk)');
         }
 
         // Exchange code for token
