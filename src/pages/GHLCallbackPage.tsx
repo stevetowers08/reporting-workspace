@@ -32,6 +32,7 @@ export const GHLCallbackPage: React.FC = () => {
         }
 
         // Exchange code for token
+        console.log('GHL Callback - Starting token exchange', { code, locationId });
         const tokenData = await GoHighLevelService.exchangeCodeForToken(code, locationId || undefined);
         
         // Set credentials for future API calls
@@ -57,9 +58,13 @@ export const GHLCallbackPage: React.FC = () => {
         }, 2000);
 
       } catch (error) {
+        console.error('GHL Callback - Error details:', error);
         debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
         setError(error instanceof Error ? error.message : 'Unknown error occurred');
         setStatus('error');
+        window.setTimeout(() => {
+          navigate('/integrations'); // Redirect to integrations page even on error
+        }, 3000);
       }
     };
 
