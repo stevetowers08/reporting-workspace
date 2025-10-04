@@ -1,6 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
+import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -44,7 +45,7 @@ export const useGHLIntegration = () => {
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       // Update database
-      const { error } = await DatabaseService.supabase
+      const { error } = await supabase
         .from('integrations')
         .update({
           connected: false,

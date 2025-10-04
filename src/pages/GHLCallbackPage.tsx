@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { debugLogger } from '@/lib/debug';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
-import { debugLogger } from '@/lib/debug';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const GHLCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();

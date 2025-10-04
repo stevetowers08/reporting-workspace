@@ -18,12 +18,28 @@ This project uses comprehensive testing strategies including unit tests, integra
 - **ARIA snapshots**: Accessibility testing with `expect(locator).toMatchAriaSnapshot()`
 - **MSW**: API mocking for integration tests
 
-## Test Types
+## Test Structure
 
-### 1. Unit Tests
-Test individual components and functions in isolation.
+The project uses a well-organized test structure:
 
-**Location**: `src/**/*.test.ts` and `src/**/*.test.tsx`
+```
+tests/
+├── unit/           # Unit tests (Vitest)
+│   └── __tests__/  # Component unit tests
+├── integration/    # Integration tests (Vitest)
+│   └── ghlIntegrationTest.ts
+├── e2e/           # End-to-end tests (Playwright)
+│   ├── ai-insights.spec.ts
+│   ├── inputSanitization.spec.ts
+│   ├── rateLimiting.spec.ts
+│   ├── security.spec.ts
+│   └── validation.spec.ts
+├── manual/        # Manual test scripts
+│   ├── test-*.js  # Standalone test scripts
+│   └── test-*.html # Test HTML files
+├── setup.ts       # Playwright global setup
+└── README.md      # Test configuration guide
+```
 
 **Example**:
 ```typescript
@@ -189,16 +205,22 @@ test.describe('Performance', () => {
 
 ### Command Line Testing
 
-#### Run All Tests
+#### Run Unit Tests
 ```bash
-# Run all tests
-npm test
+# Run all unit tests
+npm run test:unit
 
-# Run tests in watch mode
+# Run unit tests in watch mode
 npm run test:watch
 
-# Run tests with coverage
+# Run unit tests with coverage
 npm run test:coverage
+```
+
+#### Run Integration Tests
+```bash
+# Run integration tests
+npm run test:integration
 ```
 
 #### Run E2E Tests
@@ -206,11 +228,20 @@ npm run test:coverage
 # Run E2E tests
 npm run test:e2e
 
+# Run E2E tests with UI
+npm run test:e2e:ui
+
 # Run E2E tests in headed mode
 npm run test:e2e:headed
 
 # Run specific E2E test file
 npm run test:e2e tests/e2e/dashboard.spec.ts
+```
+
+#### Run All Tests
+```bash
+# Run all test types
+npm run test:all
 ```
 
 #### Run Performance Tests

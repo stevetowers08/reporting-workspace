@@ -5,11 +5,11 @@ import { LogoManager } from '@/components/ui/LogoManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { debugLogger } from '@/lib/debug';
 import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
 import { IntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
-import { debugLogger } from '@/lib/debug';
 import { AlertCircle, CheckCircle, Clock, Copy, Edit, Settings, TestTube, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 

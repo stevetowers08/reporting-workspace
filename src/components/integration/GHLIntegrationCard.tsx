@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useGHLIntegration } from '@/hooks/useGHLIntegration';
 import { debugLogger } from '@/lib/debug';
 import { AlertCircle, CheckCircle, Clock, ExternalLink } from 'lucide-react';
 import React from 'react';
