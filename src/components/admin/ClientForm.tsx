@@ -1,7 +1,8 @@
+import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
+import { LoadingSpinner } from "@/components/ui/LoadingStates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LoadingSpinner } from "@/components/ui/LoadingStates";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { FacebookAdsService } from "@/services/api/facebookAdsService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
-import { AlertCircle, Bot, ExternalLink, ImageIcon, X } from "lucide-react";
+import { AlertCircle, Bot, CheckCircle, ExternalLink, ImageIcon, X } from "lucide-react";
 import React, { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 
@@ -34,6 +35,10 @@ interface ClientFormData {
   conversionActions: {
     facebookAds: string;
     googleAds: string;
+  };
+  googleSheetsConfig?: {
+    spreadsheetId: string;
+    sheetName: string;
   };
 }
 
@@ -80,6 +85,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [aiConfig, setAiConfig] = useState<AIInsightsConfig | null>(null);
   const [aiConfigLoading, setAiConfigLoading] = useState(false);
+  const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
+    spreadsheetId: string;
+    sheetName: string;
+  } | null>(null);
+  const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
 
   // Load connected accounts when component mounts
   useEffect(() => {
@@ -88,6 +98,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       loadAIConfig();
     }
   }, [isEdit, clientId]);
+
+  // Initialize Google Sheets configuration from initial data
+  useEffect(() => {
+    if (initialData?.googleSheetsConfig) {
+      setGoogleSheetsConfig(initialData.googleSheetsConfig);
+      debugLogger.info('ClientForm', 'Initialized Google Sheets config from initial data', initialData.googleSheetsConfig);
+    }
+  }, [initialData]);
 
   // Load conversion actions when Facebook Ads account changes
   useEffect(() => {
@@ -151,12 +169,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         });
       }
 
-      // Check Google Sheets
-      const sheetsIntegration = integrations.find(i => i.platform === 'googleSheets');
-      if (sheetsIntegration?.connected) {
+      // Check Google Sheets (tokens are stored in googleAds integration)
+      const googleAdsIntegration = integrations.find(i => i.platform === 'googleAds');
+      if (googleAdsIntegration?.connected && googleAdsIntegration.config?.tokens?.access_token) {
         accounts.push({
           id: 'google_sheets_account',
-          name: sheetsIntegration.account_name || 'Google Sheets Account',
+          name: googleAdsIntegration.account_name || 'Google Sheets Account',
           platform: 'googleSheets'
         });
       }
@@ -261,8 +279,18 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }
     }
 
-    debugLogger.info('ClientForm', 'Calling onSubmit with formData', formData);
-    onSubmit(formData);
+    // Include Google Sheets configuration if available
+    const submitData = {
+      ...formData,
+      accounts: {
+        ...formData.accounts,
+        googleSheets: googleSheetsConfig ? 'google_sheets_account' : 'none'
+      },
+      googleSheetsConfig: googleSheetsConfig
+    };
+
+    debugLogger.info('ClientForm', 'Calling onSubmit with formData', submitData);
+    onSubmit(submitData);
   };
 
   const handleAIEnabledChange = (enabled: boolean) => {
@@ -595,22 +623,61 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <span className="text-sm font-medium">Google Sheets</span>
             </div>
             {isIntegrationConnected('googleSheets') ? (
-              <Select
-                value={formData.accounts.googleSheets || "none"}
-                onValueChange={(value) => handleAccountSelect("googleSheets", value)}
+              <div 
+                className="space-y-3"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Google Sheets Account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {getAvailableAccounts('googleSheets').map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <GoogleSheetsSelector
+                  initialSpreadsheetId={googleSheetsConfig?.spreadsheetId}
+                  initialSheetName={googleSheetsConfig?.sheetName}
+                  onSelectionComplete={(spreadsheetId, sheetName) => {
+                    debugLogger.info('ClientForm', 'GoogleSheetsSelector callback triggered', { spreadsheetId, sheetName });
+                    try {
+                      setGoogleSheetsConfig({ spreadsheetId, sheetName });
+                      setFormData(prev => ({
+                        ...prev,
+                        accounts: {
+                          ...prev.accounts,
+                          googleSheets: spreadsheetId
+                        }
+                      }));
+                      debugLogger.info('ClientForm', 'Google Sheets configuration updated', {
+                        spreadsheetId,
+                        sheetName
+                      });
+                      // Clear any previous errors and show success
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.googleSheets;
+                        return newErrors;
+                      });
+                      setGoogleSheetsSuccess(`Google Sheets configured: ${sheetName}`);
+                      // Clear success message after 3 seconds
+                      setTimeout(() => setGoogleSheetsSuccess(null), 3000);
+                    } catch (error) {
+                      debugLogger.error('ClientForm', 'Error updating Google Sheets configuration', error);
+                      setErrors(prev => ({ ...prev, googleSheets: 'Failed to save Google Sheets configuration' }));
+                    }
+                  }}
+                />
+                {errors.googleSheets && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <span className="text-sm text-red-800">{errors.googleSheets}</span>
+                    </div>
+                  </div>
+                )}
+                {googleSheetsSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-800">{googleSheetsSuccess}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <AlertCircle className="h-4 w-4" />

@@ -44,7 +44,7 @@ export const ClientCreateSchema = z.object({
   
   accounts: z.object({
     facebookAds: z.string()
-      .regex(/^\d+$/, 'Facebook Ads account ID must be numeric')
+      .regex(/^(act_)?\d+$/, 'Facebook Ads account ID must be numeric or start with act_')
       .optional()
       .or(z.literal('')),
     
@@ -59,9 +59,13 @@ export const ClientCreateSchema = z.object({
       .or(z.literal('')),
     
     googleSheets: z.string()
-      .url('Google Sheets URL must be valid')
       .optional()
       .or(z.literal('')),
+    
+    googleSheetsConfig: z.object({
+      spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),
+      sheetName: z.string().min(1, 'Sheet name is required'),
+    }).optional(),
   }).optional(),
   
   conversion_actions: z.object({
@@ -111,7 +115,7 @@ export const ClientUpdateSchema = z.object({
   
   accounts: z.object({
     facebookAds: z.string()
-      .regex(/^\d+$/, 'Facebook Ads account ID must be numeric')
+      .regex(/^(act_)?\d+$/, 'Facebook Ads account ID must be numeric or start with act_')
       .optional()
       .or(z.literal('')),
     
@@ -126,9 +130,13 @@ export const ClientUpdateSchema = z.object({
       .or(z.literal('')),
     
     googleSheets: z.string()
-      .url('Google Sheets URL must be valid')
       .optional()
       .or(z.literal('')),
+    
+    googleSheetsConfig: z.object({
+      spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),
+      sheetName: z.string().min(1, 'Sheet name is required'),
+    }).optional(),
   }).optional(),
   
   conversion_actions: z.object({

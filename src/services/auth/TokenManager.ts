@@ -36,9 +36,9 @@ export class TokenManager {
       debugLogger.info('TokenManager', `Storing OAuth tokens for ${platform}`);
 
       // Calculate expiration time
-      const expiresAt = tokens.expiresIn 
-        ? new Date(Date.now() + (tokens.expiresIn * 1000)).toISOString()
-        : undefined;
+      // Google OAuth refresh responses often don't include expires_in, default to 1 hour
+      const expiresInSeconds = tokens.expiresIn || 3600; // Default to 1 hour for Google
+      const expiresAt = new Date(Date.now() + (expiresInSeconds * 1000)).toISOString();
 
       const config: IntegrationConfig = {
         connected: true,
@@ -128,6 +128,7 @@ export class TokenManager {
   static async getAccessToken(platform: IntegrationPlatform): Promise<string | null> {
     try {
       debugLogger.info('TokenManager', `Getting access token for ${platform}`);
+      console.log(`TokenManager: Getting access token for ${platform}`);
 
       const { data, error } = await supabase
         .from('integrations')
@@ -139,6 +140,7 @@ export class TokenManager {
       if (error) {
         if (error.code === 'PGRST116') {
           debugLogger.info('TokenManager', `No integration found for ${platform}`);
+          console.log(`TokenManager: No integration found for ${platform}`);
           return null;
         }
         throw error;
@@ -146,19 +148,24 @@ export class TokenManager {
 
       const config = data.config as IntegrationConfig;
 
-      // Check OAuth tokens first
-      if (config.tokens?.accessToken) {
+      // Check OAuth tokens first (handle both camelCase and snake_case)
+      const accessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token;
+      if (accessToken) {
+        console.log(`TokenManager: Found access token for ${platform}`);
+        debugLogger.info('TokenManager', `Found access token for ${platform}`);
         // Check if token is expired or needs refresh
-        if (config.tokens.expiresAt) {
-          const expiresAt = new Date(config.tokens.expiresAt);
+        const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
+        if (expiresAt) {
+          const expiresAtDate = new Date(expiresAt);
           const now = new Date();
-          const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+          const timeUntilExpiry = expiresAtDate.getTime() - now.getTime();
           
           if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD) {
             debugLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
             
             // Attempt automatic refresh
-            if (config.tokens.refreshToken) {
+            const refreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
+            if (refreshToken) {
               try {
                 await this.refreshTokens(platform);
                 // Return the refreshed token by calling getAccessToken again
@@ -173,7 +180,7 @@ export class TokenManager {
             }
           }
         }
-        return config.tokens.accessToken;
+        return accessToken;
       }
 
       // Check API key
@@ -182,6 +189,7 @@ export class TokenManager {
       }
 
       debugLogger.info('TokenManager', `No valid token found for ${platform}`);
+      console.log(`TokenManager: No valid token found for ${platform}`);
       return null;
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to get access token for ${platform}`, error);
@@ -211,7 +219,7 @@ export class TokenManager {
       }
 
       const config = data.config as IntegrationConfig;
-      return config.tokens?.refreshToken || null;
+      return config.tokens?.refreshToken || (config.tokens as any)?.refresh_token || null;
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to get refresh token for ${platform}`, error);
       return null;

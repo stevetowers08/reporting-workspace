@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Data Inspector</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .error { background-color: #ffebee; border-color: #f44336; }
+        .success { background-color: #e8f5e8; border-color: #4caf50; }
+        .info { background-color: #e3f2fd; border-color: #2196f3; }
+        .warning { background-color: #fff3e0; border-color: #ff9800; }
+        pre { background-color: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; white-space: pre-wrap; }
+        button { padding: 10px 20px; margin: 5px; background-color: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #1976d2; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .loading { opacity: 0.6; pointer-events: none; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .highlight { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Google Sheets Data Inspector</h1>
+        
+        <div class="section info">
+            <h3>📊 Magnolia Terrace Client Sheet</h3>
+            <p><strong>Spreadsheet ID:</strong> 1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4</p>
+            <p><strong>Sheet Name:</strong> Wedding Leads</p>
+            <p><em>This will test the Google Sheets integration using the app's authentication system.</em></p>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Actions</h3>
+            <button onclick="testConnection()" id="testBtn">Test Connection</button>
+            <button onclick="fetchSheetData()" id="fetchBtn">Fetch Sheet Data</button>
+            <button onclick="analyzeData()" id="analyzeBtn" disabled>Analyze Data Structure</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const spreadsheetId = '1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4';
+        const sheetName = 'Wedding Leads';
+        let sheetData = null;
+
+        function addResult(title, content, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = `section ${type}`;
+            section.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${content}</pre>
+            `;
+            resultsDiv.appendChild(section);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            sheetData = null;
+            document.getElementById('analyzeBtn').disabled = true;
+        }
+
+        function setLoading(buttonId, loading) {
+            const btn = document.getElementById(buttonId);
+            btn.disabled = loading;
+            btn.textContent = loading ? 'Loading...' : btn.textContent.replace('Loading...', '').trim();
+        }
+
+        async function testConnection() {
+            try {
+                setLoading('testBtn', true);
+                addResult('🔌 Testing Google Sheets Connection', 'Testing connection through app services...', 'info');
+                
+                // Test connection using the app's GoogleSheetsService
+                const response = await fetch('/api/test-google-sheets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'testConnection'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    addResult('✅ Connection Test Result', JSON.stringify(result, null, 2), 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult('❌ Connection Test Failed', `Status: ${response.status}\n${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Connection Test Error', error.message, 'error');
+            } finally {
+                setLoading('testBtn', false);
+            }
+        }
+
+        async function fetchSheetData() {
+            try {
+                setLoading('fetchBtn', true);
+                addResult('📊 Fetching Sheet Data', 'Fetching data from Google Sheets...', 'info');
+                
+                // Fetch sheet data using the app's GoogleSheetsService
+                const response = await fetch('/api/google-sheets-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        spreadsheetId: spreadsheetId,
+                        sheetName: sheetName,
+                        range: `${sheetName}!A:Z`
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    sheetData = data;
+                    
+                    if (data.values && data.values.length > 0) {
+                        // Show headers
+                        const headers = data.values[0];
+                        addResult('📋 Headers Found', headers.map((h, i) => `${i + 1}. ${h}`).join('\n'), 'success');
+                        
+                        // Show sample data in a table
+                        if (data.values.length > 1) {
+                            const sampleRows = data.values.slice(1, Math.min(6, data.values.length));
+                            
+                            let tableHtml = '<table><thead><tr>';
+                            headers.forEach(header => {
+                                tableHtml += `<th>${header}</th>`;
+                            });
+                            tableHtml += '</tr></thead><tbody>';
+                            
+                            sampleRows.forEach((row, index) => {
+                                tableHtml += '<tr>';
+                                headers.forEach((header, cellIndex) => {
+                                    const cellValue = row[cellIndex] || '';
+                                    tableHtml += `<td>${cellValue}</td>`;
+                                });
+                                tableHtml += '</tr>';
+                            });
+                            
+                            tableHtml += '</tbody></table>';
+                            
+                            const section = document.createElement('div');
+                            section.className = 'section success';
+                            section.innerHTML = `
+                                <h3>📄 Sample Data Rows</h3>
+                                ${tableHtml}
+                            `;
+                            document.getElementById('results').appendChild(section);
+                        }
+                        
+                        // Show summary
+                        const summary = `Total rows: ${data.values.length}
+Total columns: ${headers.length}
+Data rows: ${data.values.length - 1}`;
+                        addResult('📈 Data Summary', summary, 'info');
+                        
+                        // Enable analyze button
+                        document.getElementById('analyzeBtn').disabled = false;
+                    } else {
+                        addResult('⚠️ No Data Found', 'The sheet appears to be empty or inaccessible', 'warning');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    addResult('❌ Failed to Fetch Data', `Status: ${response.status}\n${errorText}`, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Fetch Error', error.message, 'error');
+            } finally {
+                setLoading('fetchBtn', false);
+            }
+        }
+
+        async function analyzeData() {
+            if (!sheetData || !sheetData.values) {
+                addResult('❌ No Data to Analyze', 'Please fetch sheet data first', 'error');
+                return;
+            }
+
+            try {
+                setLoading('analyzeBtn', true);
+                addResult('🔍 Analyzing Data Structure', 'Analyzing the Google Sheets data structure...', 'info');
+                
+                const headers = sheetData.values[0];
+                const dataRows = sheetData.values.slice(1);
+                
+                // Analyze potential lead fields
+                const leadFieldAnalysis = [];
+                const potentialLeadFields = [
+                    'name', 'email', 'phone', 'contact', 'event', 'date', 'budget', 
+                    'guests', 'venue', 'type', 'source', 'utm', 'timestamp'
+                ];
+                
+                headers.forEach((header, index) => {
+                    const normalizedHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const sampleValues = dataRows.slice(0, 3).map(row => row[index]).filter(val => val && val.trim());
+                    
+                    let fieldType = 'unknown';
+                    let confidence = 0;
+                    
+                    // Check for common lead field patterns
+                    if (normalizedHeader.includes('name') || normalizedHeader.includes('contact')) {
+                        fieldType = 'contact_name';
+                        confidence = 80;
+                    } else if (normalizedHeader.includes('email')) {
+                        fieldType = 'email';
+                        confidence = 90;
+                    } else if (normalizedHeader.includes('phone') || normalizedHeader.includes('mobile')) {
+                        fieldType = 'phone';
+                        confidence = 85;
+                    } else if (normalizedHeader.includes('event') && normalizedHeader.includes('type')) {
+                        fieldType = 'event_type';
+                        confidence = 75;
+                    } else if (normalizedHeader.includes('date') && !normalizedHeader.includes('birth')) {
+                        fieldType = 'event_date';
+                        confidence = 70;
+                    } else if (normalizedHeader.includes('budget')) {
+                        fieldType = 'budget';
+                        confidence = 80;
+                    } else if (normalizedHeader.includes('guest') || normalizedHeader.includes('attendee')) {
+                        fieldType = 'guest_count';
+                        confidence = 75;
+                    } else if (normalizedHeader.includes('venue') || normalizedHeader.includes('location')) {
+                        fieldType = 'venue';
+                        confidence = 70;
+                    } else if (normalizedHeader.includes('source') || normalizedHeader.includes('utm')) {
+                        fieldType = 'lead_source';
+                        confidence = 65;
+                    } else if (normalizedHeader.includes('timestamp') || normalizedHeader.includes('submitted')) {
+                        fieldType = 'submission_date';
+                        confidence = 60;
+                    }
+                    
+                    leadFieldAnalysis.push({
+                        header,
+                        fieldType,
+                        confidence,
+                        sampleValues: sampleValues.slice(0, 3)
+                    });
+                });
+                
+                // Sort by confidence
+                leadFieldAnalysis.sort((a, b) => b.confidence - a.confidence);
+                
+                let analysisText = 'Field Analysis:\n\n';
+                leadFieldAnalysis.forEach(field => {
+                    const confidenceBar = '█'.repeat(Math.floor(field.confidence / 10)) + '░'.repeat(10 - Math.floor(field.confidence / 10));
+                    analysisText += `${field.header}\n`;
+                    analysisText += `  Type: ${field.fieldType} (${field.confidence}%)\n`;
+                    analysisText += `  Confidence: [${confidenceBar}] ${field.confidence}%\n`;
+                    analysisText += `  Sample: ${field.sampleValues.join(', ')}\n\n`;
+                });
+                
+                addResult('🎯 Lead Field Analysis', analysisText, 'success');
+                
+                // Suggest mapping
+                const suggestedMapping = leadFieldAnalysis
+                    .filter(field => field.confidence > 50)
+                    .map(field => `${field.header} → ${field.fieldType}`)
+                    .join('\n');
+                
+                addResult('💡 Suggested Field Mapping', suggestedMapping, 'info');
+                
+            } catch (error) {
+                addResult('❌ Analysis Error', error.message, 'error');
+            } finally {
+                setLoading('analyzeBtn', false);
+            }
+        }
+
+        // Auto-run connection test on page load
+        window.onload = function() {
+            addResult('🚀 Page Loaded', 'Ready to test Google Sheets data access. Click the buttons above to test.', 'info');
+        };
+    </script>
+</body>
+</html>

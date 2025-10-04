@@ -7,6 +7,7 @@ import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
 import { IntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
+import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { AlertCircle, CheckCircle, Clock, Copy, Edit, Settings, TestTube, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -15,9 +16,9 @@ interface IntegrationManagementTabProps {
   loading: boolean;
   testing: Record<string, boolean>;
   testResults: Record<string, TestResult>;
-  onConnectIntegration: (platform: string) => void;
-  onDisconnectIntegration: (platform: string) => void;
-  onTestConnection: (platform: string) => Promise<TestResult>;
+  onConnectIntegration: (_platform: string) => void;
+  onDisconnectIntegration: (_platform: string) => void;
+  onTestConnection: (_platform: string) => Promise<TestResult>;
 }
 
 export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> = ({
@@ -31,6 +32,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
 }) => {
   const [editingIntegration, setEditingIntegration] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<Record<string, Record<string, string>>>({});
+  const [showGoogleSheetsSelector, setShowGoogleSheetsSelector] = useState(false);
 
   const getIntegrationStatusIcon = (status: string) => {
     switch (status) {
@@ -112,7 +114,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
           });
         }
       } catch (error) {
-        console.error('Failed to save credentials:', error);
+        debugLogger.error('IntegrationManagementTab', 'Failed to save credentials', error);
       }
     }
     
@@ -186,7 +188,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                   size="sm"
                   variant="ghost"
                   className="h-8 w-8 p-0 hover:bg-slate-200"
-                  onClick={() => copyToClipboard(config.defaultCredentials![credential])}
+                  onClick={() => copyToClipboard(config.defaultCredentials?.[credential] || '')}
                 >
                   <Copy className="h-3 w-3" />
                 </Button>
@@ -222,15 +224,47 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
 
           {/* Connection Status */}
           {integration.status === 'connected' ? (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">Connected</span>
+            <div className="space-y-4 mb-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Connected</span>
+                </div>
+                {integration.accountName && (
+                  <p className="text-xs text-green-700">{integration.accountName}</p>
+                )}
+                <p className="text-xs text-green-600 mt-1">Last sync: {integration.lastSync}</p>
               </div>
-              {integration.accountName && (
-                <p className="text-xs text-green-700">{integration.accountName}</p>
+
+              {/* Google Sheets Selector */}
+              {integration.platform === 'googleSheets' && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">Configure Spreadsheet</span>
+                    </div>
+                    <Button
+                      onClick={() => setShowGoogleSheetsSelector(!showGoogleSheetsSelector)}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                    >
+                      {showGoogleSheetsSelector ? 'Hide' : 'Configure'}
+                    </Button>
+                  </div>
+                  
+                  {showGoogleSheetsSelector && (
+                    <GoogleSheetsSelector
+                      onSelectionComplete={(spreadsheetId, sheetName) => {
+                        console.log('Google Sheets selection completed:', { spreadsheetId, sheetName });
+                        setShowGoogleSheetsSelector(false);
+                        // Optionally refresh integrations or show success message
+                      }}
+                    />
+                  )}
+                </div>
               )}
-              <p className="text-xs text-green-600 mt-1">Last sync: {integration.lastSync}</p>
             </div>
           ) : (
             <div className="space-y-4 mb-4">

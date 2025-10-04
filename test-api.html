@@ -1,0 +1,62 @@
+// Test Google Sheets API connection
+async function testGoogleSheetsAPI() {
+  console.log('🧪 Testing Google Sheets API...');
+  
+  try {
+    // Import the service dynamically
+    const { GoogleSheetsService } = await import('./src/services/api/googleSheetsService.ts');
+    
+    // Test 1: Check access token
+    console.log('\n1️⃣ Testing access token...');
+    const accessToken = await GoogleSheetsService.getAccessToken();
+    
+    if (!accessToken) {
+      console.error('❌ No access token available');
+      return;
+    }
+    
+    console.log('✅ Access token found:', accessToken.substring(0, 20) + '...');
+    
+    // Test 2: Test connection
+    console.log('\n2️⃣ Testing API connection...');
+    const isConnected = await GoogleSheetsService.testConnection();
+    
+    if (!isConnected) {
+      console.error('❌ API connection failed');
+      return;
+    }
+    
+    console.log('✅ API connection successful');
+    
+    // Test 3: Fetch accounts
+    console.log('\n3️⃣ Fetching Google Sheets accounts...');
+    const accounts = await GoogleSheetsService.getSheetsAccounts();
+    
+    console.log(`✅ Found ${accounts.length} account(s)`);
+    
+    accounts.forEach((account, i) => {
+      console.log(`\n   Account ${i + 1}: ${account.name} (${account.email})`);
+      console.log(`   Spreadsheets: ${account.sheets.length}`);
+      
+      account.sheets.forEach((sheet, j) => {
+        console.log(`     ${j + 1}. ${sheet.name}`);
+        console.log(`        ID: ${sheet.id}`);
+        console.log(`        Sheets: ${sheet.sheets?.join(', ') || 'Unknown'}`);
+      });
+    });
+    
+    if (accounts.length === 0) {
+      console.log('\n⚠️  No spreadsheets found');
+      console.log('💡 Make sure you have Google Sheets in your Drive');
+    }
+    
+    console.log('\n🎉 Test completed successfully!');
+    
+  } catch (error) {
+    console.error('\n❌ Test failed:', error);
+    console.error('Stack:', error.stack);
+  }
+}
+
+// Run the test
+testGoogleSheetsAPI();

@@ -118,3 +118,5 @@ temp/
 # Debug files
 debug-facebook.js
 debug.log
+.vercel
+.env*.local

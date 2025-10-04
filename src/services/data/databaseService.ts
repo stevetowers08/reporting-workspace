@@ -252,6 +252,10 @@ export class DatabaseService {
       facebookAds?: string;
       googleAds?: string;
     };
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
   }): Promise<Client> {
     try {
       // Validate input data
@@ -271,6 +275,14 @@ export class DatabaseService {
         conversion_actions: clientData.conversionActions,
       });
 
+      // Include Google Sheets config in the accounts object
+      const accountsWithSheetsConfig = {
+        ...clientData.accounts,
+        ...(clientData.googleSheetsConfig && {
+          googleSheetsConfig: clientData.googleSheetsConfig
+        })
+      };
+
       const newClient = {
         name: validatedData.name,
         logo_url: validatedData.logo_url,
@@ -280,7 +292,7 @@ export class DatabaseService {
         gohighlevel_account_id: clientData.accounts.goHighLevel,
         google_sheets_account_id: clientData.accounts.googleSheets,
         conversion_actions: clientData.conversionActions || {},
-        accounts: clientData.accounts,
+        accounts: accountsWithSheetsConfig,
         shareable_link: `https://eventmetrics.com/share/${Date.now()}`
       };
 

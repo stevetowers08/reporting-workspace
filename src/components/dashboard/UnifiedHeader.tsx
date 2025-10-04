@@ -238,19 +238,11 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                   <span className="sm:hidden text-xs">G</span>
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="events" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-                >
-                  <Calendar size={14} />
-                  <span className="hidden sm:inline">Events</span>
-                  <span className="sm:hidden text-xs">E</span>
-                </TabsTrigger>
-                <TabsTrigger 
                   value="leads" 
                   className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
                 >
                   <Users size={14} />
-                  <span className="hidden sm:inline">Leads</span>
+                  <span className="hidden sm:inline">Lead Info</span>
                   <span className="sm:hidden text-xs">L</span>
                 </TabsTrigger>
               </TabsList>

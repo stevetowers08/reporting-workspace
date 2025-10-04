@@ -1,17 +1,19 @@
 {
-  "name": "playwright-mcp-server",
+  "name": "vercel-env-server",
   "version": "1.0.0",
-  "description": "Local Playwright MCP Server for Cursor",
-  "main": "playwright-server.js",
+  "description": "MCP server for managing Vercel environment variables",
   "type": "module",
+  "main": "vercel-env-server.js",
+  "bin": {
+    "vercel-env-server": "./vercel-env-server.js"
+  },
   "scripts": {
-    "start": "node playwright-server.js"
+    "start": "node vercel-env-server.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "playwright": "^1.40.0"
+    "@modelcontextprotocol/sdk": "^0.5.0"
   },
-  "keywords": ["mcp", "playwright", "browser-automation"],
-  "author": "Your Name",
-  "license": "MIT"
+  "engines": {
+    "node": ">=18"
+  }
 }

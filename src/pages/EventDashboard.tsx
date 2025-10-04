@@ -18,7 +18,7 @@ import { useParams } from "react-router-dom";
 const SummaryMetricsCards = lazy(() => import('@/components/dashboard/SummaryMetricsCards').then(m => ({ default: m.SummaryMetricsCards })));
 const MetaAdsMetricsCards = lazy(() => import('@/components/dashboard/MetaAdsMetricsCards').then(m => ({ default: m.MetaAdsMetricsCards })));
 const GoogleAdsMetricsCards = lazy(() => import('@/components/dashboard/GoogleAdsMetricsCards').then(m => ({ default: m.GoogleAdsMetricsCards })));
-const EventSalesMetricsCards = lazy(() => import('@/components/dashboard/EventSalesMetricsCards').then(m => ({ default: m.EventSalesMetricsCards })));
+const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(m => ({ default: m.LeadInfoMetricsCards })));
 const PlatformPerformanceStatusChart = lazy(() => import('@/components/dashboard/PlatformPerformanceStatusChart').then(m => ({ default: m.PlatformPerformanceStatusChart })));
 const KeyInsights = lazy(() => import('@/components/dashboard/KeyInsights').then(m => ({ default: m.KeyInsights })));
 const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDemographics').then(m => ({ default: m.MetaAdsDemographics })));
@@ -26,9 +26,10 @@ const MetaAdsPlatformBreakdown = lazy(() => import('@/components/dashboard/MetaA
 const GoogleAdsDemographics = lazy(() => import('@/components/dashboard/GoogleAdsDemographics').then(m => ({ default: m.GoogleAdsDemographics })));
 const GoogleAdsCampaignBreakdown = lazy(() => import('@/components/dashboard/GoogleAdsCampaignBreakdown').then(m => ({ default: m.GoogleAdsCampaignBreakdown })));
 const EventTypeBreakdown = lazy(() => import('@/components/dashboard/EventTypeBreakdown').then(m => ({ default: m.EventTypeBreakdown })));
-const BudgetDistribution = lazy(() => import('@/components/dashboard/BudgetDistribution').then(m => ({ default: m.BudgetDistribution })));
-const RevenueSummary = lazy(() => import('@/components/dashboard/RevenueSummary').then(m => ({ default: m.RevenueSummary })));
-const SalesPipeline = lazy(() => import('@/components/dashboard/SalesPipeline').then(m => ({ default: m.SalesPipeline })));
+const LeadSourceBreakdown = lazy(() => import('@/components/dashboard/LeadSourceBreakdown').then(m => ({ default: m.LeadSourceBreakdown })));
+const GuestCountDistribution = lazy(() => import('@/components/dashboard/GuestCountDistribution').then(m => ({ default: m.GuestCountDistribution })));
+const PreferredDayBreakdown = lazy(() => import('@/components/dashboard/PreferredDayBreakdown').then(m => ({ default: m.PreferredDayBreakdown })));
+const LandingPagePerformance = lazy(() => import('@/components/dashboard/LandingPagePerformance').then(m => ({ default: m.LandingPagePerformance })));
 
 interface EventDashboardProps {
   isShared?: boolean;
@@ -266,27 +267,35 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             </div>
           </TabsContent>
 
-          {/* Event Sales Tab */}
-          <TabsContent value="events" className="mt-6">
+          {/* Lead Info Tab */}
+          <TabsContent value="leads" className="mt-6">
             <Suspense fallback={<ComponentLoader />}>
-              <EventSalesMetricsCards data={dashboardData} />
+              <LeadInfoMetricsCards data={dashboardData} />
             </Suspense>
             
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
               <Suspense fallback={<ComponentLoader />}>
                 <EventTypeBreakdown data={dashboardData} />
               </Suspense>
+              
               <Suspense fallback={<ComponentLoader />}>
-                <BudgetDistribution data={dashboardData} />
+                <LeadSourceBreakdown data={dashboardData} />
               </Suspense>
+            </div>
+            
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
               <Suspense fallback={<ComponentLoader />}>
-                <RevenueSummary data={dashboardData} />
+                <GuestCountDistribution data={dashboardData} />
+              </Suspense>
+              
+              <Suspense fallback={<ComponentLoader />}>
+                <PreferredDayBreakdown data={dashboardData} />
               </Suspense>
             </div>
             
             <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
-                <SalesPipeline data={dashboardData} />
+                <LandingPagePerformance data={dashboardData} />
               </Suspense>
             </div>
           </TabsContent>

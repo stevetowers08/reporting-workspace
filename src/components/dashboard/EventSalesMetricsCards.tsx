@@ -12,7 +12,7 @@ export const EventSalesMetricsCards: React.FC<EventSalesMetricsCardsProps> = ({ 
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Total Events</p>
+            <p className="text-sm font-medium text-slate-600 mb-2">Total Leads</p>
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-bold text-slate-900">{data?.eventMetrics?.totalEvents || '0'}</p>
               <div className="flex items-center gap-1">
@@ -26,11 +26,11 @@ export const EventSalesMetricsCards: React.FC<EventSalesMetricsCardsProps> = ({ 
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Avg Event Value</p>
+            <p className="text-sm font-medium text-slate-600 mb-2">Total Guests</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">${data?.leadMetrics?.averageEventValue?.toLocaleString() || '0'}</p>
+              <p className="text-3xl font-bold text-slate-900">{data?.eventMetrics?.averageGuests?.toLocaleString() || '0'}</p>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-green-600 font-medium">↑ +8%</span>
+                <span className="text-sm text-slate-500">{data?.eventMetrics?.averageGuests || '0'} avg per lead</span>
               </div>
             </div>
           </div>
@@ -40,11 +40,11 @@ export const EventSalesMetricsCards: React.FC<EventSalesMetricsCardsProps> = ({ 
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Pipeline Value</p>
+            <p className="text-sm font-medium text-slate-600 mb-2">Facebook Leads</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">${data?.ghlMetrics?.pipelineValue?.toLocaleString() || '0'}</p>
+              <p className="text-3xl font-bold text-blue-600">{data?.facebookMetrics?.leads || '0'}</p>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-green-600 font-medium">↑ +15%</span>
+                <span className="text-sm text-slate-500">{data?.facebookMetrics?.leads || '0'} from Facebook</span>
               </div>
             </div>
           </div>
@@ -54,11 +54,11 @@ export const EventSalesMetricsCards: React.FC<EventSalesMetricsCardsProps> = ({ 
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Win Rate</p>
+            <p className="text-sm font-medium text-slate-600 mb-2">Google Leads</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-green-600">{data?.ghlMetrics?.conversionRate?.toFixed(1) || '0.0'}%</p>
+              <p className="text-3xl font-bold text-green-600">{data?.googleMetrics?.leads || '0'}</p>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-slate-500">{data?.ghlMetrics?.wonOpportunities || '0'} won</span>
+                <span className="text-sm text-slate-500">{data?.googleMetrics?.leads || '0'} from Google</span>
               </div>
             </div>
           </div>

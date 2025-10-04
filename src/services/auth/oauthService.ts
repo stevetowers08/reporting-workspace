@@ -43,7 +43,7 @@ export class OAuthService {
             // SECURITY: Never hardcode secrets in client-side code!
             clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com',
             clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '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',
-            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
+            redirectUri: import.meta.env.DEV ? 'http://localhost:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
             scopes: [
                 'https://www.googleapis.com/auth/adwords',
                 'https://www.googleapis.com/auth/spreadsheets.readonly',
@@ -308,6 +308,41 @@ export class OAuthService {
             };
 
             const integrationPlatform = platformMap[platform] || platform as IntegrationPlatform;
+            
+            // For Google platforms, check both googleSheets and googleAds integrations
+            if (platform === 'google') {
+                // First try googleSheets integration
+                const googleSheetsToken = await TokenManager.getAccessToken('googleSheets');
+                if (googleSheetsToken) {
+                    const refreshToken = await TokenManager.getRefreshToken('googleSheets');
+                    return {
+                        accessToken: googleSheetsToken,
+                        refreshToken: refreshToken || undefined,
+                        tokenType: 'Bearer',
+                        expiresIn: undefined,
+                        scope: undefined
+                    };
+                }
+                
+                // Fallback to googleAds integration (shares OAuth with Sheets)
+                const googleAdsToken = await TokenManager.getAccessToken('googleAds');
+                if (googleAdsToken) {
+                    const refreshToken = await TokenManager.getRefreshToken('googleAds');
+                    debugLogger.info('OAuthService', 'Using googleAds tokens for Google Sheets access');
+                    console.log('OAuthService: Using googleAds tokens for Google Sheets access');
+                    return {
+                        accessToken: googleAdsToken,
+                        refreshToken: refreshToken || undefined,
+                        tokenType: 'Bearer',
+                        expiresIn: undefined,
+                        scope: undefined
+                    };
+                }
+                
+                debugLogger.error('OAuthService', 'No Google tokens found for either googleSheets or googleAds');
+                console.error('OAuthService: No Google tokens found for either googleSheets or googleAds');
+            }
+            
             const accessToken = await TokenManager.getAccessToken(integrationPlatform);
             const refreshToken = await TokenManager.getRefreshToken(integrationPlatform);
 

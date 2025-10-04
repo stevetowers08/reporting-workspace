@@ -1,7 +1,7 @@
 import { AdminPanel as RefactoredAdminPanel } from "@/components/admin/AdminPanel";
+import { IntegrationErrorBoundary } from "@/components/error/IntegrationErrorBoundary";
 import AddClientModal from "@/components/modals/AddClientModal";
 import EditClientModal from "@/components/modals/EditClientModal";
-import { IntegrationErrorBoundary } from "@/components/error/IntegrationErrorBoundary";
 import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { useState } from "react";
@@ -51,6 +51,10 @@ const AdminPanel = () => {
       facebookAds?: string; 
       googleAds?: string; 
     }; 
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
   }) => {
     try {
       await DatabaseService.createClient(clientData);

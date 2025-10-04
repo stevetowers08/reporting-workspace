@@ -13,6 +13,10 @@ interface Client {
         googleAds?: string;
         goHighLevel?: string;
         googleSheets?: string;
+        googleSheetsConfig?: {
+            spreadsheetId: string;
+            sheetName: string;
+        };
     };
     status: 'active' | 'paused' | 'inactive';
     shareable_link: string;
@@ -43,6 +47,10 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
                 googleAds: formData.accounts.googleAds === "none" ? undefined : formData.accounts.googleAds,
                 goHighLevel: formData.accounts.goHighLevel === "none" ? undefined : formData.accounts.goHighLevel,
                 googleSheets: formData.accounts.googleSheets === "none" ? undefined : formData.accounts.googleSheets,
+                // Include Google Sheets configuration in accounts if available
+                ...(formData.googleSheetsConfig && {
+                    googleSheetsConfig: formData.googleSheetsConfig
+                })
             },
             conversion_actions: {
                 facebookAds: formData.conversionActions.facebookAds,
@@ -71,6 +79,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
             facebookAds: client.conversion_actions?.facebookAds || "lead",
             googleAds: client.conversion_actions?.googleAds || "conversions",
         },
+        googleSheetsConfig: client.accounts?.googleSheetsConfig || null,
     };
 
     return (
