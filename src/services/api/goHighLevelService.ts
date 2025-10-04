@@ -161,7 +161,8 @@ export class GoHighLevelService {
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
           redirect_uri: credentials.redirect_uri,
-          user_type: 'Company'
+          user_type: 'Company',
+          ...(locationId && { locationId })
         })
       });
 
@@ -205,6 +206,87 @@ export class GoHighLevelService {
   }
 
   /**
+   * Refresh access token using refresh token
+   */
+  static async refreshAccessToken(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+  }> {
+    try {
+      const credentials = await this.getCredentials();
+      if (!credentials) {
+        throw new Error('GHL credentials not found');
+      }
+
+      const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: credentials.client_id,
+          client_secret: credentials.client_secret,
+          user_type: 'Company'
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        debugLogger.error('GoHighLevelService', 'Token refresh failed', {
+          status: tokenResponse.status,
+          errorData
+        });
+        throw new Error(`Token refresh failed: ${errorData.error || tokenResponse.statusText}`);
+      }
+
+      const tokenData = await tokenResponse.json();
+      
+      this.accessToken = tokenData.access_token;
+      if (tokenData.refresh_token) {
+        // Update refresh token if provided
+        await this.updateRefreshToken(tokenData.refresh_token);
+      }
+
+      debugLogger.info('GoHighLevelService', 'Token refreshed successfully');
+      
+      return {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresIn: tokenData.expires_in
+      };
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Error refreshing token', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update refresh token in database
+   */
+  private static async updateRefreshToken(refreshToken: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('integrations')
+        .update({
+          config: {
+            refreshToken,
+            updatedAt: new Date().toISOString()
+          }
+        })
+        .eq('platform', 'goHighLevel');
+
+      if (error) {
+        debugLogger.error('GoHighLevelService', 'Failed to update refresh token', error);
+      }
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Error updating refresh token', error);
+    }
+  }
+
+  /**
    * Set access token and location ID for API calls
    */
   static setCredentials(accessToken: string, locationId: string): void {
@@ -237,6 +319,37 @@ export class GoHighLevelService {
     });
 
     if (!response.ok) {
+      // Check if token expired and try to refresh
+      if (response.status === 401) {
+        debugLogger.info('GoHighLevelService', 'Token expired, attempting refresh');
+        try {
+          const connection = await DatabaseService.getGHLConnection();
+          if (connection?.config?.refreshToken) {
+            const newTokens = await this.refreshAccessToken(connection.config.refreshToken);
+            this.setCredentials(newTokens.accessToken, this.locationId!);
+            
+            // Retry the request with new token
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers: {
+                'Authorization': `Bearer ${newTokens.accessToken}`,
+                'Version': '2021-07-28',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'locationId': this.locationId!,
+                ...options.headers
+              }
+            });
+            
+            if (retryResponse.ok) {
+              return await retryResponse.json();
+            }
+          }
+        } catch (refreshError) {
+          debugLogger.error('GoHighLevelService', 'Token refresh failed', refreshError);
+        }
+      }
+      
       const errorData = await response.json().catch(() => ({}));
       debugLogger.error('GoHighLevelService', 'API request failed', {
         url,
