@@ -161,18 +161,28 @@ export class GoHighLevelService {
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
           redirect_uri: credentials.redirect_uri,
-          user_type: 'Sub-account',
+          user_type: 'Company',
           ...(locationId && { locationId })
         })
       });
 
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
+        const errorData = await tokenResponse.json().catch(() => ({}));
         debugLogger.error('GoHighLevelService', 'Token exchange failed', {
           status: tokenResponse.status,
-          error: errorData
+          statusText: tokenResponse.statusText,
+          errorData,
+          requestBody: {
+            grant_type: 'authorization_code',
+            code: code ? '***' : 'MISSING',
+            client_id: credentials.client_id,
+            client_secret: credentials.client_secret ? '***' : 'MISSING',
+            redirect_uri: credentials.redirect_uri,
+            user_type: 'Company',
+            locationId: locationId || 'NOT_PROVIDED'
+          }
         });
-        throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
+        throw new Error(`Token exchange failed: ${errorData.error || errorData.message || tokenResponse.statusText}`);
       }
 
       const tokenData = await tokenResponse.json();
@@ -310,15 +320,15 @@ export class GoHighLevelService {
     
     const response = await fetch(url, {
       ...options,
-      headers: {
+        headers: {
         'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28',
+          'Version': '2021-07-28',
         ...options.headers
-      }
-    });
+        }
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
       // Check if token expired and try to refresh
       if (response.status === 401) {
         debugLogger.info('GoHighLevelService', 'Token expired, attempting refresh');
@@ -453,7 +463,7 @@ export class GoHighLevelService {
           events
         })
       });
-      
+
       debugLogger.info('GoHighLevelService', 'Webhook setup', { 
         webhookUrl, 
         events 
