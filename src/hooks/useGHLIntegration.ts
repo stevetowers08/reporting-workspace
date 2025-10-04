@@ -116,11 +116,29 @@ export const useGHLIntegration = () => {
         throw new Error('Failed to open OAuth window. Please allow popups for this site.');
       }
       
-      // Monitor the window for completion
+      // Listen for messages from the popup window
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'GHL_CONNECTED') {
+          setIsConnecting(false);
+          if (event.data.success) {
+            debugLogger.info('useGHLIntegration', 'GHL connection successful');
+            // Refresh connection status
+            queryClient.invalidateQueries({ queryKey: ['ghl-connection'] });
+          } else {
+            debugLogger.error('useGHLIntegration', 'GHL connection failed', event.data.error);
+          }
+          window.removeEventListener('message', handleMessage);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // Fallback: Monitor the window for completion
       const checkClosed = setInterval(() => {
         if (authWindow.closed) {
           clearInterval(checkClosed);
           setIsConnecting(false);
+          window.removeEventListener('message', handleMessage);
           // Refresh connection status after OAuth completes
           queryClient.invalidateQueries({ queryKey: ['ghl-connection'] });
         }
