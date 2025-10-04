@@ -103,10 +103,9 @@ export class GoHighLevelService {
       }
 
       const scopes = [
-        'locations.read',
-        'contacts.read',
-        'campaigns.read',
-        'analytics.read',
+        'locations.readonly',
+        'contacts.readonly',
+        'campaigns.readonly',
         'webhooks.write'
       ].join(' ');
 
