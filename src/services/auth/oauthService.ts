@@ -58,7 +58,7 @@ export class OAuthService {
             clientSecret: '', // Client secret should NEVER be in client-side code
             redirectUri: import.meta.env.VITE_GHL_REDIRECT_URI || `${window.location.origin}/leadconnector/oath`,
             scopes: ['contacts.readonly', 'locations.readonly', 'oauth.readonly', 'opportunities.readonly', 'funnels/redirect.readonly', 'funnels/page.readonly', 'funnels/funnel.readonly', 'funnels/pagecount.readonly'],
-            authUrl: 'https://marketplace.gohighlevel.com/oauth/chooselocation',
+            authUrl: 'https://marketplace.leadconnectorhq.com/oauth/chooselocation',
             tokenUrl: 'https://services.leadconnectorhq.com/oauth/token'
         }
     };

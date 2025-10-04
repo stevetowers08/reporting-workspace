@@ -113,7 +113,7 @@ export class GoHighLevelService {
         'funnels/pagecount.readonly'
       ].join(' ');
 
-      const baseUrl = 'https://marketplace.gohighlevel.com/oauth/chooselocation';
+      const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
       const params = new URLSearchParams({
         response_type: 'code',
         client_id: credentials.client_id,
