@@ -13,9 +13,12 @@ export const GHLCallbackPage: React.FC = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('GHL Callback - Starting OAuth callback processing');
         const code = searchParams.get('code');
         const locationId = searchParams.get('locationId');
         const errorParam = searchParams.get('error');
+
+        console.log('GHL Callback - URL parameters:', { code, locationId, errorParam });
 
         debugLogger.info('GHLCallbackPage', 'Processing OAuth callback', {
           hasCode: !!code,
