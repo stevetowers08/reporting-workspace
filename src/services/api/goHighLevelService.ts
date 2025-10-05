@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '@/services/data/databaseService';
 
 // Browser API types
 declare const fetch: typeof globalThis.fetch;
@@ -329,12 +330,36 @@ export class GoHighLevelService {
   }
 
   /**
+   * Load saved credentials from database
+   */
+  static async loadSavedCredentials(): Promise<void> {
+    try {
+      const connection = await DatabaseService.getGHLConnection();
+      if (connection?.connected && connection.config?.accessToken && connection.config?.locationId) {
+        this.accessToken = connection.config.accessToken;
+        this.locationId = connection.config.locationId;
+        debugLogger.info('GoHighLevelService', 'Loaded saved credentials', { 
+          locationId: this.locationId,
+          hasAccessToken: !!this.accessToken
+        });
+      }
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to load saved credentials', error);
+    }
+  }
+
+  /**
    * Make authenticated API request
    */
   private static async makeApiRequest<T>(
     endpoint: string,
     options: globalThis.RequestInit = {}
   ): Promise<T> {
+    // Load credentials if not already set
+    if (!this.accessToken || !this.locationId) {
+      await this.loadSavedCredentials();
+    }
+    
     if (!this.accessToken || !this.locationId) {
       throw new Error('GHL credentials not set. Please authenticate first.');
     }
