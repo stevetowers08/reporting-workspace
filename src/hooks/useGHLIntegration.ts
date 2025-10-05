@@ -104,13 +104,16 @@ export const useGHLIntegration = () => {
   // Connect to GHL
   const connect = async () => {
     try {
+      console.log('GHL Connect - Starting connection process');
       setIsConnecting(true);
       debugLogger.info('useGHLIntegration', 'Initiating GHL connection');
       
       const authUrl = await GoHighLevelService.getAuthorizationUrl();
+      console.log('GHL Connect - Generated auth URL:', authUrl);
       
       // Open OAuth flow in new window/tab
       const authWindow = window.open(authUrl, 'ghl-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+      console.log('GHL Connect - Opened window:', !!authWindow);
       
       if (!authWindow) {
         throw new Error('Failed to open OAuth window. Please allow popups for this site.');
