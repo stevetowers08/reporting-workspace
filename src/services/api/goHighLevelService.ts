@@ -63,7 +63,7 @@ export interface GHLAppCredentials {
 }
 
 export class GoHighLevelService {
-  private static readonly API_BASE_URL = 'https://rest.gohighlevel.com/v1';
+  private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
   private static readonly OAUTH_BASE_URL = 'https://services.leadconnectorhq.com';
   
   private static accessToken: string | null = null;
@@ -339,7 +339,7 @@ export class GoHighLevelService {
         this.accessToken = connection.config.accessToken;
         this.locationId = connection.config.locationId;
         debugLogger.info('GoHighLevelService', 'Loaded saved credentials', { 
-          locationId: this.locationId,
+        locationId: this.locationId,
           hasAccessToken: !!this.accessToken
         });
       }
