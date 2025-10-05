@@ -176,19 +176,20 @@ export class GoHighLevelService {
           errorData = { rawError: errorText };
         }
         
-        // Log to console as fallback
+        // Log detailed error information
         debugLogger.error('GoHighLevelService', 'GHL Token Exchange Error:', {
           status: tokenResponse.status,
           statusText: tokenResponse.statusText,
           errorData,
           requestBody: {
             grant_type: 'authorization_code',
-            code: code ? '***' : 'MISSING',
+            code: code ? code.substring(0, 10) + '...' : 'MISSING',
             client_id: credentials.client_id,
             client_secret: credentials.client_secret ? '***' : 'MISSING',
             redirect_uri: credentials.redirect_uri,
             user_type: 'Location'
-          }
+          },
+          url: `${this.OAUTH_BASE_URL}/oauth/token`
         });
         
         debugLogger.error('GoHighLevelService', 'Token exchange failed', {

@@ -43,7 +43,11 @@ export const GHLCallbackPage: React.FC = () => {
         }
 
         // Exchange code for token
-        console.log('GHL Callback - Starting token exchange', { code, locationId });
+        console.log('GHL Callback - Starting token exchange', { 
+          code: code ? code.substring(0, 10) + '...' : 'MISSING', 
+          locationId,
+          fullUrl: window.location.href
+        });
         const tokenData = await GoHighLevelService.exchangeCodeForToken(code, locationId || undefined);
         
         // Set credentials for future API calls
