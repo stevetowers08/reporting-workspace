@@ -11,6 +11,23 @@ export const GHLCallbackPage: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
+  // Debug logging
+  console.log('GHL Callback Page - Component loaded');
+  console.log('GHL Callback Page - URL:', window.location.href);
+  console.log('GHL Callback Page - Search params:', Object.fromEntries(searchParams.entries()));
+
+  // Immediate fallback render to ensure something shows
+  if (!status) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">GHL Callback Page</h1>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     const handleCallback = async () => {
       try {
