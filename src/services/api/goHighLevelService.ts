@@ -154,16 +154,16 @@ export class GoHighLevelService {
       const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({
+        body: new URLSearchParams({
           grant_type: 'authorization_code',
           code,
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
           redirect_uri: credentials.redirect_uri,
-          user_type: 'Location' // Changed to Location for sub-account installs
+          user_type: 'Location'
         })
       });
 
@@ -177,7 +177,7 @@ export class GoHighLevelService {
         }
         
         // Log to console as fallback
-        console.error('GHL Token Exchange Error:', {
+        debugLogger.error('GoHighLevelService', 'GHL Token Exchange Error:', {
           status: tokenResponse.status,
           statusText: tokenResponse.statusText,
           errorData,
@@ -254,14 +254,14 @@ export class GoHighLevelService {
       const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
+        body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
           client_id: credentials.client_id,
           client_secret: credentials.client_secret,
-          user_type: 'Location' // Changed to Location for sub-account installs
+          user_type: 'Location'
         })
       });
 
@@ -355,10 +355,10 @@ export class GoHighLevelService {
       if (response.status === 401) {
         debugLogger.info('GoHighLevelService', 'Token expired, attempting refresh');
         try {
-          const connection = await DatabaseService.getGHLConnection();
+          const connection = await this.getGHLConnection();
           if (connection?.config?.refreshToken) {
             const newTokens = await this.refreshAccessToken(connection.config.refreshToken);
-            this.setCredentials(newTokens.accessToken, this.locationId!);
+            this.setCredentials(newTokens.accessToken, this.locationId || '');
             
             // Retry the request with new token
             const retryResponse = await fetch(url, {
@@ -368,7 +368,7 @@ export class GoHighLevelService {
                 'Version': '2021-07-28',
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'locationId': this.locationId!,
+                'locationId': this.locationId || '',
                 ...options.headers
               }
             });
