@@ -93,7 +93,10 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <ClientForm
-                        initialData={initialData}
+                        initialData={{
+                          ...initialData,
+                          googleSheetsConfig: initialData.googleSheetsConfig || undefined
+                        }}
                         isEdit={true}
                         clientId={client.id}
                         onSubmit={handleSubmit}

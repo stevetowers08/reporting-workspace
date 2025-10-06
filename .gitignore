@@ -120,3 +120,15 @@ debug-facebook.js
 debug.log
 .vercel
 .env*.local
+
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+.env/
+.env.bak/
+.env.backup/
+requirements.txt
+activate_venv.bat
+current_packages_backup.txt

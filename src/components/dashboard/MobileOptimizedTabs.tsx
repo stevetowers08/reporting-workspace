@@ -24,12 +24,12 @@ export const MobileOptimizedTabs: React.FC<MobileOptimizedTabsProps> = ({
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
       {/* Mobile-First Tab Navigation */}
       <div className="flex items-center justify-center">
-        <TabsList className="w-full max-w-4xl bg-white rounded-lg p-0.5 h-10 border border-slate-200 shadow-sm grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <TabsList className="w-full max-w-4xl bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
           {tabs.map((tab) => (
             <TabsTrigger 
               key={tab.value}
               value={tab.value} 
-              className="text-sm font-semibold px-3 py-2 rounded-md data-[state=active]:bg-slate-100 data-[state=active]:text-slate-700 text-slate-600 hover:text-slate-800 hover:bg-slate-50 transition-all duration-200 flex items-center justify-center gap-1.5 border-r border-slate-200 last:border-r-0 h-full"
+              className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
             >
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>

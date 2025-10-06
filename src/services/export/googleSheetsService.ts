@@ -278,8 +278,7 @@ export class GoogleSheetsService {
       type,
       count: data.count,
       percentage: (data.count / totalSubmissions) * 100,
-      averageGuests: data.guests / data.count,
-      averageBudget: data.budget / data.count
+      avgGuests: data.guests / data.count
     }));
 
     // Lead source breakdown

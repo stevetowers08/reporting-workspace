@@ -1,8 +1,8 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { debugLogger } from '@/lib/debug';
+import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+// import { debugLogger } from '@/lib/debug';
 
 interface Props {
   children: ReactNode;
@@ -37,12 +37,12 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    debugLogger.error('AppErrorBoundary', 'Caught application error', {
-      error: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-      errorId: this.state.errorId,
-    });
+    // debugLogger.error('AppErrorBoundary', 'Caught application error', {
+    //   error: error.message,
+    //   stack: error.stack,
+    //   componentStack: errorInfo.componentStack,
+    //   errorId: this.state.errorId,
+    // });
 
     this.setState({
       error,

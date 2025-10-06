@@ -83,9 +83,13 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
 
   const testApiConnection = async (platform: string) => {
     const config = getPlatformConfig(platform);
+    console.log('testApiConnection called for platform:', platform);
+    console.log('Platform config:', config);
+    console.log('usesOAuth:', config?.usesOAuth);
     
     // For OAuth platforms, just trigger the OAuth flow
     if (config?.usesOAuth) {
+      console.log('Platform uses OAuth, triggering OAuth flow');
       await onConnectIntegration(platform);
       return;
     }
@@ -112,6 +116,18 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
           }, {
             id: 'google-ai-studio',
             name: 'Google AI Studio'
+          });
+        }
+        
+        // For GoHighLevel private integration token
+        if (platform === 'goHighLevel' && finalCredentials.agencyToken) {
+          await IntegrationService.saveApiKey(platform as IntegrationPlatform, {
+            // agencyToken: finalCredentials.agencyToken, // Commented out - not in ApiKeyConfig type
+            keyType: 'bearer',
+            apiKey: finalCredentials.agencyToken || ''
+          } as any, {
+            id: 'goHighLevel-agency',
+            name: 'GoHighLevel Agency'
           });
         }
       } catch (error) {
@@ -148,6 +164,40 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
           <p className="text-xs text-blue-700">
             Google Sheets uses the same OAuth credentials as Google Ads. Make sure Google Ads is connected first.
           </p>
+        </div>
+      );
+    }
+
+    if (platform === 'goHighLevel') {
+      return (
+        <div className="space-y-3">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Settings className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Private Integration Token</span>
+            </div>
+            <p className="text-xs text-blue-700 mb-3">
+              Enter your agency-level private integration token to access all sub-accounts.
+            </p>
+            <div>
+              <Label htmlFor="ghl-agency-token" className="text-xs font-medium text-slate-700">
+                Agency Private Integration Token
+              </Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  id="ghl-agency-token"
+                  type="password"
+                  placeholder="pit-xxxxx-xxxxx-xxxxx-xxxxx"
+                  value={credentials[platform]?.agencyToken || ''}
+                  onChange={(e) => handleCredentialChange(platform, 'agencyToken', e.target.value)}
+                  className="text-xs h-8"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                This token will be used to list all locations and access their data.
+              </p>
+            </div>
+          </div>
         </div>
       );
     }

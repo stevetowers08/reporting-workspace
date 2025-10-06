@@ -234,7 +234,7 @@ export class IntegrationApiService {
       return integration;
     } catch (error) {
       debugLogger.error('IntegrationApiService', `Error refreshing tokens for ${platform}`, error);
-      throw new Error(`Failed to refresh tokens: ${error.message}`);
+      throw new Error(`Failed to refresh tokens: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -256,7 +256,7 @@ export class IntegrationApiService {
       debugLogger.info('IntegrationApiService', `${platform} disconnected successfully via API`);
     } catch (error) {
       debugLogger.error('IntegrationApiService', `Error disconnecting ${platform}`, error);
-      throw new Error(`Failed to disconnect integration: ${error.message}`);
+      throw new Error(`Failed to disconnect integration: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -294,10 +294,10 @@ export class IntegrationApiService {
       return response.data;
     } catch (error) {
       debugLogger.error('IntegrationApiService', `Error getting tokens for ${platform}`, error);
-      if (error.message.includes('No tokens found') || error.message.includes('Token expired')) {
+      if (error instanceof Error && (error.message.includes('No tokens found') || error.message.includes('Token expired'))) {
         return null;
       }
-      throw new Error(`Failed to get tokens: ${error.message}`);
+      throw new Error(`Failed to get tokens: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -318,7 +318,7 @@ export class IntegrationApiService {
       ];
 
       return platforms.map(p => {
-        const integration = integrations.find(i => i.platform === p.platform);
+        const integration = integrations.find(i => i.id === p.key);
         const isConnected = !!(integration?.tokens?.accessToken || integration?.apiKey?.apiKey);
 
         return {
@@ -333,7 +333,7 @@ export class IntegrationApiService {
       });
     } catch (error) {
       debugLogger.error('IntegrationApiService', 'Error fetching integration display data', error);
-      throw new Error(`Failed to fetch integration display data: ${error.message}`);
+      throw new Error(`Failed to fetch integration display data: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

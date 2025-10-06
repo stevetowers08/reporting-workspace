@@ -1,8 +1,9 @@
 import { debugLogger } from '@/lib/debug';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
-import { GoHighLevelMetrics, GoHighLevelService } from '../api/goHighLevelService';
+import { GoHighLevelService } from '../api/goHighLevelService';
 import { GoogleAdsMetrics } from '../api/googleAdsService';
-import { EventMetrics, GoogleSheetsService } from '../export/googleSheetsService';
+import { EventMetrics } from '../export/googleSheetsService';
+import { LeadDataService } from './leadDataService';
 
 export interface EventLeadMetrics {
   // Cost per lead metrics
@@ -50,7 +51,7 @@ export interface EventDashboardData {
   // Platform-specific data
   facebookMetrics: FacebookAdsMetrics & { costPerLead: number };
   googleMetrics: GoogleAdsMetrics & { costPerLead: number };
-  ghlMetrics: GoHighLevelMetrics;
+  ghlMetrics: any;
   eventMetrics: EventMetrics;
 
   // Combined insights
@@ -97,7 +98,7 @@ export class EventMetricsService {
         ctr: 0, cpc: 0, conversionRate: 0, costPerConversion: 0, 
         searchImpressionShare: 0, qualityScore: 0 
       };
-      let ghlMetrics: GoHighLevelMetrics = { 
+      let ghlMetrics: any = { 
         totalContacts: 0, newContacts: 0, totalOpportunities: 0, 
         wonOpportunities: 0, lostOpportunities: 0, pipelineValue: 0, 
         avgDealSize: 0, conversionRate: 0, responseTime: 0, wonRevenue: 0 
@@ -116,7 +117,7 @@ export class EventMetricsService {
         googleMetrics = results[resultIndex++] as GoogleAdsMetrics;
       }
       if (hasGoHighLevel) {
-        ghlMetrics = results[resultIndex++] as GoHighLevelMetrics;
+        ghlMetrics = results[resultIndex++] as any;
       }
       if (hasGoogleSheets) {
         eventMetrics = results[resultIndex++] as EventMetrics;
@@ -194,9 +195,9 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGHLMetrics(dateRange: { start: string; end: string }): Promise<GoHighLevelMetrics> {
+  private static async getGHLMetrics(dateRange: { start: string; end: string }): Promise<any> {
     try {
-      return await GoHighLevelService.getMetrics(dateRange);
+      return await GoHighLevelService.getGHLMetrics(dateRange);
     } catch (error) {
       debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
       return this.getEmptyGHLMetrics();
@@ -205,9 +206,23 @@ export class EventMetricsService {
 
   private static async getEventMetrics(dateRange: { start: string; end: string }): Promise<EventMetrics> {
     try {
-      return await GoogleSheetsService.calculateMetrics(dateRange);
+      // Use the working LeadDataService instead of the problematic GoogleSheetsService
+      const leadData = await LeadDataService.fetchLeadData();
+      if (leadData) {
+        return {
+          totalEvents: leadData.totalLeads,
+          averageGuests: leadData.averageGuestsPerLead,
+          totalSubmissions: leadData.totalLeads,
+          eventTypeBreakdown: (leadData.eventTypes || []).map(eventType => ({
+            ...eventType,
+            avgGuests: 0
+          })),
+          budgetDistribution: []
+        };
+      }
+      return this.getEmptyEventMetrics();
     } catch (error) {
-      debugLogger.warn('EventMetricsService', 'Event metrics not available', error);
+      debugLogger.warn('EventMetricsService', 'Event metrics not available - using LeadDataService fallback', error);
       return this.getEmptyEventMetrics();
     }
   }
@@ -215,7 +230,7 @@ export class EventMetricsService {
   private static calculateLeadMetrics(
     facebook: FacebookAdsMetrics,
     google: GoogleAdsMetrics,
-    ghl: GoHighLevelMetrics,
+    ghl: any,
     events: EventMetrics,
     totalSpend: number,
     _totalRevenue: number
@@ -236,8 +251,8 @@ export class EventMetricsService {
       : 0;
 
     // Event-specific calculations
-    const averageGuestsPerEvent = events.averageGuests;
-    const mostPopularEventType = events.eventTypeBreakdown.length > 0
+    const averageGuestsPerEvent = events?.averageGuests || 0;
+    const mostPopularEventType = events?.eventTypeBreakdown && events.eventTypeBreakdown.length > 0
       ? events.eventTypeBreakdown.reduce((prev, current) =>
         prev.count > current.count ? prev : current
       ).type
@@ -319,7 +334,7 @@ export class EventMetricsService {
     };
   }
 
-  private static getEmptyGHLMetrics(): GoHighLevelMetrics {
+  private static getEmptyGHLMetrics(): any {
     return {
       totalContacts: 0,
       newContacts: 0,
@@ -389,7 +404,7 @@ export class EventMetricsService {
     }
 
     // Event type insights
-    if (data.eventMetrics.eventTypeBreakdown.length > 0) {
+    if (data.eventMetrics?.eventTypeBreakdown && data.eventMetrics.eventTypeBreakdown.length > 0) {
       const topEvent = data.leadMetrics.mostPopularEventType;
       insights.push({
         type: 'info' as const,
@@ -400,7 +415,7 @@ export class EventMetricsService {
     }
 
     // Seasonal insights
-    if (data.leadMetrics.seasonalTrends.length >= 3) {
+    if (data.leadMetrics?.seasonalTrends && data.leadMetrics.seasonalTrends.length >= 3) {
       const recentTrends = data.leadMetrics.seasonalTrends.slice(-3);
       const isGrowing = recentTrends[2].leads > recentTrends[0].leads;
 

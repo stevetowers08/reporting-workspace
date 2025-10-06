@@ -14,8 +14,8 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await LeadDataService.fetchLeadData();
-        setLeadData(data);
+        const leadDataResult = await LeadDataService.fetchLeadData();
+        setLeadData(leadDataResult);
       } catch (error) {
         console.error('Failed to fetch lead data:', error);
       } finally {
@@ -52,7 +52,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
     );
   }
 
-  const landingPageViews = data?.ghlMetrics?.totalContacts || 0; // Assuming GHL provides total contacts as landing page views
+  const landingPageViews = data?.ghlMetrics?.totalContacts || 0; // Using dashboard data
 
   return (
     <Card className="bg-white border border-slate-200 shadow-sm p-6">

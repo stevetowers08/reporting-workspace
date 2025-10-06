@@ -115,8 +115,8 @@ export class LeadDataService {
           googleLeads++;
         }
 
-        // Get guest count (column 5 - index 4)
-        const guestCount = parseInt(row[4]) || 0;
+        // Get guest count (column 5 - index 5)
+        const guestCount = parseInt(row[5]) || 0;
         totalGuests += guestCount;
 
         // Categorize guest ranges

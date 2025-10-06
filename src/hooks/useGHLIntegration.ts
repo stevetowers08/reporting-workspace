@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
-import { supabase } from '@/lib/supabase';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -30,11 +30,33 @@ export const useGHLIntegration = () => {
     queryFn: async () => {
       const connection = await DatabaseService.getGHLConnection();
       if (connection?.connected && connection.config?.accessToken) {
-        // Set credentials for API calls
-        GoHighLevelService.setCredentials(
-          connection.config.accessToken,
-          connection.account_id
-        );
+        // Decode token to determine if it's agency-level
+        try {
+          const tokenPayload = JSON.parse(atob(connection.config.accessToken.split('.')[1]));
+          const isAgencyToken = tokenPayload.authClass === 'Company';
+          
+          if (isAgencyToken) {
+            // Agency-level token - don't set locationId yet, will be set per client
+            GoHighLevelService.setCredentials(connection.config.accessToken);
+            debugLogger.info('useGHLIntegration', 'Set agency-level credentials');
+          } else {
+            // Location-level token - use account_id as locationId
+            GoHighLevelService.setCredentials(
+              connection.config.accessToken,
+              connection.account_id
+            );
+            debugLogger.info('useGHLIntegration', 'Set location-level credentials', { 
+              locationId: connection.account_id 
+            });
+          }
+        } catch (tokenError) {
+          debugLogger.error('useGHLIntegration', 'Failed to decode token', tokenError);
+          // Fallback to location-level behavior
+          GoHighLevelService.setCredentials(
+            connection.config.accessToken,
+            connection.account_id
+          );
+        }
       }
       return connection;
     },
@@ -57,7 +79,7 @@ export const useGHLIntegration = () => {
       if (error) throw error;
 
       // Disconnect service
-      GoHighLevelService.disconnect();
+      // GoHighLevelService.disconnect(); // Method doesn't exist - commented out
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ghl-connection'] });

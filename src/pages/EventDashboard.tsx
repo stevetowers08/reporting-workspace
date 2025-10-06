@@ -6,13 +6,11 @@ import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { PDFExportService } from "@/services/export/pdfExportService";
 
-import { LeadQualityMetricsComponent } from '@/components/analytics/LeadQualityMetrics';
-import { LeadQualityTable } from '@/components/analytics/LeadQualityTable';
 
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
 import { useAvailableClients, useClientData, useDashboardData } from '@/hooks/useDashboardQueries';
 import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 // Lazy load dashboard components for better performance
 const SummaryMetricsCards = lazy(() => import('@/components/dashboard/SummaryMetricsCards').then(m => ({ default: m.SummaryMetricsCards })));
@@ -31,6 +29,14 @@ const GuestCountDistribution = lazy(() => import('@/components/dashboard/GuestCo
 const PreferredDayBreakdown = lazy(() => import('@/components/dashboard/PreferredDayBreakdown').then(m => ({ default: m.PreferredDayBreakdown })));
 const LandingPagePerformance = lazy(() => import('@/components/dashboard/LandingPagePerformance').then(m => ({ default: m.LandingPagePerformance })));
 
+// GHL-specific components
+const GHLContactQualityCards = lazy(() => import('@/components/dashboard/GHLContactQualityCards').then(m => ({ default: m.GHLContactQualityCards })));
+const GHLFunnelChart = lazy(() => import('@/components/dashboard/GHLFunnelChart').then(m => ({ default: m.GHLFunnelChart })));
+const GHLFunnelAnalytics = lazy(() => import('@/components/dashboard/GHLFunnelAnalytics').then(m => ({ default: m.GHLFunnelAnalytics })));
+const GHLPageAnalytics = lazy(() => import('@/components/dashboard/GHLPageAnalytics').then(m => ({ default: m.GHLPageAnalytics })));
+const GHLPipelineStages = lazy(() => import('@/components/dashboard/GHLPipelineStages').then(m => ({ default: m.GHLPipelineStages })));
+const GHLPageViewsAnalytics = lazy(() => import('@/components/dashboard/GHLPageViewsAnalytics').then(m => ({ default: m.GHLPageViewsAnalytics })));
+
 interface EventDashboardProps {
   isShared?: boolean;
   clientId?: string;
@@ -45,9 +51,20 @@ const ComponentLoader = () => (
 
 const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
   const { clientId: urlClientId } = useParams<{ clientId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
-  const [activeTab, setActiveTab] = useState("summary");
   const [exportingPDF, setExportingPDF] = useState(false);
+  
+  // Get active tab from URL params, default to "summary"
+  const activeTab = searchParams.get('tab') || "summary";
+  
+  // Handle tab change by updating URL params
+  const handleTabChange = useCallback((tab: string) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('tab', tab);
+    setSearchParams(newSearchParams);
+  }, [searchParams, setSearchParams]);
 
   // Get client ID from URL params, props, or URL path
   const actualClientId = useMemo(() => {
@@ -194,13 +211,13 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
 
       {/* Main Content */}
       <div className="px-20 py-6">
         <div className="mx-auto">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
@@ -267,87 +284,47 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             </div>
           </TabsContent>
 
-          {/* Lead Info Tab */}
+          {/* Lead Info Tab - Simplified for Venue Owners */}
           <TabsContent value="leads" className="mt-6">
+            {/* Core Lead Metrics - Most Valuable for Venue Owners */}
             <Suspense fallback={<ComponentLoader />}>
               <LeadInfoMetricsCards data={dashboardData} />
             </Suspense>
             
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <EventTypeBreakdown data={dashboardData} />
-              </Suspense>
-              
+            {/* Lead Source Performance - Shows which channels work best */}
+            <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
                 <LeadSourceBreakdown data={dashboardData} />
               </Suspense>
             </div>
             
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+            {/* Guest Count Distribution - Shows venue capacity planning */}
+            <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
                 <GuestCountDistribution data={dashboardData} />
               </Suspense>
-              
-              <Suspense fallback={<ComponentLoader />}>
-                <PreferredDayBreakdown data={dashboardData} />
-              </Suspense>
             </div>
             
-            <div className="mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <LandingPagePerformance data={dashboardData} />
-              </Suspense>
-            </div>
-          </TabsContent>
+        {/* Conversion Funnel - Shows customer journey from page views to bookings */}
+        <div className="mt-6">
+          <Suspense fallback={<ComponentLoader />}>
+            <GHLFunnelChart dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+          </Suspense>
+        </div>
 
-          {/* Lead Quality Tab */}
-          <TabsContent value="leads" className="mt-6">
-            <div className="space-y-6">
-              <LeadQualityMetricsComponent metrics={{
-                totalLeads: dashboardData?.totalLeads || 0,
-                averageQualityScore: 7.5,
-                conversionRate: 15.2,
-                sourceBreakdown: [
-                  { source: 'Meta Ads', count: 150, percentage: 45, avgQualityScore: 8.2, conversionRate: 18.5 },
-                  { source: 'Google Ads', count: 120, percentage: 35, avgQualityScore: 7.8, conversionRate: 12.3 }
-                ],
-                statusBreakdown: [
-                  { status: 'New', count: 80, percentage: 30 },
-                  { status: 'Contacted', count: 60, percentage: 22 },
-                  { status: 'Qualified', count: 40, percentage: 15 },
-                  { status: 'Converted', count: 30, percentage: 11 }
-                ],
-                qualityScoreDistribution: [
-                  { range: '8-10', count: 100, percentage: 37 },
-                  { range: '6-7', count: 120, percentage: 44 },
-                  { range: '4-5', count: 40, percentage: 15 },
-                  { range: '1-3', count: 10, percentage: 4 }
-                ],
-                topPerformingSources: [
-                  { source: 'Meta Ads', leads: 150, conversionRate: 18.5, avgBudget: 2500 },
-                  { source: 'Google Ads', leads: 120, conversionRate: 12.3, avgBudget: 1800 }
-                ],
-                recentLeads: []
-              }} />
-              
-              <Card className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Lead Quality Analysis</h3>
-                    <p className="text-sm text-gray-600">Detailed view of all leads with quality scoring and filtering</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm">Import Leads</Button>
-                    <Button variant="secondary" size="sm">Export Report</Button>
-                  </div>
-                </div>
-                
-                <LeadQualityTable 
-                  leads={[]} 
-                  onLeadSelect={() => {}}
-                />
-              </Card>
-            </div>
+        {/* Funnel Analytics - Detailed funnel performance */}
+        <div className="mt-6">
+          <Suspense fallback={<ComponentLoader />}>
+            <GHLFunnelAnalytics dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+          </Suspense>
+        </div>
+
+        {/* Page Analytics - Landing page performance */}
+        <div className="mt-6">
+          <Suspense fallback={<ComponentLoader />}>
+            <GHLPageAnalytics dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+          </Suspense>
+        </div>
           </TabsContent>
 
         </Tabs>

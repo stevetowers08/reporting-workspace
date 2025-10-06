@@ -36,8 +36,8 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
     platform: 'goHighLevel',
     icon: 'goHighLevel',
     color: 'purple',
-    credentials: ['clientId', 'clientSecret'],
-    usesOAuth: true,
+    credentials: ['agencyToken'],
+    usesOAuth: false,
     defaultCredentials: {}
   },
   googleSheets: {

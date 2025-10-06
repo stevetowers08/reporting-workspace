@@ -15,9 +15,9 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     const fetchData = async () => {
       try {
         console.log('LeadInfoMetricsCards: Starting to fetch lead data...');
-        const data = await LeadDataService.fetchLeadData();
-        console.log('LeadInfoMetricsCards: Received data:', data);
-        setLeadData(data);
+        const leadDataResult = await LeadDataService.fetchLeadData();
+        console.log('LeadInfoMetricsCards: Received lead data:', leadDataResult);
+        setLeadData(leadDataResult);
       } catch (error) {
         console.error('Failed to fetch lead data:', error);
       } finally {
@@ -77,7 +77,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     );
   }
 
-  // Calculate metrics from GoHighLevel data
+  // Calculate metrics from dashboard data (GHL data comes from dashboard)
   const landingPageViews = data?.ghlMetrics?.totalContacts || 0;
   const conversionRate = landingPageViews > 0 ? (leadData.totalLeads / landingPageViews) * 100 : 0;
 

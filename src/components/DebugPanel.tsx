@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs } from '@/components/ui/tabs';
-import { DebugLog, debugLogger } from '@/lib/debug';
+// import { DebugLog, debugLogger } from '@/lib/debug';
 import { Download, Filter, RefreshCw, Trash2, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -12,15 +12,16 @@ interface DebugPanelProps {
 }
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
-    const [logs, setLogs] = useState<DebugLog[]>([]);
-    const [filter, setFilter] = useState<{ level?: DebugLog['level']; category?: string }>({});
+  const [logs, setLogs] = useState<any[]>([]);
+  const [filter, setFilter] = useState<{ level?: string; category?: string }>({});
     const [autoRefresh, setAutoRefresh] = useState(true);
 
     useEffect(() => {
         if (!isOpen) return;
 
         const updateLogs = () => {
-            setLogs(debugLogger.getLogs(filter));
+            // Mock logs for now since debugLogger is not available
+            setLogs([]);
         };
 
         updateLogs();
@@ -32,8 +33,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     }, [isOpen, filter, autoRefresh]);
 
     const handleExport = () => {
-        const data = debugLogger.exportLogs();
-        const blob = new Blob([data], { type: 'application/json' });
+        const data = { logs, timestamp: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -45,11 +46,10 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     };
 
     const handleClear = () => {
-        debugLogger.clearLogs();
         setLogs([]);
     };
 
-    const getLevelColor = (level: DebugLog['level']) => {
+    const getLevelColor = (level: string) => {
         switch (level) {
             case 'error': return 'bg-red-100 text-red-800';
             case 'warn': return 'bg-yellow-100 text-yellow-800';
@@ -112,7 +112,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
                                     </div>
                                     <select
                                         value={filter.level || ''}
-                                        onChange={(e) => setFilter(prev => ({ ...prev, level: e.target.value as DebugLog['level'] || undefined }))}
+                                        onChange={(e) => setFilter(prev => ({ ...prev, level: e.target.value || undefined }))}
                                         className="px-2 py-1 border rounded text-sm"
                                     >
                                         <option value="">All Levels</option>

@@ -92,6 +92,23 @@ export class AdminService {
           };
           break;
         }
+        case 'goHighLevel': {
+          const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
+          try {
+            // Test by trying to get locations
+            const locations = await GoHighLevelService.getAllLocations();
+            result = { 
+              success: true, 
+              message: `GoHighLevel connection successful - Found ${locations.length} locations` 
+            };
+          } catch (error) {
+            result = { 
+              success: false, 
+              message: `GoHighLevel connection failed: ${error}` 
+            };
+          }
+          break;
+        }
         default:
           result = { success: true, message: 'Connection test passed' };
       }
@@ -133,12 +150,19 @@ export class AdminService {
         return;
       }
 
+      // Special handling for GoHighLevel - use private integration token
+      if (platform === 'goHighLevel') {
+        // The private integration token should already be saved via the testApiConnection method
+        // This method is called after successful test, so we just mark it as connected
+        debugLogger.info('AdminService', 'GoHighLevel connected via private integration token');
+        return;
+      }
+
       // Map platform names to OAuth service names
       const oauthPlatformMap: Record<string, string> = {
         'facebookAds': 'facebook',
         'googleAds': 'google',
-        'googleSheets': 'google',
-        'goHighLevel': 'gohighlevel'
+        'googleSheets': 'google'
       };
       
       const oauthPlatform = oauthPlatformMap[platform] || platform;

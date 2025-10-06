@@ -1,4 +1,4 @@
-# Integrations Guide
+Hu# Integrations Guide
 
 ## Overview
 
@@ -421,98 +421,796 @@ export class GoogleAdsService {
 
 ## Go High Level Integration
 
+### Overview
+
+Go High Level (GHL) is a comprehensive CRM and marketing automation platform that provides contact management, pipeline tracking, and conversion analytics. Our integration focuses on extracting contact data, guest counts, and conversion metrics for venue owners.
+
 ### Setup
 
 #### 1. Create Go High Level Account
 1. Go to [Go High Level](https://gohighlevel.com/)
 2. Create an account and get API access
-3. Generate API key from settings
-4. Get Location ID from your account
+3. Navigate to Settings → API Keys
+4. Generate a new API key with appropriate permissions
+5. Note your Location ID from the account settings
 
-#### 2. Environment Variables
-```bash
-# .env.local
-REACT_APP_GHL_API_KEY=your_ghl_api_key
-REACT_APP_GHL_LOCATION_ID=your_ghl_location_id
+#### 2. OAuth Configuration
+```typescript
+// src/services/api/goHighLevelService.ts
+interface GHLAppCredentials {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+}
+
+const ghlCredentials: GHLAppCredentials = {
+  client_id: process.env.REACT_APP_GHL_CLIENT_ID!,
+  client_secret: process.env.REACT_APP_GHL_CLIENT_SECRET!,
+  redirect_uri: `${window.location.origin}/oauth/callback`
+};
 ```
 
-#### 3. Implementation
+#### 3. Environment Variables
+```bash
+# .env.local
+REACT_APP_GHL_CLIENT_ID=your_ghl_client_id
+REACT_APP_GHL_CLIENT_SECRET=your_ghl_client_secret
+REACT_APP_GHL_REDIRECT_URI=http://localhost:8080/oauth/callback
+```
+
+#### 4. Database Setup
+```sql
+-- Create GHL app credentials table
+CREATE TABLE ghl_app_credentials (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  client_secret TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  environment TEXT NOT NULL DEFAULT 'development',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create integrations table for storing tokens
+CREATE TABLE integrations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  platform TEXT NOT NULL,
+  account_id TEXT,
+  connected BOOLEAN DEFAULT false,
+  config JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Implementation
+
+#### Service Architecture
 ```typescript
-// src/services/goHighLevelService.ts
+// src/services/api/goHighLevelService.ts
 export class GoHighLevelService {
-  private baseUrl = 'https://rest.gohighlevel.com/v1';
-  private apiKey: string;
-  private locationId: string;
+  private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
+  private static accessToken: string | null = null;
+  private static locationId: string | null = null;
+  
+  // Caching and rate limiting
+  private static cache = new Map<string, { data: any; timestamp: number }>();
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private static lastRequestTime = 0;
+  private static readonly MIN_REQUEST_INTERVAL = 1000; // 1 second
+}
+```
 
-  constructor() {
-    this.apiKey = process.env.REACT_APP_GHL_API_KEY!;
-    this.locationId = process.env.REACT_APP_GHL_LOCATION_ID!;
-  }
-
-  async getContacts(): Promise<Contact[]> {
-    const response = await fetch(
-      `${this.baseUrl}/contacts/?locationId=${this.locationId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch contacts');
+#### Authentication Flow
+```typescript
+export class GoHighLevelService {
+  /**
+   * Initiate OAuth flow
+   */
+  static async authenticate(): Promise<void> {
+    const credentials = await this.getCredentials();
+    if (!credentials) {
+      throw new Error('GHL credentials not configured');
     }
 
-    const data = await response.json();
-    return data.contacts.map(this.normalizeContact);
+    const authUrl = `${this.OAUTH_BASE_URL}/oauth/chooselocation?` +
+      `response_type=code&` +
+      `client_id=${credentials.client_id}&` +
+      `redirect_uri=${credentials.redirect_uri}&` +
+      `scope=contacts.readonly locations.readonly oauth.readonly opportunities.readonly funnels/redirect.readonly funnels/page.readonly funnels/funnel.readonly funnels/pagecount.readonly`;
+
+    window.location.href = authUrl;
   }
 
-  async getOpportunities(): Promise<Opportunity[]> {
-    const response = await fetch(
-      `${this.baseUrl}/opportunities/?locationId=${this.locationId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch opportunities');
+  /**
+   * Exchange authorization code for access token
+   */
+  static async exchangeCodeForToken(code: string, locationId?: string): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    locationId: string;
+  }> {
+    const credentials = await this.getCredentials();
+    if (!credentials) {
+      throw new Error('GHL credentials not configured');
     }
 
-    const data = await response.json();
-    return data.opportunities.map(this.normalizeOpportunity);
-  }
+    const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        code: code,
+        client_id: credentials.client_id,
+        client_secret: credentials.client_secret,
+        redirect_uri: credentials.redirect_uri,
+        user_type: 'Location'
+      })
+    });
 
-  private normalizeContact(raw: any): Contact {
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json();
+      throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    const finalLocationId = tokenData.locationId || locationId;
+    
+    this.accessToken = tokenData.access_token;
+    this.locationId = finalLocationId;
+
     return {
-      id: raw.id,
-      email: raw.email,
-      phone: raw.phone,
-      firstName: raw.firstName,
-      lastName: raw.lastName,
-      companyName: raw.companyName,
-      source: raw.source,
-      createdAt: raw.createdAt
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresIn: tokenData.expires_in,
+      locationId: finalLocationId
     };
   }
 
-  private normalizeOpportunity(raw: any): Opportunity {
+  /**
+   * Refresh access token
+   */
+  static async refreshAccessToken(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+  }> {
+    const credentials = await this.getCredentials();
+    if (!credentials) {
+      throw new Error('GHL credentials not configured');
+    }
+
+    const response = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: credentials.client_id,
+        client_secret: credentials.client_secret
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh token');
+    }
+
+    const tokenData = await response.json();
+    this.accessToken = tokenData.access_token;
+
     return {
-      id: raw.id,
-      contactId: raw.contactId,
-      title: raw.title,
-      value: raw.value,
-      status: raw.status,
-      pipelineId: raw.pipelineId,
-      createdAt: raw.createdAt
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresIn: tokenData.expires_in
     };
   }
 }
 ```
+
+#### Data Fetching with Caching
+```typescript
+export class GoHighLevelService {
+  /**
+   * Get comprehensive GHL metrics for dashboard
+   */
+  static async getGHLMetrics(dateRange?: { start: string; end: string }): Promise<{
+    totalContacts: number;
+    newContacts: number;
+    totalGuests: number;
+    averageGuestsPerLead: number;
+    sourceBreakdown: Array<{ source: string; count: number; percentage: number }>;
+    guestCountDistribution: Array<{ range: string; count: number; percentage: number }>;
+    eventTypeBreakdown: Array<{ type: string; count: number; percentage: number }>;
+    recentContacts: Array<{
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      source: string;
+      dateAdded: string;
+      guestCount?: number;
+      eventDate?: string;
+    }>;
+    conversionRate: number;
+    topPerformingSources: Array<{ source: string; leads: number; avgGuests: number }>;
+    pageViewAnalytics: {
+      totalPageViews: number;
+      uniquePages: Array<{ page: string; views: number; percentage: number }>;
+      topLandingPages: Array<{ url: string; views: number; conversions: number; conversionRate: number }>;
+      utmCampaigns: Array<{ campaign: string; views: number; conversions: number; conversionRate: number }>;
+      utmSources: Array<{ source: string; views: number; conversions: number; conversionRate: number }>;
+      referrerBreakdown: Array<{ referrer: string; views: number; percentage: number }>;
+    };
+  }> {
+    try {
+      // Check cache first
+      const cacheKey = `ghl-metrics-${JSON.stringify(dateRange || {})}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        debugLogger.debug('GoHighLevelService', 'Using cached GHL metrics');
+        return cached.data;
+      }
+
+      // Load credentials if not set
+      if (!this.accessToken || !this.locationId) {
+        await this.loadSavedCredentials();
+      }
+
+      if (!this.accessToken || !this.locationId) {
+        throw new Error('GHL credentials not set');
+      }
+
+      // Get all contacts with pagination
+      const allContacts = await this.getAllContacts();
+      
+      // Filter by date range if provided
+      let filteredContacts = allContacts;
+      if (dateRange) {
+        const startDate = new Date(dateRange.start);
+        const endDate = new Date(dateRange.end);
+        filteredContacts = allContacts.filter(contact => {
+          const contactDate = new Date(contact.dateAdded);
+          return contactDate >= startDate && contactDate <= endDate;
+        });
+      }
+
+      // Calculate metrics
+      const totalContacts = allContacts.length;
+      const newContacts = filteredContacts.length;
+      
+      // Extract guest counts from custom fields (dynamic approach)
+      const contactsWithGuests = filteredContacts.filter(contact => {
+        if (!contact.customFields || contact.customFields.length === 0) return false;
+        
+        // Look for numeric values in custom fields (likely guest counts)
+        return contact.customFields.some((field: any) => {
+          const value = parseInt(field.value);
+          return !isNaN(value) && value > 0 && value <= 500; // Reasonable guest count range
+        });
+      });
+      
+      const guestCounts = contactsWithGuests.map(contact => {
+        if (!contact.customFields) return 0;
+        
+        // Find the first numeric field that looks like a guest count
+        const guestField = contact.customFields.find((field: any) => {
+          const value = parseInt(field.value);
+          return !isNaN(value) && value > 0 && value <= 500;
+        });
+        
+        return guestField ? parseInt(guestField.value) : 0;
+      }).filter(count => count > 0);
+      
+      const totalGuests = guestCounts.reduce((sum, count) => sum + count, 0);
+      const averageGuestsPerLead = guestCounts.length > 0 ? totalGuests / guestCounts.length : 0;
+
+      // Source breakdown
+      const sourceCounts = filteredContacts.reduce((acc, contact) => {
+        const source = contact.source || 'Unknown';
+        acc[source] = (acc[source] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const sourceBreakdown = Object.entries(sourceCounts).map(([source, count]) => ({
+        source,
+        count: count as number,
+        percentage: newContacts > 0 ? ((count as number) / newContacts) * 100 : 0
+      })).sort((a, b) => (b.count as number) - (a.count as number));
+
+      // Guest count distribution
+      const guestRanges = [
+        { range: '1-25', min: 1, max: 25 },
+        { range: '26-50', min: 26, max: 50 },
+        { range: '51-100', min: 51, max: 100 },
+        { range: '101-200', min: 101, max: 200 },
+        { range: '200+', min: 201, max: Infinity }
+      ];
+
+      const guestCountDistribution = guestRanges.map(range => {
+        const count = guestCounts.filter(guestCount => guestCount >= range.min && guestCount <= range.max).length;
+        return {
+          range: range.range,
+          count: count as number,
+          percentage: guestCounts.length > 0 ? (count / guestCounts.length) * 100 : 0
+        };
+      });
+
+      // Recent contacts (last 10)
+      const recentContacts = filteredContacts
+        .sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime())
+        .slice(0, 10)
+        .map(contact => {
+          const guestField = contact.customFields?.find((field: any) => {
+            const value = parseInt(field.value);
+            return !isNaN(value) && value > 0 && value <= 500;
+          });
+          const dateField = contact.customFields?.find((field: any) => field.id === 'Y0VtlMHIFGgRtqQimAdg');
+          
+          return {
+            id: contact.id,
+            name: contact.contactName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+            email: contact.email || '',
+            phone: contact.phone || '',
+            source: contact.source || 'Unknown',
+            dateAdded: contact.dateAdded,
+            guestCount: guestField ? parseInt(guestField.value) : undefined,
+            eventDate: dateField ? new Date(parseInt(dateField.value)).toISOString().split('T')[0] : undefined
+          };
+        });
+
+      // Conversion rate (contacts with guest count / total contacts)
+      const conversionRate = newContacts > 0 ? (contactsWithGuests.length / newContacts) * 100 : 0;
+
+      // Top performing sources
+      const topPerformingSources = sourceBreakdown.slice(0, 3).map(source => {
+        const sourceContacts = filteredContacts.filter(contact => contact.source === source.source);
+        const sourceGuestCounts = sourceContacts.map(contact => {
+          const guestField = contact.customFields?.find((field: any) => {
+            const value = parseInt(field.value);
+            return !isNaN(value) && value > 0 && value <= 500;
+          });
+          return guestField ? parseInt(guestField.value) : 0;
+        }).filter(count => count > 0);
+        
+        const avgGuests = sourceGuestCounts.length > 0 
+          ? sourceGuestCounts.reduce((sum, count) => sum + count, 0) / sourceGuestCounts.length 
+          : 0;
+
+        return {
+          source: source.source,
+          leads: source.count as number,
+          avgGuests: Math.round(avgGuests)
+        };
+      });
+
+      const result = {
+        totalContacts,
+        newContacts,
+        totalGuests,
+        averageGuestsPerLead: Math.round(averageGuestsPerLead),
+        sourceBreakdown,
+        guestCountDistribution,
+        eventTypeBreakdown: [], // Can be extended based on custom fields
+        recentContacts,
+        conversionRate: Math.round(conversionRate * 10) / 10,
+        topPerformingSources,
+        pageViewAnalytics: {
+          totalPageViews: totalContacts,
+          uniquePages: [],
+          topLandingPages: [],
+          utmCampaigns: [],
+          utmSources: [],
+          referrerBreakdown: []
+        }
+      };
+
+      // Cache the result
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
+      
+      return result;
+
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get GHL metrics', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all contacts with pagination and rate limiting
+   */
+  private static async getAllContacts(): Promise<any[]> {
+    const allContacts = [];
+    let nextPageUrl: string | null = null;
+    let page = 1;
+
+    do {
+      // Rate limiting - wait if requests are too frequent
+      const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+      if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+        await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+      }
+      
+      const url: string = nextPageUrl || `${this.API_BASE_URL}/contacts/?locationId=${this.locationId}&limit=100`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json',
+        }
+      });
+
+      this.lastRequestTime = Date.now();
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch contacts: ${response.statusText}`);
+      }
+
+      const data: any = await response.json();
+      allContacts.push(...data.contacts);
+      
+      nextPageUrl = data.meta?.nextPageUrl || null;
+      page++;
+      
+      // Safety limit to prevent infinite loops
+      if (page > 20) { break; }
+      
+    } while (nextPageUrl);
+
+    return allContacts;
+  }
+}
+```
+
+### Common Issues and Fixes
+
+#### 1. Guest Count Extraction Issues
+**Problem**: Custom fields showing `undefined` keys but valid values
+```typescript
+// ❌ INCORRECT - Looking for specific field ID
+const guestField = contact.customFields?.find(field => field.id === 'spSlgg7eis8kwORECHZ9');
+
+// ✅ CORRECT - Dynamic approach
+const guestField = contact.customFields?.find((field: any) => {
+  const value = parseInt(field.value);
+  return !isNaN(value) && value > 0 && value <= 500;
+});
+```
+
+#### 2. Excessive API Requests
+**Problem**: Multiple components making independent API calls
+```typescript
+// ❌ INCORRECT - Each component fetches independently
+useEffect(() => {
+  const ghlResult = await GoHighLevelService.getGHLMetrics(); // 1,553 contacts!
+  setGhlData(ghlResult);
+}, []);
+
+// ✅ CORRECT - Use dashboard data with caching
+const landingPageViews = data?.ghlMetrics?.totalContacts || 0; // From dashboard
+```
+
+#### 3. Rate Limiting Issues
+**Problem**: API requests made too frequently
+```typescript
+// ✅ SOLUTION - Add rate limiting
+private static lastRequestTime = 0;
+private static readonly MIN_REQUEST_INTERVAL = 1000; // 1 second
+
+// In API calls:
+const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+  await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+}
+```
+
+#### 4. Token Management Issues
+**Problem**: Tokens not being refreshed properly
+```typescript
+// ✅ SOLUTION - Automatic token refresh
+if (response.status === 401) {
+  debugLogger.info('GoHighLevelService', 'Token expired, attempting refresh');
+  try {
+    const connection = await this.getGHLConnection();
+    if (connection?.config?.refreshToken) {
+      const newTokens = await this.refreshAccessToken(connection.config.refreshToken);
+      this.setCredentials(newTokens.accessToken, this.locationId || '');
+      
+      // Retry the request with new token
+      return this.makeApiRequest(endpoint, options);
+    }
+  } catch (refreshError) {
+    debugLogger.error('GoHighLevelService', 'Token refresh failed', refreshError);
+    throw new Error('Authentication failed');
+  }
+}
+```
+
+### Dashboard Integration
+
+#### Component Usage
+```typescript
+// src/components/dashboard/LeadInfoMetricsCards.tsx
+export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data }) => {
+  // Use dashboard data instead of independent API calls
+  const landingPageViews = data?.ghlMetrics?.totalContacts || 0;
+  const conversionRate = landingPageViews > 0 ? (leadData.totalLeads / landingPageViews) * 100 : 0;
+
+  return (
+    <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
+      <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-600 mb-2">Landing Page Views</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl font-bold text-slate-900">{landingPageViews.toLocaleString()}</p>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-blue-600 font-medium">GHL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+      {/* More cards... */}
+    </div>
+  );
+};
+```
+
+#### Funnel Chart Integration
+```typescript
+// src/components/dashboard/GHLFunnelChart.tsx
+export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ dateRange }) => {
+  const [funnelData, setFunnelData] = useState<FunnelData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFunnelData = async () => {
+      try {
+        const metrics = await GoHighLevelService.getGHLMetrics(dateRange);
+        
+        // Calculate funnel stages
+        const totalPageViews = metrics.pageViewAnalytics?.totalPageViews || metrics.totalContacts;
+        const totalContacts = metrics.totalContacts;
+        const qualifiedLeads = metrics.totalContacts * (metrics.conversionRate / 100);
+        const leadsWithGuests = metrics.totalGuests > 0 ? metrics.totalGuests : 0;
+        
+        const funnelStages: FunnelData[] = [
+          {
+            name: 'Page Views',
+            value: totalPageViews,
+            percentage: 100,
+            color: FUNNEL_COLORS[0]
+          },
+          {
+            name: 'Landing Page Visits',
+            value: totalContacts,
+            percentage: totalPageViews > 0 ? (totalContacts / totalPageViews) * 100 : 0,
+            color: FUNNEL_COLORS[1]
+          },
+          {
+            name: 'Form Submissions',
+            value: Math.round(qualifiedLeads),
+            percentage: totalContacts > 0 ? (qualifiedLeads / totalContacts) * 100 : 0,
+            color: FUNNEL_COLORS[2]
+          },
+          {
+            name: 'Qualified Leads',
+            value: Math.round(qualifiedLeads),
+            percentage: totalContacts > 0 ? (qualifiedLeads / totalContacts) * 100 : 0,
+            color: FUNNEL_COLORS[3]
+          },
+          {
+            name: 'Booked Events',
+            value: Math.round(leadsWithGuests),
+            percentage: qualifiedLeads > 0 ? (leadsWithGuests / qualifiedLeads) * 100 : 0,
+            color: FUNNEL_COLORS[4]
+          }
+        ];
+
+        setFunnelData(funnelStages);
+      } catch (error) {
+        console.error('Failed to fetch GHL funnel data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFunnelData();
+  }, [dateRange]);
+
+  // Render funnel chart...
+};
+```
+
+### Performance Optimizations
+
+#### 1. Caching Strategy
+- **5-minute cache** for GHL metrics to prevent excessive API calls
+- **Cache invalidation** when new data is available
+- **Memory-based caching** for fast access
+
+#### 2. Rate Limiting
+- **1-second minimum interval** between API requests
+- **Request queuing** to prevent concurrent calls
+- **Automatic retry** with exponential backoff
+
+#### 3. Data Optimization
+- **Pagination handling** with safety limits (max 20 pages)
+- **Selective field fetching** to reduce payload size
+- **Client-side filtering** to minimize API calls
+
+### Testing
+
+#### Unit Tests
+```typescript
+// src/services/__tests__/goHighLevelService.test.ts
+import { GoHighLevelService } from '../api/goHighLevelService';
+import { server } from '../../setupTests';
+import { rest } from 'msw';
+
+describe('GoHighLevelService', () => {
+  beforeEach(() => {
+    // Mock GHL API responses
+    server.use(
+      rest.get('https://services.leadconnectorhq.com/contacts/', (req, res, ctx) => {
+        return res(
+          ctx.json({
+            contacts: [
+              {
+                id: 'test-contact-1',
+                contactName: 'John Doe',
+                email: 'john@example.com',
+                phone: '+1234567890',
+                source: 'wedding info - google ads',
+                dateAdded: '2024-01-01T00:00:00Z',
+                customFields: [
+                  { key: 'guest_count', value: '50' }
+                ]
+              }
+            ],
+            meta: { total: 1 }
+          })
+        );
+      })
+    );
+  });
+
+  it('should fetch and process GHL metrics', async () => {
+    const metrics = await GoHighLevelService.getGHLMetrics();
+    
+    expect(metrics.totalContacts).toBe(1);
+    expect(metrics.totalGuests).toBe(50);
+    expect(metrics.conversionRate).toBe(100);
+  });
+
+  it('should handle guest count extraction', async () => {
+    const metrics = await GoHighLevelService.getGHLMetrics();
+    
+    expect(metrics.guestCountDistribution).toHaveLength(5);
+    expect(metrics.guestCountDistribution[0]).toMatchObject({
+      range: '26-50',
+      count: 1,
+      percentage: 100
+    });
+  });
+});
+```
+
+#### Integration Tests
+```typescript
+// tests/e2e/ghl-integration.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('GHL Integration', () => {
+  test('should display GHL metrics on dashboard', async ({ page }) => {
+    await page.goto('/');
+    
+    // Wait for GHL data to load
+    await page.waitForSelector('[data-testid="landing-page-views"]');
+    
+    // Verify GHL metrics are displayed
+    await expect(page.locator('[data-testid="landing-page-views"]')).toContainText('1,553');
+    await expect(page.locator('[data-testid="ghl-source"]')).toContainText('GHL');
+  });
+
+  test('should display funnel chart with GHL data', async ({ page }) => {
+    await page.goto('/');
+    
+    // Navigate to leads tab
+    await page.click('[data-testid="leads-tab"]');
+    
+    // Wait for funnel chart
+    await page.waitForSelector('[data-testid="funnel-chart"]');
+    
+    // Verify funnel stages
+    await expect(page.locator('[data-testid="funnel-stage"]')).toHaveCount(5);
+    await expect(page.locator('[data-testid="funnel-stage"]').first()).toContainText('Page Views');
+  });
+});
+```
+
+### Security Considerations
+
+#### 1. Token Security
+- Store tokens securely in database
+- Implement automatic token refresh
+- Use HTTPS for all API communications
+- Implement proper token revocation
+
+#### 2. Data Privacy
+- Follow GDPR/CCPA compliance
+- Implement data retention policies
+- Provide data deletion capabilities
+- Encrypt sensitive contact data
+
+#### 3. API Security
+- Validate all API responses
+- Implement proper error handling
+- Use rate limiting to prevent abuse
+- Monitor API usage patterns
+
+### Monitoring and Debugging
+
+#### 1. Logging
+```typescript
+// Enable debug logging for GHL service
+debugLogger.debug('GoHighLevelService', 'API request', { 
+  endpoint, 
+  timestamp: Date.now() 
+});
+
+debugLogger.error('GoHighLevelService', 'API error', { 
+  error: error.message, 
+  status: response.status 
+});
+```
+
+#### 2. Performance Monitoring
+```typescript
+// Monitor API response times
+const startTime = Date.now();
+const response = await fetch(url, options);
+const duration = Date.now() - startTime;
+
+if (duration > 5000) {
+  debugLogger.warn('GoHighLevelService', 'Slow API response', { duration, url });
+}
+```
+
+#### 3. Error Tracking
+```typescript
+// Track API errors for monitoring
+try {
+  const data = await this.getGHLMetrics();
+} catch (error) {
+  debugLogger.error('GoHighLevelService', 'Metrics fetch failed', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: Date.now()
+  });
+  throw error;
+}
+```
+
+### Troubleshooting
+
+#### Common Issues
+1. **"Cannot find package 'axios'"** - Install axios: `npm install axios`
+2. **"Token does not have access to this location"** - Check location ID and permissions
+3. **"Excessive API requests"** - Implement caching and rate limiting
+4. **"Guest counts showing 0"** - Check custom field structure and extraction logic
+
+#### Debug Steps
+1. Check browser console for API errors
+2. Verify GHL credentials in database
+3. Test API endpoints directly
+4. Check network tab for request/response details
+5. Validate custom field data structure
+
+For more troubleshooting details, see [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md).
 
 ## Supabase Integration
 

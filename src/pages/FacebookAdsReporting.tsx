@@ -117,14 +117,14 @@ const FacebookAdsReporting: React.FC = () => {
                 value="meta" 
                 className="text-sm font-medium px-4 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5"
               >
-                <LogoManager platform="meta" size={14} />
+                <LogoManager platform="meta" size={20} context="header" />
                 <span>Meta Ads</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="google" 
                 className="text-sm font-medium px-4 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5"
               >
-                <LogoManager platform="google" size={14} />
+                <LogoManager platform="googleAds" size={20} context="header" />
                 <span>Google Ads</span>
               </TabsTrigger>
             </TabsList>

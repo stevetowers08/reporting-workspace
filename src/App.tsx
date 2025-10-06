@@ -3,7 +3,7 @@ import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
-import { debugLogger } from "@/lib/debug";
+// import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 import { initSentry } from "@/lib/sentry";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
@@ -145,7 +145,7 @@ const App = () => {
     // Initialize production monitoring
     initSentry();
     
-    debugLogger.info('APP', 'Application started');
+    console.log('Application started');
 
     // Add keyboard shortcut for debug panel (Ctrl+Shift+D)
     const handleKeyDown = (e: KeyboardEvent) => {

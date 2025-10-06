@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { debugLogger } from '@/lib/debug';
 import { AIInsightsConfig, AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
+import { GoHighLevelService } from "@/services/api/goHighLevelService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
@@ -159,14 +160,28 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         console.error('Failed to load Google Ads accounts:', error);
       }
 
-      // Check GoHighLevel
+      // Check GoHighLevel - fetch all locations
       const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
       if (ghlIntegration?.connected) {
-        accounts.push({
-          id: 'ghl_location',
-          name: ghlIntegration.account_name || 'GoHighLevel Location',
-          platform: 'goHighLevel'
-        });
+        try {
+          const locations = await GoHighLevelService.getAllLocations();
+          locations.forEach(location => {
+            accounts.push({
+              id: location.id,
+              name: `${location.name} (${location.city}, ${location.state})`,
+              platform: 'goHighLevel'
+            });
+          });
+          debugLogger.info('ClientForm', `Loaded ${locations.length} GHL locations`);
+        } catch (error) {
+          debugLogger.error('ClientForm', 'Failed to load GHL locations', error);
+          // Fallback to single location if API fails
+          accounts.push({
+            id: 'ghl_location',
+            name: ghlIntegration.account_name || 'GoHighLevel Location',
+            platform: 'goHighLevel'
+          });
+        }
       }
 
       // Check Google Sheets (tokens are stored in googleAds integration)
@@ -290,7 +305,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     };
 
     debugLogger.info('ClientForm', 'Calling onSubmit with formData', submitData);
-    onSubmit(submitData);
+    onSubmit({
+      ...submitData,
+      googleSheetsConfig: submitData.googleSheetsConfig || undefined
+    });
   };
 
   const handleAIEnabledChange = (enabled: boolean) => {
