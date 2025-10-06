@@ -1,7 +1,4 @@
-// OAuth callback handler for GoHighLevel location tokens
-// File: src/app/api/oauth/callback/route.ts
-
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../src/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -30,16 +27,16 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-          client_id: process.env.VITE_GHL_CLIENT_ID || process.env.GHL_CLIENT_ID!,
-          client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET!,
+          client_id: process.env.VITE_GHL_CLIENT_ID!,
+          client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
           grant_type: 'authorization_code',
           code: code,
-          user_type: 'Company', // Changed from 'Location' to 'Company'
-          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/api/oauth/callback`
+          user_type: 'Company',
+          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/leadconnector/oath`
         })
       }
     );
-
+    
     const tokenData = await tokenResponse.json();
     console.log('🔍 Token exchange response:', { 
       success: tokenResponse.ok, 
@@ -117,7 +114,7 @@ export async function GET(request: NextRequest) {
       `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?connected=true&location=${tokenData.locationId}`,
       302
     );
-
+    
   } catch (error) {
     console.error('❌ OAuth error:', error);
     return NextResponse.redirect(
