@@ -1,12 +1,12 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import {
-  IntegrationConfig,
-  IntegrationPlatform,
-  OAuthTokens,
-  ApiKeyConfig,
-  AccountInfo,
-  IntegrationDisplay
+    AccountInfo,
+    ApiKeyConfig,
+    IntegrationConfig,
+    IntegrationDisplay,
+    IntegrationPlatform,
+    OAuthTokens
 } from '@/types/integration';
 
 /**

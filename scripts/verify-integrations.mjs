@@ -1,5 +1,5 @@
-import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
 
 function env(name) {
   const val = process.env[name];

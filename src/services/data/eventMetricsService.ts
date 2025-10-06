@@ -186,12 +186,40 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(_dateRange: { start: string; end: string }): Promise<GoogleAdsMetrics> {
+  private static async getGoogleMetrics(dateRange: { start: string; end: string }): Promise<GoogleAdsMetrics> {
     try {
-      // For now, return empty metrics since we need a customer ID
-      // This should be updated to get the actual customer ID from the client
-      return this.getEmptyGoogleMetrics();
+      debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange });
+      
+      // Import GoogleAdsService dynamically to avoid circular dependencies
+      const { GoogleAdsService } = await import('@/services/api/googleAdsService');
+      
+      // Get Google Ads accounts
+      const accounts = await GoogleAdsService.getAdAccounts();
+      
+      if (accounts.length === 0) {
+        debugLogger.warn('EventMetricsService', 'No Google Ads accounts found');
+        return this.getEmptyGoogleMetrics();
+      }
+      
+      // Use the first account for now (most common use case)
+      const primaryAccount = accounts[0];
+      debugLogger.debug('EventMetricsService', 'Using Google Ads account', { 
+        accountId: primaryAccount.id, 
+        accountName: primaryAccount.name 
+      });
+      
+      // Fetch metrics for the primary account
+      const metrics = await GoogleAdsService.getAccountMetrics(primaryAccount.id, dateRange);
+      debugLogger.debug('EventMetricsService', 'Google Ads metrics result', metrics);
+      
+      // Log if we got empty data
+      if (!metrics || (metrics.leads === 0 && metrics.cost === 0 && metrics.impressions === 0)) {
+        debugLogger.warn('EventMetricsService', 'Google Ads API returned empty data - no active campaigns or data for date range');
+      }
+      
+      return metrics;
     } catch (error) {
+      debugLogger.error('EventMetricsService', 'Google Ads metrics error', error);
       debugLogger.warn('EventMetricsService', 'Google Ads metrics not available', error);
       return this.getEmptyGoogleMetrics();
     }

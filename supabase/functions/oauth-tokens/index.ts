@@ -230,6 +230,8 @@ async function handleStoreTokens(supabaseClient: any, body: RequestBody) {
       .upsert({
         platform,
         connected: true,
+        account_name: accountInfo?.name || `${platform} Account`,
+        account_id: accountInfo?.id || 'unknown',
         connected_at: integrationConfig.connectedAt,
         last_sync: integrationConfig.lastSync,
         sync_status: integrationConfig.syncStatus,
