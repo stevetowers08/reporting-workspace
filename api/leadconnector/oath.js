@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
 
   if (!code) {
     console.error('❌ No authorization code received');
-    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=no_code`);
+    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=no_code`);
     return;
   }
 
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Company',
-          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
+          redirect_uri: `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
         })
       }
     );
@@ -113,10 +113,10 @@ module.exports = async function handler(req, res) {
     console.log('✅ OAuth flow completed successfully');
     
     // Redirect back to dashboard with success
-    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?connected=true&location=${tokenData.locationId}`);
+    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?connected=true&location=${tokenData.locationId}`);
     
   } catch (error) {
     console.error('❌ OAuth error:', error);
-    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=connection_failed`);
+    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=connection_failed`);
   }
 }
