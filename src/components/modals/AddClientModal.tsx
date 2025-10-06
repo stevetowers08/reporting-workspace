@@ -19,11 +19,11 @@ interface AddClientModalProps {
             facebookAds?: string;
             googleAds?: string;
         };
-    }) => void;
+    }) => Promise<void>;
 }
 
 const AddClientModal = ({ isOpen, onClose, onAddClient }: AddClientModalProps) => {
-    const handleSubmit = (formData: any) => {
+    const handleSubmit = async (formData: any) => {
         // Transform form data to match expected format
         const clientData = {
             name: formData.name,
@@ -40,7 +40,7 @@ const AddClientModal = ({ isOpen, onClose, onAddClient }: AddClientModalProps) =
             }
         };
         
-        onAddClient(clientData);
+        await onAddClient(clientData);
     };
 
     if (!isOpen) return null;

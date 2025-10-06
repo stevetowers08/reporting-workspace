@@ -51,7 +51,7 @@ interface ClientFormProps {
   initialData?: ClientFormData;
   isEdit?: boolean;
   clientId?: string;
-  onSubmit: (data: ClientFormData) => void;
+  onSubmit: (data: ClientFormData) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
   cancelLabel?: string;
@@ -99,6 +99,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     sheetName: string;
   } | null>(null);
   const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   // Load connected accounts when component mounts
   useEffect(() => {
@@ -307,6 +309,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     
     debugLogger.info('ClientForm', 'Form submission started', { formData, isEdit, clientId });
 
+    // Clear previous success/error messages
+    setSubmitSuccess(null);
+    setErrors({});
+
     // Validate form
     const newErrors: Record<string, string> = {};
 
@@ -320,40 +326,56 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       return;
     }
 
-    // Update AI config if it exists and we're editing
-    if (isEdit && clientId && aiConfig) {
-      try {
-        debugLogger.info('ClientForm', 'Updating AI config', { clientId, aiConfig });
-        await AIInsightsService.createOrUpdateClientAIConfig(clientId, {
-          enabled: aiConfig.enabled,
-          frequency: aiConfig.frequency
-        });
-        debugLogger.info('ClientForm', 'AI config updated successfully');
-      } catch (error) {
-        debugLogger.error('ClientForm', 'Error updating AI config', error);
-        console.error('Error updating AI config:', error);
+    setIsSubmitting(true);
+
+    try {
+      // Update AI config if it exists and we're editing
+      if (isEdit && clientId && aiConfig) {
+        try {
+          debugLogger.info('ClientForm', 'Updating AI config', { clientId, aiConfig });
+          await AIInsightsService.createOrUpdateClientAIConfig(clientId, {
+            enabled: aiConfig.enabled,
+            frequency: aiConfig.frequency
+          });
+          debugLogger.info('ClientForm', 'AI config updated successfully');
+        } catch (error) {
+          debugLogger.error('ClientForm', 'Error updating AI config', error);
+          console.error('Error updating AI config:', error);
+        }
       }
+
+      // Include Google Sheets configuration if available
+      const submitData = {
+        ...formData,
+        accounts: {
+          ...formData.accounts,
+          // Convert GoHighLevel object to string for validation
+          goHighLevel: typeof formData.accounts.goHighLevel === 'object' 
+            ? formData.accounts.goHighLevel?.locationId || 'none'
+            : formData.accounts.goHighLevel || 'none',
+          googleSheets: googleSheetsConfig ? 'google_sheets_account' : 'none'
+        },
+        googleSheetsConfig: googleSheetsConfig
+      };
+
+      debugLogger.info('ClientForm', 'Calling onSubmit with formData', submitData);
+      await onSubmit({
+        ...submitData,
+        googleSheetsConfig: submitData.googleSheetsConfig || undefined
+      });
+
+      // Show success message
+      setSubmitSuccess(`${isEdit ? 'Client updated' : 'Client created'} successfully!`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitSuccess(null), 3000);
+
+    } catch (error) {
+      debugLogger.error('ClientForm', 'Form submission failed', error);
+      setErrors({ submit: 'Failed to save client. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Include Google Sheets configuration if available
-    const submitData = {
-      ...formData,
-      accounts: {
-        ...formData.accounts,
-        // Convert GoHighLevel object to string for validation
-        goHighLevel: typeof formData.accounts.goHighLevel === 'object' 
-          ? formData.accounts.goHighLevel?.locationId || 'none'
-          : formData.accounts.goHighLevel || 'none',
-        googleSheets: googleSheetsConfig ? 'google_sheets_account' : 'none'
-      },
-      googleSheetsConfig: googleSheetsConfig
-    };
-
-    debugLogger.info('ClientForm', 'Calling onSubmit with formData', submitData);
-    onSubmit({
-      ...submitData,
-      googleSheetsConfig: submitData.googleSheetsConfig || undefined
-    });
   };
 
   const handleAIEnabledChange = (enabled: boolean) => {
@@ -881,11 +903,47 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         </div>
       )}
 
+      {/* Success/Error Messages */}
+      {submitSuccess && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-800">{submitSuccess}</span>
+          </div>
+        </div>
+      )}
+      
+      {errors.submit && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-800">{errors.submit}</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-3 pt-4 border-t">
-        <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
-          {submitLabel}
+        <Button 
+          type="submit" 
+          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center gap-2">
+              <LoadingSpinner size="sm" />
+              <span>Saving...</span>
+            </div>
+          ) : (
+            submitLabel
+          )}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          className="flex-1"
+          disabled={isSubmitting}
+        >
           {cancelLabel}
         </Button>
       </div>

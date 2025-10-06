@@ -29,12 +29,12 @@ interface Client {
 interface EditClientModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
+    onUpdateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
     client: Client;
 }
 
 const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClientModalProps) => {
-    const handleSubmit = (formData: any) => {
+    const handleSubmit = async (formData: any) => {
         debugLogger.info('EditClientModal', 'handleSubmit called', { formData, clientId: client.id });
         
         // Transform form data to match expected format
@@ -59,7 +59,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, client }: EditClient
         };
         
         debugLogger.info('EditClientModal', 'Calling onUpdateClient', { clientId: client.id, updates });
-        onUpdateClient(client.id, updates);
+        await onUpdateClient(client.id, updates);
     };
 
     if (!isOpen) return null;
