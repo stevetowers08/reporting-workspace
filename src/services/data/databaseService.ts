@@ -722,4 +722,30 @@ export class DatabaseService {
       throw error;
     }
   }
+
+  // Disconnect integration
+  static async disconnectIntegration(platform: string): Promise<void> {
+    try {
+      debugDatabase.query('disconnectIntegration', 'integrations');
+      
+      const { error } = await supabase
+        .from('integrations')
+        .update({ 
+          connected: false,
+          config: {},
+          last_sync: null
+        })
+        .eq('platform', platform);
+
+      if (error) {
+        debugDatabase.error('disconnectIntegration', 'integrations', error);
+        throw error;
+      }
+
+      debugDatabase.success('disconnectIntegration', 'integrations', { platform });
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error disconnecting integration', error);
+      throw error;
+    }
+  }
 }

@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/leadconnector/oath.js": {
+    "api/leadconnector/oath.mjs": {
       "maxDuration": 30
     }
   },

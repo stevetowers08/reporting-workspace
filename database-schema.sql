@@ -19,10 +19,10 @@ CREATE TABLE IF NOT EXISTS clients (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create integrations table
+-- Create integrations table (admin-level integrations only)
 CREATE TABLE IF NOT EXISTS integrations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    platform VARCHAR(50) NOT NULL UNIQUE CHECK (platform IN ('facebookAds', 'googleAds', 'goHighLevel', 'googleSheets')),
+    platform VARCHAR(50) NOT NULL UNIQUE CHECK (platform IN ('facebookAds', 'googleAds', 'googleSheets', 'google-ai')),
     connected BOOLEAN DEFAULT FALSE,
     account_name VARCHAR(255),
     account_id VARCHAR(255),
@@ -47,6 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients(created_at);
 CREATE INDEX IF NOT EXISTS idx_integrations_platform ON integrations(platform);
 CREATE INDEX IF NOT EXISTS idx_integrations_connected ON integrations(connected);
+CREATE INDEX IF NOT EXISTS idx_oauth_credentials_platform ON oauth_credentials(platform);
+CREATE INDEX IF NOT EXISTS idx_oauth_credentials_active ON oauth_credentials(is_active);
 CREATE INDEX IF NOT EXISTS idx_metrics_client_id ON metrics(client_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_platform ON metrics(platform);
 CREATE INDEX IF NOT EXISTS idx_metrics_date ON metrics(date);
@@ -95,12 +97,12 @@ INSERT INTO clients (name, type, location, services, accounts, shareable_link) V
  'https://eventmetrics.com/share/sample2')
 ON CONFLICT DO NOTHING;
 
--- Insert sample integration data
+-- Insert sample integration data (admin-level only)
 INSERT INTO integrations (platform, connected, account_name, account_id, config) VALUES
 ('facebookAds', true, 'Steve Towers', 'act_34769891', '{"access_token": "EAAph81SWZC4YBPg05wHDwacBOutmohwqY3CykQJlIDNuJKF9rb00FOKcLKCcPG423hOJ4pHu5racSuZBnLBwsrld2QPW2ReW5rjpKoGYfMT1eVWrsdCnNLDxb4ZBU8n3dFxd94rxJk3eVYRWEr8YwfZBscgi2z9J0dZBwSSq01WPPu3nMmI6PiZAKAy1SzWwH9ZAZAkZD"}'),
 ('googleAds', false, null, null, '{}'),
-('goHighLevel', false, null, null, '{}'),
-('googleSheets', false, null, null, '{}')
+('googleSheets', false, null, null, '{}'),
+('google-ai', false, null, null, '{}')
 ON CONFLICT (platform) DO NOTHING;
 
 -- Create a view for client dashboard data

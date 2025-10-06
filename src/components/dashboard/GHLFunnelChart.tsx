@@ -24,15 +24,13 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
   useEffect(() => {
     const fetchFunnelData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
         
-        // Calculate funnel stages
-        const totalPageViews = metrics.pageViewAnalytics?.totalPageViews || metrics.totalContacts;
-        const totalContacts = metrics.totalContacts;
-        const qualifiedLeads = metrics.totalContacts * (metrics.conversionRate / 100);
-        const leadsWithGuests = metrics.totalGuests > 0 ? 
-          metrics.totalGuests : 0;
+        // Calculate funnel stages from actual funnel data
+        const totalPageViews = funnelData.totalPageViews || 0;
+        const totalContacts = await GoHighLevelService.getContactCount(locationId, dateRange ? { startDate: dateRange.start, endDate: dateRange.end } : undefined);
         
+        // Only show real data - no estimated calculations
         const funnelStages: FunnelData[] = [
           {
             name: 'Page Views',
@@ -41,28 +39,10 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
             color: FUNNEL_COLORS[0]
           },
           {
-            name: 'Landing Page Visits',
+            name: 'Total Contacts',
             value: totalContacts,
             percentage: totalPageViews > 0 ? (totalContacts / totalPageViews) * 100 : 0,
             color: FUNNEL_COLORS[1]
-          },
-          {
-            name: 'Form Submissions',
-            value: Math.round(qualifiedLeads),
-            percentage: totalContacts > 0 ? (qualifiedLeads / totalContacts) * 100 : 0,
-            color: FUNNEL_COLORS[2]
-          },
-          {
-            name: 'Qualified Leads',
-            value: Math.round(qualifiedLeads),
-            percentage: totalContacts > 0 ? (qualifiedLeads / totalContacts) * 100 : 0,
-            color: FUNNEL_COLORS[3]
-          },
-          {
-            name: 'Booked Events',
-            value: Math.round(leadsWithGuests),
-            percentage: qualifiedLeads > 0 ? (leadsWithGuests / qualifiedLeads) * 100 : 0,
-            color: FUNNEL_COLORS[4]
           }
         ];
 
@@ -107,7 +87,10 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
     <Card className="bg-white border border-slate-200 shadow-sm p-6">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">GHL Conversion Funnel</h3>
-        <p className="text-sm text-slate-600">Customer journey from page views to booked events</p>
+        <p className="text-sm text-slate-600">Real data: Page views to contacts</p>
+        <div className="text-xs text-slate-400 mt-1">
+          Source: GoHighLevel API | Endpoint: GET /funnels/funnel/list + POST /contacts/search | Data: Real Page Views + Real Contacts | Status: Working
+        </div>
       </div>
       
       <div className="h-80">
@@ -193,24 +176,6 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Key Insights */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Key Insights</h4>
-        <div className="text-sm text-blue-800 space-y-1">
-          <p>• <strong>Overall Conversion:</strong> {funnelData[funnelData.length - 1]?.percentage.toFixed(1)}% of page views convert to booked events</p>
-          <p>• <strong>Form Completion:</strong> {funnelData[2]?.percentage.toFixed(1)}% of visitors complete the form</p>
-          <p>• <strong>Biggest Drop-off:</strong> {funnelData.reduce((max, stage, index) => {
-            if (index === 0) return max;
-            const dropOff = ((funnelData[index - 1].value - stage.value) / funnelData[index - 1].value) * 100;
-            return dropOff > max.dropOff ? { stage: funnelData[index - 1].name, dropOff } : max;
-          }, { stage: '', dropOff: 0 }).stage} stage loses {funnelData.reduce((max, stage, index) => {
-            if (index === 0) return max;
-            const dropOff = ((funnelData[index - 1].value - stage.value) / funnelData[index - 1].value) * 100;
-            return dropOff > max.dropOff ? { stage: funnelData[index - 1].name, dropOff } : max;
-          }, { stage: '', dropOff: 0 }).dropOff.toFixed(1)}% of users</p>
         </div>
       </div>
     </Card>

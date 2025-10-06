@@ -5,9 +5,10 @@ import React, { useEffect, useState } from 'react';
 
 interface LeadInfoMetricsCardsProps {
   data: EventDashboardData | null | undefined;
+  dateRange?: { start: string; end: string };
 }
 
-export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data }) => {
+export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data, dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +29,9 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     fetchData();
   }, []);
 
+  // Use dashboard data if available, otherwise show loading
+  const isLoading = loading || !data;
+
   const handleTestAPI = async () => {
     console.log('Testing Google Sheets API...');
     try {
@@ -44,7 +48,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
         {[...Array(4)].map((_, i) => (
@@ -67,79 +71,45 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     );
   }
 
-  if (!leadData) {
+  if (!data) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
         <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-          <div className="text-center text-slate-500">Failed to load data</div>
+          <div className="text-center text-slate-500">Failed to load dashboard data</div>
         </Card>
       </div>
     );
   }
 
-  // Calculate metrics from dashboard data (GHL data comes from dashboard)
-  const landingPageViews = data?.ghlMetrics?.totalContacts || 0;
-  const conversionRate = landingPageViews > 0 ? (leadData.totalLeads / landingPageViews) * 100 : 0;
+  // Use Google Sheets data for lead counts (PRIMARY SOURCE)
+  const totalLeads = leadData?.totalLeads || 0;
+  const facebookLeads = leadData?.facebookLeads || 0;
+  const googleLeads = leadData?.googleLeads || 0;
+  
+  // Use GoHighLevel data for contact count (REAL DATA)
+  const ghlMetrics = data.ghlMetrics || {};
+  const totalContacts = ghlMetrics.totalContacts || 0; // GHL contact count (REAL)
+  
+  // Remove fake funnel data - we don't have real page analytics
+  // const funnelPageViews = ghlMetrics.pageViewAnalytics?.totalPageViews || 0; // FAKE
+  // const conversionRate = ghlMetrics.conversionRate || 0; // FAKE
+  // const totalGuests = ghlMetrics.totalGuests || 0; // FAKE
 
   return (
-    <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
+    <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Landing Page Views</p>
+            <p className="text-sm font-medium text-slate-600 mb-2">Total Contacts</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">{landingPageViews.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
               <div className="flex items-center gap-1">
                 <span className="text-sm text-blue-600 font-medium">GHL</span>
+                <span className="text-xs text-slate-500">(All Time)</span>
               </div>
             </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Total Leads</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">{leadData.totalLeads.toLocaleString()}</p>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-green-600 font-medium">{conversionRate.toFixed(1)}% conv</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Total Guests</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">{leadData.totalGuests.toLocaleString()}</p>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-slate-500">{leadData.averageGuestsPerLead.toFixed(1)} avg per lead</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Top Source</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-blue-600">
-                {leadData.facebookLeads > leadData.googleLeads ? 'FB' : 'GG'}
-              </p>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-slate-500">
-                  {leadData.facebookLeads > leadData.googleLeads 
-                    ? `${leadData.facebookLeads} leads` 
-                    : `${leadData.googleLeads} leads`}
-                </span>
-              </div>
+            <div className="text-xs text-slate-400 mt-1">
+              Source: GoHighLevel API | Endpoint: POST /contacts/search
             </div>
           </div>
         </div>

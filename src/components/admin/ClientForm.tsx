@@ -1,4 +1,4 @@
-import { ConnectLocationButton, ConnectionStatus } from '@/components/admin/ConnectLocationButton';
+import { ConnectLocationButton } from '@/components/admin/ConnectLocationButton';
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LoadingSpinner } from "@/components/ui/LoadingStates";
 import { LogoManager } from "@/components/ui/LogoManager";
@@ -13,6 +13,7 @@ import { AIInsightsConfig, AIInsightsService } from "@/services/ai/aiInsightsSer
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
 import { GoHighLevelService } from "@/services/api/goHighLevelService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
+import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
 import { IntegrationPlatform } from "@/types/integration";
@@ -26,17 +27,6 @@ declare global {
     URL: typeof URL;
     setTimeout: typeof setTimeout;
   }
-  
-  // File API types
-  interface File {
-    name: string;
-    size: number;
-    type: string;
-  }
-  
-  interface HTMLInputElement {
-    files: FileList | null;
-  }
 }
 
 interface ConnectedAccount {
@@ -46,6 +36,7 @@ interface ConnectedAccount {
 }
 
 interface ClientFormData {
+  id?: string;
   name: string;
   logo_url: string;
   status?: 'active' | 'paused' | 'inactive';
@@ -139,9 +130,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
       const statusPromises = platforms.map(async (platform) => {
         try {
-          const { IntegrationService } = await import('@/services/integration/IntegrationService');
-          const isConnected = await IntegrationService.isConnected(platform as IntegrationPlatform);
-          return { platform, isConnected };
+          if (platform === 'googleSheets') {
+            // Use the new Google Sheets OAuth service
+            const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+            return { platform, isConnected };
+          } else {
+            const { IntegrationService } = await import('@/services/integration/IntegrationService');
+            const isConnected = await IntegrationService.isConnected(platform as IntegrationPlatform);
+            return { platform, isConnected };
+          }
         } catch (error) {
           console.error(`Error checking ${platform} status:`, error);
           return { platform, isConnected: false };
@@ -180,6 +177,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       // Load GHL accounts if we have a GHL account ID
       if (initialData.accounts.goHighLevel && initialData.accounts.goHighLevel !== 'none') {
         console.log('🔍 ClientForm: Loading GHL accounts for existing account ID:', initialData.accounts.goHighLevel);
+        
+        // If it's a string (location ID), convert it to object format
+        if (typeof initialData.accounts.goHighLevel === 'string') {
+          console.log('🔍 ClientForm: Converting string GoHighLevel ID to object format');
+          setFormData(prev => ({
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              goHighLevel: {
+                locationId: initialData.accounts.goHighLevel as string,
+                locationName: `Location ${initialData.accounts.goHighLevel}`,
+                locationToken: undefined
+              }
+            }
+          }));
+        }
+        
         loadGHLAccounts();
       }
     }
@@ -208,17 +222,19 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   }, [formData.accounts.googleAds]);
 
   // Load Facebook Ads accounts when needed
-  const loadFacebookAccounts = async () => {
-    if (facebookAccountsLoaded || facebookAccountsLoading) {
+  const loadFacebookAccounts = async (forceRefresh = false) => {
+    if (facebookAccountsLoaded && !forceRefresh || facebookAccountsLoading) {
       return;
     }
     
-    console.log('🔍 ClientForm: Loading Facebook accounts on demand...');
+    console.log('🔍 ClientForm: Loading Facebook accounts on demand...', { forceRefresh });
     setFacebookAccountsLoading(true);
     
     try {
       console.log('🔍 ClientForm: Calling FacebookAdsService.getAdAccounts()...');
-      const adAccounts = await FacebookAdsService.getAdAccounts();
+      const adAccounts = forceRefresh 
+        ? await FacebookAdsService.refreshAdAccounts()
+        : await FacebookAdsService.getAdAccounts();
       console.log('🔍 ClientForm: Facebook API response:', adAccounts);
       
       const facebookAccounts = adAccounts.map(account => ({
@@ -226,6 +242,24 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
         platform: 'facebookAds' as const
       }));
+      
+      // Check specifically for Savanna Rooftop in the raw API response
+      const savannaInRaw = adAccounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
+      if (savannaInRaw) {
+        console.log('🎯 FOUND Savanna Rooftop in raw API response:', savannaInRaw);
+      } else {
+        console.log('❌ Savanna Rooftop NOT found in raw API response');
+        console.log('🔍 All raw account names:', adAccounts.map(acc => acc.name));
+      }
+      
+      // Check specifically for Savanna Rooftop in the mapped accounts
+      const savannaInMapped = facebookAccounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
+      if (savannaInMapped) {
+        console.log('🎯 FOUND Savanna Rooftop in mapped accounts:', savannaInMapped);
+      } else {
+        console.log('❌ Savanna Rooftop NOT found in mapped accounts');
+        console.log('🔍 All mapped account names:', facebookAccounts.map(acc => acc.name));
+      }
       
       setConnectedAccounts(prev => [
         ...prev.filter(acc => acc.platform !== 'facebookAds'),
@@ -310,8 +344,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
       console.log('🔍 ClientForm: GoHighLevel integration:', ghlIntegration);
       
-      if (ghlIntegration?.connected) {
-        console.log('🔍 ClientForm: Calling GoHighLevelService.getAllLocations()...');
+      // Check if there's an OAuth connection (not just API key)
+      const hasOAuthConnection = ghlIntegration?.config?.apiKey?.keyType === 'bearer' && 
+                                 ghlIntegration?.config?.refreshToken;
+      
+      if (hasOAuthConnection) {
+        console.log('🔍 ClientForm: GoHighLevel OAuth connection found, calling getAllLocations()...');
         const locations = await GoHighLevelService.getAllLocations();
         console.log('🔍 ClientForm: GoHighLevel API response:', locations);
         
@@ -346,7 +384,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   };
 
   const loadAIConfig = async () => {
-    if (!clientId) return;
+    if (!clientId) {
+      return;
+    }
     
     setAiConfigLoading(true);
     try {
@@ -543,6 +583,32 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     });
   };
 
+  const handleDisconnectGHL = async () => {
+    try {
+      console.log('🔍 ClientForm: Disconnecting GoHighLevel...');
+      
+      // Clear the form data
+      setFormData(prev => ({
+        ...prev,
+        accounts: {
+          ...prev.accounts,
+          goHighLevel: 'none'
+        }
+      }));
+      
+      // Disconnect from database
+      await DatabaseService.disconnectIntegration('goHighLevel');
+      
+      console.log('🔍 ClientForm: GoHighLevel disconnected successfully');
+      
+      // Refresh integration status
+      window.location.reload();
+    } catch (error) {
+      console.error('🔍 ClientForm: Failed to disconnect GoHighLevel:', error);
+      alert('Failed to disconnect GoHighLevel. Please try again.');
+    }
+  };
+
   const handleConversionActionSelect = (platform: string, actionType: string) => {
     setFormData(prev => ({
       ...prev,
@@ -580,35 +646,39 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const getAvailableAccounts = (platform: string) => {
     const accounts = connectedAccounts.filter(account => account.platform === platform);
     console.log(`🔍 ClientForm: getAvailableAccounts(${platform}):`, accounts);
+    console.log(`🔍 ClientForm: Total connectedAccounts:`, connectedAccounts.length);
+    console.log(`🔍 ClientForm: All connectedAccounts:`, connectedAccounts);
+    
+    // Check specifically for Savanna Rooftop
+    const savannaAccount = accounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
+    if (savannaAccount) {
+      console.log('🎯 FOUND Savanna Rooftop in getAvailableAccounts:', savannaAccount);
+    } else {
+      console.log('❌ Savanna Rooftop NOT found in getAvailableAccounts');
+    }
+    
     return accounts;
   };
 
   const isIntegrationConnected = (platform: string): boolean => {
     console.log(`🔍 ClientForm: Checking if ${platform} is connected`);
     
-    // For GoHighLevel, check if there's a token for the specific location ID
+    // For GoHighLevel, it's always client-level only - check if client has location configured
     if (platform === 'goHighLevel') {
-      const locationId = typeof formData.accounts.goHighLevel === 'string' 
-        ? formData.accounts.goHighLevel 
-        : formData.accounts.goHighLevel?.locationId;
+      const hasLocationId = typeof formData.accounts.goHighLevel === 'string' 
+        ? formData.accounts.goHighLevel && formData.accounts.goHighLevel !== 'none'
+        : formData.accounts.goHighLevel?.locationId && formData.accounts.goHighLevel?.locationId !== 'none';
       
-      if (!locationId || locationId === 'none') {
-        console.log(`🔍 ClientForm: No GoHighLevel location ID selected`);
-        return false;
-      }
-      
-      // Check if there's a token for this specific location ID
-      const hasToken = connectedAccounts.some(account => 
-        account.platform === 'goHighLevel' && account.id === locationId
-      );
-      
-      console.log(`🔍 ClientForm: GoHighLevel location ${locationId} has token: ${hasToken}`);
-      return hasToken;
+      console.log(`🔍 ClientForm: GoHighLevel client-level check:`, {
+        hasLocationId,
+        formData: formData.accounts.goHighLevel
+      });
+      return Boolean(hasLocationId);
     }
     
+    // For other platforms, check admin integration status
     const isConnected = integrationStatus[platform] || false;
     console.log(`🔍 ClientForm: isIntegrationConnected(${platform}) = ${isConnected}`);
-    console.log(`🔍 ClientForm: Current formData.accounts.${platform}:`, formData.accounts[platform as keyof typeof formData.accounts]);
     return isConnected;
   };
 
@@ -746,6 +816,124 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     <span>Loading Facebook accounts...</span>
                   </div>
                 )}
+                {facebookAccountsLoaded && !facebookAccountsLoading && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          // Clear cache first, then refresh
+                          await FacebookAdsService.clearAdAccountsCache();
+                          setFacebookAccountsLoaded(false);
+                          await loadFacebookAccounts(true);
+                        } catch (error) {
+                          console.error('Failed to refresh Facebook accounts:', error);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      🔄 Refresh Accounts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          console.log('🔍 Running Facebook accounts debug...');
+                          const debugResult = await FacebookAdsService.debugAdAccounts();
+                          console.log('🔍 Facebook Debug Results:', debugResult);
+                          console.log('🔍 All account names:', debugResult.uniqueAccounts.map(acc => acc.name));
+                          console.log('🔍 Looking for "Savanna Rooftop":', debugResult.uniqueAccounts.find(acc => 
+                            acc.name?.toLowerCase().includes('savanna') || 
+                            acc.name?.toLowerCase().includes('rooftop')
+                          ));
+                        } catch (error) {
+                          console.error('Failed to debug Facebook accounts:', error);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      🔍 Debug Accounts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          console.log('🔍 Searching for "Savanna Rooftop"...');
+                          const searchResults = await FacebookAdsService.searchAdAccountByName('Savanna Rooftop');
+                          console.log('🔍 Search Results for "Savanna Rooftop":', searchResults);
+                          
+                          if (searchResults.length > 0) {
+                            console.log('✅ Found "Savanna Rooftop"!', searchResults);
+                            alert(`Found "Savanna Rooftop" in ${searchResults.length} location(s):\n${searchResults.map(acc => `${acc.name} (${acc.id}) - Source: ${acc.source}`).join('\n')}`);
+                          } else {
+                            console.log('❌ "Savanna Rooftop" not found in any accessible accounts');
+                            alert('❌ "Savanna Rooftop" not found in any accessible Facebook ad accounts. Check permissions or business manager access.');
+                          }
+                        } catch (error) {
+                          console.error('Failed to search for Savanna Rooftop:', error instanceof Error ? error.message : 'Unknown error');
+                          alert('Error searching for account: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      🔍 Find "Savanna Rooftop"
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          console.log('🔍 Checking Tulen Agency business manager access...');
+                          const tulenAgencyResult = await FacebookAdsService.checkTulenAgencyAccess();
+                          console.log('🔍 Tulen Agency Access Results:', tulenAgencyResult);
+                          
+                          if (tulenAgencyResult.businessFound) {
+                            const allAccounts = [...tulenAgencyResult.ownedAccounts, ...tulenAgencyResult.clientAccounts];
+                            const savannaAccount = allAccounts.find(acc => 
+                              acc.name?.toLowerCase().includes('savanna') || 
+                              acc.name?.toLowerCase().includes('rooftop')
+                            );
+                            
+                            let message = `✅ Found Tulen Agency Business Manager!\n\n`;
+                            message += `Business: ${tulenAgencyResult.businessInfo.name} (${tulenAgencyResult.businessInfo.id})\n`;
+                            message += `Owned Accounts: ${tulenAgencyResult.ownedAccounts.length}\n`;
+                            message += `Client Accounts: ${tulenAgencyResult.clientAccounts.length}\n`;
+                            message += `Total Accounts: ${tulenAgencyResult.totalAccounts}\n\n`;
+                            
+                            if (savannaAccount) {
+                              message += `🎯 FOUND "Savanna Rooftop"!\n`;
+                              message += `Account: ${savannaAccount.name} (${savannaAccount.id})\n`;
+                              message += `Status: ${savannaAccount.account_status}`;
+                            } else {
+                              message += `❌ "Savanna Rooftop" not found in Tulen Agency\n\n`;
+                              message += `All accounts:\n${allAccounts.map(acc => `- ${acc.name} (${acc.id})`).join('\n')}`;
+                            }
+                            
+                            alert(message);
+                          } else {
+                            alert('❌ Tulen Agency business manager not found or not accessible. Check permissions.');
+                          }
+                        } catch (error) {
+                          console.error('Failed to check Tulen Agency access:', error instanceof Error ? error.message : 'Unknown error');
+                          alert('Error checking Tulen Agency access: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      🏢 Check Tulen Agency
+                    </Button>
+                    <span className="text-xs text-gray-500">
+                      {getAvailableAccounts('facebookAds').length} accounts loaded
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -768,7 +956,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     <SelectValue placeholder="Select conversion action" />
                   </SelectTrigger>
                   <SelectContent>
-                    {conversionActions.facebookAds?.map(action => (
+                    {conversionActions.facebookAds?.map((action: any) => (
                       <SelectItem key={action.id} value={action.id}>
                         {action.name} ({action.category})
                       </SelectItem>
@@ -833,7 +1021,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 <SearchableSelect
                   options={[
                     { value: "conversions", label: "Conversions" },
-                    ...(conversionActions.googleAds || []).map(action => ({
+                    ...(conversionActions.googleAds || []).map((action: any) => ({
                       value: action.id,
                       label: action.name
                     }))
@@ -864,63 +1052,60 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               />
               <span className="text-sm font-medium">GoHighLevel CRM</span>
             </div>
-            {isIntegrationConnected('goHighLevel') ? (
-              <div className="space-y-2">
-                <SearchableSelect
-                  value={typeof formData.accounts.goHighLevel === 'string' 
-                    ? formData.accounts.goHighLevel 
-                    : formData.accounts.goHighLevel?.locationId || "none"}
-                  onValueChange={(value) => handleAccountSelect("goHighLevel", value)}
-                  placeholder="Search GoHighLevel locations..."
-                  options={[
-                    { value: "none", label: "None" },
-                    ...getAvailableAccounts('goHighLevel').map(account => ({
-                      value: account.id,
-                      label: account.name
-                    }))
-                  ]}
-                  onOpenChange={(open) => {
-                    console.log('🔍 GoHighLevel dropdown opened:', open, 'ghlAccountsLoaded:', ghlAccountsLoaded);
-                    if (open && !ghlAccountsLoaded) {
-                      console.log('🔍 Calling loadGHLAccounts...');
-                      loadGHLAccounts();
-                    }
-                  }}
-                />
-                
-                {/* Show selected location info */}
-                {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
-                  <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                    <div className="font-medium">Selected Location:</div>
-                    <div>{formData.accounts.goHighLevel.locationName}</div>
-                    <div className="text-gray-500 mt-1">
-                      Location ID: {formData.accounts.goHighLevel.locationId}
-                    </div>
+            <div className="space-y-2">
+              {isIntegrationConnected('goHighLevel') ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-green-600 mb-2">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>GoHighLevel connected</span>
                   </div>
-                )}
-                
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>GoHighLevel not connected</span>
+                  
+                  {/* Show connection info */}
+                  {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
+                    <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                      <div className="font-medium">Connected Location:</div>
+                      <div>{formData.accounts.goHighLevel.locationName}</div>
+                      <div className="text-gray-500 mt-1">
+                        Location ID: {formData.accounts.goHighLevel.locationId}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleDisconnectGHL}
+                    className="w-full"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Disconnect GoHighLevel
+                  </Button>
                 </div>
-                
-                {/* Connect Location Button */}
-                <ConnectLocationButton 
-                  clientId={initialData?.id}
-                  locationId={typeof formData.accounts.goHighLevel === 'string' 
-                    ? formData.accounts.goHighLevel 
-                    : formData.accounts.goHighLevel?.locationId}
-                  onConnected={(locationId) => {
-                    console.log('🔍 Location connected:', locationId);
-                    // Refresh the accounts list
-                    loadGHLAccounts();
-                  }}
-                />
-              </div>
-            )}
+              ) : (
+                <div className="space-y-2">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">Client-Level Integration</span>
+                    </div>
+                    <p className="text-xs text-blue-700 mb-3">
+                      GoHighLevel is configured per client. Each client connects their own location directly.
+                    </p>
+                  </div>
+                  
+                  {/* Connect Location Button */}
+                  <ConnectLocationButton 
+                    clientId={clientId}
+                    onConnected={(locationId) => {
+                      console.log('🔍 Location connected:', locationId);
+                      // Refresh integration status
+                      window.location.reload();
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Google Sheets */}

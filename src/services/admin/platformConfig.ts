@@ -30,16 +30,6 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
     usesOAuth: true,
     defaultCredentials: {}
   },
-  goHighLevel: {
-    key: 'gohighlevel',
-    name: 'GoHighLevel',
-    platform: 'goHighLevel',
-    icon: 'goHighLevel',
-    color: 'purple',
-    credentials: ['agencyToken'],
-    usesOAuth: false,
-    defaultCredentials: {}
-  },
   googleSheets: {
     key: 'google',
     name: 'Google Sheets',
@@ -66,8 +56,7 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
 export const OAUTH_PLATFORM_MAP: Record<string, string> = {
   'facebookAds': 'facebook',
   'googleAds': 'google',
-  'googleSheets': 'google',
-  'goHighLevel': 'gohighlevel'
+  'googleSheets': 'google'
 };
 
 export const getPlatformConfig = (platform: string): PlatformConfig | undefined => {

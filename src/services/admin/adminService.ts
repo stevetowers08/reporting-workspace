@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { GoogleAiService } from '@/services/ai/googleAiService';
+import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { DatabaseService } from '@/services/data/databaseService';
 import { IntegrationService } from '@/services/integration/IntegrationService';
@@ -122,38 +123,6 @@ export class AdminService {
   }
 
   /**
-   * Save GoHighLevel private integration token
-   */
-  static async saveGHLPrivateIntegrationToken(token: string): Promise<void> {
-    try {
-      debugLogger.info('AdminService', 'Saving GoHighLevel private integration token');
-      
-      const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
-      
-      // Test the agency token and determine capabilities
-      const testResult = await GoHighLevelService.testAgencyToken(token);
-      
-      if (!testResult.success) {
-        throw new Error(`Token validation failed: ${testResult.message}`);
-      }
-      
-      // Save the token using the unified integration service
-      await IntegrationService.saveApiKey('goHighLevel', {
-        apiKey: token,
-        keyType: 'bearer'
-      }, {
-        id: 'ghl-agency',
-        name: 'GoHighLevel Agency'
-      });
-      
-      debugLogger.info('AdminService', 'GoHighLevel private integration token saved successfully');
-    } catch (error) {
-      debugLogger.error('AdminService', 'Failed to save GoHighLevel private integration token', error);
-      throw error;
-    }
-  }
-
-  /**
    * Connect to an integration platform
    */
   static async connectIntegration(platform: string): Promise<void> {
@@ -190,55 +159,21 @@ export class AdminService {
         return;
       }
 
-      // Special handling for Google Sheets - it can connect independently using database OAuth credentials
+      // Special handling for Google Sheets - use the new dedicated OAuth service
       if (platform === 'googleSheets') {
-        console.log('Google Sheets connect: Attempting independent connection using database OAuth credentials');
+        debugLogger.info('AdminService', 'Connecting Google Sheets using dedicated OAuth service');
         
-        // Check if Google Ads is already connected (preferred)
-        const isGoogleAdsConnected = await IntegrationService.isConnected('googleAds');
-        console.log('Google Ads connection status:', isGoogleAdsConnected);
+        // Generate OAuth URL using the Google Sheets OAuth service
+        const authUrl = GoogleSheetsOAuthService.generateSheetsAuthUrl();
         
-        if (isGoogleAdsConnected) {
-          // Use existing Google Ads tokens
-          console.log('Using existing Google Ads tokens for Google Sheets');
-          await IntegrationService.saveIntegration('googleSheets', {
-            connected: true,
-            lastSync: new Date().toISOString(),
-            syncStatus: 'idle',
-            connectedAt: new Date().toISOString(),
-            accountInfo: {
-              id: 'google-sheets-shared',
-              name: 'Google Sheets (Shared with Google Ads)',
-              email: 'shared@google.com'
-            }
-          });
-          console.log('Google Sheets connected using existing Google Ads credentials');
-          return;
-        } else {
-          // Connect Google Sheets independently using database OAuth credentials
-          console.log('Connecting Google Sheets independently using database OAuth credentials');
-          
-          // Map platform names to OAuth service names
-          const oauthPlatformMap: Record<string, string> = {
-            'facebookAds': 'facebook',
-            'googleAds': 'google',
-            'googleSheets': 'google' // Google Sheets uses Google OAuth
-          };
-          
-          const oauthPlatform = oauthPlatformMap[platform] || platform;
-          
-          // Generate OAuth URL and redirect
-          const authUrl = await OAuthService.generateAuthUrl(oauthPlatform, {}, platform);
-          
-          debugLogger.info('AdminService', `Redirecting to ${platform} OAuth`, { authUrl });
-          
-          // Use setTimeout to ensure redirect happens after current execution
-          window.setTimeout(() => {
-            window.location.href = authUrl;
-          }, 100);
-          
-          return;
-        }
+        debugLogger.info('AdminService', 'Redirecting to Google Sheets OAuth', { authUrl });
+        
+        // Use setTimeout to ensure redirect happens after current execution
+        window.setTimeout(() => {
+          window.location.href = authUrl;
+        }, 100);
+        
+        return;
       }
       
       // Map platform names to OAuth service names
@@ -272,12 +207,10 @@ export class AdminService {
     try {
       debugLogger.info('AdminService', `Disconnecting from ${platform}`);
       
-      // Special handling for Google Sheets - it shares OAuth with Google Ads
+      // Special handling for Google Sheets - use the dedicated OAuth service
       if (platform === 'googleSheets') {
-        // For Google Sheets, we only need to mark it as disconnected in the database
-        // Don't revoke the Google OAuth tokens since Google Ads might still be using them
-        await IntegrationService.disconnect(platform as IntegrationPlatform);
-        debugLogger.info('AdminService', 'Google Sheets disconnected successfully (OAuth tokens preserved for Google Ads)');
+        await GoogleSheetsOAuthService.disconnectSheets();
+        debugLogger.info('AdminService', 'Google Sheets disconnected successfully');
         return;
       }
       

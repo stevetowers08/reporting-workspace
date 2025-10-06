@@ -272,8 +272,8 @@ export class FacebookAdsService {
 
       const allAccounts: any[] = [];
 
-      // Fetch user accounts and business accounts in parallel for better performance
-      const [userAccounts, businessAccounts] = await Promise.allSettled([
+      // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
+      const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
         FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`)
           .then(response => response.ok ? response.json() : { data: [] })
@@ -309,29 +309,19 @@ export class FacebookAdsService {
               try {
                 const allBusinessAccounts: any[] = [];
                 
-                // Fetch owned ad accounts
-                const ownedResponse = await FacebookAdsService.rateLimitedFetch(
+                // Fetch owned ad accounts with pagination support
+                const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
                   `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
                 );
+                allBusinessAccounts.push(...ownedAccounts);
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
-                if (ownedResponse.ok) {
-                  const ownedData = await ownedResponse.json();
-                  const ownedAccounts = ownedData.data || [];
-                  allBusinessAccounts.push(...ownedAccounts);
-                  debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
-                }
-                
-                // Fetch client ad accounts (accounts managed by this business)
-                const clientResponse = await FacebookAdsService.rateLimitedFetch(
+                // Fetch client ad accounts (accounts managed by this business) with pagination support
+                const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
                   `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
                 );
-                
-                if (clientResponse.ok) {
-                  const clientData = await clientResponse.json();
-                  const clientAccounts = clientData.data || [];
-                  allBusinessAccounts.push(...clientAccounts);
-                  debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
-                }
+                allBusinessAccounts.push(...clientAccounts);
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
                 
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
                 return allBusinessAccounts;
@@ -349,6 +339,13 @@ export class FacebookAdsService {
           .catch(error => {
             debugLogger.error('FacebookAdsService', 'Error fetching Business Managers', error);
             return [];
+          }),
+
+        // Get accounts via system users (additional method to ensure comprehensive coverage)
+        FacebookAdsService.fetchSystemUserAccounts(token)
+          .catch(error => {
+            debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
+            return [];
           })
       ]);
 
@@ -359,6 +356,9 @@ export class FacebookAdsService {
       if (businessAccounts.status === 'fulfilled') {
         allAccounts.push(...businessAccounts.value);
       }
+      if (systemUserAccounts.status === 'fulfilled') {
+        allAccounts.push(...systemUserAccounts.value);
+      }
 
       // Remove duplicates based on ID
       const uniqueAccounts = allAccounts.filter((account, index, self) =>
@@ -366,6 +366,12 @@ export class FacebookAdsService {
       );
 
       debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API', uniqueAccounts.length);
+      debugLogger.info('FacebookAdsService', 'Comprehensive ad account fetch completed', {
+        userAccounts: userAccounts.status === 'fulfilled' ? userAccounts.value.length : 0,
+        businessAccounts: businessAccounts.status === 'fulfilled' ? businessAccounts.value.length : 0,
+        systemUserAccounts: systemUserAccounts.status === 'fulfilled' ? systemUserAccounts.value.length : 0,
+        totalUnique: uniqueAccounts.length
+      });
       
       // Cache the results in Supabase for future use
       try {
@@ -377,6 +383,613 @@ export class FacebookAdsService {
       return uniqueAccounts;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook ad accounts', error);
+      throw error;
+    }
+  }
+
+  // Fetch paginated accounts to handle large numbers of ad accounts
+  private static async fetchPaginatedAccounts(url: string): Promise<any[]> {
+    const allAccounts: any[] = [];
+    let nextUrl: string | null = url;
+
+    while (nextUrl) {
+      try {
+        const response = await FacebookAdsService.rateLimitedFetch(nextUrl);
+        
+        if (!response.ok) {
+          debugLogger.warn('FacebookAdsService', 'Failed to fetch paginated accounts', {
+            status: response.status,
+            statusText: response.statusText,
+            url: nextUrl
+          });
+          break;
+        }
+
+        const data = await response.json();
+        const accounts = data.data || [];
+        allAccounts.push(...accounts);
+
+        // Check for next page
+        nextUrl = data.paging?.next || null;
+        
+        debugLogger.debug('FacebookAdsService', 'Fetched page of accounts', {
+          count: accounts.length,
+          total: allAccounts.length,
+          hasNext: !!nextUrl
+        });
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching paginated accounts', error);
+        break;
+      }
+    }
+
+    return allAccounts;
+  }
+
+  // Fetch ad accounts via system users for comprehensive coverage
+  private static async fetchSystemUserAccounts(token: string): Promise<any[]> {
+    try {
+      debugLogger.debug('FacebookAdsService', 'Fetching ad accounts via system users');
+      
+      // Get all businesses first
+      const businessesResponse = await FacebookAdsService.rateLimitedFetch(
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+      );
+      
+      if (!businessesResponse.ok) {
+        debugLogger.warn('FacebookAdsService', 'Cannot fetch businesses for system users', {
+          status: businessesResponse.status
+        });
+        return [];
+      }
+
+      const businessesData = await businessesResponse.json();
+      const businesses = businessesData.data || [];
+      
+      if (!businesses.length) {
+        debugLogger.debug('FacebookAdsService', 'No businesses found for system user accounts');
+        return [];
+      }
+
+      const allSystemUserAccounts: any[] = [];
+
+      // For each business, get system users and their ad accounts
+      for (const business of businesses) {
+        try {
+          // Get system users for this business
+          const systemUsersResponse = await FacebookAdsService.rateLimitedFetch(
+            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${token}`
+          );
+
+          if (!systemUsersResponse.ok) {
+            debugLogger.warn('FacebookAdsService', `Cannot fetch system users for business ${business.name}`, {
+              status: systemUsersResponse.status
+            });
+            continue;
+          }
+
+          const systemUsersData = await systemUsersResponse.json();
+          const systemUsers = systemUsersData.data || [];
+
+          // For each system user, get their ad accounts
+          for (const systemUser of systemUsers) {
+            try {
+              const systemUserAccountsResponse = await FacebookAdsService.rateLimitedFetch(
+                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+              );
+
+              if (systemUserAccountsResponse.ok) {
+                const systemUserAccountsData = await systemUserAccountsResponse.json();
+                const accounts = systemUserAccountsData.data || [];
+                allSystemUserAccounts.push(...accounts);
+                
+                debugLogger.debug('FacebookAdsService', `System user ${systemUser.name} ad accounts`, accounts.length);
+              }
+            } catch (error) {
+              debugLogger.warn('FacebookAdsService', `Error fetching accounts for system user ${systemUser.name}`, error);
+            }
+          }
+        } catch (error) {
+          debugLogger.warn('FacebookAdsService', `Error fetching system users for business ${business.name}`, error);
+        }
+      }
+
+      debugLogger.debug('FacebookAdsService', 'Total system user ad accounts', allSystemUserAccounts.length);
+      return allSystemUserAccounts;
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error fetching system user accounts', error);
+      return [];
+    }
+  }
+
+  // Force refresh ad accounts from Facebook API (bypasses cache)
+  static async refreshAdAccounts(): Promise<any[]> {
+    try {
+      debugLogger.info('FacebookAdsService', 'Force refreshing ad accounts from Facebook API');
+      
+      const token = await this.getAccessToken();
+      if (!token) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
+      }
+
+      const allAccounts: any[] = [];
+
+      // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
+      const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
+        // Get accounts directly associated with the user
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`)
+          .then(response => response.ok ? response.json() : { data: [] })
+          .then(data => {
+            debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
+            return data.data || [];
+          })
+          .catch(error => {
+            debugLogger.error('FacebookAdsService', 'Error fetching user ad accounts', error);
+            return [];
+          }),
+
+        // Get accounts from Business Managers
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
+          .then(response => {
+            if (!response.ok) {
+              if (response.status === 403) {
+                debugLogger.warn('FacebookAdsService', 'Business Management permission not available or not granted. Skipping business accounts.');
+                return { data: [] };
+              }
+              throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+          })
+          .then(async businessData => {
+            debugLogger.debug('FacebookAdsService', 'Business Managers found', businessData.data?.length || 0);
+
+            if (!businessData.data?.length) {return [];}
+
+            // Fetch ALL ad accounts for all Business Managers in parallel
+            // This includes both owned_ad_accounts AND client_ad_accounts
+            const businessAccountPromises = businessData.data.map(async (business: any) => {
+              try {
+                const allBusinessAccounts: any[] = [];
+                
+                // Fetch owned ad accounts with pagination support
+                const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                );
+                allBusinessAccounts.push(...ownedAccounts);
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
+                
+                // Fetch client ad accounts (accounts managed by this business) with pagination support
+                const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                );
+                allBusinessAccounts.push(...clientAccounts);
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
+                
+                debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
+                return allBusinessAccounts;
+              } catch (error) {
+                debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
+                return [];
+              }
+            });
+
+            const businessAccountResults = await Promise.allSettled(businessAccountPromises);
+            return businessAccountResults
+              .filter(result => result.status === 'fulfilled')
+              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
+          })
+          .catch(error => {
+            debugLogger.error('FacebookAdsService', 'Error fetching Business Managers', error);
+            return [];
+          }),
+
+        // Get accounts via system users (additional method to ensure comprehensive coverage)
+        FacebookAdsService.fetchSystemUserAccounts(token)
+          .catch(error => {
+            debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
+            return [];
+          })
+      ]);
+
+      // Combine all accounts
+      if (userAccounts.status === 'fulfilled') {
+        allAccounts.push(...userAccounts.value);
+      }
+      if (businessAccounts.status === 'fulfilled') {
+        allAccounts.push(...businessAccounts.value);
+      }
+      if (systemUserAccounts.status === 'fulfilled') {
+        allAccounts.push(...systemUserAccounts.value);
+      }
+
+      // Remove duplicates based on ID
+      const uniqueAccounts = allAccounts.filter((account, index, self) =>
+        index === self.findIndex(a => a.id === account.id)
+      );
+
+      debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API (refresh)', uniqueAccounts.length);
+      debugLogger.info('FacebookAdsService', 'Comprehensive ad account refresh completed', {
+        userAccounts: userAccounts.status === 'fulfilled' ? userAccounts.value.length : 0,
+        businessAccounts: businessAccounts.status === 'fulfilled' ? businessAccounts.value.length : 0,
+        systemUserAccounts: systemUserAccounts.status === 'fulfilled' ? systemUserAccounts.value.length : 0,
+        totalUnique: uniqueAccounts.length
+      });
+      
+      // Always cache the refreshed results
+      try {
+        await this.cacheAdAccounts(uniqueAccounts);
+      } catch (error) {
+        debugLogger.warn('FacebookAdsService', 'Failed to cache refreshed ad accounts', error);
+      }
+      
+      return uniqueAccounts;
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error refreshing Facebook ad accounts', error);
+      throw error;
+    }
+  }
+
+  // Check if we can access Tulen Agency business manager specifically
+  static async checkTulenAgencyAccess(): Promise<{
+    businessFound: boolean;
+    businessInfo: any;
+    ownedAccounts: any[];
+    clientAccounts: any[];
+    totalAccounts: number;
+  }> {
+    try {
+      const token = await this.getAccessToken();
+      if (!token) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
+      }
+
+      debugLogger.info('FacebookAdsService', 'Checking access to Tulen Agency business manager');
+
+      // Get all businesses
+      const businessesResponse = await FacebookAdsService.rateLimitedFetch(
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+      );
+      
+      if (!businessesResponse.ok) {
+        throw new Error(`Failed to fetch businesses: ${businessesResponse.status}`);
+      }
+
+      const businessesData = await businessesResponse.json();
+      const businesses = businessesData.data || [];
+      
+      debugLogger.info('FacebookAdsService', 'All accessible businesses', {
+        count: businesses.length,
+        businesses: businesses.map(b => ({ id: b.id, name: b.name }))
+      });
+
+      // Find Tulen Agency business manager
+      const tulenAgency = businesses.find(b => 
+        b.name?.toLowerCase().includes('tulen') || 
+        b.name?.toLowerCase().includes('agency')
+      );
+
+      if (!tulenAgency) {
+        debugLogger.warn('FacebookAdsService', 'Tulen Agency business manager not found');
+        return {
+          businessFound: false,
+          businessInfo: null,
+          ownedAccounts: [],
+          clientAccounts: [],
+          totalAccounts: 0
+        };
+      }
+
+      debugLogger.info('FacebookAdsService', 'Found Tulen Agency business manager', tulenAgency);
+
+      // Get owned accounts
+      let ownedAccounts: any[] = [];
+      try {
+        ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+          `${this.BASE_URL}/${tulenAgency.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+        );
+        debugLogger.info('FacebookAdsService', 'Tulen Agency owned accounts', {
+          count: ownedAccounts.length,
+          accounts: ownedAccounts.map(acc => ({ id: acc.id, name: acc.name }))
+        });
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching Tulen Agency owned accounts', error);
+      }
+
+      // Get client accounts
+      let clientAccounts: any[] = [];
+      try {
+        clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+          `${this.BASE_URL}/${tulenAgency.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+        );
+        debugLogger.info('FacebookAdsService', 'Tulen Agency client accounts', {
+          count: clientAccounts.length,
+          accounts: clientAccounts.map(acc => ({ id: acc.id, name: acc.name }))
+        });
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching Tulen Agency client accounts', error);
+      }
+
+      const totalAccounts = ownedAccounts.length + clientAccounts.length;
+
+      debugLogger.info('FacebookAdsService', 'Tulen Agency access summary', {
+        businessFound: true,
+        businessId: tulenAgency.id,
+        businessName: tulenAgency.name,
+        ownedAccounts: ownedAccounts.length,
+        clientAccounts: clientAccounts.length,
+        totalAccounts,
+        allAccountNames: [...ownedAccounts, ...clientAccounts].map(acc => acc.name)
+      });
+
+      return {
+        businessFound: true,
+        businessInfo: tulenAgency,
+        ownedAccounts,
+        clientAccounts,
+        totalAccounts
+      };
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error checking Tulen Agency access', error);
+      throw error;
+    }
+  }
+
+  // Search for a specific ad account by name
+  static async searchAdAccountByName(accountName: string): Promise<any[]> {
+    try {
+      const token = await this.getAccessToken();
+      if (!token) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
+      }
+
+      debugLogger.info('FacebookAdsService', `Searching for ad account: "${accountName}"`);
+
+      const foundAccounts: any[] = [];
+      const searchTerms = [
+        accountName.toLowerCase(),
+        accountName.toLowerCase().replace(/\s+/g, ''),
+        accountName.toLowerCase().replace(/\s+/g, '_'),
+        accountName.toLowerCase().replace(/\s+/g, '-')
+      ];
+
+      // 1. Search in user accounts
+      try {
+        const userResponse = await FacebookAdsService.rateLimitedFetch(
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+        );
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          const userAccounts = userData.data || [];
+          
+          for (const account of userAccounts) {
+            const accountNameLower = account.name?.toLowerCase() || '';
+            if (searchTerms.some(term => accountNameLower.includes(term))) {
+              foundAccounts.push({ ...account, source: 'user_accounts' });
+              debugLogger.info('FacebookAdsService', `Found "${accountName}" in user accounts`, account);
+            }
+          }
+        }
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error searching user accounts', error);
+      }
+
+      // 2. Search in business manager accounts
+      try {
+        const businessesResponse = await FacebookAdsService.rateLimitedFetch(
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+        );
+        
+        if (businessesResponse.ok) {
+          const businessesData = await businessesResponse.json();
+          const businesses = businessesData.data || [];
+          
+          for (const business of businesses) {
+            try {
+              // Search owned accounts
+              const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+              );
+              
+              for (const account of ownedAccounts) {
+                const accountNameLower = account.name?.toLowerCase() || '';
+                if (searchTerms.some(term => accountNameLower.includes(term))) {
+                  foundAccounts.push({ ...account, source: `business_owned_${business.name}` });
+                  debugLogger.info('FacebookAdsService', `Found "${accountName}" in business owned accounts`, account);
+                }
+              }
+              
+              // Search client accounts
+              const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+              );
+              
+              for (const account of clientAccounts) {
+                const accountNameLower = account.name?.toLowerCase() || '';
+                if (searchTerms.some(term => accountNameLower.includes(term))) {
+                  foundAccounts.push({ ...account, source: `business_client_${business.name}` });
+                  debugLogger.info('FacebookAdsService', `Found "${accountName}" in business client accounts`, account);
+                }
+              }
+            } catch (error) {
+              debugLogger.error('FacebookAdsService', `Error searching accounts for business ${business.name}`, error);
+            }
+          }
+        }
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error searching business accounts', error);
+      }
+
+      // 3. Search in system user accounts
+      try {
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
+        
+        for (const account of sysUserAccounts) {
+          const accountNameLower = account.name?.toLowerCase() || '';
+          if (searchTerms.some(term => accountNameLower.includes(term))) {
+            foundAccounts.push({ ...account, source: 'system_user_accounts' });
+            debugLogger.info('FacebookAdsService', `Found "${accountName}" in system user accounts`, account);
+          }
+        }
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error searching system user accounts', error);
+      }
+
+      debugLogger.info('FacebookAdsService', `Search complete for "${accountName}"`, {
+        found: foundAccounts.length,
+        accounts: foundAccounts.map(acc => ({ id: acc.id, name: acc.name, source: acc.source }))
+      });
+
+      return foundAccounts;
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', `Error searching for account "${accountName}"`, error);
+      throw error;
+    }
+  }
+
+  // Debug method to get detailed account information
+  static async debugAdAccounts(): Promise<{
+    userAccounts: any[];
+    businessAccounts: any[];
+    systemUserAccounts: any[];
+    allAccounts: any[];
+    uniqueAccounts: any[];
+  }> {
+    try {
+      const token = await this.getAccessToken();
+      if (!token) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
+      }
+
+      debugLogger.info('FacebookAdsService', 'Starting detailed debug of ad accounts');
+
+      const allAccounts: any[] = [];
+      const userAccounts: any[] = [];
+      const businessAccounts: any[] = [];
+      const systemUserAccounts: any[] = [];
+
+      // 1. Get user accounts
+      try {
+        const userResponse = await FacebookAdsService.rateLimitedFetch(
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+        );
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          userAccounts.push(...(userData.data || []));
+          allAccounts.push(...userAccounts);
+          debugLogger.info('FacebookAdsService', 'User ad accounts found', {
+            count: userAccounts.length,
+            accounts: userAccounts.map(acc => ({ id: acc.id, name: acc.name }))
+          });
+        }
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching user accounts', error);
+      }
+
+      // 2. Get business managers and their accounts
+      try {
+        const businessesResponse = await FacebookAdsService.rateLimitedFetch(
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+        );
+        
+        if (businessesResponse.ok) {
+          const businessesData = await businessesResponse.json();
+          const businesses = businessesData.data || [];
+          
+          debugLogger.info('FacebookAdsService', 'Business managers found', {
+            count: businesses.length,
+            businesses: businesses.map(b => ({ id: b.id, name: b.name }))
+          });
+
+          for (const business of businesses) {
+            try {
+              // Get owned accounts
+              const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+              );
+              businessAccounts.push(...ownedAccounts);
+              
+              // Get client accounts
+              const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+              );
+              businessAccounts.push(...clientAccounts);
+              
+              debugLogger.info('FacebookAdsService', `Business ${business.name} accounts`, {
+                owned: ownedAccounts.length,
+                client: clientAccounts.length,
+                total: ownedAccounts.length + clientAccounts.length,
+                accounts: [...ownedAccounts, ...clientAccounts].map(acc => ({ id: acc.id, name: acc.name }))
+              });
+            } catch (error) {
+              debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
+            }
+          }
+          
+          allAccounts.push(...businessAccounts);
+        }
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching business accounts', error);
+      }
+
+      // 3. Get system user accounts
+      try {
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
+        systemUserAccounts.push(...sysUserAccounts);
+        allAccounts.push(...systemUserAccounts);
+        
+        debugLogger.info('FacebookAdsService', 'System user accounts found', {
+          count: systemUserAccounts.length,
+          accounts: systemUserAccounts.map(acc => ({ id: acc.id, name: acc.name }))
+        });
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching system user accounts', error);
+      }
+
+      // Remove duplicates
+      const uniqueAccounts = allAccounts.filter((account, index, self) =>
+        index === self.findIndex(a => a.id === account.id)
+      );
+
+      debugLogger.info('FacebookAdsService', 'Debug summary', {
+        userAccounts: userAccounts.length,
+        businessAccounts: businessAccounts.length,
+        systemUserAccounts: systemUserAccounts.length,
+        totalBeforeDedup: allAccounts.length,
+        uniqueAccounts: uniqueAccounts.length,
+        allAccountNames: uniqueAccounts.map(acc => acc.name)
+      });
+
+      return {
+        userAccounts,
+        businessAccounts,
+        systemUserAccounts,
+        allAccounts,
+        uniqueAccounts
+      };
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error in debugAdAccounts', error);
+      throw error;
+    }
+  }
+
+  // Clear cached ad accounts to force fresh fetch
+  static async clearAdAccountsCache(): Promise<void> {
+    try {
+      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
+      
+      // Clear the cached ad accounts from Supabase integration
+      await UnifiedCredentialService.updateCredentials('facebookAds', {
+        settings: {
+          adAccounts: []
+        },
+        lastUpdated: new Date().toISOString()
+      });
+      
+      debugLogger.info('FacebookAdsService', 'Cleared cached ad accounts');
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Failed to clear cached ad accounts', error);
       throw error;
     }
   }

@@ -16,8 +16,8 @@ import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
 import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
-import { HealthCheck } from "@/pages/health";
 import OAuthCallback from "@/pages/OAuthCallback";
+import { HealthCheck } from "@/pages/health";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -186,6 +186,7 @@ const App = () => {
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={<EventDashboard />} />
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin/clients/:clientId/edit" element={<AdminPanel />} />
                 <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
                 <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />

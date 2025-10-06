@@ -37,13 +37,21 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
         setPageData(data);
       } catch (error) {
         console.error('Failed to fetch page analytics:', error);
+        // Set empty data instead of leaving it null
+        setPageData({
+          pages: [],
+          totalPages: 0,
+          totalViews: 0,
+          totalConversions: 0,
+          averageConversionRate: 0
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchPageData();
-  }, [dateRange]);
+  }, [locationId, dateRange]);
 
   if (loading) {
     return (

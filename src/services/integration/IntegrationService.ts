@@ -147,11 +147,10 @@ export class UnifiedIntegrationService {
       
       const integrations = await this.getAllIntegrations();
       
-      // Define platform configurations
+      // Define platform configurations (admin-level only)
       const platformConfigs = [
         { key: 'facebook', name: 'Facebook Ads', platform: 'facebookAds' as IntegrationPlatform },
         { key: 'google', name: 'Google Ads', platform: 'googleAds' as IntegrationPlatform },
-        { key: 'gohighlevel', name: 'GoHighLevel', platform: 'goHighLevel' as IntegrationPlatform },
         { key: 'googlesheets', name: 'Google Sheets', platform: 'googleSheets' as IntegrationPlatform },
         { key: 'google-ai', name: 'Google AI Studio', platform: 'google-ai' as IntegrationPlatform }
       ];
@@ -214,6 +213,8 @@ export class UnifiedIntegrationService {
         return hasValidApiKey;
       }
       
+      // Google Sheets now has its own separate OAuth tokens
+      
       // For OAuth platforms, check if we have valid tokens (ignore connected flag for now)
       // This allows Google Sheets to work even if Google Ads is marked as disconnected but has tokens
       return hasValidTokens || hasValidApiKey;
@@ -239,7 +240,12 @@ export class UnifiedIntegrationService {
         return integration.config.tokens.accessToken;
       }
       
-      // Check API key
+      // Check for bearer token in apiKey field (GoHighLevel OAuth)
+      if (integration.config.apiKey?.keyType === 'bearer' && integration.config.apiKey.apiKey) {
+        return integration.config.apiKey.apiKey;
+      }
+      
+      // Check for regular API key
       if (integration.config.apiKey?.apiKey) {
         return integration.config.apiKey.apiKey;
       }
@@ -415,15 +421,20 @@ export class UnifiedIntegrationService {
     // Check for access token in different possible locations
     const accessToken = config.tokens?.accessToken || 
                        (config.tokens as any)?.access_token ||
-                       (config as any)?.accessToken;
+                       (config as any)?.accessToken ||
+                       // Check for bearer token in apiKey field (GoHighLevel OAuth)
+                       (config.apiKey?.keyType === 'bearer' ? config.apiKey.apiKey : null);
     
     if (!accessToken) {
       return false;
     }
     
     // Check if token is expired
-    const expiresAt = config.tokens?.expiresAt || 
+    const expiresAt = config.tokens?.tokenExpiresAt || 
+                     config.tokens?.expiresAt ||
                      (config.tokens as any)?.expires_at ||
+                     (config as any)?.expiresAt ||
+                     // Check expiresAt in root config (GoHighLevel OAuth)
                      (config as any)?.expiresAt;
     
     if (expiresAt) {

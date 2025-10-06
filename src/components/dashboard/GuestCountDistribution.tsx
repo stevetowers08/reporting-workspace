@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
+import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GuestCountDistributionProps {
   data: EventDashboardData | null | undefined;
@@ -14,10 +15,18 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await LeadDataService.fetchLeadData();
-        setLeadData(data);
+        console.log('GuestCountDistribution: Starting to fetch lead data...');
+        const leadDataResult = await LeadDataService.fetchLeadData();
+        console.log('GuestCountDistribution: Received lead data:', leadDataResult);
+        
+        if (leadDataResult) {
+          console.log('GuestCountDistribution: Guest ranges data:', leadDataResult.guestRanges);
+          setLeadData(leadDataResult);
+        } else {
+          console.warn('GuestCountDistribution: No data returned from LeadDataService');
+        }
       } catch (error) {
-        console.error('Failed to fetch lead data:', error);
+        console.error('GuestCountDistribution: Failed to fetch lead data:', error);
       } finally {
         setLoading(false);
       }
@@ -46,38 +55,72 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ 
 
   if (!leadData) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
-        <div className="text-center text-slate-500">Failed to load guest count data</div>
+      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
+        <div className="pb-4">
+          <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
+          <p className="text-sm text-slate-500">Average: 88 guests per lead</p>
+        </div>
+        <div className="h-64 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-slate-500 mb-2">Failed to load guest count data</div>
+            <div className="text-xs text-slate-400">
+              Check console for details. Proxy server may not be running.
+            </div>
+          </div>
+        </div>
       </Card>
     );
   }
   
+  // Prepare chart data
+  const chartData = leadData.guestRanges.map((range, index) => ({
+    name: range.range,
+    value: range.count,
+    percentage: range.percentage,
+    color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'][index % 5]
+  }));
+
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
       <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
         <p className="text-sm text-slate-500">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
       </div>
-      <div>
-        <div className="space-y-4">
-          {leadData.guestRanges.map((range, index) => {
-            const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500'];
-            const color = colors[index % colors.length];
-            
-            return (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${color}`}></div>
-                  <span className="text-sm font-medium text-slate-700">{range.range}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-slate-900">{range.count} leads</div>
-                  <div className="text-xs text-slate-500">{range.percentage.toFixed(1)}%</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart 
+            data={chartData} 
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          >
+            <XAxis 
+              dataKey="name"
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip 
+              formatter={(value: number, name: string, props: any) => [
+                `${value} leads (${props.payload?.percentage?.toFixed(1) || '0'}%)`,
+                'Count'
+              ]}
+              labelStyle={{ color: '#374151' }}
+              contentStyle={{ 
+                backgroundColor: '#fff', 
+                border: '1px solid #E2E8F0',
+                borderRadius: '6px'
+              }}
+            />
+            <Bar 
+              dataKey="value" 
+              fill="#10B981"
+              radius={[4, 4, 0, 0]}
+            >
+              <LabelList dataKey="value" position="top" style={{ fontSize: '12px', fill: '#374151' }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </Card>
   );

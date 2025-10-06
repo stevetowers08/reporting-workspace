@@ -16,7 +16,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 const SummaryMetricsCards = lazy(() => import('@/components/dashboard/SummaryMetricsCards').then(m => ({ default: m.SummaryMetricsCards })));
 const MetaAdsMetricsCards = lazy(() => import('@/components/dashboard/MetaAdsMetricsCards').then(m => ({ default: m.MetaAdsMetricsCards })));
 const GoogleAdsMetricsCards = lazy(() => import('@/components/dashboard/GoogleAdsMetricsCards').then(m => ({ default: m.GoogleAdsMetricsCards })));
-const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(m => ({ default: m.LeadInfoMetricsCards })));
 const PlatformPerformanceStatusChart = lazy(() => import('@/components/dashboard/PlatformPerformanceStatusChart').then(m => ({ default: m.PlatformPerformanceStatusChart })));
 const KeyInsights = lazy(() => import('@/components/dashboard/KeyInsights').then(m => ({ default: m.KeyInsights })));
 const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDemographics').then(m => ({ default: m.MetaAdsDemographics })));
@@ -28,14 +27,20 @@ const LeadSourceBreakdown = lazy(() => import('@/components/dashboard/LeadSource
 const GuestCountDistribution = lazy(() => import('@/components/dashboard/GuestCountDistribution').then(m => ({ default: m.GuestCountDistribution })));
 const PreferredDayBreakdown = lazy(() => import('@/components/dashboard/PreferredDayBreakdown').then(m => ({ default: m.PreferredDayBreakdown })));
 const LandingPagePerformance = lazy(() => import('@/components/dashboard/LandingPagePerformance').then(m => ({ default: m.LandingPagePerformance })));
+const SmartChartLayout = lazy(() => import('@/components/dashboard/SmartChartLayout').then(m => ({ default: m.SmartChartLayout })));
 
 // GHL-specific components
 const GHLContactQualityCards = lazy(() => import('@/components/dashboard/GHLContactQualityCards').then(m => ({ default: m.GHLContactQualityCards })));
-const GHLFunnelChart = lazy(() => import('@/components/dashboard/GHLFunnelChart').then(m => ({ default: m.GHLFunnelChart })));
-const GHLFunnelAnalytics = lazy(() => import('@/components/dashboard/GHLFunnelAnalytics').then(m => ({ default: m.GHLFunnelAnalytics })));
-const GHLPageAnalytics = lazy(() => import('@/components/dashboard/GHLPageAnalytics').then(m => ({ default: m.GHLPageAnalytics })));
+// const GHLPageAnalytics = lazy(() => import('@/components/dashboard/GHLPageAnalytics').then(m => ({ default: m.GHLPageAnalytics })));
 const GHLPipelineStages = lazy(() => import('@/components/dashboard/GHLPipelineStages').then(m => ({ default: m.GHLPipelineStages })));
 const GHLPageViewsAnalytics = lazy(() => import('@/components/dashboard/GHLPageViewsAnalytics').then(m => ({ default: m.GHLPageViewsAnalytics })));
+
+// New venue-focused components
+const EventTypesBreakdown = lazy(() => import('@/components/dashboard/EventTypesBreakdown').then(m => ({ default: m.EventTypesBreakdown })));
+const FunnelPerformance = lazy(() => import('@/components/dashboard/FunnelPerformance').then(m => ({ default: m.FunnelPerformance })));
+const OpportunityStagesChart = lazy(() => import('@/components/dashboard/OpportunityStagesChart').then(m => ({ default: m.OpportunityStagesChart })));
+const FunnelMetricsCards = lazy(() => import('@/components/dashboard/FunnelMetricsCards').then(m => ({ default: m.FunnelMetricsCards })));
+const DailyFunnelAnalytics = lazy(() => import('@/components/dashboard/DailyFunnelAnalytics').then(m => ({ default: m.DailyFunnelAnalytics })));
 
 interface EventDashboardProps {
   isShared?: boolean;
@@ -87,6 +92,37 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     name: client.name,
     logo_url: client.logo_url
   }));
+
+  // Helper function to get date range based on selected period
+  const getDateRange = useCallback((period: string) => {
+    const endDate = new Date();
+    const startDate = new Date();
+    
+    switch (period) {
+      case '7d':
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+      case '14d':
+        startDate.setDate(endDate.getDate() - 14);
+        break;
+      case '30d':
+        startDate.setDate(endDate.getDate() - 30);
+        break;
+      case '90d':
+        startDate.setDate(endDate.getDate() - 90);
+        break;
+      case '1y':
+        startDate.setDate(endDate.getDate() - 365);
+        break;
+      default:
+        startDate.setDate(endDate.getDate() - 30);
+    }
+    
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0]
+    };
+  }, []);
 
   const handleExportPDF = useCallback(async () => {
     if (!dashboardData || !clientData) {return;}
@@ -284,56 +320,27 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             </div>
           </TabsContent>
 
-          {/* Lead Info Tab - Simplified for Venue Owners */}
+          {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
-            {/* Core Lead Metrics - Most Valuable for Venue Owners */}
+            {/* Top-Level Funnel Metrics - Very Top */}
             <Suspense fallback={<ComponentLoader />}>
-              <LeadInfoMetricsCards data={dashboardData} />
+              <FunnelMetricsCards 
+                locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
+                dateRange={getDateRange(selectedPeriod)} 
+              />
             </Suspense>
             
-            {/* Lead Source Performance - Shows which channels work best */}
+            {/* Smart Chart Layout - 2 columns with automatic reordering */}
             <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
-                <LeadSourceBreakdown data={dashboardData} />
+                <SmartChartLayout 
+                  dashboardData={dashboardData}
+                  dateRange={getDateRange(selectedPeriod)}
+                  locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'}
+                />
               </Suspense>
             </div>
             
-            {/* Guest Count Distribution - Shows venue capacity planning */}
-            <div className="mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <GuestCountDistribution data={dashboardData} />
-              </Suspense>
-            </div>
-            
-        {/* Conversion Funnel - Shows customer journey from page views to bookings */}
-        <div className="mt-6">
-          <Suspense fallback={<ComponentLoader />}>
-            <GHLFunnelChart 
-              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
-              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
-            />
-          </Suspense>
-        </div>
-
-        {/* Funnel Analytics - Detailed funnel performance */}
-        <div className="mt-6">
-          <Suspense fallback={<ComponentLoader />}>
-            <GHLFunnelAnalytics 
-              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
-              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
-            />
-          </Suspense>
-        </div>
-
-        {/* Page Analytics - Landing page performance */}
-        <div className="mt-6">
-          <Suspense fallback={<ComponentLoader />}>
-            <GHLPageAnalytics 
-              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
-              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
-            />
-          </Suspense>
-        </div>
           </TabsContent>
 
         </Tabs>

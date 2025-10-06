@@ -2,7 +2,22 @@
 
 ## Overview
 
-This guide provides comprehensive documentation for integrating with the Go High Level API using **Private Integration Tokens (PIT)** for simplified authentication. Our implementation uses a **single agency token approach** with **lazy loading** for optimal performance.
+This guide provides comprehensive documentation for integrating with the Go High Level API using **OAuth 2.0** for secure authentication. Our implementation supports both **agency-level** and **location-level** tokens with **API 2.0** endpoints for optimal performance and data access.
+
+## Recent Updates (January 2025)
+
+### ✅ OAuth 2.0 Integration Complete
+- **OAuth Flow**: Full OAuth 2.0 implementation with authorization code exchange
+- **Token Management**: Automatic token refresh and secure storage
+- **API 2.0 Endpoints**: Updated to use correct API 2.0 endpoints for all data access
+- **Location-Level Access**: Direct OAuth connection to specific GoHighLevel locations
+- **Real-time Testing**: Successfully tested with Magnolia Terrace location (V7bzEjKiigXzh8r6sQq0)
+
+### ✅ Working API 2.0 Endpoints
+- **Contacts**: `POST /contacts/search` - ✅ Working (20 contacts retrieved)
+- **Calendars**: `GET /calendars/?locationId=...` - ✅ Working (5 calendars found)
+- **Funnels**: `GET /funnels/funnel/list?locationId=...` - ✅ Working (9 funnels found)
+- **Opportunities**: `POST /opportunities/search` - ✅ Working (API ready, no data yet)
 
 ## Table of Contents
 
@@ -56,151 +71,179 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=refresh_token&refresh_token={refresh_token}&client_id={client_id}&client_secret={client_secret}&user_type=Location
 ```
 
-#### 2. Data Endpoints
+#### 2. Data Endpoints (API 2.0)
 ```typescript
-// Get All Contacts (Paginated)
-GET /contacts/?locationId={locationId}&limit=100
+// Get Contacts (API 2.0 - POST Search)
+POST /contacts/search
 Headers:
   Authorization: Bearer {access_token}
   Version: 2021-07-28
   Content-Type: application/json
+Body:
+{
+  "locationId": "{locationId}",
+  "query": "",
+  "pageLimit": 10
+}
 
-// Get Account Information
-GET /locations/{locationId}
+// Get Calendars (API 2.0)
+GET /calendars/?locationId={locationId}
 Headers:
   Authorization: Bearer {access_token}
   Version: 2021-07-28
 
-// Get Opportunities
-GET /opportunities/?locationId={locationId}
+// Get Funnels (API 2.0)
+GET /funnels/funnel/list?locationId={locationId}
 Headers:
   Authorization: Bearer {access_token}
   Version: 2021-07-28
+
+// Get Opportunities (API 2.0 - POST Search)
+POST /opportunities/search
+Headers:
+  Authorization: Bearer {access_token}
+  Version: 2021-07-28
+  Content-Type: application/json
+Body:
+{
+  "locationId": "{locationId}",
+  "query": ""
+}
 ```
 
 ## Authentication Flow
 
-### 1. Private Integration Token Setup
+### 1. OAuth 2.0 Setup
 ```typescript
-interface GHLPrivateIntegration {
-  agencyToken: string;
-  companyId: string;
-  capabilities: string[];
+interface GHLOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  scopes: string[];
 }
 
-// Token validation
-const validateTokenFormat = (token: string): boolean => {
-  return token.startsWith('pit-');
-};
+// Required OAuth Scopes
+const REQUIRED_SCOPES = [
+  'contacts.readonly',           // Access contact data
+  'opportunities.readonly',      // Access pipeline data  
+  'calendars.readonly',          // Access calendar events
+  'funnels/funnel.readonly',     // Access funnel data
+  'funnels/page.readonly'        // Access page data
+];
 
-// Environment Variables - No longer needed!
-// Private Integration Tokens are stored in the database
-// Only Supabase configuration is required
-const supabaseConfig = {
-  url: process.env.REACT_APP_SUPABASE_URL!,
-  anonKey: process.env.REACT_APP_SUPABASE_ANON_KEY!
+// Environment Variables
+const oauthConfig: GHLOAuthConfig = {
+  clientId: process.env.GHL_CLIENT_ID!,
+  clientSecret: process.env.GHL_CLIENT_SECRET!,
+  redirectUri: `${process.env.APP_URL}/api/leadconnector/oath`,
+  scopes: REQUIRED_SCOPES
 };
 ```
 
-### 2. Agency Token Testing and Validation
+### 2. OAuth Authorization Flow
 ```typescript
-static async testAgencyToken(token: string): Promise<{
-  valid: boolean;
-  capabilities: string[];
-  companyId?: string;
-}> {
-  if (!this.validateTokenFormat(token)) {
-    throw new Error('Invalid token format. Must start with "pit-"');
+// Generate OAuth Authorization URL
+static getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[]): string {
+  const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: scopes.join(' ')
+  });
+  return `${baseUrl}?${params.toString()}`;
+}
+
+// Exchange Authorization Code for Access Token
+static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<{ access_token: string; refresh_token: string }> {
+  const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Token exchange failed: ${response.statusText}`);
   }
 
-  try {
-    // Test with company info endpoint
-    const response = await fetch(`${this.API_BASE_URL}/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Version': '2021-07-28',
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Token validation failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    return {
-      valid: true,
-      capabilities: ['locations.readonly', 'contacts.readonly', 'opportunities.readonly'],
-      companyId: 'WgNZ7xm35vYaZwflSov7' // Known company ID
-    };
-  } catch (error) {
-    throw new Error(`Token test failed: ${error.message}`);
-  }
+  return await response.json();
 }
 ```
 
-### 3. Location Data Access
+### 3. API 2.0 Data Access Examples
 ```typescript
-static async getAllLocations(): Promise<Array<{
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  phone: string;
-  website: string;
-  timezone: string;
-  currency: string;
-  status: string;
-}>> {
-  try {
-    if (!this.agencyToken) {
-      await this.loadAgencyToken();
-    }
+// Get Contacts using API 2.0
+static async getContacts(locationId: string, limit = 10): Promise<any[]> {
+  const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${this.accessToken}`,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      locationId: locationId,
+      query: '',
+      pageLimit: limit
+    })
+  });
 
-    if (!this.agencyToken) {
-      throw new Error('Agency token not set. Please configure in admin settings.');
-    }
-
-    const { companyId } = await this.getCompanyInfo();
-
-    const response = await fetch(`${this.API_BASE_URL}/locations/search?companyId=${companyId}&limit=100`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.agencyToken}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28',
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get locations: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const locations = data.locations || [];
-    
-    return locations.map((location: any) => ({
-      id: location.id,
-      name: location.name,
-      address: location.address,
-      city: location.city,
-      state: location.state,
-      zipCode: location.postalCode || location.zipCode,
-      country: location.country,
-      phone: location.phone,
-      website: location.website,
-      timezone: location.timezone,
-      currency: location.currency,
-      status: location.status || 'active'
-    }));
-
-  } catch (error) {
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Failed to get contacts: ${response.statusText}`);
   }
+
+  const data = await response.json();
+  return data.contacts || [];
+}
+
+// Get Funnels using API 2.0
+static async getFunnels(locationId: string): Promise<any[]> {
+  const response = await fetch(`${this.API_BASE_URL}/funnels/funnel/list?locationId=${locationId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${this.accessToken}`,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json',
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get funnels: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.funnels || [];
+}
+
+// Get Opportunities using API 2.0
+static async getOpportunities(locationId: string): Promise<any[]> {
+  const response = await fetch(`${this.API_BASE_URL}/opportunities/search`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${this.accessToken}`,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      locationId: locationId,
+      query: ''
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get opportunities: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.opportunities || [];
 }
 ```
 

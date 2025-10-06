@@ -83,8 +83,10 @@ export class EventMetricsService {
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds));}
       if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange));}
-      if (hasGoHighLevel) {promises.push(this.getGHLMetrics(dateRange, clientAccounts?.goHighLevel));}
-      if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange));}
+      if (hasGoHighLevel) {
+        promises.push(this.getGHLMetrics(dateRange, clientAccounts?.goHighLevel));
+      }
+      if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange, clientAccounts));}
 
       const results = await Promise.all(promises);
 
@@ -201,17 +203,32 @@ export class EventMetricsService {
         debugLogger.warn('EventMetricsService', 'No GoHighLevel location ID provided');
         return this.getEmptyGHLMetrics();
       }
-      return await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+      const result = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+      return result;
     } catch (error) {
+      console.error('🔍 EventMetricsService: GoHighLevel metrics error:', error);
       debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
       return this.getEmptyGHLMetrics();
     }
   }
 
-  private static async getEventMetrics(dateRange: { start: string; end: string }): Promise<EventMetrics> {
+  private static async getEventMetrics(
+    dateRange: { start: string; end: string },
+    clientAccounts?: { googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } }
+  ): Promise<EventMetrics> {
     try {
-      // Use the working LeadDataService instead of the problematic GoogleSheetsService
-      const leadData = await LeadDataService.fetchLeadData();
+      // Use client-specific Google Sheets configuration if available
+      let leadData;
+      if (clientAccounts?.googleSheetsConfig) {
+        leadData = await LeadDataService.fetchLeadData(
+          clientAccounts.googleSheetsConfig.spreadsheetId,
+          clientAccounts.googleSheetsConfig.sheetName
+        );
+      } else {
+        // Fallback to default configuration
+        leadData = await LeadDataService.fetchLeadData();
+      }
+      
       if (leadData) {
         return {
           totalEvents: leadData.totalLeads,

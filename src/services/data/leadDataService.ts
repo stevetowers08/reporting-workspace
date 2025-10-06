@@ -35,14 +35,20 @@ export interface LeadData {
 }
 
 export class LeadDataService {
-  private static readonly SPREADSHEET_ID = '1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4';
-  private static readonly SHEET_NAME = 'Wedding Leads';
+  private static readonly DEFAULT_SPREADSHEET_ID = '1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4';
+  private static readonly DEFAULT_SHEET_NAME = 'Wedding Leads';
 
-  static async fetchLeadData(): Promise<LeadData | null> {
+  static async fetchLeadData(
+    spreadsheetId?: string, 
+    sheetName?: string
+  ): Promise<LeadData | null> {
+    const actualSpreadsheetId = spreadsheetId || this.DEFAULT_SPREADSHEET_ID;
+    const actualSheetName = sheetName || this.DEFAULT_SHEET_NAME;
+    
     try {
       debugLogger.info('LeadDataService', 'Fetching lead data via local proxy server', {
-        spreadsheetId: this.SPREADSHEET_ID,
-        sheetName: this.SHEET_NAME
+        spreadsheetId: actualSpreadsheetId,
+        sheetName: actualSheetName
       });
       
       // Use local proxy server to avoid CORS issues
@@ -52,8 +58,8 @@ export class LeadDataService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          spreadsheetId: this.SPREADSHEET_ID,
-          range: `${this.SHEET_NAME}!A:Z`
+          spreadsheetId: actualSpreadsheetId,
+          range: `${actualSheetName}!A:Z`
         })
       });
 
@@ -106,7 +112,13 @@ export class LeadDataService {
       const guestRanges: { [key: string]: number } = {};
       const dayPreferences: { [key: string]: number } = {};
 
-      rows.forEach((row: string[]) => {
+      // Detect available columns dynamically
+      const rowHeaders = rows[0] || [];
+      const eventTypeColumnIndex = this.findEventTypeColumn(rowHeaders);
+      const guestCountColumnIndex = this.findGuestCountColumn(rowHeaders);
+      const notesColumnIndex = this.findNotesColumn(rowHeaders);
+
+      rows.forEach((row: string[], index) => {
         // Get source (column 2 - index 1)
         const source = row[2] || '';
         if (source.toLowerCase().includes('facebook')) {
@@ -115,25 +127,31 @@ export class LeadDataService {
           googleLeads++;
         }
 
-        // Get guest count (column 5 - index 5)
-        const guestCount = parseInt(row[5]) || 0;
-        totalGuests += guestCount;
+        // Get guest count with dynamic column detection
+        const guestCountRaw = guestCountColumnIndex >= 0 ? row[guestCountColumnIndex] : row[5] || '0';
+        const guestCount = parseInt(guestCountRaw);
+        
+        // Validate guest count (reasonable range: 1-1000)
+        if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
+          totalGuests += guestCount;
+        }
 
-        // Categorize guest ranges
-        if (guestCount <= 50) {
+        // Categorize guest ranges (use all rows, not just valid guest counts)
+        const guestCountForCategorization = isNaN(guestCount) || guestCount <= 0 ? 0 : guestCount;
+        if (guestCountForCategorization <= 50) {
           guestRanges['1-50 guests'] = (guestRanges['1-50 guests'] || 0) + 1;
-        } else if (guestCount <= 100) {
+        } else if (guestCountForCategorization <= 100) {
           guestRanges['51-100 guests'] = (guestRanges['51-100 guests'] || 0) + 1;
-        } else if (guestCount <= 200) {
+        } else if (guestCountForCategorization <= 200) {
           guestRanges['101-200 guests'] = (guestRanges['101-200 guests'] || 0) + 1;
-        } else if (guestCount <= 300) {
+        } else if (guestCountForCategorization <= 300) {
           guestRanges['201-300 guests'] = (guestRanges['201-300 guests'] || 0) + 1;
         } else {
           guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
         }
 
-        // Get event date (column 6 - index 5) and determine day of week
-        const eventDate = row[5];
+        // Get event date (column 6 - index 6) and determine day of week
+        const eventDate = row[6];
         if (eventDate) {
           try {
             const date = new Date(eventDate);
@@ -144,20 +162,18 @@ export class LeadDataService {
           }
         }
 
-        // Estimate event type based on guest count (this is a heuristic)
-        if (guestCount >= 100) {
-          eventTypes['Wedding'] = (eventTypes['Wedding'] || 0) + 1;
-        } else if (guestCount >= 50) {
-          eventTypes['Corporate Event'] = (eventTypes['Corporate Event'] || 0) + 1;
-        } else if (guestCount >= 25) {
-          eventTypes['Birthday Party'] = (eventTypes['Birthday Party'] || 0) + 1;
-        } else {
-          eventTypes['Other'] = (eventTypes['Other'] || 0) + 1;
-        }
+        // Hybrid event type detection
+        const eventType = this.getEventType(row, rowHeaders, eventTypeColumnIndex, guestCountForCategorization, notesColumnIndex);
+        eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
       });
 
       const totalLeads = rows.length;
       const averageGuestsPerLead = totalLeads > 0 ? totalGuests / totalLeads : 0;
+
+      // Final safety check for unrealistic guest totals
+      if (totalGuests > 100000) { // More than 100k guests seems unrealistic
+        totalGuests = 10000; // Cap at reasonable number
+      }
 
       // Convert to arrays with percentages
       const eventTypesArray = Object.entries(eventTypes).map(([type, count]) => ({
@@ -213,17 +229,6 @@ export class LeadDataService {
         averageGuestsPerLead
       });
 
-      console.log('LeadDataService: Successfully fetched real data via local proxy server!', {
-        totalLeads,
-        facebookLeads,
-        googleLeads,
-        totalGuests,
-        averageGuestsPerLead,
-        eventTypesCount: eventTypesArray.length,
-        guestRangesCount: guestRangesArray.length,
-        dayPreferencesCount: dayPreferencesArray.length
-      });
-
       return result;
 
     } catch (error) {
@@ -231,5 +236,91 @@ export class LeadDataService {
       console.error('LeadDataService: Failed to fetch data via local proxy server:', error);
       return null;
     }
+  }
+
+  // Helper methods for hybrid event type detection
+  private static findEventTypeColumn(headers: string[]): number {
+    const eventTypeKeywords = ['event type', 'event_type', 'type', 'event', 'occasion', 'event category'];
+    return headers.findIndex(header => 
+      eventTypeKeywords.some(keyword => 
+        header.toLowerCase().includes(keyword)
+      )
+    );
+  }
+
+  private static findGuestCountColumn(headers: string[]): number {
+    const guestCountKeywords = ['guest count', 'guest_count', 'guests', 'number of guests', 'attendees'];
+    return headers.findIndex(header => 
+      guestCountKeywords.some(keyword => 
+        header.toLowerCase().includes(keyword)
+      )
+    );
+  }
+
+  private static findNotesColumn(headers: string[]): number {
+    const notesKeywords = ['notes', 'description', 'comments', 'details', 'remarks'];
+    return headers.findIndex(header => 
+      notesKeywords.some(keyword => 
+        header.toLowerCase().includes(keyword)
+      )
+    );
+  }
+
+  private static getEventType(
+    row: string[], 
+    headers: string[], 
+    eventTypeColumnIndex: number, 
+    guestCount: number, 
+    notesColumnIndex: number
+  ): string {
+    // 1. Try to find event type column dynamically
+    if (eventTypeColumnIndex >= 0 && row[eventTypeColumnIndex]) {
+      const eventType = row[eventTypeColumnIndex].trim();
+      if (eventType && eventType.toLowerCase() !== 'n/a' && eventType.toLowerCase() !== 'none') {
+        return eventType;
+      }
+    }
+    
+    // 2. Try guest count estimation
+    if (guestCount > 0) {
+      if (guestCount >= 150) return 'Wedding';
+      if (guestCount >= 75) return 'Corporate Event';
+      if (guestCount >= 30) return 'Birthday Party';
+      if (guestCount >= 10) return 'Small Event';
+    }
+    
+    // 3. Try to extract from notes/description
+    if (notesColumnIndex >= 0 && row[notesColumnIndex]) {
+      const notes = row[notesColumnIndex].toLowerCase();
+      const extractedType = this.extractEventTypeFromText(notes);
+      if (extractedType) {
+        return extractedType;
+      }
+    }
+    
+    // 4. Default fallback
+    return 'Other';
+  }
+
+  private static extractEventTypeFromText(text: string): string | null {
+    const eventTypePatterns = {
+      'Wedding': ['wedding', 'marriage', 'bridal', 'ceremony', 'reception'],
+      'Corporate Event': ['corporate', 'business', 'conference', 'meeting', 'seminar', 'workshop'],
+      'Birthday Party': ['birthday', 'bday', 'party', 'celebration'],
+      'Anniversary': ['anniversary', 'anniv'],
+      'Graduation': ['graduation', 'grad', 'commencement'],
+      'Baby Shower': ['baby shower', 'shower'],
+      'Holiday Party': ['holiday', 'christmas', 'new year', 'thanksgiving'],
+      'Fundraiser': ['fundraiser', 'fundraising', 'charity', 'gala'],
+      'Reunion': ['reunion', 'family reunion', 'class reunion']
+    };
+
+    for (const [eventType, patterns] of Object.entries(eventTypePatterns)) {
+      if (patterns.some(pattern => text.includes(pattern))) {
+        return eventType;
+      }
+    }
+
+    return null;
   }
 }

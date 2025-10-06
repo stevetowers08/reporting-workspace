@@ -3,6 +3,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useErrorHandler } from '@/contexts/ErrorContext';
 import { debugLogger } from '@/lib/debug';
+import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { UserGoogleAdsService } from '@/services/auth/userGoogleAdsService';
 import { IntegrationService } from '@/services/integration/IntegrationService';
@@ -86,37 +87,8 @@ const OAuthCallback = () => {
         if (platform === 'google' && integrationPlatform === 'googleSheets') {
           console.log('🔄 Handling Google Sheets OAuth callback...');
           
-          // Exchange code for tokens
-          const tokens = await OAuthService.exchangeCodeForTokens(platform, code, state);
-          
-          // Get user info from Google
-          const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: {
-              'Authorization': `Bearer ${tokens.accessToken}`
-            }
-          });
-          
-          const userInfo = await userInfoResponse.json();
-          
-          // Save Google Sheets integration
-          await IntegrationService.saveIntegration('googleSheets', {
-            connected: true,
-            connectedAt: new Date().toISOString(),
-            lastSync: new Date().toISOString(),
-            syncStatus: 'idle',
-            accountInfo: {
-              id: userInfo.id,
-              name: userInfo.name || userInfo.email,
-              email: userInfo.email
-            },
-            tokens: {
-              accessToken: tokens.accessToken,
-              refreshToken: tokens.refreshToken,
-              expiresIn: tokens.expiresIn,
-              tokenType: tokens.tokenType,
-              scope: tokens.scope
-            }
-          });
+          // Use the new Google Sheets OAuth service
+          await GoogleSheetsOAuthService.handleSheetsAuthCallback(code, state);
           
           setStatus('success');
           setMessage('Successfully connected Google Sheets!');

@@ -23,24 +23,17 @@ export class GoogleSheetsService {
    */
   static async getAccessToken(): Promise<string | null> {
     try {
-      const { TokenManager } = await import('@/services/auth/TokenManager');
+      // Use the new GoogleSheetsOAuthService
+      const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+      const token = await GoogleSheetsOAuthService.getSheetsAccessToken();
       
-      // First try Google Ads tokens (they include Google Sheets scopes)
-      let token = await TokenManager.getAccessToken('googleAds');
       if (token) {
-        debugLogger.debug('GoogleSheetsService', 'Using Google Ads tokens for Google Sheets access', { hasAccessToken: true });
+        debugLogger.debug('GoogleSheetsService', 'Using Google Sheets OAuth tokens', { hasAccessToken: true });
         return token;
       }
       
-      // Fallback to Google Sheets specific tokens (if they exist)
-      token = await TokenManager.getAccessToken('googleSheets');
-      if (token) {
-        debugLogger.debug('GoogleSheetsService', 'Using Google Sheets specific tokens', { hasAccessToken: true });
-        return token;
-      }
-      
-      debugLogger.error('GoogleSheetsService', 'No access token available from either Google Ads or Google Sheets');
-      console.error('GoogleSheetsService: No access token available. Please ensure Google OAuth is connected.');
+      debugLogger.error('GoogleSheetsService', 'No Google Sheets access token available');
+      console.error('GoogleSheetsService: No access token available. Please connect Google Sheets first.');
       return null;
     } catch (error) {
       debugLogger.error('GoogleSheetsService', 'Failed to get access token', error);
