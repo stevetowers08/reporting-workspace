@@ -28,7 +28,7 @@ export class GoogleSheetsOAuthService {
 
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-      redirect_uri: redirectUri || `${window.location.origin}/oauth/callback`,
+      redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'),
       response_type: 'code',
       scope: this.GOOGLE_SHEETS_SCOPE,
       access_type: 'offline',
@@ -60,7 +60,7 @@ export class GoogleSheetsOAuthService {
           client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: import.meta.env.DEV ? 'http://localhost:8080/oauth/callback' : `${window.location.origin}/oauth/callback`
+          redirect_uri: window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'
         })
       });
 
