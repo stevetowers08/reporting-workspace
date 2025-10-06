@@ -27,7 +27,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
     
     authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('redirect_uri', import.meta.env.VITE_GHL_REDIRECT_URI || `${window.location.origin}/leadconnector/oath`);
+    authUrl.searchParams.append('redirect_uri', import.meta.env.VITE_GHL_REDIRECT_URI || `${window.location.origin}/api/leadconnector/oath`);
     authUrl.searchParams.append('client_id', import.meta.env.VITE_GHL_CLIENT_ID);
     authUrl.searchParams.append('scope', 'contacts.readonly opportunities.readonly calendars.readonly funnels/funnel.readonly funnels/page.readonly');
     

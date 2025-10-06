@@ -1,4 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -30,12 +30,12 @@ export default async function handler(req, res) {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-          client_id: process.env.VITE_GHL_CLIENT_ID!,
-          client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
+          client_id: process.env.VITE_GHL_CLIENT_ID || process.env.GHL_CLIENT_ID,
+          client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET,
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Company',
-          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/leadconnector/oath`
+          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
         })
       }
     );
