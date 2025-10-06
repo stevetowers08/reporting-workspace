@@ -20,7 +20,7 @@ const OAuthCallback = () => {
   const { handleAuthError, handleNetworkError } = useErrorHandler();
 
   // Debug: Log component mounting
-  console.log('🔍 OAuthCallback component mounted');
+  console.log('🔍 OAuthCallback component mounted - v2');
   console.log('🔍 Current URL:', window.location.href);
   console.log('🔍 Search params:', window.location.search);
 
