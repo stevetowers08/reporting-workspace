@@ -20,9 +20,10 @@ const OAuthCallback = () => {
   const { handleAuthError, handleNetworkError } = useErrorHandler();
 
   // Debug: Log component mounting
-  console.log('🔍 OAuthCallback component mounted - v2');
+  console.log('🔍 OAuthCallback component mounted - v3 - FORCE REBUILD');
   console.log('🔍 Current URL:', window.location.href);
   console.log('🔍 Search params:', window.location.search);
+  console.log('🔍 Component version: 3.0.0');
 
   useEffect(() => {
     console.log('🔍 useEffect triggered - OAuth callback starting');
