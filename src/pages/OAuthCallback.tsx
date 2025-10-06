@@ -110,25 +110,8 @@ const OAuthCallback = () => {
           console.log('🔍 Processing generic OAuth for platform:', platform);
           const integrationPlatform = (stateData.integrationPlatform || platform) as IntegrationPlatform;
           // Use the original platform for OAuthService (not integrationPlatform) to match code verifier storage
-          const authResult = await OAuthService.exchangeCodeForTokens(platform, code, state);
-          
-          // Map Google response fields to OAuthTokens format
-          const oauthTokens: OAuthTokens = {
-            accessToken: authResult.access_token || authResult.accessToken,
-            refreshToken: authResult.refresh_token || authResult.refreshToken,
-            tokenExpiresAt: authResult.tokenExpiresAt || (authResult.expires_in ? new Date(Date.now() + (authResult.expires_in * 1000)).toISOString() : undefined),
-            tokenType: authResult.token_type || authResult.tokenType || 'Bearer',
-            scope: authResult.scope
-          };
-
-          const accountInfo: AccountInfo = {
-            accountId: authResult.accountId || 'unknown',
-            accountName: authResult.accountName || `${platform} Account`,
-            accountEmail: authResult.accountEmail,
-            accountType: 'personal'
-          };
-
-          await IntegrationService.saveOAuthTokens(integrationPlatform, oauthTokens, accountInfo);
+          // OAuthService.exchangeCodeForTokens() already stores tokens via TokenManager
+          await OAuthService.exchangeCodeForTokens(platform, code, state);
           setStatus('success');
           setMessage(`Successfully connected to ${platform}!`);
         }
