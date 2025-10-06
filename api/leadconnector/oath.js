@@ -1,11 +1,3 @@
-const { createClient } = require('@supabase/supabase-js');
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
-);
-
 module.exports = async function handler(req, res) {
   try {
     const { query } = req;
@@ -69,59 +61,35 @@ module.exports = async function handler(req, res) {
 
     if (!tokenResponse.ok) {
       console.error('❌ Token exchange failed:', tokenData);
-      throw new Error(tokenData.message || tokenData.error || 'Token exchange failed');
+      res.status(400).json({ 
+        error: 'Token exchange failed', 
+        message: tokenData.message || tokenData.error || 'Token exchange failed',
+        details: tokenData
+      });
+      return;
     }
 
     if (!tokenData.access_token) {
       console.error('❌ No access token in response:', tokenData);
-      throw new Error('No access token received from GoHighLevel');
+      res.status(400).json({ error: 'No access token received from GoHighLevel' });
+      return;
     }
 
     if (!tokenData.locationId) {
       console.error('❌ No location ID in response:', tokenData);
-      throw new Error('No location ID received from GoHighLevel');
+      res.status(400).json({ error: 'No location ID received from GoHighLevel' });
+      return;
     }
 
-    console.log('🔍 Saving token to Supabase...');
+    console.log('✅ Token exchange successful, skipping Supabase save for now');
     
-    // Store in Supabase - use insert with on_conflict for proper upsert
-    const { error: saveError } = await supabase
-      .from('integrations')
-      .upsert({
-        platform: 'goHighLevel',
-        account_id: tokenData.locationId,
-        account_name: `Location ${tokenData.locationId}`,
-        connected: true,
-        config: {
-          apiKey: {
-            apiKey: tokenData.access_token,
-            keyType: 'bearer'
-          },
-          refreshToken: tokenData.refresh_token,
-          expiresIn: tokenData.expires_in,
-          expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          scopes: tokenData.scope?.split(' ') || [],
-          locationId: tokenData.locationId,
-          userType: tokenData.userType,
-          lastSync: new Date().toISOString(),
-          connectedAt: new Date().toISOString()
-        }
-      }, {
-        onConflict: 'platform,account_id'
-      });
-
-    if (saveError) {
-      console.error('❌ Error saving token to database:', saveError);
-      console.error('❌ Save error details:', JSON.stringify(saveError, null, 2));
-      throw new Error(`Failed to save token to database: ${saveError.message}`);
-    }
-
-    console.log('✅ Token saved to database successfully');
-
-    console.log('✅ OAuth flow completed successfully');
-    
-    // Redirect back to dashboard with success
-    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?connected=true&location=${tokenData.locationId}`);
+    // Return success without saving to Supabase for now
+    res.status(200).json({ 
+      success: true, 
+      message: 'Token exchange successful',
+      locationId: tokenData.locationId,
+      hasToken: !!tokenData.access_token
+    });
     
   } catch (error) {
     console.error('❌ OAuth error:', error);
