@@ -17,14 +17,14 @@ interface PipelineStage {
 
 const PIPELINE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ dateRange }) => {
+export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId, dateRange }) => {
   const [pipelineData, setPipelineData] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPipelineData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(dateRange);
+        const metrics = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
         
         // Get all contacts to analyze pipeline stages
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out

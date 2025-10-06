@@ -125,7 +125,7 @@ export class TokenManager {
   /**
    * Get access token for a platform
    */
-  static async getAccessToken(platform: IntegrationPlatform): Promise<string | null> {
+  static async getAccessToken(platform: IntegrationPlatform, skipRefresh = false): Promise<string | null> {
     try {
       debugLogger.info('TokenManager', `Getting access token for ${platform}`);
       console.log(`TokenManager: Getting access token for ${platform}`);
@@ -160,19 +160,26 @@ export class TokenManager {
           const now = new Date();
           const timeUntilExpiry = expiresAtDate.getTime() - now.getTime();
           
-          if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD) {
+          if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD && !skipRefresh) {
             debugLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
+            
+            // Skip refresh for Google Ads since it's not properly connected
+            if (platform === 'googleAds') {
+              debugLogger.warn('TokenManager', `Skipping refresh for ${platform} - not properly connected`);
+              return null;
+            }
             
             // Attempt automatic refresh
             const refreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
             if (refreshToken) {
               try {
                 await this.refreshTokens(platform);
-                // Return the refreshed token by calling getAccessToken again
-                return await this.getAccessToken(platform);
+                // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop
+                return await this.getAccessToken(platform, true);
               } catch (refreshError) {
                 debugLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
-                // Continue with existing token - it might still work
+                // Return null instead of continuing with expired token
+                return null;
               }
             } else {
               debugLogger.warn('TokenManager', `No refresh token available for ${platform}`);
@@ -183,8 +190,17 @@ export class TokenManager {
         return accessToken;
       }
 
-      // Check API key
+      // Check direct accessToken in config (for Facebook Ads)
+      if ((config as any)?.accessToken) {
+        console.log(`TokenManager: Found direct access token for ${platform}`);
+        debugLogger.info('TokenManager', `Found direct access token for ${platform}`);
+        return (config as any).accessToken;
+      }
+
+      // Check API key (for GoHighLevel)
       if (config.apiKey?.apiKey) {
+        console.log(`TokenManager: Found API key for ${platform}`);
+        debugLogger.info('TokenManager', `Found API key for ${platform}`);
         return config.apiKey.apiKey;
       }
 

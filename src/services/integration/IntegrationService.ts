@@ -333,11 +333,19 @@ export class UnifiedIntegrationService {
     try {
       debugLogger.info('UnifiedIntegrationService', `Disconnecting ${platform}`);
       
+      // Get existing integration to preserve some data
+      const existingIntegration = await this.getIntegration(platform);
+      
       const config: IntegrationConfig = {
         connected: false,
         lastSync: undefined,
         syncStatus: 'idle',
-        lastError: undefined
+        lastError: undefined,
+        // Preserve metadata for Google Sheets (spreadsheet selection)
+        metadata: existingIntegration?.config.metadata,
+        // Clear tokens and API keys
+        tokens: undefined,
+        apiKey: undefined
       };
       
       await this.saveIntegration(platform, config);

@@ -9,6 +9,7 @@ interface SearchableSelectProps {
     options: Array<{ value: string; label: string }>;
     value?: string;
     onValueChange: (value: string) => void;
+    onOpenChange?: (open: boolean) => void;
     placeholder?: string;
     searchPlaceholder?: string;
     className?: string;
@@ -18,6 +19,7 @@ export function SearchableSelect({
     options,
     value,
     onValueChange,
+    onOpenChange,
     placeholder = "Select option...",
     searchPlaceholder = "Search...",
     className
@@ -34,6 +36,7 @@ export function SearchableSelect({
     const handleSelect = (optionValue: string) => {
         onValueChange(optionValue);
         setOpen(false);
+        onOpenChange?.(false);
         setSearchTerm("");
     };
 
@@ -112,7 +115,11 @@ export function SearchableSelect({
                 role="combobox"
                 aria-expanded={open}
                 className={cn("w-full justify-between", className)}
-                onClick={() => setOpen(!open)}
+                onClick={() => {
+                    const newOpen = !open;
+                    setOpen(newOpen);
+                    onOpenChange?.(newOpen);
+                }}
             >
                 {selectedOption ? selectedOption.label : placeholder}
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -123,6 +130,7 @@ export function SearchableSelect({
                     className="fixed inset-0 z-[55]"
                     onClick={() => {
                         setOpen(false);
+                        onOpenChange?.(false);
                         setSearchTerm("");
                     }}
                 />

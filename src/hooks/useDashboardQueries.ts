@@ -56,10 +56,12 @@ export const useDashboardData = (clientId: string | undefined) => {
       return result;
     },
     enabled: !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce duplicate calls
+    gcTime: 30 * 60 * 1000, // 30 minutes - increased cache time
+    retry: 2, // Reduced retries
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Reduced max delay
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
+    refetchOnMount: false, // Prevent refetch on component mount if data is fresh
   });
 };
 

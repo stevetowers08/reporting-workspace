@@ -1,9 +1,10 @@
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { Calendar, TrendingUp, UserPlus, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Users, UserPlus, Calendar, TrendingUp } from 'lucide-react';
 
 interface GHLContactQualityCardsProps {
+  locationId: string;
   dateRange?: { start: string; end: string };
 }
 
@@ -16,14 +17,14 @@ interface GHLMetrics {
   topPerformingSources: Array<{ source: string; leads: number; avgGuests: number }>;
 }
 
-export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ dateRange }) => {
+export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ locationId, dateRange }) => {
   const [metrics, setMetrics] = useState<GHLMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const data = await GoHighLevelService.getGHLMetrics(dateRange);
+        const data = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
         setMetrics(data);
       } catch (error) {
         console.error('Failed to fetch GHL metrics:', error);

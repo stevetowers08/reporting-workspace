@@ -30,7 +30,11 @@ interface ClientFormData {
   accounts: {
     facebookAds: string;
     googleAds: string;
-    goHighLevel: string;
+    goHighLevel: string | {
+      locationId: string;
+      locationName: string;
+      locationToken?: string;
+    };
     googleSheets: string;
   };
   conversionActions: {
@@ -62,6 +66,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   submitLabel = "Save Client",
   cancelLabel = "Cancel"
 }) => {
+  console.log('🔍 ClientForm: Component loaded', { isEdit, clientId });
+  
   const [formData, setFormData] = useState<ClientFormData>(initialData || {
     name: "",
     logo_url: "",
@@ -80,7 +86,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
-  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [facebookAccountsLoaded, setFacebookAccountsLoaded] = useState(false);
+  const [googleAccountsLoaded, setGoogleAccountsLoaded] = useState(false);
+  const [ghlAccountsLoaded, setGhlAccountsLoaded] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logo_url || null);
   const [conversionActions, setConversionActions] = useState<Record<string, any[]>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -94,7 +102,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Load connected accounts when component mounts
   useEffect(() => {
-    loadConnectedAccounts();
+    console.log('🔍 ClientForm: useEffect called - NOT loading accounts automatically');
+    // Don't load accounts automatically - only when user clicks dropdowns
     if (isEdit && clientId) {
       loadAIConfig();
     }
@@ -122,84 +131,116 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   }, [formData.accounts.googleAds]);
 
-  const loadConnectedAccounts = async () => {
-    setLoadingAccounts(true);
+  // Load Facebook Ads accounts when needed
+  const loadFacebookAccounts = async () => {
+    if (facebookAccountsLoaded) return;
+    
+    console.log('🔍 ClientForm: Loading Facebook accounts on demand...');
+    
     try {
-      const accounts: ConnectedAccount[] = [];
-
-      // Get integration status from database
-      const integrations = await DatabaseService.getIntegrations();
-
-      // Check Facebook Ads - always available with Marketing API token
-      try {
-        debugLogger.debug('ClientForm', 'Loading Facebook ad accounts');
-        const adAccounts = await FacebookAdsService.getAdAccounts();
-        debugLogger.debug('ClientForm', 'Loaded Facebook ad accounts', { count: adAccounts.length, accounts: adAccounts });
-        adAccounts.forEach(account => {
-          accounts.push({
-            id: account.id,
-            name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
-            platform: 'facebookAds'
-          });
-        });
-        debugLogger.debug('ClientForm', 'Processed Facebook accounts for UI', { count: accounts.filter(a => a.platform === 'facebookAds').length });
-      } catch (error) {
-        debugLogger.error('ClientForm', 'Failed to load Facebook ad accounts', error);
-      }
-
-      // Check Google Ads
-      try {
-        const googleAccounts = await GoogleAdsService.getAdAccounts();
-        accounts.push(...googleAccounts.map(account => ({
-          id: account.id,
-          name: account.name,
-          platform: 'googleAds'
-        })));
-        console.log('Processed Google Ads accounts for UI:', googleAccounts.length);
-      } catch (error) {
-        console.error('Failed to load Google Ads accounts:', error);
-      }
-
-      // Check GoHighLevel - fetch all locations
-      const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
-      if (ghlIntegration?.connected) {
-        try {
-          const locations = await GoHighLevelService.getAllLocations();
-          locations.forEach(location => {
-            accounts.push({
-              id: location.id,
-              name: `${location.name} (${location.city}, ${location.state})`,
-              platform: 'goHighLevel'
-            });
-          });
-          debugLogger.info('ClientForm', `Loaded ${locations.length} GHL locations`);
-        } catch (error) {
-          debugLogger.error('ClientForm', 'Failed to load GHL locations', error);
-          // Fallback to single location if API fails
-          accounts.push({
-            id: 'ghl_location',
-            name: ghlIntegration.account_name || 'GoHighLevel Location',
-            platform: 'goHighLevel'
-          });
-        }
-      }
-
-      // Check Google Sheets (tokens are stored in googleAds integration)
-      const googleAdsIntegration = integrations.find(i => i.platform === 'googleAds');
-      if (googleAdsIntegration?.connected && googleAdsIntegration.config?.tokens?.access_token) {
-        accounts.push({
-          id: 'google_sheets_account',
-          name: googleAdsIntegration.account_name || 'Google Sheets Account',
-          platform: 'googleSheets'
-        });
-      }
-
-      console.log('Total connected accounts loaded:', accounts.length);
-      setConnectedAccounts(accounts);
+      console.log('🔍 ClientForm: Calling FacebookAdsService.getAdAccounts()...');
+      const adAccounts = await FacebookAdsService.getAdAccounts();
+      console.log('🔍 ClientForm: Facebook API response:', adAccounts);
+      
+      const facebookAccounts = adAccounts.map(account => ({
+        id: account.id,
+        name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
+        platform: 'facebookAds' as const
+      }));
+      
+      setConnectedAccounts(prev => [...prev, ...facebookAccounts]);
+      setFacebookAccountsLoaded(true);
+      console.log('🔍 ClientForm: Facebook accounts loaded', facebookAccounts.length);
     } catch (error) {
-      console.error('Error loading connected accounts:', error);
-    } finally {
-      setLoadingAccounts(false);
+      console.error('🔍 ClientForm: Facebook error', error);
+      // Add error to connected accounts so user knows there was an issue
+      setConnectedAccounts(prev => [...prev, {
+        id: 'facebook_error',
+        name: 'Error loading Facebook accounts',
+        platform: 'facebookAds' as const
+      }]);
+      setFacebookAccountsLoaded(true);
+    }
+  };
+
+  // Load Google Ads accounts when needed
+  const loadGoogleAccounts = async () => {
+    if (googleAccountsLoaded) return;
+    
+    console.log('🔍 ClientForm: Loading Google Ads accounts on demand...');
+    
+    try {
+      console.log('🔍 ClientForm: Calling GoogleAdsService.getAdAccounts()...');
+      const googleAccounts = await GoogleAdsService.getAdAccounts();
+      console.log('🔍 ClientForm: Google Ads API response:', googleAccounts);
+      
+      const accounts = googleAccounts.map(account => ({
+        id: account.id,
+        name: account.name,
+        platform: 'googleAds' as const
+      }));
+      
+      setConnectedAccounts(prev => [...prev, ...accounts]);
+      setGoogleAccountsLoaded(true);
+      console.log('🔍 ClientForm: Google Ads accounts loaded', accounts.length);
+    } catch (error) {
+      console.error('🔍 ClientForm: Google Ads error', error);
+      // Add error to connected accounts so user knows there was an issue
+      setConnectedAccounts(prev => [...prev, {
+        id: 'google_error',
+        name: 'Error loading Google Ads accounts',
+        platform: 'googleAds' as const
+      }]);
+      setGoogleAccountsLoaded(true);
+    }
+  };
+
+  // Load GoHighLevel locations when needed
+  const loadGHLAccounts = async () => {
+    if (ghlAccountsLoaded) return;
+    
+    console.log('🔍 ClientForm: Loading GoHighLevel accounts on demand...');
+    
+    try {
+      console.log('🔍 ClientForm: Getting integrations from database...');
+      const integrations = await DatabaseService.getIntegrations();
+      console.log('🔍 ClientForm: Integrations from database:', integrations);
+      
+      const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
+      console.log('🔍 ClientForm: GoHighLevel integration:', ghlIntegration);
+      
+      if (ghlIntegration?.connected) {
+        console.log('🔍 ClientForm: Calling GoHighLevelService.getAllLocations()...');
+        const locations = await GoHighLevelService.getAllLocations();
+        console.log('🔍 ClientForm: GoHighLevel API response:', locations);
+        
+        const ghlAccounts = locations.map(location => ({
+          id: location.id,
+          name: `${location.name} (${location.city}, ${location.state})`,
+          platform: 'goHighLevel' as const
+        }));
+        
+        setConnectedAccounts(prev => [...prev, ...ghlAccounts]);
+        setGhlAccountsLoaded(true);
+        console.log('🔍 ClientForm: GoHighLevel accounts loaded', ghlAccounts.length);
+      } else {
+        console.log('🔍 ClientForm: GoHighLevel not connected, adding not connected option');
+        setConnectedAccounts(prev => [...prev, {
+          id: 'ghl_not_connected',
+          name: 'GoHighLevel not connected',
+          platform: 'goHighLevel' as const
+        }]);
+        setGhlAccountsLoaded(true);
+      }
+    } catch (error) {
+      console.error('🔍 ClientForm: GoHighLevel error', error);
+      // Add error to connected accounts so user knows there was an issue
+      setConnectedAccounts(prev => [...prev, {
+        id: 'ghl_error',
+        name: 'Error loading GoHighLevel locations',
+        platform: 'goHighLevel' as const
+      }]);
+      setGhlAccountsLoaded(true);
     }
   };
 
@@ -299,6 +340,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       ...formData,
       accounts: {
         ...formData.accounts,
+        // Convert GoHighLevel object to string for validation
+        goHighLevel: typeof formData.accounts.goHighLevel === 'object' 
+          ? formData.accounts.goHighLevel?.locationId || 'none'
+          : formData.accounts.goHighLevel || 'none',
         googleSheets: googleSheetsConfig ? 'google_sheets_account' : 'none'
       },
       googleSheetsConfig: googleSheetsConfig
@@ -334,13 +379,47 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   };
 
   const handleAccountSelect = (platform: keyof typeof formData.accounts, accountId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      accounts: {
-        ...prev.accounts,
-        [platform]: accountId === "none" ? "" : accountId,
-      },
-    }));
+    setFormData(prev => {
+      if (platform === 'goHighLevel') {
+        if (accountId === "none") {
+          return {
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              goHighLevel: "none",
+            },
+          };
+        }
+        
+        // Find the selected location details
+        const selectedLocation = connectedAccounts.find(account => 
+          account.platform === 'goHighLevel' && account.id === accountId
+        );
+        
+        if (selectedLocation) {
+          return {
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              goHighLevel: {
+                locationId: accountId,
+                locationName: selectedLocation.name,
+                locationToken: undefined // User will need to provide this separately
+              },
+            },
+          };
+        }
+      }
+      
+      // Default handling for other platforms
+      return {
+        ...prev,
+        accounts: {
+          ...prev.accounts,
+          [platform]: accountId === "none" ? "" : accountId,
+        },
+      };
+    });
   };
 
   const handleConversionActionSelect = (platform: string, actionType: string) => {
@@ -382,13 +461,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   };
 
   const isIntegrationConnected = (platform: string) => {
-    if (platform === 'facebookAds') {
-      return true; // Facebook Ads is always available with Marketing API token
-    }
-    if (platform === 'googleAds') {
-      return true; // Google Ads is available with OAuth token
-    }
-    return connectedAccounts.some(account => account.platform === platform);
+    console.log(`🔍 ClientForm: Checking if ${platform} is connected`);
+    console.log('🔍 ClientForm: Available accounts', connectedAccounts.map(a => ({ platform: a.platform, id: a.id })));
+    
+    // For now, assume all integrations are connected since we have them in the database
+    // The actual connection status will be determined when loading accounts
+    const result = true;
+    console.log(`🔍 ClientForm: isIntegrationConnected(${platform}) = ${result}`);
+    return result;
   };
 
   return (
@@ -489,27 +569,27 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <span className="text-sm font-medium">Facebook Ads</span>
             </div>
             {isIntegrationConnected('facebookAds') ? (
-              loadingAccounts ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <LoadingSpinner size="xs" />
-                  Loading Facebook ad accounts...
-                </div>
-              ) : (
-                <SearchableSelect
-                  options={[
-                    { value: "none", label: "None" },
-                    ...getAvailableAccounts('facebookAds').map(account => ({
-                      value: account.id,
-                      label: account.name
-                    }))
-                  ]}
-                  value={formData.accounts.facebookAds || "none"}
-                  onValueChange={(value) => handleAccountSelect("facebookAds", value)}
-                  placeholder="Select Facebook Ad Account"
-                  searchPlaceholder="Search Facebook accounts..."
-                  className="min-w-[400px]"
-                />
-              )
+              <SearchableSelect
+                options={[
+                  { value: "none", label: "None" },
+                  ...getAvailableAccounts('facebookAds').map(account => ({
+                    value: account.id,
+                    label: account.name
+                  }))
+                ]}
+                value={formData.accounts.facebookAds || "none"}
+                onValueChange={(value) => handleAccountSelect("facebookAds", value)}
+                placeholder="Select Facebook Ad Account"
+                searchPlaceholder="Search Facebook accounts..."
+                className="min-w-[400px]"
+                onOpenChange={(open) => {
+                  console.log('🔍 Facebook dropdown opened:', open, 'facebookAccountsLoaded:', facebookAccountsLoaded);
+                  if (open && !facebookAccountsLoaded) {
+                    console.log('🔍 Calling loadFacebookAccounts...');
+                    loadFacebookAccounts();
+                  }
+                }}
+              />
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <AlertCircle className="h-4 w-4" />
@@ -564,6 +644,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 placeholder="Select Google Ads Account"
                 searchPlaceholder="Search Google accounts..."
                 className="min-w-[400px]"
+                onOpenChange={(open) => {
+                  console.log('🔍 Google Ads dropdown opened:', open, 'googleAccountsLoaded:', googleAccountsLoaded);
+                  if (open && !googleAccountsLoaded) {
+                    console.log('🔍 Calling loadGoogleAccounts...');
+                    loadGoogleAccounts();
+                  }
+                }}
               />
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -605,22 +692,40 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <span className="text-sm font-medium">GoHighLevel CRM</span>
             </div>
             {isIntegrationConnected('goHighLevel') ? (
-              <Select
-                value={formData.accounts.goHighLevel || "none"}
-                onValueChange={(value) => handleAccountSelect("goHighLevel", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select GoHighLevel Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {getAvailableAccounts('goHighLevel').map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <SearchableSelect
+                  value={typeof formData.accounts.goHighLevel === 'string' 
+                    ? formData.accounts.goHighLevel 
+                    : formData.accounts.goHighLevel?.locationId || "none"}
+                  onValueChange={(value) => handleAccountSelect("goHighLevel", value)}
+                  placeholder="Search GoHighLevel locations..."
+                  options={[
+                    { value: "none", label: "None" },
+                    ...getAvailableAccounts('goHighLevel').map(account => ({
+                      value: account.id,
+                      label: account.name
+                    }))
+                  ]}
+                  onOpenChange={(open) => {
+                    console.log('🔍 GoHighLevel dropdown opened:', open, 'ghlAccountsLoaded:', ghlAccountsLoaded);
+                    if (open && !ghlAccountsLoaded) {
+                      console.log('🔍 Calling loadGHLAccounts...');
+                      loadGHLAccounts();
+                    }
+                  }}
+                />
+                
+                {/* Show selected location info */}
+                {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
+                  <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                    <div className="font-medium">Selected Location:</div>
+                    <div>{formData.accounts.goHighLevel.locationName}</div>
+                    <div className="text-gray-500 mt-1">
+                      Location ID: {formData.accounts.goHighLevel.locationId}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <AlertCircle className="h-4 w-4" />

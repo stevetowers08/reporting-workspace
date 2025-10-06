@@ -25,7 +25,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ da
   useEffect(() => {
     const fetchPageViewData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(dateRange);
+        const metrics = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
         
         // Extract page view data from contacts' attribution data
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out

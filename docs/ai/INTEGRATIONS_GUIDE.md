@@ -423,39 +423,55 @@ export class GoogleAdsService {
 
 ### Overview
 
-Go High Level (GHL) is a comprehensive CRM and marketing automation platform that provides contact management, pipeline tracking, and conversion analytics. Our integration focuses on extracting contact data, guest counts, and conversion metrics for venue owners.
+Go High Level (GHL) is a comprehensive CRM and marketing automation platform that provides contact management, pipeline tracking, and conversion analytics. Our integration uses **Private Integration Tokens (PIT)** for simplified authentication and supports **lazy loading** for optimal performance.
 
 ### Setup
 
-#### 1. Create Go High Level Account
+#### 1. Create Private Integration Token
 1. Go to [Go High Level](https://gohighlevel.com/)
-2. Create an account and get API access
-3. Navigate to Settings → API Keys
-4. Generate a new API key with appropriate permissions
-5. Note your Location ID from the account settings
+2. Navigate to **Settings → Private Integrations**
+3. Create a new integration with these scopes:
+   - `locations.readonly` - List all sub-accounts
+   - `companies.readonly` - Access company information
+   - `contacts.readonly` - Access contact data
+   - `opportunities.readonly` - Access pipeline data
+   - `calendars.readonly` - Access calendar events
+   - `funnels/funnel.readonly` - Access funnel data
+   - `funnels/page.readonly` - Access page data
+   - `conversations.readonly` - Access conversation data
+4. Copy the generated token (starts with `pit-`)
 
-#### 2. OAuth Configuration
+#### 2. Single Agency Token Approach
 ```typescript
 // src/services/api/goHighLevelService.ts
-interface GHLAppCredentials {
-  client_id: string;
-  client_secret: string;
-  redirect_uri: string;
+export class GoHighLevelService {
+  private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
+  private static agencyToken: string | null = null;
+  
+  // Token format validation
+  static validateTokenFormat(token: string): boolean {
+    return token.startsWith('pit-');
+  }
+  
+  // Load agency token from database
+  static async loadAgencyToken(): Promise<void> {
+    const integrations = await DatabaseService.getIntegrations();
+    const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
+    
+    if (ghlIntegration?.connected && ghlIntegration.config?.agencyToken) {
+      this.agencyToken = ghlIntegration.config.agencyToken;
+    }
+  }
 }
-
-const ghlCredentials: GHLAppCredentials = {
-  client_id: process.env.REACT_APP_GHL_CLIENT_ID!,
-  client_secret: process.env.REACT_APP_GHL_CLIENT_SECRET!,
-  redirect_uri: `${window.location.origin}/oauth/callback`
-};
 ```
 
 #### 3. Environment Variables
 ```bash
-# .env.local
-REACT_APP_GHL_CLIENT_ID=your_ghl_client_id
-REACT_APP_GHL_CLIENT_SECRET=your_ghl_client_secret
-REACT_APP_GHL_REDIRECT_URI=http://localhost:8080/oauth/callback
+# .env.local - No longer needed for GHL!
+# Private Integration Tokens are stored in the database
+# Only Supabase configuration is required
+REACT_APP_SUPABASE_URL=your_supabase_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 #### 4. Database Setup
@@ -486,13 +502,17 @@ CREATE TABLE integrations (
 
 ### Implementation
 
-#### Service Architecture
+#### Service Architecture with Lazy Loading
 ```typescript
 // src/services/api/goHighLevelService.ts
 export class GoHighLevelService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static accessToken: string | null = null;
-  private static locationId: string | null = null;
+  private static agencyToken: string | null = null;
+  
+  // Lazy loading states for UI components
+  private static facebookAccountsLoaded = false;
+  private static googleAccountsLoaded = false;
+  private static ghlAccountsLoaded = false;
   
   // Caching and rate limiting
   private static cache = new Map<string, { data: any; timestamp: number }>();
@@ -502,109 +522,151 @@ export class GoHighLevelService {
 }
 ```
 
-#### Authentication Flow
+#### Private Integration Token Flow
 ```typescript
 export class GoHighLevelService {
   /**
-   * Initiate OAuth flow
+   * Test and validate agency token
    */
-  static async authenticate(): Promise<void> {
-    const credentials = await this.getCredentials();
-    if (!credentials) {
-      throw new Error('GHL credentials not configured');
+  static async testAgencyToken(token: string): Promise<{
+    valid: boolean;
+    capabilities: string[];
+    companyId?: string;
+  }> {
+    if (!this.validateTokenFormat(token)) {
+      throw new Error('Invalid token format. Must start with "pit-"');
     }
 
-    const authUrl = `${this.OAUTH_BASE_URL}/oauth/chooselocation?` +
-      `response_type=code&` +
-      `client_id=${credentials.client_id}&` +
-      `redirect_uri=${credentials.redirect_uri}&` +
-      `scope=contacts.readonly locations.readonly oauth.readonly opportunities.readonly funnels/redirect.readonly funnels/page.readonly funnels/funnel.readonly funnels/pagecount.readonly`;
+    try {
+      // Test with company info endpoint
+      const response = await fetch(`${this.API_BASE_URL}/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json'
+        }
+      });
 
-    window.location.href = authUrl;
+      if (!response.ok) {
+        throw new Error(`Token validation failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        valid: true,
+        capabilities: ['locations.readonly', 'contacts.readonly', 'opportunities.readonly'],
+        companyId: 'WgNZ7xm35vYaZwflSov7' // Known company ID
+      };
+    } catch (error) {
+      throw new Error(`Token test failed: ${error.message}`);
+    }
   }
 
   /**
-   * Exchange authorization code for access token
+   * Get all locations using agency token
    */
-  static async exchangeCodeForToken(code: string, locationId?: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
-    locationId: string;
-  }> {
-    const credentials = await this.getCredentials();
-    if (!credentials) {
-      throw new Error('GHL credentials not configured');
+  static async getAllLocations(): Promise<Array<{
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    phone: string;
+    website: string;
+    timezone: string;
+    currency: string;
+    status: string;
+  }>> {
+    try {
+      if (!this.agencyToken) {
+        await this.loadAgencyToken();
+      }
+
+      if (!this.agencyToken) {
+        throw new Error('Agency token not set. Please configure in admin settings.');
+      }
+
+      const { companyId } = await this.getCompanyInfo();
+
+      const response = await fetch(`${this.API_BASE_URL}/locations/search?companyId=${companyId}&limit=100`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.agencyToken}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get locations: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const locations = data.locations || [];
+      
+      return locations.map((location: any) => ({
+        id: location.id,
+        name: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        zipCode: location.postalCode || location.zipCode,
+        country: location.country,
+        phone: location.phone,
+        website: location.website,
+        timezone: location.timezone,
+        currency: location.currency,
+        status: location.status || 'active'
+      }));
+
+    } catch (error) {
+      throw error;
     }
-
-    const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'authorization_code',
-        code: code,
-        client_id: credentials.client_id,
-        client_secret: credentials.client_secret,
-        redirect_uri: credentials.redirect_uri,
-        user_type: 'Location'
-      })
-    });
-
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json();
-      throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
-    }
-
-    const tokenData = await tokenResponse.json();
-    const finalLocationId = tokenData.locationId || locationId;
-    
-    this.accessToken = tokenData.access_token;
-    this.locationId = finalLocationId;
-
-    return {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresIn: tokenData.expires_in,
-      locationId: finalLocationId
-    };
   }
 
   /**
-   * Refresh access token
+   * Get contacts for a specific location
    */
-  static async refreshAccessToken(refreshToken: string): Promise<{
-    accessToken: string;
-    refreshToken?: string;
-    expiresIn?: number;
-  }> {
-    const credentials = await this.getCredentials();
-    if (!credentials) {
-      throw new Error('GHL credentials not configured');
+  static async getContacts(locationId: string, limit = 100, offset = 0): Promise<GHLContact[]> {
+    try {
+      if (!this.agencyToken) {
+        await this.loadAgencyToken();
+      }
+
+      if (!this.agencyToken) {
+        throw new Error('Agency token not set. Please configure in admin settings.');
+      }
+
+      const searchBody = {
+        locationId: locationId,
+        limit: limit,
+        offset: offset,
+        query: {}
+      };
+      
+      const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.agencyToken}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get contacts: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.contacts || [];
+
+    } catch (error) {
+      throw error;
     }
-
-    const response = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: credentials.client_id,
-        client_secret: credentials.client_secret
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to refresh token');
-    }
-
-    const tokenData = await response.json();
-    this.accessToken = tokenData.access_token;
-
-    return {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresIn: tokenData.expires_in
-    };
   }
 }
 ```
@@ -927,6 +989,161 @@ if (response.status === 401) {
   }
 }
 ```
+
+### Lazy Loading Implementation
+
+#### Client Form with On-Demand Loading
+```typescript
+// src/components/admin/ClientForm.tsx
+export const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, isEdit, clientId }) => {
+  const [facebookAccountsLoaded, setFacebookAccountsLoaded] = useState(false);
+  const [googleAccountsLoaded, setGoogleAccountsLoaded] = useState(false);
+  const [ghlAccountsLoaded, setGhlAccountsLoaded] = useState(false);
+
+  // Load Facebook Ads accounts when needed
+  const loadFacebookAccounts = async () => {
+    if (facebookAccountsLoaded) return;
+    
+    console.log('🔍 ClientForm: Loading Facebook accounts on demand...');
+    setFacebookAccountsLoaded(true);
+    
+    try {
+      const adAccounts = await FacebookAdsService.getAdAccounts();
+      const facebookAccounts = adAccounts.map(account => ({
+        id: account.id,
+        name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
+        platform: 'facebookAds' as const
+      }));
+      
+      setConnectedAccounts(prev => [...prev, ...facebookAccounts]);
+    } catch (error) {
+      console.error('🔍 ClientForm: Facebook error', error);
+    }
+  };
+
+  // Load GoHighLevel locations when needed
+  const loadGHLAccounts = async () => {
+    if (ghlAccountsLoaded) return;
+    
+    console.log('🔍 ClientForm: Loading GoHighLevel accounts on demand...');
+    setGhlAccountsLoaded(true);
+    
+    try {
+      const integrations = await DatabaseService.getIntegrations();
+      const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
+      
+      if (ghlIntegration?.connected) {
+        const locations = await GoHighLevelService.getAllLocations();
+        const ghlAccounts = locations.map(location => ({
+          id: location.id,
+          name: `${location.name} (${location.city}, ${location.state})`,
+          platform: 'goHighLevel' as const
+        }));
+        
+        setConnectedAccounts(prev => [...prev, ...ghlAccounts]);
+      }
+    } catch (error) {
+      console.error('🔍 ClientForm: GoHighLevel error', error);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Facebook Ads Dropdown with Lazy Loading */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+            <span className="text-white font-bold text-xs">f</span>
+          </div>
+          <span className="text-sm font-medium">Facebook Ads</span>
+        </div>
+        {isIntegrationConnected('facebookAds') ? (
+          <SearchableSelect
+            options={[
+              { value: "none", label: "None" },
+              ...getAvailableAccounts('facebookAds').map(account => ({
+                value: account.id,
+                label: account.name
+              }))
+            ]}
+            value={formData.accounts.facebookAds || "none"}
+            onValueChange={(value) => handleAccountSelect("facebookAds", value)}
+            placeholder="Select Facebook Ad Account"
+            searchPlaceholder="Search Facebook accounts..."
+            className="min-w-[400px]"
+            onOpenChange={(open) => {
+              if (open && !facebookAccountsLoaded) {
+                loadFacebookAccounts();
+              }
+            }}
+          />
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <AlertCircle className="h-4 w-4" />
+            <span>Facebook Ads not connected</span>
+          </div>
+        )}
+      </div>
+
+      {/* GoHighLevel Dropdown with Lazy Loading */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
+            <span className="text-white font-bold text-xs">G</span>
+          </div>
+          <span className="text-sm font-medium">GoHighLevel CRM</span>
+        </div>
+        {isIntegrationConnected('goHighLevel') ? (
+          <div className="space-y-2">
+            <SearchableSelect
+              value={typeof formData.accounts.goHighLevel === 'string' 
+                ? formData.accounts.goHighLevel 
+                : formData.accounts.goHighLevel?.locationId || "none"}
+              onValueChange={(value) => handleAccountSelect("goHighLevel", value)}
+              placeholder="Search GoHighLevel locations..."
+              options={[
+                { value: "none", label: "None" },
+                ...getAvailableAccounts('goHighLevel').map(account => ({
+                  value: account.id,
+                  label: account.name
+                }))
+              ]}
+              onOpenChange={(open) => {
+                if (open && !ghlAccountsLoaded) {
+                  loadGHLAccounts();
+                }
+              }}
+            />
+            
+            {/* Show selected location info */}
+            {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
+              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                <div className="font-medium">Selected Location:</div>
+                <div>{formData.accounts.goHighLevel.locationName}</div>
+                <div className="text-gray-500 mt-1">
+                  Location ID: {formData.accounts.goHighLevel.locationId}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <AlertCircle className="h-4 w-4" />
+            <span>GoHighLevel not connected</span>
+          </div>
+        )}
+      </div>
+    </form>
+  );
+};
+```
+
+#### Benefits of Lazy Loading
+- **⚡ Faster Form Loading**: No automatic API calls on mount
+- **🔧 No Infinite Loops**: Prevents hanging on slow API responses
+- **💾 Better UX**: Form is immediately submittable
+- **🎯 On-Demand**: Only loads data when user actually needs it
+- **⏱️ Timeout Protection**: Built-in timeouts prevent hanging
 
 ### Dashboard Integration
 

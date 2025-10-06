@@ -52,6 +52,21 @@ export interface FacebookAdsCampaign {
 export class FacebookAdsService {
   private static readonly API_VERSION = 'v19.0';
   private static readonly BASE_URL = `https://graph.facebook.com/${this.API_VERSION}`;
+  private static requestCache = new Map<string, { data: any; timestamp: number }>();
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Cache management methods
+  private static getCachedData(key: string): any | null {
+    const cached = this.requestCache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+    return null;
+  }
+
+  private static setCachedData(key: string, data: any): void {
+    this.requestCache.set(key, { data, timestamp: Date.now() });
+  }
 
   // Get access token from unified credential service (Supabase only)
   static async getAccessToken(): Promise<string> {
@@ -236,6 +251,7 @@ export class FacebookAdsService {
           debugLogger.debug('FacebookAdsService', 'Using cached ad accounts from Supabase', { 
             count: integration.settings.adAccounts.length 
           });
+          console.log('🔍 FacebookAdsService: Returning cached accounts:', integration.settings.adAccounts.length);
           return integration.settings.adAccounts;
         }
       } catch (error) {
@@ -413,9 +429,13 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
+        // Facebook API expects dates in YYYY-MM-DD format
+        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+        
         params.append('time_range', JSON.stringify({
-          since: dateRange.start,
-          until: dateRange.end
+          since,
+          until
         }));
       }
 
@@ -481,9 +501,13 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
+        // Facebook API expects dates in YYYY-MM-DD format
+        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+        
         params.append('time_range', JSON.stringify({
-          since: dateRange.start,
-          until: dateRange.end
+          since,
+          until
         }));
       }
 
@@ -709,9 +733,13 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
+        // Facebook API expects dates in YYYY-MM-DD format
+        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+        
         params.append('time_range', JSON.stringify({
-          since: dateRange.start,
-          until: dateRange.end
+          since,
+          until
         }));
       }
 
@@ -742,6 +770,16 @@ export class FacebookAdsService {
 
   static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics> {
     try {
+      // Create cache key for this request
+      const cacheKey = `account-metrics-${adAccountId}-${dateRange?.start}-${dateRange?.end}-${conversionAction}`;
+      
+      // Check cache first
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        debugLogger.debug('FacebookAdsService', 'Using cached account metrics', { cacheKey });
+        return cachedData;
+      }
+
       // Use provided account ID or get from integration config
       let accountId = adAccountId;
       
@@ -821,6 +859,9 @@ export class FacebookAdsService {
       // Include demographic and platform data
       metrics.demographics = demographics;
       metrics.platformBreakdown = platformBreakdown;
+      
+      // Cache the result
+      this.setCachedData(cacheKey, metrics);
       
       return metrics;
     } catch (error) {

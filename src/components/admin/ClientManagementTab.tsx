@@ -134,22 +134,22 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {client.accounts.facebookAds && client.accounts.facebookAds !== 'none' && (
+                        {client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' && (
                           <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center" title="Facebook Ads">
                             <span className="text-white font-bold text-xs">f</span>
                           </div>
                         )}
-                        {client.accounts.googleAds && client.accounts.googleAds !== 'none' && (
+                        {client.accounts?.googleAds && client.accounts.googleAds !== 'none' && (
                           <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center" title="Google Ads">
                             <span className="text-white font-bold text-xs">G</span>
                           </div>
                         )}
-                        {client.accounts.goHighLevel && client.accounts.goHighLevel !== 'none' && (
+                        {client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' && (
                           <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center" title="GoHighLevel">
                             <Zap className="h-2 w-2 text-white" />
                           </div>
                         )}
-                        {client.accounts.googleSheets && client.accounts.googleSheets !== 'none' && (
+                        {client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' && (
                           <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
                             <FileSpreadsheet className="h-2 w-2 text-white" />
                           </div>

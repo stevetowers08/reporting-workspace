@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: '/',
   server: {
-    host: "localhost",
+    host: "0.0.0.0",
     port: 3000,
     strictPort: true,
     open: true,
@@ -32,10 +32,11 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
       'class-variance-authority',
-      'lucide-react'
+      'lucide-react',
+      'recharts'
     ],
     exclude: ['@vite/client', '@vite/env'],
-    force: true,
+    force: false,
     esbuildOptions: {
       target: 'es2020'
     }

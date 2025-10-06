@@ -195,7 +195,7 @@ export interface Client {
     goHighLevel?: string;
     googleSheets?: string;
   };
-  shareable_link?: string;
+  shareable_link: string;
   created_at: string;
   updated_at: string;
 }
@@ -245,7 +245,11 @@ export class DatabaseService {
     accounts: {
       facebookAds?: string;
       googleAds?: string;
-      goHighLevel?: string;
+      goHighLevel?: string | {
+        locationId: string;
+        locationName: string;
+        locationToken?: string;
+      };
       googleSheets?: string;
     };
     conversionActions?: {
@@ -268,7 +272,11 @@ export class DatabaseService {
         services: {
           facebookAds: !!clientData.accounts.facebookAds,
           googleAds: !!clientData.accounts.googleAds,
-          crm: !!clientData.accounts.goHighLevel,
+          crm: !!clientData.accounts.goHighLevel && (
+            typeof clientData.accounts.goHighLevel === 'string' 
+              ? clientData.accounts.goHighLevel !== 'none'
+              : !!clientData.accounts.goHighLevel.locationId
+          ),
           revenue: !!clientData.accounts.googleSheets,
         },
         accounts: clientData.accounts,
@@ -289,7 +297,9 @@ export class DatabaseService {
         status: 'active' as const,
         facebook_ads_account_id: clientData.accounts.facebookAds,
         google_ads_account_id: clientData.accounts.googleAds,
-        gohighlevel_account_id: clientData.accounts.goHighLevel,
+        gohighlevel_account_id: typeof clientData.accounts.goHighLevel === 'string' 
+          ? clientData.accounts.goHighLevel 
+          : clientData.accounts.goHighLevel?.locationId,
         google_sheets_account_id: clientData.accounts.googleSheets,
         conversion_actions: clientData.conversionActions || {},
         accounts: accountsWithSheetsConfig,

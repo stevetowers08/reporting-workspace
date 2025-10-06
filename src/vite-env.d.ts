@@ -20,3 +20,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+// Global type declarations
+declare global {
+  const fetch: typeof globalThis.fetch;
+  const setTimeout: typeof globalThis.setTimeout;
+  const clearTimeout: typeof globalThis.clearTimeout;
+  const setInterval: typeof globalThis.setInterval;
+  const clearInterval: typeof globalThis.clearInterval;
+}

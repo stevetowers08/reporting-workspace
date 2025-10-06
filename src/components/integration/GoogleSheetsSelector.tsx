@@ -44,9 +44,20 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
     
     try {
+      console.log('🔍 GoogleSheetsSelector: Fetching Google Sheets accounts...');
       debugLogger.info('GoogleSheetsSelector', 'Fetching Google Sheets accounts');
+      
+      // First check if we have access tokens
+      const accessToken = await GoogleSheetsService.getAccessToken();
+      console.log('🔍 GoogleSheetsSelector: Access token check:', accessToken ? 'Found' : 'Not found');
+      
+      if (!accessToken) {
+        throw new Error('No Google OAuth access token found. Please connect your Google account first.');
+      }
+      
       const fetchedAccounts = await GoogleSheetsService.getSheetsAccounts();
       
+      console.log('🔍 GoogleSheetsSelector: Google Sheets accounts response:', fetchedAccounts);
       debugLogger.info('GoogleSheetsSelector', 'Fetched accounts', { 
         accountCount: fetchedAccounts.length,
         totalSheets: fetchedAccounts.reduce((sum, acc) => sum + acc.sheets.length, 0)
@@ -58,8 +69,11 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         setError('No Google Sheets found. Please create a spreadsheet in your Google Drive.');
       }
     } catch (error) {
+      console.error('🔍 GoogleSheetsSelector: Error fetching accounts:', error);
       debugLogger.error('GoogleSheetsSelector', 'Failed to fetch Google Sheets accounts', error);
-      setError('Failed to fetch Google Sheets. Please check your connection.');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Google Sheets. Please check your connection.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,8 +109,10 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
     
     try {
-      // const accessToken = await GoogleSheetsService.getAccessToken(); // Private method - commented out
-      const accessToken = ''; // Mock for now
+      console.log('🔍 GoogleSheetsSelector: Fetching sheet names for spreadsheet:', spreadsheetId);
+      const accessToken = await GoogleSheetsService.getAccessToken();
+      console.log('🔍 GoogleSheetsSelector: Access token:', accessToken ? 'Found' : 'Not found');
+      
       if (!accessToken) {
         throw new Error('No access token available');
       }
@@ -110,6 +126,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('🔍 GoogleSheetsSelector: API error:', response.status, errorText);
         throw new Error(`Failed to fetch sheet names: ${response.status} - ${errorText}`);
       }
 
@@ -117,12 +134,14 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
       const sheets = data.sheets?.map((sheet: any) => sheet.properties?.title).filter(Boolean) || [];
       setSheetNames(sheets);
       
+      console.log('🔍 GoogleSheetsSelector: Sheet names loaded:', sheets);
       debugLogger.info('GoogleSheetsSelector', 'Fetched sheet names', { 
         spreadsheetId, 
         sheetCount: sheets.length,
         sheetNames: sheets 
       });
     } catch (error) {
+      console.error('🔍 GoogleSheetsSelector: Error fetching sheet names:', error);
       debugLogger.error('GoogleSheetsSelector', 'Failed to fetch sheet names', error);
       setError(`Failed to load sheet names: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {

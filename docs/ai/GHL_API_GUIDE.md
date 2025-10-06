@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides comprehensive documentation for integrating with the Go High Level API, including authentication, database operations, API call structures, and critical settings based on our implementation learnings.
+This guide provides comprehensive documentation for integrating with the Go High Level API using **Private Integration Tokens (PIT)** for simplified authentication. Our implementation uses a **single agency token approach** with **lazy loading** for optimal performance.
 
 ## Table of Contents
 
@@ -80,111 +80,169 @@ Headers:
 
 ## Authentication Flow
 
-### 1. OAuth Configuration
+### 1. Private Integration Token Setup
 ```typescript
-interface GHLAppCredentials {
-  client_id: string;
-  client_secret: string;
-  redirect_uri: string;
-  environment: string;
-  is_active: boolean;
+interface GHLPrivateIntegration {
+  agencyToken: string;
+  companyId: string;
+  capabilities: string[];
 }
 
-// Environment Variables
-const credentials = {
-  client_id: process.env.REACT_APP_GHL_CLIENT_ID!,
-  client_secret: process.env.REACT_APP_GHL_CLIENT_SECRET!,
-  redirect_uri: `${window.location.origin}/oauth/callback`
+// Token validation
+const validateTokenFormat = (token: string): boolean => {
+  return token.startsWith('pit-');
+};
+
+// Environment Variables - No longer needed!
+// Private Integration Tokens are stored in the database
+// Only Supabase configuration is required
+const supabaseConfig = {
+  url: process.env.REACT_APP_SUPABASE_URL!,
+  anonKey: process.env.REACT_APP_SUPABASE_ANON_KEY!
 };
 ```
 
-### 2. Authorization URL Generation
+### 2. Agency Token Testing and Validation
 ```typescript
-static async getAuthorizationUrl(): Promise<string> {
-  const credentials = await this.getCredentials();
-  
-  const authUrl = `${this.OAUTH_BASE_URL}/oauth/chooselocation?` +
-    `response_type=code&` +
-    `client_id=${credentials.client_id}&` +
-    `redirect_uri=${credentials.redirect_uri}&` +
-    `scope=contacts.readonly locations.readonly oauth.readonly opportunities.readonly funnels/redirect.readonly funnels/page.readonly funnels/funnel.readonly funnels/pagecount.readonly`;
+static async testAgencyToken(token: string): Promise<{
+  valid: boolean;
+  capabilities: string[];
+  companyId?: string;
+}> {
+  if (!this.validateTokenFormat(token)) {
+    throw new Error('Invalid token format. Must start with "pit-"');
+  }
 
-  return authUrl;
+  try {
+    // Test with company info endpoint
+    const response = await fetch(`${this.API_BASE_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Version': '2021-07-28',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Token validation failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    return {
+      valid: true,
+      capabilities: ['locations.readonly', 'contacts.readonly', 'opportunities.readonly'],
+      companyId: 'WgNZ7xm35vYaZwflSov7' // Known company ID
+    };
+  } catch (error) {
+    throw new Error(`Token test failed: ${error.message}`);
+  }
 }
 ```
 
-### 3. Token Exchange
+### 3. Location Data Access
 ```typescript
-static async exchangeCodeForToken(code: string, locationId?: string): Promise<{
-  accessToken: string;
-  refreshToken?: string;
-  expiresIn?: number;
-  locationId: string;
-}> {
-  const credentials = await this.getCredentials();
-  
-  const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      code: code,
-      client_id: credentials.client_id,
-      client_secret: credentials.client_secret,
-      redirect_uri: credentials.redirect_uri,
-      user_type: 'Location'
-    })
-  });
+static async getAllLocations(): Promise<Array<{
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+  website: string;
+  timezone: string;
+  currency: string;
+  status: string;
+}>> {
+  try {
+    if (!this.agencyToken) {
+      await this.loadAgencyToken();
+    }
 
-  if (!tokenResponse.ok) {
-    const errorData = await tokenResponse.json();
-    throw new Error(`Token exchange failed: ${errorData.error || tokenResponse.statusText}`);
+    if (!this.agencyToken) {
+      throw new Error('Agency token not set. Please configure in admin settings.');
+    }
+
+    const { companyId } = await this.getCompanyInfo();
+
+    const response = await fetch(`${this.API_BASE_URL}/locations/search?companyId=${companyId}&limit=100`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.agencyToken}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get locations: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const locations = data.locations || [];
+    
+    return locations.map((location: any) => ({
+      id: location.id,
+      name: location.name,
+      address: location.address,
+      city: location.city,
+      state: location.state,
+      zipCode: location.postalCode || location.zipCode,
+      country: location.country,
+      phone: location.phone,
+      website: location.website,
+      timezone: location.timezone,
+      currency: location.currency,
+      status: location.status || 'active'
+    }));
+
+  } catch (error) {
+    throw error;
   }
-
-  const tokenData = await tokenResponse.json();
-  const finalLocationId = tokenData.locationId || locationId;
-  
-  return {
-    accessToken: tokenData.access_token,
-    refreshToken: tokenData.refresh_token,
-    expiresIn: tokenData.expires_in,
-    locationId: finalLocationId
-  };
 }
 ```
 
-### 4. Token Refresh
+### 4. Contact Data Access
 ```typescript
-static async refreshAccessToken(refreshToken: string): Promise<{
-  accessToken: string;
-  refreshToken?: string;
-  expiresIn?: number;
-}> {
-  const credentials = await this.getCredentials();
-  
-  const tokenResponse = await fetch(`${this.OAUTH_BASE_URL}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: credentials.client_id,
-      client_secret: credentials.client_secret,
-      user_type: 'Location'
-    })
-  });
+static async getContacts(locationId: string, limit = 100, offset = 0): Promise<GHLContact[]> {
+  try {
+    if (!this.agencyToken) {
+      await this.loadAgencyToken();
+    }
 
-  if (!tokenResponse.ok) {
-    const errorData = await tokenResponse.json();
-    throw new Error(`Token refresh failed: ${errorData.error || tokenResponse.statusText}`);
+    if (!this.agencyToken) {
+      throw new Error('Agency token not set. Please configure in admin settings.');
+    }
+
+    const searchBody = {
+      locationId: locationId,
+      limit: limit,
+      offset: offset,
+      query: {}
+    };
+    
+    const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.agencyToken}`,
+        'Version': '2021-07-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get contacts: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.contacts || [];
+
+  } catch (error) {
+    throw error;
   }
-
-  const tokenData = await tokenResponse.json();
-  return {
-    accessToken: tokenData.access_token,
-    refreshToken: tokenData.refresh_token,
-    expiresIn: tokenData.expires_in
-  };
 }
 ```
 
@@ -192,21 +250,7 @@ static async refreshAccessToken(refreshToken: string): Promise<{
 
 ### 1. Required Tables
 
-#### GHL App Credentials Table
-```sql
-CREATE TABLE ghl_app_credentials (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  client_id TEXT NOT NULL,
-  client_secret TEXT NOT NULL,
-  redirect_uri TEXT NOT NULL,
-  environment TEXT NOT NULL DEFAULT 'development',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-#### Integrations Table (for tokens)
+#### Integrations Table (for Private Integration Tokens)
 ```sql
 CREATE TABLE integrations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -219,28 +263,55 @@ CREATE TABLE integrations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Example config for GoHighLevel Private Integration Token:
+-- {
+--   "agencyToken": "pit-bdd2a6a2-734e-4e46-88a3-161683bd4bde",
+--   "companyId": "WgNZ7xm35vYaZwflSov7",
+--   "capabilities": ["locations.readonly", "contacts.readonly", "opportunities.readonly"]
+-- }
+```
+
+#### Clients Table (for location selection)
+```sql
+CREATE TABLE clients (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  accounts JSONB DEFAULT '{}',
+  -- Example accounts structure for GoHighLevel:
+  -- {
+  --   "goHighLevel": {
+  --     "locationId": "abc123",
+  --     "locationName": "Magnolia Terrace (Frisco, Texas)"
+  --   }
+  -- }
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
 ### 2. Database Operations
 
-#### Save GHL Connection
+#### Save Private Integration Token
 ```typescript
-static async saveGHLConnection(connectionData: {
-  accessToken: string;
-  refreshToken?: string;
-  locationId: string;
-  expiresIn?: number;
-}): Promise<void> {
+static async saveGHLPrivateIntegrationToken(token: string): Promise<void> {
+  // Test the token first
+  const testResult = await this.testAgencyToken(token);
+  
+  if (!testResult.valid) {
+    throw new Error('Invalid private integration token');
+  }
+
   const { error } = await supabase
     .from('integrations')
     .upsert({
       platform: 'goHighLevel',
       connected: true,
-      account_id: connectionData.locationId,
+      account_name: 'GoHighLevel Agency',
       config: {
-        accessToken: connectionData.accessToken,
-        refreshToken: connectionData.refreshToken,
-        expiresIn: connectionData.expiresIn,
+        agencyToken: token,
+        companyId: testResult.companyId,
+        capabilities: testResult.capabilities,
         connectedAt: new Date().toISOString()
       },
       last_sync: new Date().toISOString()
@@ -252,12 +323,12 @@ static async saveGHLConnection(connectionData: {
 }
 ```
 
-#### Get GHL Connection
+#### Get Private Integration Token
 ```typescript
 static async getGHLConnection(): Promise<any | null> {
   const { data, error } = await supabase
     .from('integrations')
-    .select('config, account_id')
+    .select('config, account_name')
     .eq('platform', 'goHighLevel')
     .eq('connected', true)
     .single();
@@ -268,23 +339,8 @@ static async getGHLConnection(): Promise<any | null> {
 
   return {
     config: data.config,
-    account_id: data.account_id
+    account_name: data.account_name
   };
-}
-```
-
-#### Get App Credentials
-```typescript
-private static async getCredentials(): Promise<GHLAppCredentials | null> {
-  const { data, error } = await supabase
-    .from('ghl_app_credentials')
-    .select('*')
-    .eq('is_active', true)
-    .eq('environment', import.meta.env.DEV ? 'development' : 'production')
-    .single();
-
-  if (error) return null;
-  return data;
 }
 ```
 
@@ -292,27 +348,27 @@ private static async getCredentials(): Promise<GHLAppCredentials | null> {
 
 ### 1. Environment Variables
 ```bash
-# Required Environment Variables
-REACT_APP_GHL_CLIENT_ID=your_ghl_client_id
-REACT_APP_GHL_CLIENT_SECRET=your_ghl_client_secret
-REACT_APP_GHL_REDIRECT_URI=http://localhost:8080/oauth/callback
-
-# Supabase Configuration
+# Required Environment Variables - Only Supabase needed!
 REACT_APP_SUPABASE_URL=your_supabase_url
 REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# No longer needed for GoHighLevel:
+# REACT_APP_GHL_CLIENT_ID=your_ghl_client_id
+# REACT_APP_GHL_CLIENT_SECRET=your_ghl_client_secret
+# REACT_APP_GHL_REDIRECT_URI=http://localhost:8080/oauth/callback
 ```
 
-### 2. OAuth Scopes
+### 2. Private Integration Token Scopes
 ```typescript
 const REQUIRED_SCOPES = [
-  'contacts.readonly',
-  'locations.readonly', 
-  'oauth.readonly',
-  'opportunities.readonly',
-  'funnels/redirect.readonly',
-  'funnels/page.readonly',
-  'funnels/funnel.readonly',
-  'funnels/pagecount.readonly'
+  'locations.readonly',    // List all sub-accounts
+  'companies.readonly',    // Access company information
+  'contacts.readonly',     // Access contact data
+  'opportunities.readonly', // Access pipeline data
+  'calendars.readonly',    // Access calendar events
+  'funnels/funnel.readonly', // Access funnel data
+  'funnels/page.readonly', // Access page data
+  'conversations.readonly' // Access conversation data
 ];
 ```
 

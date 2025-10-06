@@ -23,7 +23,7 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ dateRange }) => 
   useEffect(() => {
     const fetchFunnelData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(dateRange);
+        const metrics = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
         
         // Calculate funnel stages
         const totalPageViews = metrics.pageViewAnalytics?.totalPageViews || metrics.totalContacts;
@@ -138,9 +138,9 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ dateRange }) => 
                 fill="#fff" 
                 fontSize={12} 
                 fontWeight="bold"
-                formatter={(value: number, props: any) => [
+                formatter={(value: any) => [
                   `${value.toLocaleString()}`,
-                  `${props.payload?.percentage?.toFixed(1) || '0'}%`
+                  `${value.percentage?.toFixed(1) || '0'}%`
                 ]}
               />
             </Funnel>

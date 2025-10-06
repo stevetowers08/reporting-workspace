@@ -162,7 +162,7 @@ export interface IntegrationDisplay {
   id: string;
   name: string;
   platform: IntegrationPlatform;
-  status: 'connected' | 'not connected' | 'error' | 'expired';
+  status: 'connected' | 'not connected' | 'error' | 'expired' | 'syncing';
   lastSync: string;
   clientsUsing: number;
   accountName?: string;

@@ -53,7 +53,8 @@ const OAuthCallback = () => {
           console.log('✅ State parsed successfully:', stateData);
         } catch (error) {
           console.error('❌ Failed to parse state:', error);
-          throw new Error(`Invalid state format: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(`Invalid state format: ${errorMessage}`);
         }
         
         const platform = stateData.platform;

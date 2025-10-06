@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GHLPageAnalyticsProps {
+  locationId: string;
   dateRange?: { start: string; end: string };
 }
 
@@ -25,14 +26,14 @@ interface PageData {
 
 const PAGE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ dateRange }) => {
+export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, dateRange }) => {
   const [pageData, setPageData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPageData = async () => {
       try {
-        const data = await GoHighLevelService.getPageAnalytics(dateRange);
+        const data = await GoHighLevelService.getPageAnalytics(locationId, dateRange);
         setPageData(data);
       } catch (error) {
         console.error('Failed to fetch page analytics:', error);

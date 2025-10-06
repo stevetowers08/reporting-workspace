@@ -9,7 +9,7 @@ export interface Client {
   id: string;
   name: string;
   logo_url?: string;
-  accounts: {
+  accounts?: {
     facebookAds?: string;
     googleAds?: string;
     goHighLevel?: string;
@@ -23,7 +23,7 @@ export interface IntegrationDisplay {
   id: string;
   name: string;
   platform: string;
-  status: 'connected' | 'not connected' | 'error';
+  status: 'connected' | 'not connected' | 'error' | 'expired' | 'syncing';
   lastSync: string;
   clientsUsing: number;
   accountName?: string;
@@ -122,6 +122,38 @@ export class AdminService {
   }
 
   /**
+   * Save GoHighLevel private integration token
+   */
+  static async saveGHLPrivateIntegrationToken(token: string): Promise<void> {
+    try {
+      debugLogger.info('AdminService', 'Saving GoHighLevel private integration token');
+      
+      const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
+      
+      // Test the agency token and determine capabilities
+      const testResult = await GoHighLevelService.testAgencyToken(token);
+      
+      if (!testResult.success) {
+        throw new Error(`Token validation failed: ${testResult.message}`);
+      }
+      
+      // Save the token using the unified integration service
+      await IntegrationService.saveApiKey('goHighLevel', {
+        apiKey: token,
+        keyType: 'bearer'
+      }, {
+        id: 'ghl-agency',
+        name: 'GoHighLevel Agency'
+      });
+      
+      debugLogger.info('AdminService', 'GoHighLevel private integration token saved successfully');
+    } catch (error) {
+      debugLogger.error('AdminService', 'Failed to save GoHighLevel private integration token', error);
+      throw error;
+    }
+  }
+
+  /**
    * Connect to an integration platform
    */
   static async connectIntegration(platform: string): Promise<void> {
@@ -158,11 +190,35 @@ export class AdminService {
         return;
       }
 
+      // Special handling for Google Sheets - it uses Google Ads OAuth
+      if (platform === 'googleSheets') {
+        // Check if Google Ads is already connected
+        const isGoogleAdsConnected = await IntegrationService.isConnected('googleAds');
+        if (!isGoogleAdsConnected) {
+          throw new Error('Google Ads must be connected first. Google Sheets uses the same OAuth credentials as Google Ads.');
+        }
+        
+        // Mark Google Sheets as connected using existing Google Ads tokens
+        await IntegrationService.saveIntegration('googleSheets', {
+          connected: true,
+          lastSync: new Date().toISOString(),
+          syncStatus: 'idle',
+          connectedAt: new Date().toISOString(),
+          accountInfo: {
+            id: 'google-sheets-shared',
+            name: 'Google Sheets (Shared with Google Ads)',
+            email: 'shared@google.com'
+          }
+        });
+        
+        debugLogger.info('AdminService', 'Google Sheets connected using existing Google Ads credentials');
+        return;
+      }
+      
       // Map platform names to OAuth service names
       const oauthPlatformMap: Record<string, string> = {
         'facebookAds': 'facebook',
-        'googleAds': 'google',
-        'googleSheets': 'google'
+        'googleAds': 'google'
       };
       
       const oauthPlatform = oauthPlatformMap[platform] || platform;
@@ -190,18 +246,28 @@ export class AdminService {
     try {
       debugLogger.info('AdminService', `Disconnecting from ${platform}`);
       
+      // Special handling for Google Sheets - it shares OAuth with Google Ads
+      if (platform === 'googleSheets') {
+        // For Google Sheets, we only need to mark it as disconnected in the database
+        // Don't revoke the Google OAuth tokens since Google Ads might still be using them
+        await IntegrationService.disconnect(platform as IntegrationPlatform);
+        debugLogger.info('AdminService', 'Google Sheets disconnected successfully (OAuth tokens preserved for Google Ads)');
+        return;
+      }
+      
       // Map platform names to OAuth service names
       const oauthPlatformMap: Record<string, string> = {
         'facebookAds': 'facebook',
         'googleAds': 'google',
-        'googleSheets': 'google',
         'goHighLevel': 'gohighlevel'
       };
       
       const oauthPlatform = oauthPlatformMap[platform] || platform;
       
-      // Revoke tokens
-      await OAuthService.revokeTokens(oauthPlatform);
+      // Revoke tokens for platforms that have their own OAuth flow
+      if (oauthPlatformMap[platform]) {
+        await OAuthService.revokeTokens(oauthPlatform);
+      }
       
       // Update database to mark as disconnected using new service
       await IntegrationService.disconnect(platform as IntegrationPlatform);

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GHLFunnelAnalyticsProps {
+  locationId: string;
   dateRange?: { start: string; end: string };
 }
 
@@ -38,14 +39,14 @@ interface FunnelData {
 
 const FUNNEL_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ dateRange }) => {
+export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ locationId, dateRange }) => {
   const [funnelData, setFunnelData] = useState<FunnelData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFunnelData = async () => {
       try {
-        const data = await GoHighLevelService.getFunnelAnalytics(dateRange);
+        const data = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
         setFunnelData(data);
       } catch (error) {
         console.error('Failed to fetch funnel analytics:', error);

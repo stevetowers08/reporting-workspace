@@ -21,6 +21,7 @@ const supabase = createClient(
 
 app.post('/google-sheets-data', async (req, res) => {
   try {
+    console.log('Received request:', req.body);
     const { spreadsheetId, range } = req.body;
 
     if (!spreadsheetId) {

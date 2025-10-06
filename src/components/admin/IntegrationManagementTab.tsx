@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { debugLogger } from '@/lib/debug';
-import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
+import { AdminService, IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
 import { IntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
@@ -121,14 +121,13 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
         
         // For GoHighLevel private integration token
         if (platform === 'goHighLevel' && finalCredentials.agencyToken) {
-          await IntegrationService.saveApiKey(platform as IntegrationPlatform, {
-            // agencyToken: finalCredentials.agencyToken, // Commented out - not in ApiKeyConfig type
-            keyType: 'bearer',
-            apiKey: finalCredentials.agencyToken || ''
-          } as any, {
-            id: 'goHighLevel-agency',
-            name: 'GoHighLevel Agency'
-          });
+          try {
+            await AdminService.saveGHLPrivateIntegrationToken(finalCredentials.agencyToken);
+            alert('GoHighLevel agency token saved successfully!');
+          } catch (error) {
+            alert(`Failed to save agency token: ${error}`);
+            return;
+          }
         }
       } catch (error) {
         debugLogger.error('IntegrationManagementTab', 'Failed to save credentials', error);

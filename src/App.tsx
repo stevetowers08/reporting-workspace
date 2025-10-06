@@ -29,11 +29,27 @@ const HealthCheckPage = () => {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const status = await HealthCheck();
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        );
+        
+        const statusPromise = HealthCheck();
+        const status = await Promise.race([statusPromise, timeoutPromise]);
         setHealthStatus(status);
       } catch (error) {
         console.error('Health check failed:', error);
-        setHealthStatus({ status: 'error', error: 'Health check failed' });
+        setHealthStatus({ 
+          status: 'degraded', 
+          error: 'Health check failed',
+          timestamp: new Date().toISOString(),
+          services: {
+            database: 'error',
+            integrations: 'error', 
+            cache: 'error',
+            authentication: 'error'
+          }
+        });
       } finally {
         setLoading(false);
       }

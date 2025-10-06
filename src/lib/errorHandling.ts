@@ -61,7 +61,11 @@ export class ErrorHandler {
     context?: string
   ): ValidationError {
     return {
-      ...this.createError('VALIDATION_ERROR', message, undefined, context),
+      code: 'VALIDATION_ERROR' as const,
+      message,
+      details: undefined,
+      timestamp: new Date().toISOString(),
+      context,
       field,
       value
     };
@@ -74,7 +78,11 @@ export class ErrorHandler {
     context?: string
   ): ApiError {
     return {
-      ...this.createError('API_ERROR', message, undefined, context),
+      code: 'API_ERROR' as const,
+      message,
+      details: undefined,
+      timestamp: new Date().toISOString(),
+      context,
       status,
       endpoint
     };
@@ -87,7 +95,11 @@ export class ErrorHandler {
     context?: string
   ): DatabaseError {
     return {
-      ...this.createError('DATABASE_ERROR', message, undefined, context),
+      code: 'DATABASE_ERROR' as const,
+      message,
+      details: undefined,
+      timestamp: new Date().toISOString(),
+      context,
       operation,
       table
     };
@@ -99,7 +111,11 @@ export class ErrorHandler {
     context?: string
   ): AuthError {
     return {
-      ...this.createError('AUTH_ERROR', message, undefined, context),
+      code: 'AUTH_ERROR' as const,
+      message,
+      details: undefined,
+      timestamp: new Date().toISOString(),
+      context,
       provider
     };
   }
@@ -110,7 +126,11 @@ export class ErrorHandler {
     context?: string
   ): NetworkError {
     return {
-      ...this.createError('NETWORK_ERROR', message, undefined, context),
+      code: 'NETWORK_ERROR' as const,
+      message,
+      details: undefined,
+      timestamp: new Date().toISOString(),
+      context,
       url
     };
   }
