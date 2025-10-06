@@ -4,6 +4,20 @@ Hu# Integrations Guide
 
 This project integrates with multiple external APIs and services to provide comprehensive marketing analytics. This guide covers setup, implementation, and testing strategies for all integrations.
 
+## Recent Updates (January 2025)
+
+### ✅ Database-Driven OAuth System
+- **Centralized OAuth Credentials**: All OAuth client IDs and secrets are now stored in the `oauth_credentials` database table
+- **Dynamic Configuration**: OAuth services fetch credentials from database at runtime
+- **Enhanced Security**: No hardcoded secrets in client code
+- **Flexible Redirect URIs**: Automatically adjusts redirect URIs based on current domain
+
+### ✅ Google Sheets Integration Improvements
+- **Independent Connection**: Google Sheets can now connect independently using database OAuth credentials
+- **Shared Token Support**: Still uses Google Ads tokens when available (preferred)
+- **Spreadsheet Selection**: Properly saves spreadsheet and sheet selection to database
+- **Error Handling**: Improved error messages and user feedback
+
 ## Integration Architecture
 
 ### Service Layer Pattern
