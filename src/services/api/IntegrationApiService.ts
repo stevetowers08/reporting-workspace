@@ -19,62 +19,15 @@ import {
  * - Supports caching and performance optimization
  */
 export class IntegrationApiService {
-  private static readonly BASE_URL = 'https://bdmcdyxjdkgitphieklb.supabase.co/functions/v1';
-  
-  /**
-   * Get authentication headers for API requests
-   */
-  private static async getAuthHeaders(): Promise<HeadersInit> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || supabase.supabaseKey;
-    
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'apikey': supabase.supabaseKey
-    };
-  }
-
-  /**
-   * Make API request to Edge Function
-   */
-  private static async makeRequest(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<any> {
-    try {
-      const headers = await this.getAuthHeaders();
-      const url = `${this.BASE_URL}${endpoint}`;
-      
-      debugLogger.info('IntegrationApiService', `Making API request to ${endpoint}`, {
-        method: options.method || 'GET',
-        url
-      });
-
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...headers,
-          ...options.headers
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorData.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      debugLogger.info('IntegrationApiService', `API request successful`, {
-        endpoint,
-        status: response.status
-      });
-
-      return data;
-    } catch (error) {
-      debugLogger.error('IntegrationApiService', `API request failed for ${endpoint}`, error);
-      throw error;
+  // Use Supabase Edge Functions client which automatically includes auth/session
+  private static async invoke<T>(name: string, payload?: Record<string, unknown>): Promise<T> {
+    const { data, error } = await supabase.functions.invoke<T>(name, {
+      body: payload ?? {},
+    });
+    if (error) {
+      throw new Error(error.message);
     }
+    return data as T;
   }
 
   /**
@@ -83,7 +36,7 @@ export class IntegrationApiService {
   static async getAllIntegrations(): Promise<IntegrationConfig[]> {
     try {
       debugLogger.info('IntegrationApiService', 'Fetching all integrations via API');
-      const response = await this.makeRequest('/integrations');
+      const response: any = await this.invoke('integrations', { method: 'GET' });
       
       if (!response.success) {
         throw new Error('Failed to fetch integrations');
@@ -102,7 +55,7 @@ export class IntegrationApiService {
   static async getIntegration(platform: IntegrationPlatform): Promise<IntegrationConfig | null> {
     try {
       debugLogger.info('IntegrationApiService', `Fetching integration for ${platform} via API`);
-      const response = await this.makeRequest(`/integrations/${platform}`);
+      const response: any = await this.invoke('integrations', { method: 'GET', platform });
       
       if (!response.success) {
         if (response.error === 'Integration not found') {
@@ -133,16 +86,13 @@ export class IntegrationApiService {
   ): Promise<IntegrationConfig> {
     try {
       debugLogger.info('IntegrationApiService', `Saving OAuth tokens for ${platform} via API`);
-      
-      const response = await this.makeRequest('/oauth-tokens', {
+      const response: any = await this.invoke('oauth-tokens', {
         method: 'POST',
-        body: JSON.stringify({
-          platform,
-          tokens,
-          accountInfo,
-          metadata,
-          settings
-        })
+        platform,
+        tokens,
+        accountInfo,
+        metadata,
+        settings,
       });
 
       if (!response.success) {
@@ -174,16 +124,13 @@ export class IntegrationApiService {
   ): Promise<IntegrationConfig> {
     try {
       debugLogger.info('IntegrationApiService', `Saving API key for ${platform} via API`);
-      
-      const response = await this.makeRequest('/oauth-tokens', {
+      const response: any = await this.invoke('oauth-tokens', {
         method: 'POST',
-        body: JSON.stringify({
-          platform,
-          apiKey: apiKeyConfig,
-          accountInfo,
-          metadata,
-          settings
-        })
+        platform,
+        apiKey: apiKeyConfig,
+        accountInfo,
+        metadata,
+        settings,
       });
 
       if (!response.success) {
@@ -212,13 +159,10 @@ export class IntegrationApiService {
   ): Promise<IntegrationConfig> {
     try {
       debugLogger.info('IntegrationApiService', `Refreshing tokens for ${platform} via API`);
-      
-      const response = await this.makeRequest(`/oauth-tokens/${platform}`, {
+      const response: any = await this.invoke('oauth-tokens', {
         method: 'PUT',
-        body: JSON.stringify({
-          platform,
-          tokens: newTokens
-        })
+        platform,
+        tokens: newTokens,
       });
 
       if (!response.success) {
@@ -244,9 +188,9 @@ export class IntegrationApiService {
   static async disconnect(platform: IntegrationPlatform): Promise<void> {
     try {
       debugLogger.info('IntegrationApiService', `Disconnecting ${platform} via API`);
-      
-      const response = await this.makeRequest(`/oauth-tokens/${platform}`, {
-        method: 'DELETE'
+      const response: any = await this.invoke('oauth-tokens', {
+        method: 'DELETE',
+        platform,
       });
 
       if (!response.success) {
@@ -272,8 +216,10 @@ export class IntegrationApiService {
   } | null> {
     try {
       debugLogger.info('IntegrationApiService', `Getting tokens for ${platform} via API`);
-      
-      const response = await this.makeRequest(`/oauth-tokens/${platform}`);
+      const response: any = await this.invoke('oauth-tokens', {
+        method: 'GET',
+        platform,
+      });
 
       if (!response.success) {
         if (response.error === 'No tokens found for this platform') {
@@ -343,7 +289,7 @@ export class IntegrationApiService {
   static async testConnection(): Promise<boolean> {
     try {
       debugLogger.info('IntegrationApiService', 'Testing API connection');
-      await this.makeRequest('/integrations');
+      await this.invoke('integrations', { method: 'GET' });
       return true;
     } catch (error) {
       debugLogger.error('IntegrationApiService', 'API connection test failed', error);

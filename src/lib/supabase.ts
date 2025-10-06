@@ -3,19 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 // Supabase configuration
 // SECURITY: Never hardcode API keys in client-side code!
 // These should be configured through environment variables only
-const getEnvVar = (key: string, fallback?: string) => {
+const getEnvVar = (key: string) => {
   // Handle both browser (import.meta.env) and Node.js (process.env) environments
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env[key] || fallback;
-  }
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env[key] || fallback;
-  }
-  return fallback;
+  // @ts-expect-error Vite injects import.meta.env at build
+  const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
+  if (viteEnv && typeof viteEnv[key] !== 'undefined') return viteEnv[key];
+  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') return process.env[key];
+  return undefined;
 };
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://bdmcdyxjdkgitphieklb.supabase.co');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbWNkeXhqZGtnaXRwaGlla2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0Mzk3MDYsImV4cCI6MjA3NTAxNTcwNn0.QwmjIXs7PbTi21GGDNd1Z0EQR2R6B_fwYWCXDFeOCPw');
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 // Validate configuration
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -23,7 +21,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  db: { schema: 'public' },
+});
 
 // Database types
 export interface Database {

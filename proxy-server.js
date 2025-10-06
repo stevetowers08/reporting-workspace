@@ -9,15 +9,22 @@ dotenv.config();
 const app = express();
 const PORT = 3001;
 
-// Enable CORS for all routes
-app.use(cors());
+// Enable CORS for all routes with configurable origins
+app.use(cors({
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+  methods: ['POST', 'OPTIONS'],
+}));
 app.use(express.json());
 
-// Supabase client - using anon key for now
-const supabase = createClient(
-  'https://bdmcdyxjdkgitphieklb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbWNkeXhqZGtnaXRwaGlla2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0Mzk3MDYsImV4cCI6MjA3NTAxNTcwNn0.QwmjIXs7PbTi21GGDNd1Z0EQR2R6B_fwYWCXDFeOCPw'
-);
+// Supabase client - use server-side service role key
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+}
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 app.post('/google-sheets-data', async (req, res) => {
   try {
@@ -61,8 +68,8 @@ app.post('/google-sheets-data', async (req, res) => {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            'client_id': '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com',
-            'client_secret': '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',
+            'client_id': process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '',
+            'client_secret': process.env.GOOGLE_CLIENT_SECRET || process.env.VITE_GOOGLE_CLIENT_SECRET || '',
             'refresh_token': refreshToken,
             'grant_type': 'refresh_token'
           })

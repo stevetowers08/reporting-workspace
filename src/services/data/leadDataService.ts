@@ -51,8 +51,15 @@ export class LeadDataService {
         sheetName: actualSheetName
       });
       
-      // Use local proxy server to avoid CORS issues
-      const response = await fetch(`http://localhost:3001/google-sheets-data`, {
+      // Use configured proxy server to avoid CORS issues
+      // @ts-expect-error Vite injects import.meta.env at build
+      const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
+      const baseUrl = (viteEnv && viteEnv.VITE_PROXY_URL) || process.env.VITE_PROXY_URL;
+      if (!baseUrl) {
+        throw new Error('Missing VITE_PROXY_URL environment variable');
+      }
+
+      const response = await fetch(`${baseUrl}/google-sheets-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
