@@ -20,10 +20,27 @@ const OAuthCallback = () => {
   const { handleAuthError, handleNetworkError } = useErrorHandler();
 
   // Debug: Log component mounting
-  console.log('🔍 OAuthCallback component mounted - v3 - FORCE REBUILD');
+  console.log('🔍 OAuthCallback component mounted - v4 - TESTING');
   console.log('🔍 Current URL:', window.location.href);
   console.log('🔍 Search params:', window.location.search);
-  console.log('🔍 Component version: 3.0.0');
+  console.log('🔍 Component version: 4.0.0');
+  
+  // Force immediate execution for testing
+  const code = searchParams.get('code');
+  const state = searchParams.get('state');
+  
+  console.log('🔍 IMMEDIATE TEST - Code:', code ? 'EXISTS' : 'MISSING');
+  console.log('🔍 IMMEDIATE TEST - State:', state ? 'EXISTS' : 'MISSING');
+  
+  if (code && state) {
+    console.log('🔍 IMMEDIATE TEST - OAuth parameters found, should process');
+    setStatus('success');
+    setMessage('OAuth callback received parameters!');
+  } else {
+    console.log('🔍 IMMEDIATE TEST - No OAuth parameters found');
+    setStatus('error');
+    setMessage('No OAuth parameters found');
+  }
 
   useEffect(() => {
     console.log('🔍 useEffect triggered - OAuth callback starting');
