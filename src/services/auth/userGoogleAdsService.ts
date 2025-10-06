@@ -60,7 +60,8 @@ export class UserGoogleAdsService {
       userId,
       platform: 'google',
       timestamp: Date.now(),
-      nonce: Math.random().toString(36).substring(7)
+      nonce: Math.random().toString(36).substring(7),
+      scope: this.GOOGLE_ADS_SCOPE
     }));
 
     // Generate PKCE parameters
