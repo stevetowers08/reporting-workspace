@@ -34,6 +34,14 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    console.log('🔍 Starting token exchange...');
+    console.log('🔍 Environment check:', {
+      hasClientId: !!process.env.VITE_GHL_CLIENT_ID,
+      hasClientSecret: !!process.env.VITE_GHL_CLIENT_SECRET,
+      hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.VITE_SUPABASE_ANON_KEY
+    });
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch(
       'https://services.leadconnectorhq.com/oauth/token',
@@ -52,6 +60,8 @@ module.exports = async function handler(req, res) {
         })
       }
     );
+
+    console.log('🔍 Token exchange response status:', tokenResponse.status);
     
     const tokenData = await tokenResponse.json();
     console.log('🔍 Token exchange response:', { 
@@ -78,6 +88,8 @@ module.exports = async function handler(req, res) {
       throw new Error('No location ID received from GoHighLevel');
     }
 
+    console.log('🔍 Saving token to Supabase...');
+    
     // Store in Supabase - use insert with on_conflict for proper upsert
     const { error: saveError } = await supabase
       .from('integrations')
