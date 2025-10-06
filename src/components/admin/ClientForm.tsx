@@ -899,6 +899,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   </div>
                 )}
                 
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>GoHighLevel not connected</span>
+                </div>
+                
                 {/* Connect Location Button */}
                 <ConnectLocationButton 
                   clientId={initialData?.id}
@@ -911,14 +919,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     loadGHLAccounts();
                   }}
                 />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <AlertCircle className="h-4 w-4" />
-                <span>GoHighLevel not connected</span>
-                <Link to="/admin" className="text-blue-600 hover:underline">
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
               </div>
             )}
           </div>
