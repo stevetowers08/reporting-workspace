@@ -112,53 +112,6 @@ module.exports = async function handler(req, res) {
 
     console.log('✅ Token saved to database successfully');
 
-    // Fetch location details for display name
-    try {
-      const locationDetails = await fetch(
-        `https://services.leadconnectorhq.com/locations/${tokenData.locationId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
-            'Version': '2021-07-28'
-          }
-        }
-      ).then(r => r.json());
-
-      if (locationDetails.location) {
-        // Update with location name
-        const { error: updateError } = await supabase
-          .from('integrations')
-          .update({
-            account_name: locationDetails.location.name,
-            config: {
-              apiKey: {
-                apiKey: tokenData.access_token,
-                keyType: 'bearer'
-              },
-              refreshToken: tokenData.refresh_token,
-              expiresIn: tokenData.expires_in,
-              expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-              scopes: tokenData.scope?.split(' ') || [],
-              locationId: tokenData.locationId,
-              userType: tokenData.userType,
-              lastSync: new Date().toISOString(),
-              connectedAt: new Date().toISOString(),
-              locationName: locationDetails.location.name
-            }
-          })
-          .eq('platform', 'goHighLevel')
-          .eq('account_id', tokenData.locationId);
-
-        if (updateError) {
-          console.warn('⚠️ Could not update location name:', updateError);
-        } else {
-          console.log('✅ Location name updated successfully');
-        }
-      }
-    } catch (locationError) {
-      console.warn('⚠️ Could not fetch location details:', locationError);
-    }
-
     console.log('✅ OAuth flow completed successfully');
     
     // Redirect back to dashboard with success
