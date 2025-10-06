@@ -33,3 +33,5 @@ echo "   - VITE_GHL_CLIENT_SECRET=$GHL_CLIENT_SECRET"
 echo
 echo "3. Test the OAuth flow at: https://tulenreporting.vercel.app/api/leadconnector/oath"
 echo
+
+

@@ -1096,7 +1096,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   
                   {/* Connect Location Button */}
                   <ConnectLocationButton 
-                    clientId={clientId}
+                    clientId={clientId || 'new_client'}
                     onConnected={(locationId) => {
                       console.log('🔍 Location connected:', locationId);
                       // Refresh integration status

@@ -32,7 +32,15 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     authUrl.searchParams.append('scope', 'contacts.readonly opportunities.readonly calendars.readonly funnels/funnel.readonly funnels/page.readonly');
     
     if (clientId) {
-      authUrl.searchParams.append('state', clientId); // Pass client ID for context
+      // Check if this is a new client (clientId starts with 'new_')
+      if (clientId.startsWith('new_')) {
+        authUrl.searchParams.append('state', clientId); // Pass new client ID for context
+      } else {
+        authUrl.searchParams.append('state', clientId); // Pass existing client ID for context
+      }
+    } else {
+      // For new client creation without a clientId yet, use a special state
+      authUrl.searchParams.append('state', 'new_client');
     }
     
     console.log('🔍 Redirecting to GHL OAuth:', authUrl.toString());

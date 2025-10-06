@@ -135,8 +135,14 @@ export default async function handler(req, res) {
     const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app';
     
     if (state) {
-      // If we have a clientId in state, redirect back to client edit page
-      res.redirect(302, `${baseUrl}/admin/clients/${state}/edit?connected=true&location=${tokenData.locationId}`);
+      // Check if this is a new client creation (state starts with 'new_')
+      if (state.startsWith('new_')) {
+        // For new client creation, redirect back to admin panel with success message
+        res.redirect(302, `${baseUrl}/admin?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
+      } else {
+        // If we have an existing clientId in state, redirect back to client edit page
+        res.redirect(302, `${baseUrl}/admin/clients/${state}/edit?connected=true&location=${tokenData.locationId}`);
+      }
     } else {
       // Fallback to admin panel
       res.redirect(302, `${baseUrl}/admin?connected=true&location=${tokenData.locationId}`);
