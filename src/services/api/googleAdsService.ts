@@ -236,86 +236,48 @@ export class GoogleAdsService {
   }
 
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
-    const accessToken = await this.getAccessToken();
-    const developerToken = this.getDeveloperToken();
-
-    debugLogger.debug('GoogleAdsService', 'getAdAccounts called', { hasAccessToken: !!accessToken, hasDeveloperToken: !!developerToken });
-
-    if (!accessToken || !developerToken) {
-      debugLogger.error('GoogleAdsService', 'Google Ads authentication missing', { 
-        hasAccessToken: !!accessToken,
-        hasDeveloperToken: !!developerToken
-      });
-      throw new Error('Google Ads not authenticated');
-    }
+    debugLogger.debug('GoogleAdsService', 'getAdAccounts called - using Edge Function');
 
     try {
-      // Get accessible customers
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      // Use Supabase Edge Function to avoid CORS issues
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-ads-api/accounts`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
-        throw new Error(`Google Ads API error: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Google Ads API error: ${response.status} - ${errorData.message || response.statusText}`);
       }
 
       const data = await response.json();
-      const customers = data.resourceNames || [];
-
-      // Get customer details for each accessible customer
-      const accounts: GoogleAdsAccount[] = [];
-
-      for (const customerResourceName of customers) {
-        const customerId = customerResourceName.split('/').pop();
-        if (!customerId) continue;
-
-        try {
-          // Get customer details
-          const customerQuery = `
-            SELECT 
-              customer.id,
-              customer.descriptive_name,
-              customer.currency_code,
-              customer.time_zone
-            FROM customer
-          `;
-
-          const customerResponse = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'developer-token': developerToken,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ query: customerQuery })
-          });
-
-          if (customerResponse.ok) {
-            const customerData = await customerResponse.json();
-            const customer = customerData.results?.[0]?.customer;
-
-            if (customer) {
-              accounts.push({
-                id: customer.id,
-                name: customer.descriptiveName || `Account ${customer.id}`,
-                status: 'active',
-                currency: customer.currencyCode || 'USD',
-                timezone: customer.timeZone || 'UTC'
-              });
-            }
-          }
-        } catch (error) {
-          debugLogger.error('GoogleAdsService', `Error fetching details for customer ${customerId}`, error);
-        }
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch Google Ads accounts');
       }
 
+      const accounts: GoogleAdsAccount[] = data.data.map((account: any) => ({
+        id: account.id,
+        name: account.name,
+        status: 'active',
+        currency: account.currency,
+        timezone: account.timezone
+      }));
+
+      debugLogger.info('GoogleAdsService', 'Successfully fetched Google Ads accounts via Edge Function', { count: accounts.length });
       return accounts;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Error fetching Google Ads accounts', error);
+      debugLogger.error('GoogleAdsService', 'Error fetching Google Ads accounts via Edge Function', error);
       throw error;
     }
   }
