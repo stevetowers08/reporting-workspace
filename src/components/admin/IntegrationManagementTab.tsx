@@ -310,10 +310,38 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                   
                   {showGoogleSheetsSelector && (
                     <GoogleSheetsSelector
-                      onSelectionComplete={(spreadsheetId, sheetName) => {
+                      onSelectionComplete={async (spreadsheetId, sheetName) => {
                         console.log('Google Sheets selection completed:', { spreadsheetId, sheetName });
-                        setShowGoogleSheetsSelector(false);
-                        // Optionally refresh integrations or show success message
+                        
+                        try {
+                          // Get the selected spreadsheet name
+                          const selectedSpreadsheet = accounts[0]?.sheets.find(sheet => sheet.id === spreadsheetId);
+                          const spreadsheetName = selectedSpreadsheet?.name || 'Unknown Spreadsheet';
+                          
+                          // Save the spreadsheet selection to the Google Sheets integration metadata
+                          await IntegrationService.saveIntegration('googleSheets', {
+                            connected: true,
+                            lastSync: new Date().toISOString(),
+                            syncStatus: 'idle',
+                            metadata: {
+                              googleSheets: {
+                                spreadsheetId: spreadsheetId,
+                                spreadsheetName: spreadsheetName,
+                                selectedSheetName: sheetName,
+                                spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
+                              }
+                            }
+                          });
+                          
+                          console.log('Google Sheets metadata saved successfully');
+                          setShowGoogleSheetsSelector(false);
+                          
+                          // Show success message or refresh integrations
+                          alert(`Successfully configured Google Sheets: ${spreadsheetName} - ${sheetName}`);
+                        } catch (error) {
+                          console.error('Failed to save Google Sheets selection:', error);
+                          alert('Failed to save Google Sheets selection. Please try again.');
+                        }
                       }}
                     />
                   )}
