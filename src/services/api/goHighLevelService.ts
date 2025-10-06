@@ -1673,7 +1673,7 @@ export class GoHighLevelService {
                 client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET!,
                 grant_type: 'refresh_token',
                 refresh_token: refreshToken,
-                user_type: 'Location'
+                user_type: 'Company'
               })
             }
           );

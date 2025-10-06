@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
           client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET!,
           grant_type: 'authorization_code',
           code: code,
-          user_type: 'Location', // Important!
-          refresh_token: 'true' // Request refresh token
+          user_type: 'Company', // Changed from 'Location' to 'Company'
+          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'https://tulenreporting.vercel.app'}/api/oauth/callback`
         })
       }
     );
