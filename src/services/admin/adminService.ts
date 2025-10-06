@@ -194,8 +194,35 @@ export class AdminService {
       if (platform === 'googleSheets') {
         // Check if Google Ads is already connected
         const isGoogleAdsConnected = await IntegrationService.isConnected('googleAds');
+        console.log('Google Sheets connect: Checking Google Ads connection:', isGoogleAdsConnected);
+        
         if (!isGoogleAdsConnected) {
-          throw new Error('Google Ads must be connected first. Google Sheets uses the same OAuth credentials as Google Ads.');
+          // Check if Google Ads integration exists but is marked as disconnected
+          const googleAdsIntegration = await IntegrationService.getIntegration('googleAds');
+          console.log('Google Ads integration exists:', !!googleAdsIntegration);
+          
+          if (googleAdsIntegration) {
+            console.log('Google Ads config:', googleAdsIntegration.config);
+            const hasTokens = googleAdsIntegration.config.tokens?.accessToken;
+            console.log('Google Ads has tokens:', !!hasTokens);
+            
+            if (hasTokens) {
+              // Google Ads has tokens but is marked as disconnected - reconnect it first
+              await IntegrationService.saveIntegration('googleAds', {
+                ...googleAdsIntegration.config,
+                connected: true,
+                lastSync: new Date().toISOString(),
+                syncStatus: 'idle'
+              });
+              console.log('Reconnected Google Ads integration');
+            }
+          }
+          
+          // Re-check connection after potential reconnect
+          const isGoogleAdsConnectedAfterReconnect = await IntegrationService.isConnected('googleAds');
+          if (!isGoogleAdsConnectedAfterReconnect) {
+            throw new Error('Google Ads must be connected first. Please connect Google Ads before connecting Google Sheets.');
+          }
         }
         
         // Mark Google Sheets as connected using existing Google Ads tokens
@@ -212,6 +239,7 @@ export class AdminService {
         });
         
         debugLogger.info('AdminService', 'Google Sheets connected using existing Google Ads credentials');
+        console.log('Google Sheets connected successfully');
         return;
       }
       

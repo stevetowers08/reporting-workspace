@@ -210,12 +210,13 @@ export class UnifiedIntegrationService {
       const hasValidApiKey = this.hasValidApiKey(integration.config);
       
       // For API key platforms (like Google AI Studio), check if API key exists
-      // For OAuth platforms, check both connected flag and valid tokens
       if (platform === 'google-ai') {
         return hasValidApiKey;
       }
       
-      return integration.config.connected && (hasValidTokens || hasValidApiKey);
+      // For OAuth platforms, check if we have valid tokens (ignore connected flag for now)
+      // This allows Google Sheets to work even if Google Ads is marked as disconnected but has tokens
+      return hasValidTokens || hasValidApiKey;
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', `Failed to check connection status for ${platform}`, error);
       return false;
@@ -411,14 +412,23 @@ export class UnifiedIntegrationService {
    * Check if integration has valid OAuth tokens
    */
   private static hasValidTokens(config: IntegrationConfig): boolean {
-    if (!config.tokens?.accessToken) {
+    // Check for access token in different possible locations
+    const accessToken = config.tokens?.accessToken || 
+                       (config.tokens as any)?.access_token ||
+                       (config as any)?.accessToken;
+    
+    if (!accessToken) {
       return false;
     }
     
     // Check if token is expired
-    if (config.tokens.expiresAt) {
-      const expiresAt = new Date(config.tokens.expiresAt);
-      if (expiresAt < new Date()) {
+    const expiresAt = config.tokens?.expiresAt || 
+                     (config.tokens as any)?.expires_at ||
+                     (config as any)?.expiresAt;
+    
+    if (expiresAt) {
+      const expiresAtDate = new Date(expiresAt);
+      if (expiresAtDate < new Date()) {
         return false;
       }
     }
