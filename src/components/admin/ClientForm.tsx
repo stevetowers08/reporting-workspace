@@ -890,16 +890,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     loadGHLAccounts();
                   }}
                 />
-                
-                {/* Connection Status */}
-                <ConnectionStatus 
-                  locationId={typeof formData.accounts.goHighLevel === 'string' 
-                    ? formData.accounts.goHighLevel 
-                    : formData.accounts.goHighLevel?.locationId}
-                  isConnected={!!(typeof formData.accounts.goHighLevel === 'string' 
-                    ? formData.accounts.goHighLevel 
-                    : formData.accounts.goHighLevel?.locationId)}
-                />
               </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-gray-500">
