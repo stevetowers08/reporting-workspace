@@ -17,6 +17,7 @@ import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
 import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
 import { HealthCheck } from "@/pages/health";
+import OAuthCallback from "@/pages/OAuthCallback";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -190,6 +191,7 @@ const App = () => {
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                 <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
                 <Route path="/health" element={<HealthCheckPage />} />
