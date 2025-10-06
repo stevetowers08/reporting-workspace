@@ -190,57 +190,55 @@ export class AdminService {
         return;
       }
 
-      // Special handling for Google Sheets - it uses Google Ads OAuth
+      // Special handling for Google Sheets - it can connect independently using database OAuth credentials
       if (platform === 'googleSheets') {
-        // Check if Google Ads is already connected
+        console.log('Google Sheets connect: Attempting independent connection using database OAuth credentials');
+        
+        // Check if Google Ads is already connected (preferred)
         const isGoogleAdsConnected = await IntegrationService.isConnected('googleAds');
-        console.log('Google Sheets connect: Checking Google Ads connection:', isGoogleAdsConnected);
+        console.log('Google Ads connection status:', isGoogleAdsConnected);
         
-        if (!isGoogleAdsConnected) {
-          // Check if Google Ads integration exists but is marked as disconnected
-          const googleAdsIntegration = await IntegrationService.getIntegration('googleAds');
-          console.log('Google Ads integration exists:', !!googleAdsIntegration);
-          
-          if (googleAdsIntegration) {
-            console.log('Google Ads config:', googleAdsIntegration.config);
-            const hasTokens = googleAdsIntegration.config.tokens?.accessToken;
-            console.log('Google Ads has tokens:', !!hasTokens);
-            
-            if (hasTokens) {
-              // Google Ads has tokens but is marked as disconnected - reconnect it first
-              await IntegrationService.saveIntegration('googleAds', {
-                ...googleAdsIntegration.config,
-                connected: true,
-                lastSync: new Date().toISOString(),
-                syncStatus: 'idle'
-              });
-              console.log('Reconnected Google Ads integration');
+        if (isGoogleAdsConnected) {
+          // Use existing Google Ads tokens
+          console.log('Using existing Google Ads tokens for Google Sheets');
+          await IntegrationService.saveIntegration('googleSheets', {
+            connected: true,
+            lastSync: new Date().toISOString(),
+            syncStatus: 'idle',
+            connectedAt: new Date().toISOString(),
+            accountInfo: {
+              id: 'google-sheets-shared',
+              name: 'Google Sheets (Shared with Google Ads)',
+              email: 'shared@google.com'
             }
-          }
+          });
+          console.log('Google Sheets connected using existing Google Ads credentials');
+          return;
+        } else {
+          // Connect Google Sheets independently using database OAuth credentials
+          console.log('Connecting Google Sheets independently using database OAuth credentials');
           
-          // Re-check connection after potential reconnect
-          const isGoogleAdsConnectedAfterReconnect = await IntegrationService.isConnected('googleAds');
-          if (!isGoogleAdsConnectedAfterReconnect) {
-            throw new Error('Google Ads must be connected first. Please connect Google Ads before connecting Google Sheets.');
-          }
+          // Map platform names to OAuth service names
+          const oauthPlatformMap: Record<string, string> = {
+            'facebookAds': 'facebook',
+            'googleAds': 'google',
+            'googleSheets': 'google' // Google Sheets uses Google OAuth
+          };
+          
+          const oauthPlatform = oauthPlatformMap[platform] || platform;
+          
+          // Generate OAuth URL and redirect
+          const authUrl = await OAuthService.generateAuthUrl(oauthPlatform, {}, platform);
+          
+          debugLogger.info('AdminService', `Redirecting to ${platform} OAuth`, { authUrl });
+          
+          // Use setTimeout to ensure redirect happens after current execution
+          window.setTimeout(() => {
+            window.location.href = authUrl;
+          }, 100);
+          
+          return;
         }
-        
-        // Mark Google Sheets as connected using existing Google Ads tokens
-        await IntegrationService.saveIntegration('googleSheets', {
-          connected: true,
-          lastSync: new Date().toISOString(),
-          syncStatus: 'idle',
-          connectedAt: new Date().toISOString(),
-          accountInfo: {
-            id: 'google-sheets-shared',
-            name: 'Google Sheets (Shared with Google Ads)',
-            email: 'shared@google.com'
-          }
-        });
-        
-        debugLogger.info('AdminService', 'Google Sheets connected using existing Google Ads credentials');
-        console.log('Google Sheets connected successfully');
-        return;
       }
       
       // Map platform names to OAuth service names

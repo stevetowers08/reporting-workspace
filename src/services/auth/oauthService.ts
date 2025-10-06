@@ -1,6 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
+import { OAuthCredentialsService } from './oauthCredentialsService';
 
 // Production-ready OAuth 2.0 service for all integrations
 export interface OAuthConfig {
@@ -28,40 +29,32 @@ export interface OAuthState {
 }
 
 export class OAuthService {
-    private static readonly OAUTH_CONFIGS: Record<string, OAuthConfig> = {
-        facebook: {
-            // SECURITY: Never hardcode secrets in client-side code!
-            // These should be configured server-side only
-            clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || '2922447491235718',
-            clientSecret: '', // Client secret should NEVER be in client-side code
-            redirectUri: import.meta.env.DEV ? 'http://tulen-dev.local:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
-            scopes: ['ads_read', 'ads_management', 'business_management'],
-            authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
-            tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token'
-        },
-        google: {
-            // SECURITY: Never hardcode secrets in client-side code!
-            clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com',
-            clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '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',
-            redirectUri: import.meta.env.DEV ? 'http://localhost:8080/oauth/callback' : `${window.location.origin}/oauth/callback`,
-            scopes: [
-                'https://www.googleapis.com/auth/adwords',
-                'https://www.googleapis.com/auth/spreadsheets.readonly',
-                'https://www.googleapis.com/auth/drive.readonly'
-            ],
-            authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-            tokenUrl: 'https://oauth2.googleapis.com/token'
-        },
-        gohighlevel: {
-            // SECURITY: Never hardcode secrets in client-side code!
-            clientId: import.meta.env.VITE_GHL_CLIENT_ID || '68e135aa17f574067cfb7e39-mgcefs9f',
-            clientSecret: '', // Client secret should NEVER be in client-side code
-            redirectUri: import.meta.env.VITE_GHL_REDIRECT_URI || `${window.location.origin}/leadconnector/oath`,
-            scopes: ['contacts.readonly', 'locations.readonly', 'oauth.readonly', 'opportunities.readonly', 'funnels/redirect.readonly', 'funnels/page.readonly', 'funnels/funnel.readonly', 'funnels/pagecount.readonly'],
-            authUrl: 'https://marketplace.leadconnectorhq.com/oauth/chooselocation',
-            tokenUrl: 'https://services.leadconnectorhq.com/oauth/token'
+    /**
+     * Get OAuth configuration from database
+     */
+    private static async getOAuthConfig(platform: string): Promise<OAuthConfig> {
+        try {
+            const credentials = await OAuthCredentialsService.getCredentials(platform);
+            if (!credentials) {
+                throw new Error(`No OAuth credentials found for platform: ${platform}`);
+            }
+
+            // Use current origin for redirect URI
+            const redirectUri = credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
+
+            return {
+                clientId: credentials.clientId,
+                clientSecret: credentials.clientSecret,
+                redirectUri: redirectUri,
+                scopes: credentials.scopes,
+                authUrl: credentials.authUrl,
+                tokenUrl: credentials.tokenUrl
+            };
+        } catch (error) {
+            debugLogger.error('OAuthService', `Failed to get OAuth config for ${platform}`, error);
+            throw new Error(`Failed to get OAuth configuration for ${platform}: ${error}`);
         }
-    };
+    }
 
     /**
      * Generate PKCE code verifier and challenge
@@ -104,10 +97,7 @@ export class OAuthService {
      * Generate OAuth authorization URL with PKCE
      */
     static async generateAuthUrl(platform: string, additionalParams: Record<string, string> = {}, integrationPlatform?: string): Promise<string> {
-        const config = this.OAUTH_CONFIGS[platform];
-        if (!config) {
-            throw new Error(`Unsupported platform: ${platform}`);
-        }
+        const config = await this.getOAuthConfig(platform);
 
         // Debug: Log the redirect URI being used
         debugLogger.debug('OAuthService', `OAuth redirect URI for ${platform}`, { redirectUri: config.redirectUri, origin: window.location.origin });
@@ -159,10 +149,7 @@ export class OAuthService {
         code: string,
         state: string
     ): Promise<OAuthTokens> {
-        const config = this.OAUTH_CONFIGS[platform];
-        if (!config) {
-            throw new Error(`Unsupported platform: ${platform}`);
-        }
+        const config = await this.getOAuthConfig(platform);
 
         // Validate state (more lenient for debugging)
         const storedState = localStorage.getItem(`oauth_state_${platform}`);
@@ -251,10 +238,10 @@ export class OAuthService {
      * Refresh access token using refresh token
      */
     static async refreshAccessToken(platform: string): Promise<OAuthTokens> {
-        const config = this.OAUTH_CONFIGS[platform];
+        const config = await this.getOAuthConfig(platform);
         const tokens = await this.getStoredTokens(platform);
 
-        if (!config || !tokens?.refreshToken) {
+        if (!tokens?.refreshToken) {
             throw new Error(`No refresh token available for ${platform}`);
         }
 
