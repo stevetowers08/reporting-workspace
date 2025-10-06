@@ -1,20 +1,23 @@
-import { supabase } from '../src/lib/supabase';
-import { NextRequest, NextResponse } from 'next/server';
+const { createClient } = require('@supabase/supabase-js');
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code');
-  const locationId = searchParams.get('location_id');
-  const clientId = searchParams.get('client_id');
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+);
+
+export default async function handler(req, res) {
+  const { query } = req;
+  const code = query.code;
+  const locationId = query.location_id;
+  const clientId = query.client_id;
 
   console.log('🔍 OAuth callback received:', { code: !!code, locationId, clientId });
 
   if (!code) {
     console.error('❌ No authorization code received');
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=no_code`,
-      302
-    );
+    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=no_code`);
+    return;
   }
 
   try {
@@ -110,16 +113,10 @@ export async function GET(request: NextRequest) {
     console.log('✅ OAuth flow completed successfully');
     
     // Redirect back to dashboard with success
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?connected=true&location=${tokenData.locationId}`,
-      302
-    );
+    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?connected=true&location=${tokenData.locationId}`);
     
   } catch (error) {
     console.error('❌ OAuth error:', error);
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=connection_failed`,
-      302
-    );
+    res.redirect(302, `${process.env.NEXT_PUBLIC_APP_URL}/admin/clients?error=connection_failed`);
   }
 }
