@@ -17,6 +17,34 @@ export class GoogleSheetsOAuthService {
   private static readonly GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
   /**
+   * Generate PKCE code verifier and challenge
+   */
+  private static generatePKCE(): { codeVerifier: string; codeChallenge: string } {
+    const codeVerifier = this.generateRandomString(128);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = crypto.subtle.digestSync('SHA-256', data);
+    const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    return { codeVerifier, codeChallenge };
+  }
+
+  /**
+   * Generate random string for PKCE
+   */
+  private static generateRandomString(length: number): string {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return result;
+  }
+
+  /**
    * Generate OAuth URL for Google Sheets authentication
    */
   static generateSheetsAuthUrl(redirectUri?: string): string {
@@ -26,6 +54,12 @@ export class GoogleSheetsOAuthService {
       nonce: Math.random().toString(36).substring(7)
     }));
 
+    // Generate PKCE parameters
+    const pkce = this.generatePKCE();
+    
+    // Store code verifier for later use
+    localStorage.setItem(`oauth_code_verifier_googleSheets`, pkce.codeVerifier);
+
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
       redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'),
@@ -33,7 +67,9 @@ export class GoogleSheetsOAuthService {
       scope: this.GOOGLE_SHEETS_SCOPE,
       access_type: 'offline',
       prompt: 'consent', // Force consent screen to get refresh token
-      state: state
+      state: state,
+      code_challenge: pkce.codeChallenge,
+      code_challenge_method: 'S256'
     });
 
     return `${this.GOOGLE_AUTH_URL}?${params.toString()}`;
@@ -49,6 +85,12 @@ export class GoogleSheetsOAuthService {
     try {
       debugLogger.info('GoogleSheetsOAuthService', 'Handling Google Sheets auth callback');
 
+      // Get the code verifier from localStorage
+      const codeVerifier = localStorage.getItem(`oauth_code_verifier_googleSheets`);
+      if (!codeVerifier) {
+        throw new Error('Code verifier not found. Please try connecting again.');
+      }
+
       // Exchange code for tokens
       const tokenResponse = await fetch(this.GOOGLE_TOKEN_URL, {
         method: 'POST',
@@ -60,7 +102,8 @@ export class GoogleSheetsOAuthService {
           client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'
+          redirect_uri: window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback',
+          code_verifier: codeVerifier
         })
       });
 
@@ -123,6 +166,9 @@ export class GoogleSheetsOAuthService {
           googleUserName: userInfo.name
         }
       );
+
+      // Clean up the code verifier
+      localStorage.removeItem(`oauth_code_verifier_googleSheets`);
 
       debugLogger.info('GoogleSheetsOAuthService', 'Successfully saved Google Sheets tokens');
       return sheetsTokens;
