@@ -7,41 +7,35 @@ const supabase = createClient(
 );
 
 module.exports = async function handler(req, res) {
-  const { query } = req;
-  const code = query.code;
-  const locationId = query.location_id;
-  const clientId = query.client_id;
-
-  console.log('🔍 OAuth callback received:', { code: !!code, locationId, clientId });
-
-  // Check required environment variables
-  if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
-    console.error('❌ Missing Supabase environment variables');
-    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=config_error`);
-    return;
-  }
-
-  if (!process.env.VITE_GHL_CLIENT_ID || !process.env.VITE_GHL_CLIENT_SECRET) {
-    console.error('❌ Missing GoHighLevel OAuth credentials');
-    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=oauth_config_error`);
-    return;
-  }
-
-  if (!code) {
-    console.error('❌ No authorization code received');
-    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=no_code`);
-    return;
-  }
-
   try {
-    console.log('🔍 Starting token exchange...');
-    console.log('🔍 Environment check:', {
-      hasClientId: !!process.env.VITE_GHL_CLIENT_ID,
-      hasClientSecret: !!process.env.VITE_GHL_CLIENT_SECRET,
-      hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
-      hasSupabaseKey: !!process.env.VITE_SUPABASE_ANON_KEY
-    });
+    const { query } = req;
+    const code = query.code;
+    const locationId = query.location_id;
+    const clientId = query.client_id;
 
+    console.log('🔍 OAuth callback received:', { code: !!code, locationId, clientId });
+
+    // Check required environment variables
+    if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('❌ Missing Supabase environment variables');
+      res.status(500).json({ error: 'Missing Supabase environment variables' });
+      return;
+    }
+
+    if (!process.env.VITE_GHL_CLIENT_ID || !process.env.VITE_GHL_CLIENT_SECRET) {
+      console.error('❌ Missing GoHighLevel OAuth credentials');
+      res.status(500).json({ error: 'Missing GoHighLevel OAuth credentials' });
+      return;
+    }
+
+    if (!code) {
+      console.error('❌ No authorization code received');
+      res.status(400).json({ error: 'No authorization code received' });
+      return;
+    }
+
+    console.log('🔍 Starting token exchange...');
+    
     // Exchange authorization code for access token
     const tokenResponse = await fetch(
       'https://services.leadconnectorhq.com/oauth/token',
@@ -131,6 +125,10 @@ module.exports = async function handler(req, res) {
     
   } catch (error) {
     console.error('❌ OAuth error:', error);
-    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=connection_failed`);
+    res.status(500).json({ 
+      error: 'OAuth callback failed', 
+      message: error.message,
+      details: error.toString()
+    });
   }
 }
