@@ -112,11 +112,12 @@ const OAuthCallback = () => {
           // Use the original platform for OAuthService (not integrationPlatform) to match code verifier storage
           const authResult = await OAuthService.exchangeCodeForTokens(platform, code, state);
           
+          // Map Google response fields to OAuthTokens format
           const oauthTokens: OAuthTokens = {
-            accessToken: authResult.accessToken,
-            refreshToken: authResult.refreshToken,
-            tokenExpiresAt: authResult.tokenExpiresAt,
-            tokenType: authResult.tokenType || 'Bearer',
+            accessToken: authResult.access_token || authResult.accessToken,
+            refreshToken: authResult.refresh_token || authResult.refreshToken,
+            tokenExpiresAt: authResult.tokenExpiresAt || (authResult.expires_in ? new Date(Date.now() + (authResult.expires_in * 1000)).toISOString() : undefined),
+            tokenType: authResult.token_type || authResult.tokenType || 'Bearer',
             scope: authResult.scope
           };
 
