@@ -585,6 +585,27 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   const isIntegrationConnected = (platform: string): boolean => {
     console.log(`🔍 ClientForm: Checking if ${platform} is connected`);
+    
+    // For GoHighLevel, check if there's a token for the specific location ID
+    if (platform === 'goHighLevel') {
+      const locationId = typeof formData.accounts.goHighLevel === 'string' 
+        ? formData.accounts.goHighLevel 
+        : formData.accounts.goHighLevel?.locationId;
+      
+      if (!locationId || locationId === 'none') {
+        console.log(`🔍 ClientForm: No GoHighLevel location ID selected`);
+        return false;
+      }
+      
+      // Check if there's a token for this specific location ID
+      const hasToken = connectedAccounts.some(account => 
+        account.platform === 'goHighLevel' && account.id === locationId
+      );
+      
+      console.log(`🔍 ClientForm: GoHighLevel location ${locationId} has token: ${hasToken}`);
+      return hasToken;
+    }
+    
     const isConnected = integrationStatus[platform] || false;
     console.log(`🔍 ClientForm: isIntegrationConnected(${platform}) = ${isConnected}`);
     console.log(`🔍 ClientForm: Current formData.accounts.${platform}:`, formData.accounts[platform as keyof typeof formData.accounts]);
