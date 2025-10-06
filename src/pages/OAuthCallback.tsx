@@ -79,7 +79,40 @@ const OAuthCallback = () => {
         // Check if this is a user-specific Google Ads authentication
         if (platform === 'google' && userId && stateData.scope?.includes('adwords')) {
           // Handle user-specific Google Ads authentication
-          await UserGoogleAdsService.handleUserAuthCallback(code, state, userId);
+          const userAuth = await UserGoogleAdsService.handleUserAuthCallback(code, state, userId);
+
+          // Persist tokens to integrations so the app sees the connection
+          const oauthTokens: OAuthTokens = {
+            accessToken: userAuth.accessToken,
+            refreshToken: userAuth.refreshToken,
+            // Derive expiresIn from tokenExpiresAt (fallback to 3600s if parsing fails)
+            expiresIn: (() => {
+              try {
+                const ms = new Date(userAuth.tokenExpiresAt).getTime() - Date.now();
+                return ms > 0 ? Math.floor(ms / 1000) : 3600;
+              } catch {
+                return 3600;
+              }
+            })(),
+            tokenType: 'Bearer',
+            scope: Array.isArray(userAuth.scope) ? userAuth.scope.join(' ') : undefined,
+          };
+
+          const accountInfo: AccountInfo = {
+            id: userAuth.googleUserId,
+            name: 'Google Ads Account',
+          };
+
+          const metadata: PlatformMetadata | undefined = {
+            googleAds: {
+              developerToken: import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || undefined,
+              clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || undefined,
+              clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || undefined,
+            }
+          };
+
+          await IntegrationService.saveOAuthTokens('googleAds', oauthTokens, accountInfo, metadata);
+          debugLogger.info('OAuthCallback', 'Saved user-specific Google Ads tokens to integrations');
           
           setStatus('success');
           setMessage('Successfully connected your Google Ads account!');
