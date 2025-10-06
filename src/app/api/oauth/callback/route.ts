@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-          client_id: process.env.VITE_GHL_CLIENT_ID!,
-          client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
+          client_id: process.env.VITE_GHL_CLIENT_ID || process.env.GHL_CLIENT_ID!,
+          client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET!,
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Location', // Important!
