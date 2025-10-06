@@ -45,10 +45,6 @@ export class LeadDataService {
         sheetName: this.SHEET_NAME
       });
       
-      // Temporarily disable Google Sheets to prevent CORS errors
-      debugLogger.warn('LeadDataService', 'Google Sheets temporarily disabled to prevent CORS errors');
-      return null;
-      
       // Use local proxy server to avoid CORS issues
       const response = await fetch(`http://localhost:3001/google-sheets-data`, {
         method: 'POST',

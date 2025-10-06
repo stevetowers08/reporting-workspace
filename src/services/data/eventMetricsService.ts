@@ -83,7 +83,7 @@ export class EventMetricsService {
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds));}
       if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange));}
-      if (hasGoHighLevel) {promises.push(this.getGHLMetrics(dateRange));}
+      if (hasGoHighLevel) {promises.push(this.getGHLMetrics(dateRange, clientAccounts?.goHighLevel));}
       if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange));}
 
       const results = await Promise.all(promises);
@@ -195,9 +195,13 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGHLMetrics(dateRange: { start: string; end: string }): Promise<any> {
+  private static async getGHLMetrics(dateRange: { start: string; end: string }, locationId?: string): Promise<any> {
     try {
-      return await GoHighLevelService.getGHLMetrics(dateRange);
+      if (!locationId) {
+        debugLogger.warn('EventMetricsService', 'No GoHighLevel location ID provided');
+        return this.getEmptyGHLMetrics();
+      }
+      return await GoHighLevelService.getGHLMetrics(locationId, dateRange);
     } catch (error) {
       debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
       return this.getEmptyGHLMetrics();

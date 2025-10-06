@@ -48,10 +48,10 @@ export interface GHLCampaign {
 export class GoHighLevelService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
   
-  // Agency token for listing locations
+  // Agency token for listing locations (scopes: locations.readonly, companies.readonly)
   private static agencyToken: string | null = null;
   
-  // Location tokens for data access (stored per client)
+  // Location tokens for data access (scopes: contacts.readonly, opportunities.readonly, etc.)
   private static locationTokens: Map<string, string> = new Map();
   
   // Add caching to prevent excessive API calls
@@ -138,7 +138,7 @@ export class GoHighLevelService {
    * Set credentials for OAuth flow
    */
   static setCredentials(accessToken: string, _refreshToken?: string): void {
-    this.privateIntegrationToken = accessToken;
+    this.agencyToken = accessToken;
     debugLogger.info('GoHighLevelService', 'OAuth credentials set');
   }
 
@@ -148,7 +148,7 @@ export class GoHighLevelService {
   static async getAccountInfo(): Promise<GHLAccount> {
     await this.enforceRateLimit();
     
-    if (!this.privateIntegrationToken) {
+    if (!this.agencyToken) {
       throw new Error('Private integration token not set');
     }
 
@@ -162,7 +162,7 @@ export class GoHighLevelService {
   static async getCampaigns(locationId: string): Promise<GHLCampaign[]> {
     await this.enforceRateLimit();
     
-    if (!this.privateIntegrationToken) {
+    if (!this.agencyToken) {
       throw new Error('Private integration token not set');
     }
 
@@ -224,7 +224,7 @@ export class GoHighLevelService {
   static async setupWebhook(locationId: string, webhookUrl: string, events: string[]): Promise<void> {
     await this.enforceRateLimit();
     
-    if (!this.privateIntegrationToken) {
+    if (!this.agencyToken) {
       throw new Error('Private integration token not set');
     }
 
@@ -496,11 +496,11 @@ export class GoHighLevelService {
     options: globalThis.RequestInit = {}
   ): Promise<T> {
     // Load token if not set
-    if (!this.privateIntegrationToken) {
+    if (!this.agencyToken) {
       await this.loadPrivateIntegrationToken();
     }
     
-    if (!this.privateIntegrationToken) {
+    if (!this.agencyToken) {
       throw new Error('Private integration token not set. Please configure in admin settings.');
     }
 
@@ -512,7 +512,7 @@ export class GoHighLevelService {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.privateIntegrationToken}`,
+        'Authorization': `Bearer ${this.agencyToken}`,
         'Content-Type': 'application/json',
         'Version': '2021-07-28',
         ...options.headers
@@ -533,7 +533,7 @@ export class GoHighLevelService {
         const retryResponse = await fetch(url, {
           ...options,
           headers: {
-            'Authorization': `Bearer ${this.privateIntegrationToken}`,
+            'Authorization': `Bearer ${this.agencyToken}`,
             'Version': '2021-07-28',
             'Content-Type': 'application/json',
             ...options.headers
@@ -609,32 +609,29 @@ export class GoHighLevelService {
       }
 
       // Load token if not set
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         await this.loadPrivateIntegrationToken();
       }
 
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         throw new Error('Private integration token not set. Please configure in admin settings.');
       }
 
-      // Build date range parameters for API calls
-      const dateParams = dateRange ? {
-        startDate: dateRange.start,
-        endDate: dateRange.end
-      } : {};
+      console.log('🔍 GoHighLevelService: Attempting to fetch contacts for location:', locationId);
 
-      // Fetch ALL data in parallel for maximum performance
-      const [allContacts] = await Promise.all([
-        this.getAllContacts(locationId, dateParams),
-        this.getOpportunitiesAnalytics(locationId, dateParams?.startDate && dateParams?.endDate ? { start: dateParams.startDate, end: dateParams.endDate } : undefined),
-        this.getCalendarAnalytics(locationId, dateParams?.startDate && dateParams?.endDate ? { start: dateParams.startDate, end: dateParams.endDate } : undefined),
-        this.getFunnelAnalytics(locationId, dateParams?.startDate && dateParams?.endDate ? { start: dateParams.startDate, end: dateParams.endDate } : undefined),
-        this.getPageAnalytics(locationId, dateParams?.startDate && dateParams?.endDate ? { start: dateParams.startDate, end: dateParams.endDate } : undefined)
-      ]);
+      // Get valid location token (with auto-refresh)
+      const locationToken = await this.getValidToken(locationId);
+      if (!locationToken) {
+        throw new Error(`No location token found for location ${locationId}. Please connect the location via OAuth flow.`);
+      }
+
+      // Fetch contacts using the location token
+      const allContacts = await this.getAllContacts(locationId, dateRange ? { startDate: dateRange.start, endDate: dateRange.end } : undefined);
+      console.log('🔍 GoHighLevelService: Successfully fetched contacts:', allContacts.length);
       
       // Filter by date range if provided (fallback for client-side filtering)
       let filteredContacts = allContacts;
-      if (dateRange && !dateParams.startDate) {
+      if (dateRange) {
         const startDate = new Date(dateRange.start);
         const endDate = new Date(dateRange.end);
         filteredContacts = allContacts.filter(contact => {
@@ -844,7 +841,7 @@ export class GoHighLevelService {
       const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.privateIntegrationToken}`,
+          'Authorization': `Bearer ${this.agencyToken}`,
           'Version': '2021-07-28',
           'Content-Type': 'application/json',
         },
@@ -882,6 +879,13 @@ export class GoHighLevelService {
       // Enforce API 2.0 rate limiting
       await this.enforceRateLimit();
       
+      // Get location token for this specific location
+      const locationToken = this.locationTokens.get(locationId);
+      if (!locationToken) {
+        console.log('🔍 GoHighLevelService: No location token found for location:', locationId);
+        throw new Error(`No location token found for location ${locationId}. Please configure location-level token.`);
+      }
+      
       // Use the recommended Search Contacts endpoint with date filtering
       const searchBody = {
         locationId: locationId,
@@ -898,7 +902,7 @@ export class GoHighLevelService {
       const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.privateIntegrationToken}`,
+          'Authorization': `Bearer ${this.agencyToken}`,
           'Version': '2021-07-28',
           'Content-Type': 'application/json',
         },
@@ -973,11 +977,11 @@ export class GoHighLevelService {
       }
 
       // Load token if not set
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         await this.loadPrivateIntegrationToken();
       }
 
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         throw new Error('Private integration token not set. Please configure in admin settings.');
       }
 
@@ -1097,11 +1101,11 @@ export class GoHighLevelService {
       }
 
       // Load token if not set
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         await this.loadPrivateIntegrationToken();
       }
 
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         throw new Error('Private integration token not set. Please configure in admin settings.');
       }
 
@@ -1188,11 +1192,11 @@ export class GoHighLevelService {
       }
 
       // Load token if not set
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         await this.loadPrivateIntegrationToken();
       }
 
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         throw new Error('Private integration token not set. Please configure in admin settings.');
       }
 
@@ -1330,11 +1334,11 @@ export class GoHighLevelService {
       }
 
       // Load token if not set
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         await this.loadPrivateIntegrationToken();
       }
 
-      if (!this.privateIntegrationToken) {
+      if (!this.agencyToken) {
         throw new Error('Private integration token not set. Please configure in admin settings.');
       }
 
@@ -1428,9 +1432,295 @@ export class GoHighLevelService {
   }
 
   /**
-   * Check if service is connected
+   * Load private integration token from database
    */
-  static isConnected(): boolean {
-    return !!this.agencyToken;
+  private static async loadPrivateIntegrationToken(): Promise<void> {
+    try {
+      console.log('🔍 GoHighLevelService: Loading private integration token from database...');
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'goHighLevel')
+        .eq('connected', true)
+        .single();
+
+      console.log('🔍 GoHighLevelService: Database query result:', { data, error });
+
+      if (error || !data?.config?.apiKey?.apiKey) {
+        console.error('🔍 GoHighLevelService: No private integration token found', error);
+        debugLogger.error('GoHighLevelService', 'No private integration token found', error);
+        return;
+      }
+
+      this.agencyToken = data.config.apiKey.apiKey;
+      console.log('🔍 GoHighLevelService: Agency token loaded successfully');
+      debugLogger.info('GoHighLevelService', 'Loaded agency token');
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error loading private integration token:', error);
+      debugLogger.error('GoHighLevelService', 'Error loading private integration token', error);
+    }
   }
+
+  /**
+   * Set location token for a specific location
+   */
+  static setLocationToken(locationId: string, token: string): void {
+    this.locationTokens.set(locationId, token);
+    console.log('🔍 GoHighLevelService: Set location token for:', locationId);
+  }
+
+  /**
+   * Set location token for Magnolia Terrace (temporary method for testing)
+   */
+  static setMagnoliaTerraceToken(token: string): void {
+    this.setLocationToken('V7bzEjKiigXzh8r6sQq0', token);
+    console.log('🔍 GoHighLevelService: Set Magnolia Terrace location token');
+  }
+
+  /**
+   * Generate location token from agency token
+   */
+  static async generateLocationToken(locationId: string): Promise<string | null> {
+    try {
+      console.log('🔍 GoHighLevelService: Generating location token for:', locationId);
+      
+      // Load agency token if not set
+      if (!this.agencyToken) {
+        await this.loadPrivateIntegrationToken();
+      }
+
+      if (!this.agencyToken) {
+        throw new Error('Agency token not set. Please configure in admin settings.');
+      }
+
+      // Get company ID from the agency token (we know it's WgNZ7xm35vYaZwflSov7 from our tests)
+      const companyId = 'WgNZ7xm35vYaZwflSov7';
+
+      const response = await fetch(`${this.API_BASE_URL}/oauth/locationToken`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.agencyToken}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          companyId: companyId,
+          locationId: locationId
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 GoHighLevelService: Failed to generate location token:', response.status, errorText);
+        throw new Error(`Failed to generate location token: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      const locationToken = data.access_token;
+      
+      this.setLocationToken(locationId, locationToken);
+      console.log('🔍 GoHighLevelService: Location token generated successfully for:', locationId);
+      
+      return locationToken;
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error generating location token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Load location token from database for a specific client
+   */
+  private static async loadLocationToken(locationId: string): Promise<string | null> {
+    try {
+      console.log('🔍 GoHighLevelService: Loading location token for:', locationId);
+      
+      // First, find the client that has this location ID
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id, name, accounts')
+        .eq('accounts->goHighLevel', locationId)
+        .single();
+
+      if (clientError || !clientData) {
+        console.error('🔍 GoHighLevelService: Client not found for location:', locationId, clientError);
+        return null;
+      }
+
+      console.log('🔍 GoHighLevelService: Found client:', clientData.name);
+
+      // Look for location-specific integration token in the integrations table
+      const { data: integrationData, error: integrationError } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'goHighLevel')
+        .eq('account_id', locationId) // Use locationId as account_id for location-specific tokens
+        .eq('connected', true)
+        .single();
+
+      if (integrationError || !integrationData?.config?.apiKey?.apiKey) {
+        console.error('🔍 GoHighLevelService: No location-specific token found for client:', clientData.name, integrationError);
+        console.error('🔍 GoHighLevelService: Please create a location-level integration token for this client in GoHighLevel');
+        console.error('🔍 GoHighLevelService: Required scopes: contacts.readonly, opportunities.readonly, calendars.readonly');
+        return null;
+      }
+
+      const locationToken = integrationData.config.apiKey.apiKey;
+      this.setLocationToken(locationId, locationToken);
+      console.log('🔍 GoHighLevelService: Location token loaded successfully for:', clientData.name);
+      
+      return locationToken;
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error loading location token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Save location token to database for a specific client
+   */
+  static async saveLocationToken(locationId: string, token: string, scopes: string[]): Promise<boolean> {
+    try {
+      console.log('🔍 GoHighLevelService: Saving location token for:', locationId);
+      
+      // Find the client that has this location ID
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id, name, accounts')
+        .eq('accounts->goHighLevel', locationId)
+        .single();
+
+      if (clientError || !clientData) {
+        console.error('🔍 GoHighLevelService: Client not found for location:', locationId, clientError);
+        return false;
+      }
+
+      // Save the location token to the integrations table
+      const { error: saveError } = await supabase
+        .from('integrations')
+        .upsert({
+          platform: 'goHighLevel',
+          account_id: locationId,
+          account_name: clientData.name,
+          connected: true,
+          config: {
+            apiKey: {
+              apiKey: token,
+              keyType: 'bearer'
+            },
+            scopes: scopes,
+            locationId: locationId,
+            lastSync: new Date().toISOString(),
+            connectedAt: new Date().toISOString()
+          }
+        });
+
+      if (saveError) {
+        console.error('🔍 GoHighLevelService: Error saving location token:', saveError);
+        return false;
+      }
+
+      this.setLocationToken(locationId, token);
+      console.log('🔍 GoHighLevelService: Location token saved successfully for:', clientData.name);
+      return true;
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error saving location token:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get valid token for a location (with auto-refresh)
+   */
+  static async getValidToken(locationId: string): Promise<string | null> {
+    try {
+      // Get token from database
+      const { data: integrationData, error } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'goHighLevel')
+        .eq('account_id', locationId)
+        .eq('connected', true)
+        .single();
+
+      if (error || !integrationData?.config?.apiKey?.apiKey) {
+        console.error('🔍 GoHighLevelService: No token found for location:', locationId);
+        return null;
+      }
+
+      const config = integrationData.config;
+      const token = config.apiKey.apiKey;
+      const expiresAt = config.expiresAt ? new Date(config.expiresAt) : null;
+      const refreshToken = config.refreshToken;
+
+      // Check if token is expired or expiring soon (within 1 hour)
+      const isExpiringSoon = expiresAt && expiresAt < new Date(Date.now() + 3600000);
+
+      if (isExpiringSoon && refreshToken) {
+        console.log('🔍 GoHighLevelService: Token expiring soon, refreshing...');
+        
+        try {
+          // Refresh the token
+          const refreshResponse = await fetch(
+            'https://services.leadconnectorhq.com/oauth/token',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: new URLSearchParams({
+                client_id: process.env.VITE_GHL_CLIENT_ID!,
+                client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                user_type: 'Location'
+              })
+            }
+          );
+
+          const newTokenData = await refreshResponse.json();
+
+          if (!refreshResponse.ok) {
+            console.error('🔍 GoHighLevelService: Token refresh failed:', newTokenData);
+            throw new Error('Token refresh failed - user needs to reconnect');
+          }
+
+          // Update database with new token
+          await supabase
+            .from('integrations')
+            .update({
+              config: {
+                ...config,
+                apiKey: {
+                  apiKey: newTokenData.access_token,
+                  keyType: 'bearer'
+                },
+                refreshToken: newTokenData.refresh_token,
+                expiresIn: newTokenData.expires_in,
+                expiresAt: new Date(Date.now() + newTokenData.expires_in * 1000).toISOString(),
+                lastSync: new Date().toISOString()
+              }
+            })
+            .eq('platform', 'goHighLevel')
+            .eq('account_id', locationId);
+
+          this.setLocationToken(locationId, newTokenData.access_token);
+          console.log('🔍 GoHighLevelService: Token refreshed successfully');
+          return newTokenData.access_token;
+        } catch (refreshError) {
+          console.error('🔍 GoHighLevelService: Token refresh error:', refreshError);
+          // Return the old token as fallback
+          return token;
+        }
+      }
+
+      // Token is still valid
+      this.setLocationToken(locationId, token);
+      return token;
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error getting valid token:', error);
+      return null;
+    }
+  }
+
 }

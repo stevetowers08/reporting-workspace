@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Cell, Funnel, FunnelChart, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface GHLFunnelChartProps {
+  locationId: string;
   dateRange?: { start: string; end: string };
 }
 
@@ -16,7 +17,7 @@ interface FunnelData {
 
 const FUNNEL_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ dateRange }) => {
+export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, dateRange }) => {
   const [funnelData, setFunnelData] = useState<FunnelData[]>([]);
   const [loading, setLoading] = useState(true);
 

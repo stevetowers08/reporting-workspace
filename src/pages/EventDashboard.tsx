@@ -308,21 +308,30 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         {/* Conversion Funnel - Shows customer journey from page views to bookings */}
         <div className="mt-6">
           <Suspense fallback={<ComponentLoader />}>
-            <GHLFunnelChart dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+            <GHLFunnelChart 
+              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
+              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
+            />
           </Suspense>
         </div>
 
         {/* Funnel Analytics - Detailed funnel performance */}
         <div className="mt-6">
           <Suspense fallback={<ComponentLoader />}>
-            <GHLFunnelAnalytics dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+            <GHLFunnelAnalytics 
+              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
+              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
+            />
           </Suspense>
         </div>
 
         {/* Page Analytics - Landing page performance */}
         <div className="mt-6">
           <Suspense fallback={<ComponentLoader />}>
-            <GHLPageAnalytics dateRange={{ start: '2024-01-01', end: '2024-12-31' }} />
+            <GHLPageAnalytics 
+              locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'} 
+              dateRange={{ start: '2024-01-01', end: '2024-12-31' }} 
+            />
           </Suspense>
         </div>
           </TabsContent>

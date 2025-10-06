@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/ui/LoadingStates';
+import { LogoManager } from '@/components/ui/LogoManager';
 import { Client } from '@/services/admin/adminService';
 import { BarChart3, Edit, FileSpreadsheet, Plus, Search, Trash2, Zap } from 'lucide-react';
 import React, { useState } from 'react';
@@ -135,24 +136,60 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                     <td className="px-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' && (
-                          <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center" title="Facebook Ads">
-                            <span className="text-white font-bold text-xs">f</span>
-                          </div>
+                          <LogoManager 
+                            platform="meta" 
+                            size={16} 
+                            context="client-table"
+                            className="text-blue-600"
+                            title="Facebook Ads"
+                            fallback={
+                              <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center" title="Facebook Ads">
+                                <span className="text-white font-bold text-xs">f</span>
+                              </div>
+                            }
+                          />
                         )}
                         {client.accounts?.googleAds && client.accounts.googleAds !== 'none' && (
-                          <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center" title="Google Ads">
-                            <span className="text-white font-bold text-xs">G</span>
-                          </div>
+                          <LogoManager 
+                            platform="googleAds" 
+                            size={16} 
+                            context="client-table"
+                            className="text-red-600"
+                            title="Google Ads"
+                            fallback={
+                              <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center" title="Google Ads">
+                                <span className="text-white font-bold text-xs">G</span>
+                              </div>
+                            }
+                          />
                         )}
                         {client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' && (
-                          <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center" title="GoHighLevel">
-                            <Zap className="h-2 w-2 text-white" />
-                          </div>
+                          <LogoManager 
+                            platform="goHighLevel" 
+                            size={16} 
+                            context="client-table"
+                            className="text-purple-600"
+                            title="GoHighLevel"
+                            fallback={
+                              <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center" title="GoHighLevel">
+                                <Zap className="h-2 w-2 text-white" />
+                              </div>
+                            }
+                          />
                         )}
                         {client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' && (
-                          <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
-                            <FileSpreadsheet className="h-2 w-2 text-white" />
-                          </div>
+                          <LogoManager 
+                            platform="googleSheets" 
+                            size={16} 
+                            context="client-table"
+                            className="text-green-600"
+                            title="Google Sheets"
+                            fallback={
+                              <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
+                                <FileSpreadsheet className="h-2 w-2 text-white" />
+                              </div>
+                            }
+                          />
                         )}
                       </div>
                     </td>
