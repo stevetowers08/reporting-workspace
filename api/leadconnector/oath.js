@@ -14,6 +14,19 @@ module.exports = async function handler(req, res) {
 
   console.log('🔍 OAuth callback received:', { code: !!code, locationId, clientId });
 
+  // Check required environment variables
+  if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+    console.error('❌ Missing Supabase environment variables');
+    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=config_error`);
+    return;
+  }
+
+  if (!process.env.VITE_GHL_CLIENT_ID || !process.env.VITE_GHL_CLIENT_SECRET) {
+    console.error('❌ Missing GoHighLevel OAuth credentials');
+    res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=oauth_config_error`);
+    return;
+  }
+
   if (!code) {
     console.error('❌ No authorization code received');
     res.redirect(302, `${process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/admin/clients?error=no_code`);
@@ -30,8 +43,8 @@ module.exports = async function handler(req, res) {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-          client_id: process.env.VITE_GHL_CLIENT_ID || process.env.GHL_CLIENT_ID,
-          client_secret: process.env.VITE_GHL_CLIENT_SECRET || process.env.GHL_CLIENT_SECRET,
+          client_id: process.env.VITE_GHL_CLIENT_ID,
+          client_secret: process.env.VITE_GHL_CLIENT_SECRET,
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Company',
@@ -43,15 +56,29 @@ module.exports = async function handler(req, res) {
     const tokenData = await tokenResponse.json();
     console.log('🔍 Token exchange response:', { 
       success: tokenResponse.ok, 
+      status: tokenResponse.status,
       hasToken: !!tokenData.access_token,
-      locationId: tokenData.locationId 
+      locationId: tokenData.locationId,
+      error: tokenData.error,
+      message: tokenData.message
     });
 
     if (!tokenResponse.ok) {
-      throw new Error(tokenData.message || 'Token exchange failed');
+      console.error('❌ Token exchange failed:', tokenData);
+      throw new Error(tokenData.message || tokenData.error || 'Token exchange failed');
     }
 
-    // Store in Supabase
+    if (!tokenData.access_token) {
+      console.error('❌ No access token in response:', tokenData);
+      throw new Error('No access token received from GoHighLevel');
+    }
+
+    if (!tokenData.locationId) {
+      console.error('❌ No location ID in response:', tokenData);
+      throw new Error('No location ID received from GoHighLevel');
+    }
+
+    // Store in Supabase - use insert with on_conflict for proper upsert
     const { error: saveError } = await supabase
       .from('integrations')
       .upsert({
@@ -73,12 +100,17 @@ module.exports = async function handler(req, res) {
           lastSync: new Date().toISOString(),
           connectedAt: new Date().toISOString()
         }
+      }, {
+        onConflict: 'platform,account_id'
       });
 
     if (saveError) {
       console.error('❌ Error saving token to database:', saveError);
-      throw new Error('Failed to save token to database');
+      console.error('❌ Save error details:', JSON.stringify(saveError, null, 2));
+      throw new Error(`Failed to save token to database: ${saveError.message}`);
     }
+
+    console.log('✅ Token saved to database successfully');
 
     // Fetch location details for display name
     try {
@@ -94,17 +126,34 @@ module.exports = async function handler(req, res) {
 
       if (locationDetails.location) {
         // Update with location name
-        await supabase
+        const { error: updateError } = await supabase
           .from('integrations')
           .update({
             account_name: locationDetails.location.name,
             config: {
-              ...tokenData,
+              apiKey: {
+                apiKey: tokenData.access_token,
+                keyType: 'bearer'
+              },
+              refreshToken: tokenData.refresh_token,
+              expiresIn: tokenData.expires_in,
+              expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+              scopes: tokenData.scope?.split(' ') || [],
+              locationId: tokenData.locationId,
+              userType: tokenData.userType,
+              lastSync: new Date().toISOString(),
+              connectedAt: new Date().toISOString(),
               locationName: locationDetails.location.name
             }
           })
           .eq('platform', 'goHighLevel')
           .eq('account_id', tokenData.locationId);
+
+        if (updateError) {
+          console.warn('⚠️ Could not update location name:', updateError);
+        } else {
+          console.log('✅ Location name updated successfully');
+        }
       }
     } catch (locationError) {
       console.warn('⚠️ Could not fetch location details:', locationError);
