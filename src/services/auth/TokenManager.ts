@@ -163,11 +163,8 @@ export class TokenManager {
           if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD && !skipRefresh) {
             debugLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
             
-            // Skip refresh for Google Ads since it's not properly connected
-            if (platform === 'googleAds') {
-              debugLogger.warn('TokenManager', `Skipping refresh for ${platform} - not properly connected`);
-              return null;
-            }
+            // Attempt token refresh for all platforms
+            debugLogger.info('TokenManager', `Attempting token refresh for ${platform}`);
             
             // Attempt automatic refresh
             const refreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
