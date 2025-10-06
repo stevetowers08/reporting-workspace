@@ -19,7 +19,13 @@ const OAuthCallback = () => {
   const [message, setMessage] = useState('');
   const { handleAuthError, handleNetworkError } = useErrorHandler();
 
+  // Debug: Log component mounting
+  console.log('🔍 OAuthCallback component mounted');
+  console.log('🔍 Current URL:', window.location.href);
+  console.log('🔍 Search params:', window.location.search);
+
   useEffect(() => {
+    console.log('🔍 useEffect triggered - OAuth callback starting');
     const handleOAuthCallback = async () => {
       try {
         console.log('🔍 OAuth Callback Debug - Starting...');
