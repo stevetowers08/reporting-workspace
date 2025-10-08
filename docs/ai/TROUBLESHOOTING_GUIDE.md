@@ -69,6 +69,32 @@ const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/valu
 3. **Edge Function Proxy**: All GoHighLevel API calls go through Supabase Edge Function with automatic token refresh
 4. **User-friendly Prompts**: Clear reconnection prompts guide users through the process
 
+### Problem: GoHighLevel Disconnect Not Working
+**Symptoms**: Cannot disconnect GoHighLevel from client, integration remains connected
+**Root Cause**: Disconnect function only updates integration table, not client account references
+**Solution**:
+1. **Updated Disconnect Flow**: Now clears both integration and client account references
+2. **Manual Fix**: Update client accounts to set `goHighLevel: null`
+3. **Database Cleanup**: Remove disconnected integration records
+
+### Problem: OAuth Callback UUID Syntax Error
+**Symptoms**: "invalid input syntax for type uuid" error during GoHighLevel OAuth
+**Root Cause**: OAuth callback trying to use custom string as UUID
+**Solution**:
+1. **Fixed OAuth Callback**: Now uses proper UUID generation
+2. **Account ID Field**: Uses `account_id` field for location identification
+3. **Proper Conflict Resolution**: Uses `platform,account_id` for upserts
+
+## AI Insights Configuration Issues
+
+### Problem: "406 Not Acceptable" Error from AI Insights Config
+**Symptoms**: Application crashes with "We're sorry, but something unexpected happened" error
+**Root Cause**: AI insights service using `.single()` method when no config exists
+**Solution**:
+1. **Fixed Service Method**: Changed `.single()` to `.maybeSingle()` in `getClientAIConfig`
+2. **Graceful Handling**: Returns `null` when no config exists instead of throwing error
+3. **Error Prevention**: Prevents application crashes from missing AI configs
+
 ## Development Environment Issues
 
 ### Node.js and npm Issues

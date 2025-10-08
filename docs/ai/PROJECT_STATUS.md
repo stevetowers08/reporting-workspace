@@ -47,6 +47,48 @@
   - Improved error handling and user experience
   - Enhanced security by removing hardcoded secrets from client code
 
+## Recent Updates
+
+### GoHighLevel Integration Overhaul (Latest)
+- **Status**: ✅ **COMPLETED**
+- **Issues Fixed**:
+  - Token refresh failures with "Invalid client credentials"
+  - OAuth callback UUID syntax errors
+  - Disconnect functionality not clearing client references
+  - AI insights config causing 406 errors
+- **Solutions Implemented**:
+  - **Database-stored OAuth credentials** for secure token refresh
+  - **Automatic reconnection prompts** for expired tokens
+  - **Fixed OAuth callback** to use proper UUID generation
+  - **Improved disconnect flow** to clear client account references
+  - **Enhanced error handling** for AI insights configuration
+- **New Components**:
+  - `GHLReconnectPrompt.tsx` - User-friendly reconnection interface
+  - Supabase Edge Functions for automatic token management
+- **Result**: Robust, production-ready GoHighLevel integration
+
+### Google Sheets Integration Fix
+- **Status**: ✅ **COMPLETED**
+- **Issue**: Lead info page not pulling data for Magnolia Terrace
+- **Root Cause**: Components not using client-specific Google Sheets configuration
+- **Solution**: Updated components to use `clientData.accounts.googleSheetsConfig`
+- **Files Modified**:
+  - `src/components/dashboard/LeadInfoMetricsCards.tsx`
+  - `src/components/dashboard/LandingPagePerformance.tsx`
+  - `src/pages/EventDashboard.tsx`
+- **Result**: Google Sheets data now displays correctly (806 leads visible)
+
+### Supabase Edge Function Consolidation
+- **Status**: ✅ **COMPLETED**
+- **Issue**: Multiple server setups causing confusion
+- **Solution**: Consolidated to Supabase Edge Functions only
+- **Changes**:
+  - Removed local proxy server dependency
+  - Updated `LeadDataService` to use Supabase Edge Function
+  - Fixed URL encoding issue (`/values/{range}` vs `?range={range}`)
+  - Added proper authorization headers
+- **Result**: Clean, unified backend architecture
+
 ### 🚧 In Progress
 - **Phase 6: Advanced Integrations** (Starting Now)
   - Complete Facebook Ads API integration
