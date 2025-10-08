@@ -142,7 +142,6 @@ Deno.serve(async (req: Request) => {
     );
 
     const url = new URL(req.url);
-    const method = req.method;
     const pathSegments = url.pathname.split('/').filter(Boolean);
     
     console.log('Path segments:', pathSegments);

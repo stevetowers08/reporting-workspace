@@ -1,7 +1,7 @@
+/* eslint-disable no-undef, no-unused-vars, @typescript-eslint/no-unused-vars */
 import { debugLogger } from '@/lib/debug';
-import { IntegrationService } from '@/services/integration/IntegrationService';
 import { TokenManager } from '@/services/auth/TokenManager';
-import { AccountInfo, OAuthTokens } from '@/types/integration';
+import { OAuthTokens } from '@/types/integration';
 
 export interface GoogleSheetsAuthTokens {
   accessToken: string;
@@ -95,7 +95,7 @@ export class GoogleSheetsOAuthService {
    */
   static async handleSheetsAuthCallback(
     code: string,
-    state: string
+    _state: string
   ): Promise<GoogleSheetsAuthTokens> {
     try {
       debugLogger.info('GoogleSheetsOAuthService', 'Handling Google Sheets auth callback');
@@ -257,18 +257,17 @@ export class GoogleSheetsOAuthService {
 
       const tokens = await tokenResponse.json();
 
-      // Update tokens in integration service
+      // Update tokens using TokenManager
       const updatedTokens: OAuthTokens = {
         ...integration.config.tokens,
         accessToken: tokens.access_token,
-        expiresIn: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined
+        expiresIn: tokens.expires_in // Keep as seconds, not timestamp
       };
 
-      await IntegrationService.saveOAuthTokens(
+      await TokenManager.storeOAuthTokens(
         'googleSheets',
         updatedTokens,
-        integration.config.accountInfo,
-        integration.config.metadata
+        integration.config.accountInfo
       );
 
       debugLogger.info('GoogleSheetsOAuthService', 'Successfully refreshed Google Sheets token');
