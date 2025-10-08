@@ -12,18 +12,6 @@ import {
     PlatformMetadata
 } from '@/types/integration';
 
-export interface IntegrationService {
-  getIntegration(platform: IntegrationPlatform): Promise<IntegrationRow | null>;
-  saveIntegration(platform: IntegrationPlatform, config: IntegrationConfig): Promise<IntegrationRow>;
-  deleteIntegration(platform: IntegrationPlatform): Promise<void>;
-  getAllIntegrations(): Promise<IntegrationRow[]>;
-  getIntegrationDisplay(): Promise<IntegrationDisplay[]>;
-  isConnected(platform: IntegrationPlatform): Promise<boolean>;
-  getToken(platform: IntegrationPlatform): Promise<string | null>;
-  getAccountInfo(platform: IntegrationPlatform): Promise<AccountInfo | null>;
-  saveOAuthTokens(platform: IntegrationPlatform, tokens: OAuthTokens, accountInfo?: AccountInfo, metadata?: PlatformMetadata): Promise<void>;
-  saveApiKey(platform: IntegrationPlatform, apiKey: ApiKeyConfig, accountInfo?: AccountInfo): Promise<void>;
-}
 
 export class UnifiedIntegrationService {
   /**
@@ -155,35 +143,55 @@ export class UnifiedIntegrationService {
         { key: 'google-ai', name: 'Google AI Studio', platform: 'google-ai' as IntegrationPlatform }
       ];
       
-      const displayData: IntegrationDisplay[] = platformConfigs.map(config => {
-        const integration = integrations.find(i => i.platform === config.platform);
-        
-        if (!integration) {
+      // Use TokenManager for consistent connection checking
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      
+      const displayData: IntegrationDisplay[] = await Promise.all(
+        platformConfigs.map(async config => {
+          const integration = integrations.find(i => i.platform === config.platform);
+          
+          // Use TokenManager to check actual connection status
+          let isConnected = false;
+          try {
+            if (config.platform === 'googleSheets') {
+              // Special handling for Google Sheets
+              const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+              isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+            } else {
+              isConnected = await TokenManager.isConnected(config.platform);
+            }
+          } catch (error) {
+            debugLogger.error('UnifiedIntegrationService', `Error checking connection for ${config.platform}`, error);
+            isConnected = false;
+          }
+          
+          if (!integration || !isConnected) {
+            return {
+              id: config.key,
+              name: config.name,
+              platform: config.platform,
+              status: 'not connected',
+              lastSync: 'Never',
+              clientsUsing: 0
+            };
+          }
+          
+          const status = this.determineStatus(integration);
+          const lastSync = this.formatLastSync(integration.config.lastSync);
+          
           return {
             id: config.key,
             name: config.name,
             platform: config.platform,
-            status: 'not connected',
-            lastSync: 'Never',
-            clientsUsing: 0
+            status: isConnected ? status : 'not connected',
+            lastSync,
+            clientsUsing: 0, // TODO: Calculate actual client usage
+            accountName: integration.config.accountInfo?.name,
+            accountId: integration.config.accountInfo?.id,
+            errorMessage: integration.config.lastError
           };
-        }
-        
-        const status = this.determineStatus(integration);
-        const lastSync = this.formatLastSync(integration.config.lastSync);
-        
-        return {
-          id: config.key,
-          name: config.name,
-          platform: config.platform,
-          status,
-          lastSync,
-          clientsUsing: 0, // TODO: Calculate actual client usage
-          accountName: integration.config.accountInfo?.name,
-          accountId: integration.config.accountInfo?.id,
-          errorMessage: integration.config.lastError
-        };
-      });
+        })
+      );
       
       debugLogger.info('UnifiedIntegrationService', `Generated display data for ${displayData.length} platforms`);
       return displayData;
@@ -198,26 +206,16 @@ export class UnifiedIntegrationService {
    */
   static async isConnected(platform: IntegrationPlatform): Promise<boolean> {
     try {
-      const integration = await this.getIntegration(platform);
+      // Use TokenManager for consistent connection checking
+      const { TokenManager } = await import('@/services/auth/TokenManager');
       
-      if (!integration) {
-        return false;
+      if (platform === 'googleSheets') {
+        // Special handling for Google Sheets
+        const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+        return await GoogleSheetsOAuthService.getSheetsAuthStatus();
+      } else {
+        return await TokenManager.isConnected(platform);
       }
-      
-      // Check if we have valid tokens or API key
-      const hasValidTokens = this.hasValidTokens(integration.config);
-      const hasValidApiKey = this.hasValidApiKey(integration.config);
-      
-      // For API key platforms (like Google AI Studio), check if API key exists
-      if (platform === 'google-ai') {
-        return hasValidApiKey;
-      }
-      
-      // Google Sheets has its own separate OAuth tokens and integration
-      
-      // For OAuth platforms, check if we have valid tokens (ignore connected flag for now)
-      // Each platform (Google Sheets, Google Ads, etc.) has independent authentication
-      return hasValidTokens || hasValidApiKey;
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', `Failed to check connection status for ${platform}`, error);
       return false;
@@ -455,5 +453,3 @@ export class UnifiedIntegrationService {
   }
 }
 
-// Export the service as the default implementation
-export const IntegrationService = UnifiedIntegrationService;
