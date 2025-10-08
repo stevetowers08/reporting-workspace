@@ -1,4 +1,5 @@
 import { API_BASE_URLS } from '@/constants/apiVersions';
+import { debugLogger } from '@/lib/debug';
 import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
@@ -53,7 +54,7 @@ export class OAuthService {
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
                         clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
-                        redirectUri: window.location.hostname === 'localhost' ? 'http://localhost:5173/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback',
+                        redirectUri: window.location.hostname === 'localhost' ? 'http://localhost:3000/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback',
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
                         tokenUrl: 'https://oauth2.googleapis.com/token'

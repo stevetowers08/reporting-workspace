@@ -193,6 +193,15 @@ export class EventMetricsService {
       // Import GoogleAdsService dynamically to avoid circular dependencies
       const { GoogleAdsService } = await import('@/services/api/googleAdsService');
       
+      // Check if Google Ads is connected first
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const isConnected = await TokenManager.isConnected('googleAds');
+      
+      if (!isConnected) {
+        debugLogger.warn('EventMetricsService', 'Google Ads not connected, returning empty metrics');
+        return this.getEmptyGoogleMetrics();
+      }
+      
       // Get Google Ads accounts
       const accounts = await GoogleAdsService.getAdAccounts();
       
@@ -220,7 +229,14 @@ export class EventMetricsService {
       return metrics;
     } catch (error) {
       debugLogger.error('EventMetricsService', 'Google Ads metrics error', error);
-      debugLogger.warn('EventMetricsService', 'Google Ads metrics not available', error);
+      
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes('token')) {
+        debugLogger.warn('EventMetricsService', 'Google Ads authentication error - returning empty metrics');
+      } else {
+        debugLogger.warn('EventMetricsService', 'Google Ads metrics not available', error);
+      }
+      
       return this.getEmptyGoogleMetrics();
     }
   }
@@ -231,11 +247,29 @@ export class EventMetricsService {
         debugLogger.warn('EventMetricsService', 'No GoHighLevel location ID provided');
         return this.getEmptyGHLMetrics();
       }
+      
+      // Check if Go High Level is connected first
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const isConnected = await TokenManager.isConnected('goHighLevel');
+      
+      if (!isConnected) {
+        debugLogger.warn('EventMetricsService', 'Go High Level not connected, returning empty metrics');
+        return this.getEmptyGHLMetrics();
+      }
+      
       const result = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+      debugLogger.debug('EventMetricsService', 'Go High Level metrics result', result);
       return result;
     } catch (error) {
-      console.error('🔍 EventMetricsService: GoHighLevel metrics error:', error);
-      debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
+      debugLogger.error('EventMetricsService', 'GoHighLevel metrics error', error);
+      
+      // Check if it's an authentication error
+      if (error instanceof Error && (error.message.includes('token') || error.message.includes('unauthorized'))) {
+        debugLogger.warn('EventMetricsService', 'Go High Level authentication error - returning empty metrics');
+      } else {
+        debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
+      }
+      
       return this.getEmptyGHLMetrics();
     }
   }

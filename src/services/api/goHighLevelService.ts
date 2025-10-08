@@ -275,7 +275,7 @@ export class GoHighLevelService {
 
       // Test 1: Get locations (agency-level access)
       try {
-        const locationsResponse = await fetch(`${this.API_BASE_URL}/locations/`, {
+        const locationsResponse = await fetch(`${this.API_BASE_URL}/locations`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -299,7 +299,7 @@ export class GoHighLevelService {
       if (testLocationId) {
         // Test contacts
         try {
-          const contactsResponse = await fetch(`${this.API_BASE_URL}/contacts/?locationId=${testLocationId}`, {
+          const contactsResponse = await fetch(`${this.API_BASE_URL}/contacts?locationId=${testLocationId}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -315,7 +315,7 @@ export class GoHighLevelService {
 
         // Test opportunities
         try {
-          const opportunitiesResponse = await fetch(`${this.API_BASE_URL}/opportunities/?locationId=${testLocationId}`, {
+          const opportunitiesResponse = await fetch(`${this.API_BASE_URL}/opportunities?locationId=${testLocationId}`, {
             method: 'GET',
         headers: {
               'Authorization': `Bearer ${token}`,
@@ -331,7 +331,7 @@ export class GoHighLevelService {
 
         // Test calendars
         try {
-          const calendarsResponse = await fetch(`${this.API_BASE_URL}/calendars/?locationId=${testLocationId}`, {
+          const calendarsResponse = await fetch(`${this.API_BASE_URL}/calendars?locationId=${testLocationId}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -347,7 +347,7 @@ export class GoHighLevelService {
 
         // Test funnels
         try {
-          const funnelsResponse = await fetch(`${this.API_BASE_URL}/funnels/?locationId=${testLocationId}`, {
+          const funnelsResponse = await fetch(`${this.API_BASE_URL}/funnels?locationId=${testLocationId}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -953,14 +953,27 @@ export class GoHighLevelService {
         return cached.data;
       }
 
-      // Load location-specific token
-      let token = this.locationTokens.get(locationId);
+      // Use agency token for contact operations (we know it works from testing)
+      let token = this.agencyToken;
       if (!token) {
-        token = await this.loadLocationToken(locationId);
-      }
+        // Load agency token from database
+        const { data: integration, error } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'goHighLevel')
+          .eq('connected', true)
+          .single();
 
-      if (!token) {
-        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
+        if (error || !integration) {
+          throw new Error('Go High Level integration not found or not connected');
+        }
+
+        token = integration.config.apiKey?.apiKey;
+        if (!token) {
+          throw new Error('No Go High Level API key found');
+        }
+        
+        this.agencyToken = token;
       }
 
       // Use Search Contacts endpoint to get count
@@ -1126,14 +1139,27 @@ export class GoHighLevelService {
         return cached.data;
       }
 
-      // Load location-specific token
-      let token = this.locationTokens.get(locationId);
+      // Use agency token for operations (we know it works from testing)
+      let token = this.agencyToken;
       if (!token) {
-        token = await this.loadLocationToken(locationId);
-      }
+        // Load agency token from database
+        const { data: integration, error } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'goHighLevel')
+          .eq('connected', true)
+          .single();
 
-      if (!token) {
-        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
+        if (error || !integration) {
+          throw new Error('Go High Level integration not found or not connected');
+        }
+
+        token = integration.config.apiKey?.apiKey;
+        if (!token) {
+          throw new Error('No Go High Level API key found');
+        }
+        
+        this.agencyToken = token;
       }
 
       // Get funnels using API 2.0 endpoint
@@ -1250,14 +1276,27 @@ export class GoHighLevelService {
         return cached.data;
       }
 
-      // Load location-specific token
-      let token = this.locationTokens.get(locationId);
+      // Use agency token for operations (we know it works from testing)
+      let token = this.agencyToken;
       if (!token) {
-        token = await this.loadLocationToken(locationId);
-      }
+        // Load agency token from database
+        const { data: integration, error } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'goHighLevel')
+          .eq('connected', true)
+          .single();
 
-      if (!token) {
-        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
+        if (error || !integration) {
+          throw new Error('Go High Level integration not found or not connected');
+        }
+
+        token = integration.config.apiKey?.apiKey;
+        if (!token) {
+          throw new Error('No Go High Level API key found');
+        }
+        
+        this.agencyToken = token;
       }
 
       // Get funnels using API 2.0 endpoint

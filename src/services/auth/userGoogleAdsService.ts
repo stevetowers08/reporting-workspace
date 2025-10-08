@@ -86,7 +86,7 @@ export class UserGoogleAdsService {
 
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-      redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? 'http://localhost:5173/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'),
+      redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? 'http://localhost:3000/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'),
       response_type: 'code',
       scope: this.GOOGLE_ADS_SCOPE,
       access_type: 'offline',
@@ -130,7 +130,7 @@ export class UserGoogleAdsService {
       }
 
       const redirectUri = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5173/oauth/callback' 
+        ? 'http://localhost:3000/oauth/callback' 
         : 'https://tulenreporting.vercel.app/oauth/callback';
 
       debugLogger.info('UserGoogleAdsService', 'Exchanging code for tokens', {

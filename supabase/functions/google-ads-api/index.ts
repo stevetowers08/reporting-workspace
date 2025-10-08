@@ -38,10 +38,28 @@ Deno.serve(async (req: Request) => {
     
     console.log('Path segments:', pathSegments);
     console.log('Full URL:', req.url);
+    console.log('Path segments length:', pathSegments.length);
+    console.log('All path segments:', JSON.stringify(pathSegments));
     
     // Extract action from path: /functions/v1/google-ads-api/{action}
-    const action = pathSegments[3];
-    console.log('Action:', action);
+    // The path segments should be: ['functions', 'v1', 'google-ads-api', 'accounts']
+    // So we want the last segment
+    const action = pathSegments[pathSegments.length - 1];
+    
+    // Debug: log what we're getting
+    console.log('Path segments:', pathSegments);
+    console.log('Action extracted:', action);
+    
+    // Handle the case where action might be undefined
+    if (!action) {
+      return new Response(
+        JSON.stringify({ error: 'No action specified in URL path' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     switch (action) {
       case 'accounts':

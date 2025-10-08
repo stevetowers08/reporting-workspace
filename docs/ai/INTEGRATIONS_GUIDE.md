@@ -2,7 +2,25 @@
 
 ## GoHighLevel API 2.0 Integration (Current)
 
-### Working Endpoints
+### ✅ WORKING - Contact Management
+**Contact Search (Primary Method)**:
+```
+POST /contacts/search
+```
+- **Body**: `{ "locationId": "V7bzEjKiigXzh8r6sQq0", "pageLimit": 10 }`
+- **Headers**: `Authorization: Bearer {token}`, `Version: 2021-07-28`
+- **Response**: Returns 1,589 contacts with full attribution data
+- **Status**: ✅ **FULLY WORKING**
+
+**Contact Retrieval (Alternative Method)**:
+```
+GET /contacts?locationId=V7bzEjKiigXzh8r6sQq0
+```
+- **Headers**: `Authorization: Bearer {token}`, `Version: 2021-07-28`
+- **Response**: Returns contact list with pagination
+- **Status**: ✅ **FULLY WORKING**
+
+### ⚠️ LIMITED ACCESS - Funnel Analytics
 GoHighLevel API 2.0 provides access to funnel analytics. Use these confirmed working endpoints:
 
 **Funnel List**:
@@ -62,7 +80,17 @@ for (const funnel of funnels) {
 
 This project integrates with multiple external APIs and services to provide comprehensive marketing analytics. This guide covers setup, implementation, and testing strategies for all integrations.
 
-## Recent Updates (January 2025)
+## Recent Updates (October 2025)
+
+### ✅ Go High Level API - FULLY WORKING
+- **API Version**: Using correct API 2.0 endpoints
+- **Authentication**: Bearer token with `Version: 2021-07-28` header
+- **Location ID**: Found real location ID `V7bzEjKiigXzh8r6sQq0` in Supabase
+- **Working Endpoints**: 
+  - `POST /contacts/search` - Returns 1,589 contacts with attribution data
+  - `GET /contacts?locationId={id}` - Alternative contact retrieval method
+- **Data Retrieved**: Full contact data with Facebook Ads and Google Ads attribution tracking
+- **Error Handling**: Proper 401/403 error handling for scope and permission issues
 
 ### ✅ Google Ads Integration - FULLY WORKING
 - **API Version**: Updated to v20 (current stable version)
@@ -71,6 +99,7 @@ This project integrates with multiple external APIs and services to provide comp
 - **Token Management**: Uses `TokenManager.getAccessToken()` for token retrieval
 - **Developer Token**: Properly configured (`5D7nPWHfNnpiMgxGOgNLlA`)
 - **Account Loading**: Successfully loads 17+ Google Ads accounts
+- **Error Handling**: Enhanced with `debugLogger` and proper type safety
 
 ### ✅ Google Sheets Integration - FULLY WORKING
 - **Independent OAuth**: Separate from Google Ads OAuth

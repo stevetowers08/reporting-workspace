@@ -6,6 +6,7 @@ import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 // import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 import { initSentry } from "@/lib/sentry";
+import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AdminPanel from "@/pages/AdminPanel";
 import EventDashboard from "@/pages/EventDashboard";
@@ -192,6 +193,7 @@ const App = () => {
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                 <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
+                <Route path="/api-testing" element={<APITestingPage />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
