@@ -1,4 +1,5 @@
 import { debugLogger, debugService } from '@/lib/debug';
+import { UnifiedCredentialService } from '@/services/auth/unifiedCredentialService';
 
 export interface FacebookAdsMetrics {
   impressions: number;
@@ -72,7 +73,6 @@ export class FacebookAdsService {
   static async getAccessToken(): Promise<string> {
     try {
       // Use unified credential service (Supabase) - PRIMARY SOURCE
-      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
       const token = await UnifiedCredentialService.getAccessToken('facebookAds');
       
       if (token) {
@@ -244,7 +244,6 @@ export class FacebookAdsService {
     try {
       // First try to get cached accounts from Supabase integration
       try {
-        const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
         const integration = await UnifiedCredentialService.getCredentials('facebookAds');
         
         if (integration?.settings?.adAccounts && integration.settings.adAccounts.length > 0) {
@@ -977,8 +976,6 @@ export class FacebookAdsService {
   // Clear cached ad accounts to force fresh fetch
   static async clearAdAccountsCache(): Promise<void> {
     try {
-      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
-      
       // Clear the cached ad accounts from Supabase integration
       await UnifiedCredentialService.updateCredentials('facebookAds', {
         settings: {
@@ -997,8 +994,6 @@ export class FacebookAdsService {
   // Cache ad accounts in Supabase integration
   private static async cacheAdAccounts(accounts: any[]): Promise<void> {
     try {
-      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
-      
       // Update the integration with cached ad accounts
       await UnifiedCredentialService.updateCredentials('facebookAds', {
         settings: {
@@ -1399,7 +1394,6 @@ export class FacebookAdsService {
       if (!accountId) {
         // Try to get account ID from integration config instead of making API call
         try {
-          const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
           const integration = await UnifiedCredentialService.getCredentials('facebookAds');
           if (integration?.config?.adAccounts?.[0]?.id) {
             accountId = integration.config.adAccounts[0].id;
@@ -1571,7 +1565,6 @@ export class FacebookAdsService {
   static async disconnect(): Promise<void> {
     try {
       // Disconnect from Supabase
-      const { UnifiedCredentialService } = await import('@/services/auth/unifiedCredentialService');
       await UnifiedCredentialService.disconnectPlatform('facebookAds');
       debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected from Supabase');
     } catch (error) {
