@@ -15,12 +15,16 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [funnelAnalytics, contactCount] = await Promise.all([
-          GoHighLevelService.getFunnelAnalytics(locationId, dateRange),
-          GoHighLevelService.getContactCount(locationId)
-        ]);
-        setFunnelData(funnelAnalytics);
+        // Only fetch contact count - funnel analytics not available via API
+        const contactCount = await GoHighLevelService.getContactCount(locationId);
         setTotalContacts(contactCount);
+        
+        // Set placeholder data for funnel metrics since API doesn't support it
+        setFunnelData({
+          totalPageViews: 0,
+          totalConversions: 0,
+          averageConversionRate: 0
+        });
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -100,7 +104,8 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Total Page Views</p>
-            <p className="text-3xl font-bold text-green-600">{funnelData.totalPageViews.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-400">N/A</p>
+            <p className="text-xs text-slate-500 mt-1">API not available</p>
           </div>
         </div>
       </Card>
@@ -109,7 +114,8 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Total Conversions</p>
-            <p className="text-3xl font-bold text-purple-600">{funnelData.totalConversions.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-slate-400">N/A</p>
+            <p className="text-xs text-slate-500 mt-1">API not available</p>
           </div>
         </div>
       </Card>
@@ -118,7 +124,8 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Avg Conversion Rate</p>
-            <p className="text-3xl font-bold text-orange-600">{funnelData.averageConversionRate.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-slate-400">N/A</p>
+            <p className="text-xs text-slate-500 mt-1">API not available</p>
           </div>
         </div>
       </Card>
