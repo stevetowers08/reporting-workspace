@@ -1,4 +1,4 @@
-/* eslint-disable no-console, no-undef, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console, no-undef, @typescript-eslint/no-explicit-any */
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import {
@@ -8,62 +8,113 @@ import {
     OAuthTokens
 } from '@/types/integration';
 
-import CryptoJS from 'crypto-js';
-
 /**
- * Secure AES encryption/decryption for tokens
- * Uses AES-256 encryption with proper key derivation
+ * Secure AES-GCM encryption/decryption for tokens using Web Crypto API
+ * Uses AES-256-GCM encryption with proper initialization vectors
  */
 class TokenEncryption {
-  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'your-32-character-secret-key-here';
-  private static readonly SALT = 'tulen-token-salt-2025';
+  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'tulen-reporting-encryption-key-2025-secure';
   
-  static encrypt(text: string): string {
+  /**
+   * Encrypt a token using AES-GCM
+   */
+  static async encrypt(text: string): Promise<string> {
     try {
-      // Derive key using PBKDF2
-      const key = CryptoJS.PBKDF2(this.ENCRYPTION_KEY, this.SALT, {
-        keySize: 256/32,
-        iterations: 10000
-      });
+      // Ensure we have a 32-character key for AES-256
+      const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
       
-      // Encrypt using AES
-      const encrypted = CryptoJS.AES.encrypt(text, key, {
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      });
+      // Import the key material
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(keyString),
+        { name: "AES-GCM" },
+        false,
+        ["encrypt"]
+      );
+
+      // Generate a random 12-byte IV
+      const iv = crypto.getRandomValues(new Uint8Array(12));
       
-      return encrypted.toString();
+      // Encrypt the data
+      const encryptedData = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        keyMaterial,
+        new TextEncoder().encode(text)
+      );
+
+      // Combine IV and encrypted data for storage, encoded in Base64
+      const ivString = this.arrayBufferToBase64(iv);
+      const encryptedString = this.arrayBufferToBase64(new Uint8Array(encryptedData));
+
+      return `${ivString}:${encryptedString}`;
     } catch (error) {
       debugLogger.error('TokenEncryption', 'Failed to encrypt token', error);
       throw new Error('Failed to encrypt token');
     }
   }
   
-  static decrypt(encryptedText: string): string {
+  /**
+   * Decrypt a token using AES-GCM
+   */
+  static async decrypt(encryptedToken: string): Promise<string> {
     try {
-      // Derive key using PBKDF2
-      const key = CryptoJS.PBKDF2(this.ENCRYPTION_KEY, this.SALT, {
-        keySize: 256/32,
-        iterations: 10000
-      });
-      
-      // Decrypt using AES
-      const decrypted = CryptoJS.AES.decrypt(encryptedText, key, {
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      });
-      
-      const result = decrypted.toString(CryptoJS.enc.Utf8);
-      
-      if (!result) {
-        throw new Error('Decryption resulted in empty string');
+      const [ivString, encryptedString] = encryptedToken.split(":");
+      if (!ivString || !encryptedString) {
+        throw new Error("Invalid encrypted token format.");
       }
+
+      // Ensure we have a 32-character key for AES-256
+      const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
       
-      return result;
+      // Import the key material
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(keyString),
+        { name: "AES-GCM" },
+        false,
+        ["decrypt"]
+      );
+      
+      // Decode IV and encrypted data
+      const iv = this.base64ToArrayBuffer(ivString);
+      const data = this.base64ToArrayBuffer(encryptedString);
+
+      // Decrypt the data
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        keyMaterial,
+        data
+      );
+
+      return new TextDecoder().decode(decrypted);
     } catch (error) {
       debugLogger.error('TokenEncryption', 'Failed to decrypt token', error);
       throw new Error('Failed to decrypt token');
     }
+  }
+  
+  /**
+   * Convert ArrayBuffer to Base64 string
+   */
+  private static arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
+    const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+  
+  /**
+   * Convert Base64 string to ArrayBuffer
+   */
+  private static base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 }
 
@@ -155,8 +206,8 @@ export class TokenManager {
         connected: true,
         tokens: {
           ...tokens,
-          accessToken: TokenEncryption.encrypt(tokens.accessToken),
-          refreshToken: tokens.refreshToken ? TokenEncryption.encrypt(tokens.refreshToken) : undefined,
+        accessToken: await TokenEncryption.encrypt(tokens.accessToken),
+        refreshToken: tokens.refreshToken ? await TokenEncryption.encrypt(tokens.refreshToken) : undefined,
           expiresAt
         },
         accountInfo,
@@ -166,7 +217,7 @@ export class TokenManager {
       };
 
       // Test database connection before attempting to store
-      const { data: connectionTest, error: connectionError } = await supabase
+      const { error: connectionError } = await supabase
         .from('integrations')
         .select('platform')
         .limit(1);
@@ -330,7 +381,7 @@ export class TokenManager {
         // Decrypt the access token
         let accessToken: string;
         try {
-          accessToken = TokenEncryption.decrypt(encryptedAccessToken);
+          accessToken = await TokenEncryption.decrypt(encryptedAccessToken);
         } catch (error) {
           debugLogger.error('TokenManager', `Failed to decrypt access token for ${platform}`, error);
           return null;

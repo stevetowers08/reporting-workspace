@@ -288,10 +288,10 @@ export class GoogleAdsService {
         debugLogger.error('GoogleAdsService', `Error fetching individual ad accounts (attempt ${attempt})`, error);
       }
 
-      // Add delay between retries
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+            // Add delay between retries
+            if (attempt < maxRetries) {
+              await new Promise(resolve => globalThis.setTimeout(resolve, 1000));
+            }
     }
 
     debugLogger.error('GoogleAdsService', 'All attempts to fetch individual ad accounts failed');
@@ -316,7 +316,7 @@ export class GoogleAdsService {
       
       const batchPromises = batch.map(async (resourceName) => {
         const customerId = resourceName.split('/').pop();
-        if (!customerId) return null;
+        if (!customerId) {return null;}
 
         try {
           return await this.getCustomerDetails(customerId, accessToken, developerToken);
@@ -343,7 +343,7 @@ export class GoogleAdsService {
 
       // Add delay between batches to respect rate limits (2025 best practice)
       if (i + batchSize < customerResourceNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => globalThis.setTimeout(resolve, 100));
       }
     }
 
