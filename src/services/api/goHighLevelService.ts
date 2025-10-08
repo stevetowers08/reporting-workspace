@@ -833,9 +833,8 @@ export class GoHighLevelService {
       // Use Search Contacts endpoint with agency token and location ID
       const searchBody = {
         locationId: locationId,
-        limit: limit,
-        offset: offset,
-        query: {} // Empty query to get all contacts
+        pageLimit: limit, // Use pageLimit instead of limit
+        query: "" // Query must be a string, not an object
       };
       
       const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
@@ -892,19 +891,22 @@ export class GoHighLevelService {
       // Use Search Contacts endpoint to get count
       const searchBody: any = {
         locationId: locationId,
-        limit: 1, // We only need the count, not the actual contacts
-        offset: 0,
-        query: {}
+        pageLimit: 1, // Use pageLimit instead of limit
+        query: "" // Query must be a string, not an object
       };
 
       // Add date filtering if provided
       if (dateParams?.startDate || dateParams?.endDate) {
-        searchBody.query.dateAdded = {};
+        // Build query string for date filtering
+        let queryParts = [];
         if (dateParams.startDate) {
-          searchBody.query.dateAdded.gte = dateParams.startDate;
+          queryParts.push(`dateAdded >= "${dateParams.startDate}"`);
         }
         if (dateParams.endDate) {
-          searchBody.query.dateAdded.lte = dateParams.endDate;
+          queryParts.push(`dateAdded <= "${dateParams.endDate}"`);
+        }
+        if (queryParts.length > 0) {
+          searchBody.query = queryParts.join(" AND ");
         }
       }
 

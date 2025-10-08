@@ -58,7 +58,6 @@ interface ClientFormProps {
   clientId?: string;
   onSubmit: (data: ClientFormData) => Promise<void>;
   onCancel: () => void;
-  submitLabel?: string;
   cancelLabel?: string;
 }
 
@@ -68,7 +67,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   clientId,
   onSubmit,
   onCancel,
-  submitLabel = "Save Client",
   cancelLabel = "Cancel"
 }) => {
   console.log('🔍 ClientForm: Component loaded', { isEdit, clientId, initialData });
@@ -99,6 +97,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [conversionActions, setConversionActions] = useState<Record<string, unknown[]>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [aiConfig, setAiConfig] = useState<AIInsightsConfig | null>(null);
+  const [aiConfigLoading, setAiConfigLoading] = useState(false);
   const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
     spreadsheetId: string;
     sheetName: string;
@@ -107,6 +106,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
+  
+  // Edit states for each integration
+  const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});
+  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
 
   // Load connected accounts when component mounts
   useEffect(() => {
@@ -126,8 +129,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
             return { platform, isConnected };
           } else {
-            const { IntegrationService } = await import('@/services/integration/IntegrationService');
-            const isConnected = await IntegrationService.isConnected(platform as IntegrationPlatform);
+            // Use TokenManager for reliable token checking
+            const { TokenManager } = await import('@/services/auth/TokenManager');
+            const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
             return { platform, isConnected };
           }
         } catch (error) {
@@ -379,14 +383,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       return;
     }
     
-    setAiConfigLoading(true);
     try {
       const config = await AIInsightsService.getClientAIConfig(clientId);
       setAiConfig(config);
     } catch (error) {
-      console.error('Error loading AI config:', error);
-    } finally {
-      setAiConfigLoading(false);
+      debugLogger.error('ClientForm', 'Error loading AI config', error);
     }
   };
 
@@ -497,8 +498,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       // Show success message
       setSubmitSuccess(`${isEdit ? 'Client updated' : 'Client created'} successfully!`);
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSubmitSuccess(null), 3000);
+      // Clear success message after 2 seconds and close modal
+      window.setTimeout(() => {
+        setSubmitSuccess(null);
+        if (isEdit) {
+          onCancel(); // Close the modal
+        }
+      }, 2000);
 
     } catch (error) {
       debugLogger.error('ClientForm', 'Form submission failed', error);
@@ -531,46 +537,87 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   };
 
   const handleAccountSelect = (platform: keyof typeof formData.accounts, accountId: string) => {
-    setFormData(prev => {
-      if (platform === 'goHighLevel') {
-        if (accountId === "none") {
-          return {
-            ...prev,
-            accounts: {
-              ...prev.accounts,
-              goHighLevel: "none",
-            },
-          };
-        }
-        
-        // Find the selected location details
-        const selectedLocation = connectedAccounts.find(account => 
-          account.platform === 'goHighLevel' && account.id === accountId
-        );
-        
-        if (selectedLocation) {
-          return {
-            ...prev,
-            accounts: {
-              ...prev.accounts,
-              goHighLevel: {
-                locationId: accountId,
-                locationName: selectedLocation.name,
-                locationToken: undefined // User will need to provide this separately
+    // Store pending changes instead of immediately updating form data
+    setPendingChanges(prev => ({
+      ...prev,
+      [platform]: accountId
+    }));
+  };
+
+  const handleEditIntegration = (platform: string) => {
+    setEditingIntegrations(prev => ({
+      ...prev,
+      [platform]: true
+    }));
+  };
+
+  const handleCancelEdit = (platform: string) => {
+    setEditingIntegrations(prev => ({
+      ...prev,
+      [platform]: false
+    }));
+    setPendingChanges(prev => {
+      const newPending = { ...prev };
+      delete newPending[platform];
+      return newPending;
+    });
+  };
+
+  const handleSaveIntegration = (platform: string) => {
+    const pendingValue = pendingChanges[platform];
+    if (pendingValue !== undefined) {
+      setFormData(prev => {
+        if (platform === 'goHighLevel') {
+          if (pendingValue === "none") {
+            return {
+              ...prev,
+              accounts: {
+                ...prev.accounts,
+                goHighLevel: "none",
               },
-            },
-          };
+            };
+          }
+          
+          // Find the selected location details
+          const selectedLocation = connectedAccounts.find(account => 
+            account.platform === 'goHighLevel' && account.id === pendingValue
+          );
+          
+          if (selectedLocation) {
+            return {
+              ...prev,
+              accounts: {
+                ...prev.accounts,
+                goHighLevel: {
+                  locationId: pendingValue,
+                  locationName: selectedLocation.name,
+                  locationToken: undefined
+                },
+              },
+            };
+          }
         }
-      }
-      
-      // Default handling for other platforms
-      return {
-        ...prev,
-        accounts: {
-          ...prev.accounts,
-          [platform]: accountId === "none" ? "" : accountId,
-        },
-      };
+        
+        // Default handling for other platforms
+        return {
+          ...prev,
+          accounts: {
+            ...prev.accounts,
+            [platform]: pendingValue === "none" ? "" : pendingValue,
+          },
+        };
+      });
+    }
+
+    // Clear edit state and pending changes
+    setEditingIntegrations(prev => ({
+      ...prev,
+      [platform]: false
+    }));
+    setPendingChanges(prev => {
+      const newPending = { ...prev };
+      delete newPending[platform];
+      return newPending;
     });
   };
 
@@ -595,8 +642,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       // Refresh integration status
       window.location.reload();
     } catch (error) {
-      console.error('🔍 ClientForm: Failed to disconnect GoHighLevel:', error);
-      alert('Failed to disconnect GoHighLevel. Please try again.');
+      debugLogger.error('ClientForm', 'Failed to disconnect GoHighLevel', error);
+      window.alert('Failed to disconnect GoHighLevel. Please try again.');
     }
   };
 
@@ -789,47 +836,97 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             
             {isIntegrationConnected('facebookAds') ? (
               <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
-                  <SearchableSelect
-                    options={[
-                      { value: "none", label: "None" },
-                      ...getAvailableAccounts('facebookAds').map(account => ({
-                        value: account.id,
-                        label: account.name
-                      }))
-                    ]}
-                    value={formData.accounts.facebookAds || "none"}
-                    onValueChange={(value) => handleAccountSelect("facebookAds", value)}
-                    placeholder="Select account"
-                    searchPlaceholder="Search accounts..."
-                    className="mt-1"
-                    onOpenChange={(open) => {
-                      if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
-                        loadFacebookAccounts();
-                      }
-                    }}
-                  />
-                </div>
-                
-                {formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' && (
-                  <div>
-                    <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
-                    <Select
-                      value={formData.conversionActions.facebookAds || "lead"}
-                      onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
+                {editingIntegrations.facebookAds ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
+                      <SearchableSelect
+                        options={[
+                          { value: "none", label: "None" },
+                          ...getAvailableAccounts('facebookAds').map(account => ({
+                            value: account.id,
+                            label: account.name
+                          }))
+                        ]}
+                        value={(pendingChanges.facebookAds ?? formData.accounts.facebookAds) || "none"}
+                        onValueChange={(value) => handleAccountSelect("facebookAds", value)}
+                        placeholder="Select account"
+                        searchPlaceholder="Search accounts..."
+                        className="mt-1"
+                        onOpenChange={(open) => {
+                          if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
+                            loadFacebookAccounts();
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {((pendingChanges.facebookAds ?? formData.accounts.facebookAds) && 
+                     (pendingChanges.facebookAds ?? formData.accounts.facebookAds) !== 'none') && (
+                      <div>
+                        <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
+                        <Select
+                          value={formData.conversionActions.facebookAds || "lead"}
+                          onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select action" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {conversionActions.facebookAds?.map((action: any) => (
+                              <SelectItem key={action.id} value={action.id}>
+                                {action.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button"
+                        size="sm"
+                        onClick={() => handleSaveIntegration('facebookAds')}
+                        className="flex-1"
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelEdit('facebookAds')}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 p-2 rounded text-xs">
+                      <div className="font-medium text-gray-700">
+                        {formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' 
+                          ? getAvailableAccounts('facebookAds').find(acc => acc.id === formData.accounts.facebookAds)?.name || 'Unknown Account'
+                          : 'No account selected'
+                        }
+                      </div>
+                      {formData.conversionActions.facebookAds && (
+                        <div className="text-gray-500 mt-1">
+                          Action: {formData.conversionActions.facebookAds}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditIntegration('facebookAds')}
+                      className="w-full"
                     >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {conversionActions.facebookAds?.map((action: any) => (
-                          <SelectItem key={action.id} value={action.id}>
-                            {action.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      Edit
+                    </Button>
                   </div>
                 )}
               </div>
@@ -871,46 +968,96 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             
             {isIntegrationConnected('googleAds') ? (
               <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
-                  <SearchableSelect
-                    options={[
-                      { value: "none", label: "None" },
-                      ...getAvailableAccounts('googleAds').map(account => ({
-                        value: account.id,
-                        label: account.name
-                      }))
-                    ]}
-                    value={formData.accounts.googleAds || "none"}
-                    onValueChange={(value) => handleAccountSelect("googleAds", value)}
-                    placeholder="Select account"
-                    searchPlaceholder="Search accounts..."
-                    className="mt-1"
-                    onOpenChange={(open) => {
-                      if (open && !googleAccountsLoaded) {
-                        loadGoogleAccounts();
-                      }
-                    }}
-                  />
-                </div>
-                
-                {formData.accounts.googleAds && formData.accounts.googleAds !== 'none' && (
-                  <div>
-                    <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
-                    <SearchableSelect
-                      options={[
-                        { value: "conversions", label: "Conversions" },
-                        ...(conversionActions.googleAds || []).map((action: any) => ({
-                          value: action.id,
-                          label: action.name
-                        }))
-                      ]}
-                      value={formData.conversionActions?.googleAds || "conversions"}
-                      onValueChange={(value) => handleConversionActionSelect("googleAds", value)}
-                      placeholder="Select action"
-                      searchPlaceholder="Search actions..."
-                      className="mt-1"
-                    />
+                {editingIntegrations.googleAds ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
+                      <SearchableSelect
+                        options={[
+                          { value: "none", label: "None" },
+                          ...getAvailableAccounts('googleAds').map(account => ({
+                            value: account.id,
+                            label: account.name
+                          }))
+                        ]}
+                        value={(pendingChanges.googleAds ?? formData.accounts.googleAds) || "none"}
+                        onValueChange={(value) => handleAccountSelect("googleAds", value)}
+                        placeholder="Select account"
+                        searchPlaceholder="Search accounts..."
+                        className="mt-1"
+                        onOpenChange={(open) => {
+                          if (open && !googleAccountsLoaded) {
+                            loadGoogleAccounts();
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {((pendingChanges.googleAds ?? formData.accounts.googleAds) && 
+                     (pendingChanges.googleAds ?? formData.accounts.googleAds) !== 'none') && (
+                      <div>
+                        <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
+                        <SearchableSelect
+                          options={[
+                            { value: "conversions", label: "Conversions" },
+                            ...(conversionActions.googleAds || []).map((action: any) => ({
+                              value: action.id,
+                              label: action.name
+                            }))
+                          ]}
+                          value={formData.conversionActions?.googleAds || "conversions"}
+                          onValueChange={(value) => handleConversionActionSelect("googleAds", value)}
+                          placeholder="Select action"
+                          searchPlaceholder="Search actions..."
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button"
+                        size="sm"
+                        onClick={() => handleSaveIntegration('googleAds')}
+                        className="flex-1"
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelEdit('googleAds')}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 p-2 rounded text-xs">
+                      <div className="font-medium text-gray-700">
+                        {formData.accounts.googleAds && formData.accounts.googleAds !== 'none' 
+                          ? getAvailableAccounts('googleAds').find(acc => acc.id === formData.accounts.googleAds)?.name || 'Unknown Account'
+                          : 'No account selected'
+                        }
+                      </div>
+                      {formData.conversionActions.googleAds && (
+                        <div className="text-gray-500 mt-1">
+                          Action: {formData.conversionActions.googleAds}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditIntegration('googleAds')}
+                      className="w-full"
+                    >
+                      Edit
+                    </Button>
                   </div>
                 )}
               </div>
@@ -973,7 +1120,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <div className="text-center py-4">
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
-                  onConnected={(locationId) => {
+                  onConnected={(_locationId) => {
                     window.location.reload();
                   }}
                 />
@@ -1012,22 +1159,84 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                <GoogleSheetsSelector
-                  initialSpreadsheetId={googleSheetsConfig?.spreadsheetId}
-                  initialSheetName={googleSheetsConfig?.sheetName}
-                  onSelectionComplete={(spreadsheetId, sheetName) => {
-                    setGoogleSheetsConfig({ spreadsheetId, sheetName });
-                    setFormData(prev => ({
-                      ...prev,
-                      accounts: {
-                        ...prev.accounts,
-                        googleSheets: spreadsheetId
-                      }
-                    }));
-                    setGoogleSheetsSuccess(`Configured: ${sheetName}`);
-                    setTimeout(() => setGoogleSheetsSuccess(null), 3000);
-                  }}
-                />
+                {editingIntegrations.googleSheets ? (
+                  <div className="space-y-3">
+                    <GoogleSheetsSelector
+                      initialSpreadsheetId={googleSheetsConfig?.spreadsheetId}
+                      initialSheetName={googleSheetsConfig?.sheetName}
+                      hideSaveButton={true}
+                      onSelectionComplete={(spreadsheetId, sheetName) => {
+                        setPendingChanges(prev => ({
+                          ...prev,
+                          googleSheets: { spreadsheetId, sheetName }
+                        }));
+                      }}
+                    />
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const pending = pendingChanges.googleSheets;
+                          if (pending) {
+                            setGoogleSheetsConfig(pending);
+                            setFormData(prev => ({
+                              ...prev,
+                              accounts: {
+                                ...prev.accounts,
+                                googleSheets: pending.spreadsheetId
+                              }
+                            }));
+                            setGoogleSheetsSuccess(`Configured: ${pending.sheetName}`);
+                            window.setTimeout(() => setGoogleSheetsSuccess(null), 3000);
+                          }
+                          setEditingIntegrations(prev => ({ ...prev, googleSheets: false }));
+                          setPendingChanges(prev => {
+                            const newPending = { ...prev };
+                            delete newPending.googleSheets;
+                            return newPending;
+                          });
+                        }}
+                        className="flex-1"
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelEdit('googleSheets')}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 p-2 rounded text-xs">
+                      <div className="font-medium text-gray-700">
+                        {googleSheetsConfig?.sheetName || 'No sheet configured'}
+                      </div>
+                      {googleSheetsConfig?.spreadsheetId && (
+                        <div className="text-gray-500 mt-1">
+                          ID: {googleSheetsConfig.spreadsheetId}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditIntegration('googleSheets')}
+                      className="w-full"
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                )}
+                
                 {googleSheetsSuccess && (
                   <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
                     {googleSheetsSuccess}
@@ -1116,7 +1325,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <span>Saving...</span>
             </div>
           ) : (
-            submitLabel
+            isEdit ? 'Update Client' : 'Create Client'
           )}
         </Button>
         <Button 
