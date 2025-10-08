@@ -1,4 +1,62 @@
-Hu# Integrations Guide
+# Integrations Guide
+
+## GoHighLevel API 2.0 Integration (Current)
+
+### Working Endpoints
+GoHighLevel API 2.0 provides access to funnel analytics. Use these confirmed working endpoints:
+
+**Funnel List**:
+```
+GET /funnels/funnel/list?locationId={locationId}
+```
+- Returns list of all funnels for a location
+- Response includes funnel metadata, steps, and page references
+- Example: Returns 10 funnels for Magnolia Terrace location
+
+**Funnel Pages**:
+```
+GET /funnels/page?locationId={locationId}&funnelId={funnelId}&limit=20&offset=0
+```
+- Returns pages for a specific funnel
+- Requires `locationId`, `funnelId`, `limit` (max 20), and `offset` parameters
+- Response is an array of page objects
+- Example: Returns 2 pages per funnel
+
+### Authentication
+- Use Bearer token with `Version: 2021-07-28` header
+- Token expires every 24 hours
+- Implement automatic refresh using stored OAuth credentials
+
+### Data Mapping
+API 2.0 uses different property names than API v1:
+- `_id` instead of `id` for funnel/page IDs
+- `dateAdded` instead of `createdAt` for dates
+- `type` instead of `status` for funnel status
+- `name` for page/funnel names
+- `url` for page URLs
+
+### Implementation Example
+```typescript
+// Get funnels using API 2.0
+const funnelsResponse = await this.makeApiRequestWithToken(
+  `/funnels/funnel/list?locationId=${locationId}`, 
+  token
+);
+const funnels = funnelsResponse.funnels || [];
+
+// Get pages for each funnel
+for (const funnel of funnels) {
+  const pagesResponse = await this.makeApiRequestWithToken(
+    `/funnels/page?locationId=${locationId}&funnelId=${funnel._id}&limit=20&offset=0`, 
+    token
+  );
+  const pages = Array.isArray(pagesResponse) ? pagesResponse : [];
+}
+```
+
+---
+
+# Integrations Guide
 
 ## Overview
 
@@ -104,11 +162,11 @@ const breakdowns = 'publisher_platform,placement';
 ```typescript
 // src/services/facebookAdsService.ts
 export class FacebookAdsService {
-  private baseUrl = 'https://graph.facebook.com/v18.0';
+  private baseUrl = 'https://graph.facebook.com/v20.0';
   private accessToken: string | null = null;
 
   async authenticate(): Promise<AuthResult> {
-    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
+    const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?` +
       `client_id=${facebookConfig.appId}&` +
       `redirect_uri=${facebookConfig.redirectUri}&` +
       `scope=${facebookConfig.scope.join(',')}&` +
@@ -1572,7 +1630,7 @@ import { rest } from 'msw';
 
 export const handlers = [
   // Facebook API mocks
-  rest.get('https://graph.facebook.com/v18.0/me/adaccounts', (req, res, ctx) => {
+  rest.get('https://graph.facebook.com/v20.0/me/adaccounts', (req, res, ctx) => {
     return res(
       ctx.json({
         data: [
@@ -1587,7 +1645,7 @@ export const handlers = [
     );
   }),
 
-  rest.get('https://graph.facebook.com/v18.0/:accountId/campaigns', (req, res, ctx) => {
+  rest.get('https://graph.facebook.com/v20.0/:accountId/campaigns', (req, res, ctx) => {
     return res(
       ctx.json({
         data: [
@@ -1705,7 +1763,7 @@ describe('FacebookAdsService', () => {
 
   it('should handle API errors', async () => {
     server.use(
-      rest.get('https://graph.facebook.com/v18.0/me/adaccounts', (req, res, ctx) => {
+      rest.get('https://graph.facebook.com/v20.0/me/adaccounts', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'Internal Server Error' }));
       })
     );

@@ -49,7 +49,22 @@
 
 ## Recent Updates
 
-### Critical Build & OAuth Fixes (Latest)
+### GoHighLevel API 2.0 Integration Fix (Latest)
+- **Status**: ✅ **COMPLETED**
+- **Issue**: Funnel analytics and page views not working - "This route is not yet supported by the IAM Service"
+- **Root Cause**: Using incorrect API v1 endpoints instead of API 2.0 endpoints
+- **Solution**: Updated to use correct GoHighLevel API 2.0 endpoints
+- **API Endpoints Fixed**:
+  - **Funnel List**: `/funnels/funnel/list?locationId={locationId}` ✅ (Returns 10 funnels)
+  - **Funnel Pages**: `/funnels/page?locationId={locationId}&funnelId={funnelId}&limit=20&offset=0` ✅ (Returns 2 pages per funnel)
+- **Code Changes**:
+  - Updated `getFunnelAnalytics()` method to use API 2.0 funnel list endpoint
+  - Updated `getPageAnalytics()` method to iterate through funnels and get pages for each
+  - Fixed object property mapping (`_id` vs `id`, `dateAdded` vs `createdAt`, `type` vs `status`)
+  - Reverted `FunnelMetricsCards` to display real data instead of "N/A" placeholders
+- **Result**: Funnel analytics now working with real data from GoHighLevel API 2.0
+
+### Critical Build & OAuth Fixes
 - **Status**: ✅ **COMPLETED**
 - **Issues Fixed**:
   - **Duplicate method error** in GoHighLevelService causing build failures

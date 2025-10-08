@@ -69,6 +69,19 @@ const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/valu
 
 ## GoHighLevel Integration Issues
 
+### Problem: "This route is not yet supported by the IAM Service" Error
+**Symptoms**: Funnel analytics and page views not working, 401 errors from funnel endpoints
+**Root Cause**: Using incorrect API v1 endpoints instead of GoHighLevel API 2.0 endpoints
+**Solution**:
+1. **Use correct API 2.0 endpoints**:
+   - **Funnel List**: `GET /funnels/funnel/list?locationId={locationId}`
+   - **Funnel Pages**: `GET /funnels/page?locationId={locationId}&funnelId={funnelId}&limit=20&offset=0`
+2. **Update object property mapping**:
+   - Use `_id` instead of `id` for funnel/page IDs
+   - Use `dateAdded` instead of `createdAt` for dates
+   - Use `type` instead of `status` for funnel status
+3. **Test endpoints directly** to confirm they return data before implementing
+
 ### Problem: "Invalid JWT" or "Token refresh failed" from GoHighLevel API
 **Symptoms**: GoHighLevel data not loading, 401 errors in console
 **Root Cause**: GoHighLevel OAuth token has expired and refresh is failing
