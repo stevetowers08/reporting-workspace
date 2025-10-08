@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { IntegrationErrorBoundary } from '@/components/error/IntegrationErrorBoundary';
 import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,6 @@ import { useErrorHandler } from '@/contexts/ErrorContext';
 import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
-import { UserGoogleAdsService } from '@/services/auth/userGoogleAdsService';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { AccountInfo, IntegrationPlatform, OAuthTokens, PlatformMetadata } from '@/types/integration';
 import { AlertCircle, CheckCircle } from 'lucide-react';
@@ -20,19 +20,20 @@ const OAuthCallback = () => {
   const { handleAuthError, handleNetworkError } = useErrorHandler();
 
   // Debug: Log component mounting
-  console.log('🔍 OAuthCallback component mounted - v6 - FIXED');
-  console.log('🔍 Current URL:', window.location.href);
-  console.log('🔍 Search params:', window.location.search);
+  debugLogger.debug('OAuthCallback', 'Component mounted', {
+    url: window.location.href,
+    searchParams: window.location.search
+  });
 
   useEffect(() => {
-    console.log('🔍 useEffect triggered - OAuth callback starting');
+    debugLogger.debug('OAuthCallback', 'useEffect triggered - OAuth callback starting');
     const handleOAuthCallback = async () => {
       try {
         const code = searchParams.get('code');
         const state = searchParams.get('state');
         const error = searchParams.get('error');
 
-        console.log('🔍 OAuth parameters:', { 
+        debugLogger.debug('OAuthCallback', 'OAuth parameters', { 
           hasCode: !!code, 
           hasState: !!state, 
           hasError: !!error,
@@ -52,23 +53,23 @@ const OAuthCallback = () => {
         let stateData;
         try {
           stateData = JSON.parse(atob(state));
-          console.log('🔍 Parsed state data:', stateData);
-        } catch (e) {
+          debugLogger.debug('🔍 Parsed state data:', stateData);
+        } catch (_e) {
           throw new Error('Invalid state parameter');
         }
 
         const platform = stateData.platform;
-        console.log('🔍 Detected platform:', platform);
+        debugLogger.debug('🔍 Detected platform:', platform);
 
         if (platform === 'googleSheets') {
           // Handle Google Sheets OAuth (WORKING PATTERN)
-          console.log('🔍 Processing Google Sheets OAuth');
+          debugLogger.debug('🔍 Processing Google Sheets OAuth');
           await GoogleSheetsOAuthService.handleSheetsAuthCallback(code, state);
           
           // Verify the tokens were actually saved to the database
-          console.log('🔍 Verifying database update...');
+          debugLogger.debug('🔍 Verifying database update...');
           const integration = await UnifiedIntegrationService.getIntegration('googleSheets');
-          console.log('🔍 Integration from database:', {
+          debugLogger.debug('🔍 Integration from database:', {
             exists: !!integration,
             connected: integration?.config?.connected,
             hasTokens: !!integration?.config?.tokens?.accessToken,
@@ -84,53 +85,62 @@ const OAuthCallback = () => {
             throw new Error('Failed to save Google Sheets tokens to database');
           }
           
-          console.log('🔍 Database verification successful!');
+          debugLogger.debug('🔍 Database verification successful!');
           
           setStatus('success');
           setMessage('Successfully connected to Google Sheets!');
-        } else if (platform === 'google' && stateData.scope?.includes('adwords')) {
-          // Handle Google Ads OAuth (USER-SPECIFIC)
-          console.log('🔍 Processing Google Ads OAuth (user-specific)');
-          const userId = stateData.userId || 'default-user';
+        } else if (platform === 'googleAds') {
+          // Handle Google Ads OAuth
+          debugLogger.debug('🔍 Processing Google Ads OAuth');
           
-          const userAuth = await UserGoogleAdsService.handleUserAuthCallback(code, state, userId);
-          console.log('🔍 User auth completed:', { 
-            hasAccessToken: !!userAuth.accessToken,
-            hasRefreshToken: !!userAuth.refreshToken,
-            googleUserId: userAuth.googleUserId
+          // Debug: Check localStorage before token exchange
+          const codeVerifier = localStorage.getItem('oauth_code_verifier_googleAds');
+          debugLogger.debug('🔍 Code verifier check:', {
+            hasCodeVerifier: !!codeVerifier,
+            codeVerifierLength: codeVerifier?.length || 0,
+            availableKeys: Object.keys(localStorage).filter(key => key.includes('oauth')),
+            allLocalStorageKeys: Object.keys(localStorage),
+            codeVerifierValue: codeVerifier ? codeVerifier.substring(0, 20) + '...' : 'MISSING'
+          });
+          
+          const result = await OAuthService.handleGoogleAdsCallback(code, state);
+          debugLogger.debug('🔍 Google Ads auth completed:', { 
+            hasAccessToken: !!result.tokens.accessToken,
+            hasRefreshToken: !!result.tokens.refreshToken,
+            googleUserId: result.userInfo.googleUserId
           });
 
-          // Save tokens to integrations table so the app sees the connection
+          // Save tokens to integrations table
           const oauthTokens: OAuthTokens = {
-            accessToken: userAuth.accessToken,
-            refreshToken: userAuth.refreshToken,
-            tokenExpiresAt: userAuth.tokenExpiresAt,
-            tokenType: 'Bearer',
-            scope: Array.isArray(userAuth.scope) ? userAuth.scope.join(' ') : userAuth.scope
+            accessToken: result.tokens.accessToken,
+            refreshToken: result.tokens.refreshToken,
+            tokenExpiresAt: result.tokens.expiresIn ? new Date(Date.now() + result.tokens.expiresIn * 1000).toISOString() : undefined,
+            tokenType: result.tokens.tokenType,
+            scope: result.tokens.scope
           };
 
           const accountInfo: AccountInfo = {
-            accountId: userAuth.googleUserId,
-            accountName: userAuth.googleUserEmail || 'Google Ads User',
-            accountEmail: userAuth.googleUserEmail,
+            accountId: result.userInfo.googleUserId,
+            accountName: result.userInfo.googleUserName || 'Google Ads User',
+            accountEmail: result.userInfo.googleUserEmail,
             accountType: 'personal'
           };
 
           const metadata: PlatformMetadata = {
-            googleUserId: userAuth.googleUserId,
-            googleUserEmail: userAuth.googleUserEmail,
-            googleUserName: userAuth.googleUserName
+            googleUserId: result.userInfo.googleUserId,
+            googleUserEmail: result.userInfo.googleUserEmail,
+            googleUserName: result.userInfo.googleUserName
           };
 
           await UnifiedIntegrationService.saveOAuthTokens('googleAds', oauthTokens, accountInfo, metadata);
-          console.log('🔍 Saved Google Ads tokens to integrations table');
+          debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
 
           setStatus('success');
           setMessage('Successfully connected to Google Ads!');
         } else {
           // Handle other platforms using OAuthService
-          console.log('🔍 Processing generic OAuth for platform:', platform);
-          const integrationPlatform = (stateData.integrationPlatform || platform) as IntegrationPlatform;
+          debugLogger.debug('🔍 Processing generic OAuth for platform:', platform);
+          // const integrationPlatform = (stateData.integrationPlatform || platform) as IntegrationPlatform;
           // Use the original platform for OAuthService (not integrationPlatform) to match code verifier storage
           // OAuthService.exchangeCodeForTokens() already stores tokens via TokenManager
           await OAuthService.exchangeCodeForTokens(platform, code, state);

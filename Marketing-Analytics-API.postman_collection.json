@@ -1,0 +1,232 @@
+{
+  "info": {
+    "name": "Marketing Analytics Dashboard API",
+    "description": "API collection for testing Marketing Analytics Dashboard endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Venues",
+      "item": [
+        {
+          "name": "Get All Venues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues"]
+            },
+            "description": "Get list of all venues (clients) in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Venue by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues/{{venueId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues", "{{venueId}}"]
+            },
+            "description": "Get specific venue details"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Google Ads",
+      "item": [
+        {
+          "name": "Get Google Ads Accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/google-ads/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "google-ads", "accounts"]
+            },
+            "description": "Get all Google Ads accounts (requires OAuth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Google Ads Connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-testing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-testing"]
+            },
+            "description": "Test Google Ads API connection"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Google Sheets",
+      "item": [
+        {
+          "name": "Get Google Sheets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/google-sheets/spreadsheets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "google-sheets", "spreadsheets"]
+            },
+            "description": "Get all accessible Google Sheets (requires OAuth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Google Sheets Connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-testing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-testing"]
+            },
+            "description": "Test Google Sheets API connection"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Facebook Ads",
+      "item": [
+        {
+          "name": "Get Facebook Ads Accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/facebook-ads/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "facebook-ads", "accounts"]
+            },
+            "description": "Get all Facebook Ads accounts (requires OAuth)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "GoHighLevel",
+      "item": [
+        {
+          "name": "Get GHL Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ghl/locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ghl", "locations"]
+            },
+            "description": "Get all GoHighLevel locations (requires OAuth)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Google Ads OAuth",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/oauth/callback?code={{code}}&state={{state}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{code}}",
+                  "description": "OAuth authorization code"
+                },
+                {
+                  "key": "state",
+                  "value": "{{state}}",
+                  "description": "OAuth state parameter"
+                }
+              ]
+            },
+            "description": "Handle Google Ads OAuth callback"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Testing",
+      "item": [
+        {
+          "name": "API Testing Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-testing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-testing"]
+            },
+            "description": "Access the API testing dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check API health status"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "venueId",
+      "value": "501cb994-2eb6-4a21-96b6-406e944a2d7e",
+      "description": "Sample venue ID (Magnolia Terrace)"
+    },
+    {
+      "key": "code",
+      "value": "",
+      "description": "OAuth authorization code"
+    },
+    {
+      "key": "state",
+      "value": "",
+      "description": "OAuth state parameter"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { API_BASE_URLS } from '@/constants/apiVersions';
+/* eslint-disable no-console */
 import { debugLogger } from '@/lib/debug';
 import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
@@ -88,14 +89,25 @@ export class OAuthService {
         const encoder = new TextEncoder();
         const data = encoder.encode(codeVerifier);
         
+        debugLogger.debug('OAuthService', 'Generating PKCE', {
+            codeVerifierLength: codeVerifier.length,
+            hasCryptoSubtle: !!crypto.subtle
+        });
+        
         return crypto.subtle.digest('SHA-256', data).then(hash => {
             const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
                 .replace(/\+/g, '-')
                 .replace(/\//g, '_')
                 .replace(/=/g, '');
             
+            debugLogger.debug('OAuthService', 'PKCE generated with crypto.subtle', {
+                codeVerifierLength: codeVerifier.length,
+                codeChallengeLength: codeChallenge.length
+            });
+            
             return { codeVerifier, codeChallenge };
-        }).catch(() => {
+        }).catch((error) => {
+            debugLogger.warn('OAuthService', 'crypto.subtle failed, using fallback', error);
             // Fallback if crypto.subtle is not available
             const codeChallenge = btoa(codeVerifier)
                 .replace(/\+/g, '-')
@@ -130,7 +142,7 @@ export class OAuthService {
         
         // Generate PKCE parameters for Google OAuth
         let pkceParams = {};
-        if (platform === 'google' || platform === 'googleAds' || platform === 'googleSheets') {
+        if (platform === 'googleAds' || platform === 'googleSheets') {
             try {
                 const pkce = await this.generatePKCE();
                 pkceParams = {
@@ -139,6 +151,15 @@ export class OAuthService {
                 };
                 // Store code verifier for later use
                 localStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
+                
+                debugLogger.debug('OAuthService', 'PKCE generated and stored', {
+                    platform,
+                    codeVerifierLength: pkce.codeVerifier.length,
+                    codeChallengeLength: pkce.codeChallenge.length,
+                    storageKey: `oauth_code_verifier_${platform}`,
+                    codeVerifierPreview: pkce.codeVerifier.substring(0, 20) + '...',
+                    localStorageKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
+                });
             } catch (error) {
                 debugLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
             }
@@ -175,16 +196,15 @@ export class OAuthService {
     ): Promise<OAuthTokens> {
         const config = await this.getOAuthConfig(platform);
 
-        // Validate state (more lenient for debugging)
+        // Validate state
         const storedState = localStorage.getItem(`oauth_state_${platform}`);
         if (!storedState || storedState !== state) {
-            debugLogger.warn('OAuthService', 'State validation failed, but continuing for debugging', {
+            debugLogger.error('OAuthService', 'State validation failed', {
                 platform,
                 storedState: storedState ? storedState.substring(0, 20) + '...' : 'none',
                 receivedState: state ? state.substring(0, 20) + '...' : 'none'
             });
-            // Don't throw error for now - just log warning
-            // throw new Error('Invalid OAuth state');
+            throw new Error('Invalid OAuth state - possible CSRF attack');
         }
 
         // Prepare token exchange parameters
@@ -210,11 +230,42 @@ export class OAuthService {
         }
 
         // Add PKCE code verifier for Google OAuth (in addition to client secret)
-        if (platform === 'google') {
+        if (platform === 'googleAds' || platform === 'googleSheets') {
             const codeVerifier = localStorage.getItem(`oauth_code_verifier_${platform}`);
+            debugLogger.debug('OAuthService', 'PKCE code verifier lookup', {
+                platform,
+                storageKey: `oauth_code_verifier_${platform}`,
+                hasCodeVerifier: !!codeVerifier,
+                codeVerifierLength: codeVerifier?.length || 0,
+                codeVerifierPreview: codeVerifier ? codeVerifier.substring(0, 20) + '...' : 'MISSING',
+                localStorageKeys: Object.keys(localStorage).filter(key => key.includes('oauth')),
+                allLocalStorageKeys: Object.keys(localStorage)
+            });
+            
             if (codeVerifier) {
+                // Validate code verifier format
+                if (codeVerifier.length < 43 || codeVerifier.length > 128) {
+                    debugLogger.error('OAuthService', 'Invalid code verifier length', {
+                        length: codeVerifier.length,
+                        expectedRange: '43-128'
+                    });
+                    throw new Error('Invalid PKCE code verifier format');
+                }
+                
                 tokenParams.code_verifier = codeVerifier;
-                debugLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret');
+                debugLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret', {
+                    codeVerifierLength: codeVerifier.length,
+                    isValidLength: codeVerifier.length >= 43 && codeVerifier.length <= 128
+                });
+            } else {
+                debugLogger.error('OAuthService', 'PKCE code verifier not found in localStorage', {
+                    platform,
+                    storageKey: `oauth_code_verifier_${platform}`,
+                    availableKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
+                });
+                
+                // For Google OAuth, PKCE is required - this is a critical error
+                throw new Error('PKCE code verifier not found - OAuth flow may have been interrupted. Please try connecting again.');
             }
         }
 
@@ -254,6 +305,58 @@ export class OAuthService {
             return tokens;
         } catch (error) {
             debugLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Handle Google Ads OAuth callback
+     */
+    static async handleGoogleAdsCallback(code: string, state: string): Promise<{
+        tokens: OAuthTokens;
+        userInfo: {
+            googleUserId: string;
+            googleUserEmail: string;
+            googleUserName: string;
+        };
+    }> {
+        try {
+            debugLogger.info('OAuthService', 'Handling Google Ads OAuth callback');
+
+            // Exchange code for tokens using the unified method
+            const tokens = await this.exchangeCodeForTokens('googleAds', code, state);
+
+            // Get user info from Google
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: {
+                    'Authorization': `Bearer ${tokens.accessToken}`
+                }
+            });
+
+            if (!userInfoResponse.ok) {
+                debugLogger.error('OAuthService', 'Failed to get Google user info', {
+                    status: userInfoResponse.status,
+                    statusText: userInfoResponse.statusText
+                });
+                throw new Error('Failed to get user information from Google');
+            }
+
+            const userInfo = await userInfoResponse.json();
+            debugLogger.info('OAuthService', 'Google user info retrieved', {
+                googleUserId: userInfo.id,
+                email: userInfo.email
+            });
+
+            return {
+                tokens,
+                userInfo: {
+                    googleUserId: userInfo.id,
+                    googleUserEmail: userInfo.email,
+                    googleUserName: userInfo.name
+                }
+            };
+        } catch (error) {
+            debugLogger.error('OAuthService', 'Google Ads OAuth callback failed', error);
             throw error;
         }
     }
