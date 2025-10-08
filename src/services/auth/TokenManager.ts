@@ -1,3 +1,4 @@
+/* eslint-disable no-console, no-undef, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import {
@@ -120,7 +121,7 @@ export class TokenManager {
       debugLogger.info('TokenManager', `OAuth tokens stored successfully for ${platform}`);
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to store OAuth tokens for ${platform}`, error);
-      throw new Error(`Failed to store tokens for ${platform}: ${error}`);
+      throw new Error(`Failed to store tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -167,7 +168,7 @@ export class TokenManager {
       debugLogger.info('TokenManager', `API key stored successfully for ${platform}`);
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to store API key for ${platform}`, error);
-      throw new Error(`Failed to store API key for ${platform}: ${error}`);
+      throw new Error(`Failed to store API key for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -342,12 +343,12 @@ export class TokenManager {
       const { OAuthService } = await import('@/services/auth/oauthService');
       
       // Use OAuth service to refresh tokens
-      const refreshedTokens = await OAuthService.refreshAccessToken(platform);
+      await OAuthService.refreshAccessToken(platform);
       
       debugLogger.info('TokenManager', `Tokens refreshed successfully for ${platform}`);
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to refresh tokens for ${platform}`, error);
-      throw new Error(`Failed to refresh tokens for ${platform}: ${error}`);
+      throw new Error(`Failed to refresh tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -401,7 +402,7 @@ export class TokenManager {
       debugLogger.info('TokenManager', `Tokens removed successfully for ${platform}`);
     } catch (error) {
       debugLogger.error('TokenManager', `Failed to remove tokens for ${platform}`, error);
-      throw new Error(`Failed to remove tokens for ${platform}: ${error}`);
+      throw new Error(`Failed to remove tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

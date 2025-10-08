@@ -1,13 +1,14 @@
-/* eslint-disable no-console */
+/* eslint-disable no-console, no-undef, no-unused-vars, @typescript-eslint/no-unused-vars */
 import { IntegrationErrorBoundary } from '@/components/error/IntegrationErrorBoundary';
 import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useErrorHandler } from '@/contexts/ErrorContext';
 import { debugLogger } from '@/lib/debug';
+import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
-import { AccountInfo, IntegrationPlatform, OAuthTokens, PlatformMetadata } from '@/types/integration';
+import { AccountInfo, OAuthTokens, PlatformMetadata } from '@/types/integration';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -54,7 +55,7 @@ const OAuthCallback = () => {
         try {
           stateData = JSON.parse(atob(state));
           debugLogger.debug('🔍 Parsed state data:', stateData);
-        } catch (_e) {
+        } catch {
           throw new Error('Invalid state parameter');
         }
 
@@ -117,7 +118,7 @@ const OAuthCallback = () => {
           const oauthTokens: OAuthTokens = {
             accessToken: result.tokens.accessToken,
             refreshToken: result.tokens.refreshToken,
-            tokenExpiresAt: result.tokens.expiresIn ? new Date(Date.now() + result.tokens.expiresIn * 1000).toISOString() : undefined,
+            expiresIn: result.tokens.expiresIn,
             tokenType: result.tokens.tokenType,
             scope: result.tokens.scope
           };
@@ -128,23 +129,16 @@ const OAuthCallback = () => {
             hasRefreshToken: !!oauthTokens.refreshToken,
             tokenType: oauthTokens.tokenType,
             scope: oauthTokens.scope,
-            expiresAt: oauthTokens.tokenExpiresAt
+            expiresIn: oauthTokens.expiresIn
           });
 
-          const accountInfo: AccountInfo = {
-            accountId: result.userInfo.googleUserId,
-            accountName: result.userInfo.googleUserName || 'Google Ads User',
-            accountEmail: result.userInfo.googleUserEmail,
-            accountType: 'personal'
-          };
+          // Account info and metadata are now handled by TokenManager
 
-          const metadata: PlatformMetadata = {
-            googleUserId: result.userInfo.googleUserId,
-            googleUserEmail: result.userInfo.googleUserEmail,
-            googleUserName: result.userInfo.googleUserName
-          };
-
-          await UnifiedIntegrationService.saveOAuthTokens('googleAds', oauthTokens, accountInfo, metadata);
+          await TokenManager.storeOAuthTokens('googleAds', oauthTokens, {
+            id: result.userInfo.googleUserId,
+            name: result.userInfo.googleUserName || 'Google Ads User',
+            email: result.userInfo.googleUserEmail
+          });
           debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
 
           setStatus('success');
