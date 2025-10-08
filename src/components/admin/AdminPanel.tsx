@@ -8,11 +8,12 @@ import { useAdminClients } from '@/hooks/useAdminClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { Bot, Settings, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface AdminPanelProps {
   onBackToDashboard: () => void;
   onAddClient?: () => void;
-  onEditClient?: (client: any) => void;
+  onEditClient?: (_client: unknown) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -20,7 +21,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddClient,
   onEditClient
 }) => {
-  const [activeTab, setActiveTab] = useState("clients");
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Determine active tab from URL path
+  const getActiveTabFromPath = (pathname: string): string => {
+    if (pathname.includes('/integrations')) return 'integrations';
+    if (pathname.includes('/ai-insights')) return 'ai-insights';
+    if (pathname.includes('/clients')) return 'clients';
+    return 'clients'; // default
+  };
+  
+  const [activeTab, setActiveTab] = useState(getActiveTabFromPath(location.pathname));
   
   // Use our custom hooks
   const {
@@ -49,6 +61,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     loadClients();
     loadIntegrations();
   }, [loadClients, loadIntegrations]);
+
+  // Sync active tab with URL changes
+  useEffect(() => {
+    const newActiveTab = getActiveTabFromPath(location.pathname);
+    setActiveTab(newActiveTab);
+  }, [location.pathname]);
+
+  // Handle tab change with URL navigation
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    navigate(`/admin/${newTab}`);
+  };
 
   const handleAddClient = () => {
     if (onAddClient) {
@@ -141,7 +165,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       />
 
       <div className="px-20 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           {/* Tab Navigation - Matching Dashboard Style */}
           <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
             <TabsTrigger 

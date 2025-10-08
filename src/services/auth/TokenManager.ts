@@ -13,7 +13,7 @@ import {
  * Uses AES-256-GCM encryption with proper initialization vectors
  */
 class TokenEncryption {
-  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'tulen-reporting-encryption-key-2025-secure';
+  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'dev-encryption-key-change-in-production';
   
   /**
    * Encrypt a token using AES-GCM
@@ -117,15 +117,15 @@ class TokenEncryption {
   }
   
   /**
-   * Convert Base64 string to ArrayBuffer
+   * Convert Base64 string to Uint8Array
    */
-  private static base64ToArrayBuffer(base64: string): ArrayBuffer {
+  private static base64ToArrayBuffer(base64: string): Uint8Array {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
-    return bytes.buffer;
+    return bytes;
   }
 }
 
@@ -247,27 +247,32 @@ export class TokenManager {
         hasAccessToken: !!config.tokens?.accessToken
       });
 
-      const { error } = await supabase
-        .from('integrations')
-        .upsert({
-          platform,
-          connected: true,
-          account_name: accountInfo?.name,
-          account_id: accountInfo?.id,
-          last_sync: config.lastSync,
-          config,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'platform' });
+      // Prepare tokens for safe storage
+      const tokensForStorage = {
+        accessToken: config.tokens?.accessToken,
+        refreshToken: config.tokens?.refreshToken,
+        expiresAt: config.tokens?.expiresAt,
+        tokenType: tokens.tokenType,
+        scope: tokens.scope
+      };
+
+      debugLogger.debug('TokenManager', 'About to store tokens safely', {
+        platform,
+        accountInfo,
+        hasTokens: !!tokensForStorage.accessToken,
+        hasRefreshToken: !!tokensForStorage.refreshToken
+      });
+
+      // Use the safe database function for atomic updates
+      const { error } = await supabase.rpc('store_oauth_tokens_safely', {
+        p_platform: platform,
+        p_tokens: tokensForStorage,
+        p_account_info: accountInfo
+      });
 
       if (error) {
-        debugLogger.error('TokenManager', 'Supabase upsert error', {
-          error,
-          errorCode: error.code,
-          errorMessage: error.message,
-          errorDetails: error.details,
-          errorHint: error.hint
-        });
-        throw error;
+        debugLogger.error('TokenManager', 'Failed to store tokens safely', error);
+        throw new Error(`Failed to store tokens for ${platform}: ${error.message}`);
       }
 
       debugLogger.info('TokenManager', `OAuth tokens stored successfully for ${platform}`);
@@ -307,6 +312,30 @@ export class TokenManager {
       const enhancedError = new Error(detailedMessage);
       enhancedError.cause = error;
       throw enhancedError;
+    }
+  }
+
+  /**
+   * Clear OAuth tokens for a platform safely
+   */
+  static async clearOAuthTokens(platform: IntegrationPlatform): Promise<void> {
+    try {
+      debugLogger.info('TokenManager', `Clearing OAuth tokens for ${platform}`);
+
+      // Use the safe database function to clear tokens
+      const { error } = await supabase.rpc('clear_oauth_tokens_safely', {
+        p_platform: platform
+      });
+
+      if (error) {
+        debugLogger.error('TokenManager', 'Failed to clear tokens safely', error);
+        throw new Error(`Failed to clear tokens for ${platform}: ${error.message}`);
+      }
+
+      debugLogger.info('TokenManager', `Successfully cleared OAuth tokens for ${platform}`);
+    } catch (error) {
+      debugLogger.error('TokenManager', `Failed to clear tokens for ${platform}`, error);
+      throw new Error(`Failed to clear tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -439,7 +468,7 @@ export class TokenManager {
         return (config as any).accessToken;
       }
 
-      // Check API key (for GoHighLevel)
+      // Check API key (for Google AI - GoHighLevel is client-level, not account-level)
       if (config.apiKey?.apiKey) {
         console.log(`TokenManager: Found API key for ${platform}`);
         debugLogger.info('TokenManager', `Found API key for ${platform}`);

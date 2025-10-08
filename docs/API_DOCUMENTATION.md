@@ -38,6 +38,19 @@ Supabase Database (PostgreSQL)
 - **Token Storage**: Encrypted tokens in database
 - **Caching**: Simple in-memory cache in Edge Functions
 
+### Integration Architecture
+
+#### Account-Level Integrations (Global)
+These integrations are stored in the `integrations` table and shared across all clients:
+- **Google Ads**: OAuth tokens for accessing Google Ads API
+- **Google Sheets**: OAuth tokens for accessing Google Sheets API  
+- **Facebook Ads**: Access tokens for Facebook Marketing API
+- **Google AI**: API keys for Google AI services
+
+#### Client-Level Integrations (Per Venue)
+These integrations are stored in the `clients.accounts` field and are specific to each client venue:
+- **GoHighLevel**: OAuth tokens stored per client venue (not global)
+
 ---
 
 ## Google Ads API

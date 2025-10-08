@@ -236,7 +236,7 @@ export class GoogleAdsService {
           
           const individualAccounts: GoogleAdsAccount[] = [];
           
-          results.forEach((result: any) => {
+          results.forEach((result: { customerClient: { clientCustomer: string; descriptiveName?: string; status?: string; currencyCode?: string; timeZone?: string; testAccountAccess?: string } }) => {
             const client = result.customerClient;
             
             // Only include individual ad accounts (not manager accounts)
@@ -295,8 +295,8 @@ export class GoogleAdsService {
     }
 
     debugLogger.error('GoogleAdsService', 'All attempts to fetch individual ad accounts failed');
-    return [];
-  }
+          return [];
+        }
 
   /**
    * Filter accessible customers to identify individual ad accounts
@@ -401,7 +401,7 @@ export class GoogleAdsService {
    * Determine if a customer is a manager account
    * Following 2025 best practices for account type identification
    */
-  private static isManagerAccount(customerData: any): boolean {
+  private static isManagerAccount(customerData: { testAccountAccess?: string; payPerConversion?: boolean; descriptiveName?: string; customerId?: string }): boolean {
     // Multiple indicators for manager accounts (2025 best practice)
     const indicators = [
       customerData.testAccountAccess === 'MANAGER',

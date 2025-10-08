@@ -33,7 +33,7 @@ const HealthCheckPage = () => {
       try {
         // Add timeout to prevent infinite loading
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+          globalThis.setTimeout(() => reject(new Error('Health check timeout')), 5000)
         );
         
         const statusPromise = HealthCheck();
@@ -166,7 +166,7 @@ const App = () => {
     console.log('Application started');
 
     // Add keyboard shortcut for debug panel (Ctrl+Shift+D)
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault();
         setShowDebugPanel(prev => !prev);
@@ -187,6 +187,9 @@ const App = () => {
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={<EventDashboard />} />
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin/clients" element={<AdminPanel />} />
+                <Route path="/admin/integrations" element={<AdminPanel />} />
+                <Route path="/admin/ai-insights" element={<AdminPanel />} />
                 <Route path="/admin/clients/:clientId/edit" element={<AdminPanel />} />
                 <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
                 <Route path="/ad-accounts" element={<AdAccountsOverview />} />

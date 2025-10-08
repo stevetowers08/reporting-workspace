@@ -10,16 +10,13 @@ test.describe('AI Insights System', () => {
   });
 
   test('should display AI Insights tab in admin panel', async ({ page }) => {
-    // Navigate directly to admin panel
-    await page.goto('/admin');
+    // Navigate directly to AI Insights tab
+    await page.goto('/admin/ai-insights');
     await page.waitForLoadState('networkidle');
 
-    // Check if AI Insights tab exists
+    // Check if AI Insights tab exists and is active
     const aiInsightsTab = page.locator('[data-testid="ai-insights-tab"]');
     await expect(aiInsightsTab).toBeVisible();
-
-    // Click on AI Insights tab
-    await aiInsightsTab.click();
 
     // Verify AI Insights admin content is displayed
     await expect(page.locator('text=AI Insights Configuration')).toBeVisible();
@@ -27,10 +24,9 @@ test.describe('AI Insights System', () => {
   });
 
   test('should allow creating and managing system prompts', async ({ page }) => {
-    // Navigate to admin panel and AI Insights tab
-    await page.click('text=Admin');
+    // Navigate directly to AI Insights tab
+    await page.goto('/admin/ai-insights');
     await page.waitForLoadState('networkidle');
-    await page.click('[data-testid="ai-insights-tab"]');
 
     // Click "Create New Prompt" button
     await page.click('text=Create New Prompt');
@@ -47,10 +43,9 @@ test.describe('AI Insights System', () => {
   });
 
   test('should test AI connection', async ({ page }) => {
-    // Navigate to admin panel and AI Insights tab
-    await page.click('text=Admin');
+    // Navigate directly to AI Insights tab
+    await page.goto('/admin/ai-insights');
     await page.waitForLoadState('networkidle');
-    await page.click('[data-testid="ai-insights-tab"]');
 
     // Click "Test Connection" button
     await page.click('text=Test Connection');
@@ -64,8 +59,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should configure AI insights for clients', async ({ page }) => {
-    // Navigate to admin panel
-    await page.click('text=Admin');
+    // Navigate to admin panel clients tab
+    await page.goto('/admin/clients');
     await page.waitForLoadState('networkidle');
 
     // Click on a client to edit
@@ -92,8 +87,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should display AI Insights in client dashboard', async ({ page }) => {
-    // Navigate to admin panel first to see clients
-    await page.click('text=Admin');
+    // Navigate to admin panel clients tab first to see clients
+    await page.goto('/admin/clients');
     await page.waitForLoadState('networkidle');
 
     // Check if there are any clients
@@ -122,8 +117,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should generate AI insights manually', async ({ page }) => {
-    // Navigate to admin panel first to see clients
-    await page.click('text=Admin');
+    // Navigate to admin panel clients tab first to see clients
+    await page.goto('/admin/clients');
     await page.waitForLoadState('networkidle');
 
     // Check if there are any clients
@@ -155,10 +150,9 @@ test.describe('AI Insights System', () => {
   });
 
   test('should handle AI connection errors gracefully', async ({ page }) => {
-    // Navigate to admin panel and AI Insights tab
-    await page.click('text=Admin');
+    // Navigate directly to AI Insights tab
+    await page.goto('/admin/ai-insights');
     await page.waitForLoadState('networkidle');
-    await page.click('[data-testid="ai-insights-tab"]');
 
     // Mock API failure by intercepting the request
     await page.route('**/generativelanguage.googleapis.com/**', route => {
@@ -182,10 +176,9 @@ test.describe('AI Insights System', () => {
   });
 
   test('should validate system prompt form', async ({ page }) => {
-    // Navigate to admin panel and AI Insights tab
-    await page.click('text=Admin');
+    // Navigate directly to AI Insights tab
+    await page.goto('/admin/ai-insights');
     await page.waitForLoadState('networkidle');
-    await page.click('[data-testid="ai-insights-tab"]');
 
     // Click "Create New Prompt" button
     await page.click('text=Create New Prompt');
@@ -199,8 +192,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should display AI insights history', async ({ page }) => {
-    // Navigate to admin panel first to see clients
-    await page.click('text=Admin');
+    // Navigate to admin panel clients tab first to see clients
+    await page.goto('/admin/clients');
     await page.waitForLoadState('networkidle');
 
     // Check if there are any clients
@@ -233,8 +226,8 @@ test.describe('AI Insights System', () => {
   });
 
   test('should handle empty AI insights state', async ({ page }) => {
-    // Navigate to admin panel first to see clients
-    await page.click('text=Admin');
+    // Navigate to admin panel clients tab first to see clients
+    await page.goto('/admin/clients');
     await page.waitForLoadState('networkidle');
 
     // Check if there are any clients
