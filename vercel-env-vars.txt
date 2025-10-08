@@ -14,6 +14,10 @@ VITE_GOOGLE_CLIENT_SECRET=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
 GOOGLE_CLIENT_ID=1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
 
+# Google Ads API
+VITE_GOOGLE_ADS_DEVELOPER_TOKEN=5D7nPWHfNnpiMgxGOgNLlA
+GOOGLE_ADS_DEVELOPER_TOKEN=5D7nPWHfNnpiMgxGOgNLlA
+
 # GoHighLevel OAuth (REQUIRED - Add your actual values)
 VITE_GHL_CLIENT_ID=your_ghl_client_id_here
 VITE_GHL_CLIENT_SECRET=your_ghl_client_secret_here

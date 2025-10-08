@@ -36,14 +36,25 @@ export class OAuthService {
         try {
             const credentials = await OAuthCredentialsService.getCredentials(platform);
             if (!credentials) {
-                // Fallback to environment variables for Google platform
-                if (platform === 'google') {
-                    debugLogger.info('OAuthService', 'No OAuth credentials in database, using environment variables for Google');
+                // Fallback to environment variables for Google platforms
+                if (platform === 'googleAds' || platform === 'googleSheets') {
+                    debugLogger.info('OAuthService', `No OAuth credentials in database, using environment variables for ${platform}`);
+                    
+                    // Different scopes for different Google services
+                    const scopes = platform === 'googleAds' 
+                        ? ['https://www.googleapis.com/auth/adwords']
+                        : [
+                            'https://www.googleapis.com/auth/spreadsheets',
+                            'https://www.googleapis.com/auth/drive.readonly',
+                            'https://www.googleapis.com/auth/userinfo.email',
+                            'https://www.googleapis.com/auth/userinfo.profile'
+                          ];
+                    
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
                         clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
                         redirectUri: window.location.hostname === 'localhost' ? `${window.location.origin}/oauth/callback` : 'https://tulenreporting.vercel.app/oauth/callback',
-                        scopes: ['https://www.googleapis.com/auth/adwords'],
+                        scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
                         tokenUrl: 'https://oauth2.googleapis.com/token'
                     };

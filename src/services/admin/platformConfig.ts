@@ -54,8 +54,8 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
 };
 
 export const OAUTH_PLATFORM_MAP: Record<string, string> = {
-  'googleAds': 'google',
-  'googleSheets': 'google'
+  'googleAds': 'googleAds',
+  'googleSheets': 'googleSheets'
 };
 
 export const getPlatformConfig = (platform: string): PlatformConfig | undefined => {

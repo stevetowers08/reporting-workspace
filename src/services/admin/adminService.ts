@@ -179,7 +179,8 @@ export class AdminService {
       // Map platform names to OAuth service names
       const oauthPlatformMap: Record<string, string> = {
         'facebookAds': 'facebook',
-        'googleAds': 'google'
+        'googleAds': 'googleAds',
+        'googleSheets': 'googleSheets'
       };
       
       const oauthPlatform = oauthPlatformMap[platform] || platform;
@@ -217,7 +218,8 @@ export class AdminService {
       // Map platform names to OAuth service names
       const oauthPlatformMap: Record<string, string> = {
         'facebookAds': 'facebook',
-        'googleAds': 'google',
+        'googleAds': 'googleAds',
+        'googleSheets': 'googleSheets',
         'goHighLevel': 'gohighlevel'
       };
       
