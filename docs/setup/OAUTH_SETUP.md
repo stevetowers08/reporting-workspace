@@ -184,10 +184,12 @@ NODE_ENV=development
 - Check if the OAuth provider allows your domain
 - Verify the redirect URI is properly configured
 
-**5. Google Sheets "Insufficient Permissions" Error**
+**5. Google Sheets Integration Issues**
 
-- Ensure **Google Drive API** is enabled in Google Cloud Console
-- Add `https://www.googleapis.com/auth/drive.readonly` scope to OAuth consent screen
+- **"Insufficient Permissions" Error**: Ensure **Google Drive API** is enabled in Google Cloud Console
+- **"404 Not Found" Error**: Check URL encoding in Supabase Edge Function - use `/values/{range}` format, not `?range={range}`
+- **Token Refresh Issues**: Google Sheets tokens expire every 1 hour, implement refresh logic in Edge Function
+- **CORS Issues**: Use Supabase Edge Function instead of direct API calls to avoid CORS restrictions
 - Verify all required scopes are configured:
   - `https://www.googleapis.com/auth/spreadsheets`
   - `https://www.googleapis.com/auth/drive.readonly`

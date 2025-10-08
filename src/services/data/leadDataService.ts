@@ -51,7 +51,7 @@ export class LeadDataService {
         sheetName: actualSheetName
       });
       
-      // Use Supabase Edge Function instead of local proxy server
+      // Use Supabase Edge Function
       // @ts-expect-error Vite injects import.meta.env at build
       const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
       const supabaseUrl = (viteEnv && viteEnv.VITE_SUPABASE_URL) || process.env.VITE_SUPABASE_URL;
