@@ -1136,31 +1136,30 @@ export class GoHighLevelService {
         throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
       }
 
-      // Get funnels - corrected for subaccount/location level
-      const funnelsResponse: any = await this.makeApiRequestWithToken(`/funnels/?locationId=${locationId}`, token);
+      // Get funnels using API 2.0 endpoint
+      const funnelsResponse: any = await this.makeApiRequestWithToken(`/funnels/funnel/list?locationId=${locationId}`, token);
       const funnels = funnelsResponse.funnels || [];
 
       // Get funnel pages and redirects for each funnel
       const funnelAnalytics = await Promise.all(
         funnels.map(async (funnel: any) => {
           try {
-            // Get funnel pages
-            const pagesResponse: any = await this.makeApiRequestWithToken(`/funnels/${funnel.id}/pages`, token);
-            const pages = pagesResponse.pages || [];
+            // Get funnel pages using API 2.0 endpoint
+            const pagesResponse: any = await this.makeApiRequestWithToken(`/funnels/page?locationId=${locationId}&funnelId=${funnel._id}&limit=20&offset=0`, token);
+            const pages = Array.isArray(pagesResponse) ? pagesResponse : [];
 
-            // Get funnel redirects
-            const redirectsResponse: any = await this.makeApiRequestWithToken(`/funnels/${funnel.id}/redirects`, token);
-            const redirects = redirectsResponse.redirects || [];
+            // Redirects are not available via API 2.0, so we'll use empty array
+            const redirects: any[] = [];
 
             return {
-              id: funnel.id,
+              id: funnel._id,
               name: funnel.name,
-              status: funnel.status,
-              createdAt: funnel.createdAt,
+              status: funnel.type || 'active',
+              createdAt: funnel.dateAdded,
               pages: pages.map((page: any) => ({
-                id: page.id,
+                id: page._id,
                 name: page.name,
-                url: page.url,
+                url: page.url || '',
                 views: page.views || 0,
                 conversions: page.conversions || 0,
                 conversionRate: page.views > 0 ? (page.conversions / page.views) * 100 : 0
@@ -1175,12 +1174,12 @@ export class GoHighLevelService {
               }))
             };
           } catch (error) {
-            debugLogger.warn('GoHighLevelService', `Failed to get analytics for funnel ${funnel.id}`, error);
+            debugLogger.warn('GoHighLevelService', `Failed to get analytics for funnel ${funnel._id}`, error);
             return {
-              id: funnel.id,
+              id: funnel._id,
               name: funnel.name,
-              status: funnel.status,
-              createdAt: funnel.createdAt,
+              status: funnel.type || 'active',
+              createdAt: funnel.dateAdded,
               pages: [],
               redirects: []
             };
@@ -1261,15 +1260,28 @@ export class GoHighLevelService {
         throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
       }
 
-      // Get pages - corrected for subaccount/location level
-      const pagesResponse: any = await this.makeApiRequestWithToken(`/pages/?locationId=${locationId}`, token);
-      const pages = pagesResponse.pages || [];
+      // Get funnels using API 2.0 endpoint
+      const funnelsResponse: any = await this.makeApiRequestWithToken(`/funnels/funnel/list?locationId=${locationId}`, token);
+      const funnels = funnelsResponse.funnels || [];
+
+      // Get pages for each funnel using API 2.0 endpoint
+      const allPages: any[] = [];
+      for (const funnel of funnels) {
+        try {
+          const pagesResponse: any = await this.makeApiRequestWithToken(`/funnels/page?locationId=${locationId}&funnelId=${funnel._id}&limit=20&offset=0`, token);
+          if (Array.isArray(pagesResponse)) {
+            allPages.push(...pagesResponse);
+          }
+        } catch (error) {
+          debugLogger.warn('GoHighLevelService', `Failed to get pages for funnel ${funnel._id}`, error);
+        }
+      }
 
       // Process page data
-      const pageAnalytics = pages.map((page: any) => ({
-        id: page.id,
+      const pageAnalytics = allPages.map((page: any) => ({
+        id: page._id,
         name: page.name,
-        url: page.url,
+        url: page.url || '',
         views: page.views || 0,
         conversions: page.conversions || 0,
         conversionRate: page.views > 0 ? (page.conversions / page.views) * 100 : 0,
