@@ -8,7 +8,7 @@ import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
-import { AccountInfo, OAuthTokens, PlatformMetadata } from '@/types/integration';
+import { OAuthTokens } from '@/types/integration';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
