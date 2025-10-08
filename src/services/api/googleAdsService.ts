@@ -482,6 +482,14 @@ export class GoogleAdsService {
     }
 
     try {
+      // Format date range for Google Ads API
+      const startDate = dateRange?.start ? dateRange.start.replace(/-/g, '') : '';
+      const endDate = dateRange?.end ? dateRange.end.replace(/-/g, '') : '';
+      
+      const dateFilter = dateRange 
+        ? `segments.date BETWEEN '${startDate}' AND '${endDate}'`
+        : 'segments.date DURING LAST_30_DAYS';
+
       const query = `
         SELECT 
           metrics.impressions,
@@ -493,9 +501,10 @@ export class GoogleAdsService {
           metrics.conversions_from_interactions_rate,
           metrics.cost_per_conversion,
           metrics.search_impression_share,
-          metrics.quality_score
+          metrics.quality_score,
+          segments.date
         FROM customer 
-        WHERE segments.date DURING ${dateRange ? `${dateRange.start.replace(/-/g, '')},${dateRange.end.replace(/-/g, '')}` : 'LAST_30_DAYS'}
+        WHERE ${dateFilter}
       `;
 
       const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
@@ -513,7 +522,38 @@ export class GoogleAdsService {
       }
 
       const data = await response.json();
-      return this.parseMetrics(data.results?.[0]?.metrics || {});
+      const results = data.results || [];
+      
+      if (results.length === 0) {
+        debugLogger.warn('GoogleAdsService', 'No Google Ads metrics found for date range');
+        return this.getEmptyGoogleMetrics();
+      }
+      
+      // Aggregate metrics across all days
+      const aggregatedMetrics = results.reduce((acc: any, result: any) => {
+        const metrics = result.metrics || {};
+        return {
+          impressions: (acc.impressions || 0) + parseInt(metrics.impressions || '0'),
+          clicks: (acc.clicks || 0) + parseInt(metrics.clicks || '0'),
+          cost_micros: (acc.cost_micros || 0) + parseInt(metrics.cost_micros || '0'),
+          leads: (acc.leads || 0) + parseInt(metrics.leads || '0'),
+          ctr: acc.ctr || parseFloat(metrics.ctr || '0'),
+          average_cpc: acc.average_cpc || parseFloat(metrics.average_cpc || '0'),
+          conversions_from_interactions_rate: acc.conversions_from_interactions_rate || parseFloat(metrics.conversions_from_interactions_rate || '0'),
+          cost_per_conversion: acc.cost_per_conversion || parseFloat(metrics.cost_per_conversion || '0'),
+          search_impression_share: acc.search_impression_share || parseFloat(metrics.search_impression_share || '0'),
+          quality_score: acc.quality_score || parseFloat(metrics.quality_score || '0')
+        };
+      }, {});
+      
+      debugLogger.info('GoogleAdsService', 'Google Ads metrics aggregated', { 
+        days: results.length, 
+        totalImpressions: aggregatedMetrics.impressions,
+        totalClicks: aggregatedMetrics.clicks,
+        totalCost: aggregatedMetrics.cost_micros / 1000000 // Convert from micros
+      });
+      
+      return this.parseMetrics(aggregatedMetrics);
     } catch (error) {
       console.error('Error fetching Google Ads account metrics:', error);
       throw error;
