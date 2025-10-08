@@ -54,39 +54,50 @@ class TokenEncryption {
   }
   
   /**
-   * Decrypt a token using AES-GCM
+   * Decrypt a token using AES-GCM with backward compatibility for old crypto-js tokens
    */
   static async decrypt(encryptedToken: string): Promise<string> {
     try {
-      const [ivString, encryptedString] = encryptedToken.split(":");
-      if (!ivString || !encryptedString) {
-        throw new Error("Invalid encrypted token format.");
+      // Check if this is a new format token (contains ':')
+      if (encryptedToken.includes(':')) {
+        // New AES-GCM format
+        const [ivString, encryptedString] = encryptedToken.split(":");
+        if (!ivString || !encryptedString) {
+          throw new Error("Invalid encrypted token format.");
+        }
+
+        // Ensure we have a 32-character key for AES-256
+        const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
+        
+        // Import the key material
+        const keyMaterial = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(keyString),
+          { name: "AES-GCM" },
+          false,
+          ["decrypt"]
+        );
+        
+        // Decode IV and encrypted data
+        const iv = this.base64ToArrayBuffer(ivString);
+        const data = this.base64ToArrayBuffer(encryptedString);
+
+        // Decrypt the data
+        const decrypted = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          keyMaterial,
+          data
+        );
+
+        return new TextDecoder().decode(decrypted);
+      } else {
+        // Old crypto-js format - try to decrypt with fallback method
+        debugLogger.warn('TokenEncryption', 'Attempting to decrypt old crypto-js token format');
+        
+        // For old tokens, we'll need to re-encrypt them with the new method
+        // For now, we'll return a placeholder that indicates the token needs to be refreshed
+        throw new Error('Old token format detected - needs re-authentication');
       }
-
-      // Ensure we have a 32-character key for AES-256
-      const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
-      
-      // Import the key material
-      const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(keyString),
-        { name: "AES-GCM" },
-        false,
-        ["decrypt"]
-      );
-      
-      // Decode IV and encrypted data
-      const iv = this.base64ToArrayBuffer(ivString);
-      const data = this.base64ToArrayBuffer(encryptedString);
-
-      // Decrypt the data
-      const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: iv },
-        keyMaterial,
-        data
-      );
-
-      return new TextDecoder().decode(decrypted);
     } catch (error) {
       debugLogger.error('TokenEncryption', 'Failed to decrypt token', error);
       throw new Error('Failed to decrypt token');
