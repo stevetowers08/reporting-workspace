@@ -240,16 +240,15 @@ export class GoogleAdsService {
 
     try {
       // Get tokens from TokenManager
-      const tokens = await TokenManager.getTokens('googleAds');
-      if (!tokens) {
+      const accessToken = await TokenManager.getAccessToken('googleAds');
+      if (!accessToken) {
         throw new Error('Google Ads not connected');
       }
 
-      const accessToken = tokens.accessToken || tokens.access_token;
       const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
 
-      if (!accessToken || !developerToken) {
-        throw new Error('Missing Google Ads credentials');
+      if (!developerToken) {
+        throw new Error('Missing Google Ads developer token');
       }
 
       // Get accessible customers
