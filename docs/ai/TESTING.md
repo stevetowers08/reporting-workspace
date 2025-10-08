@@ -341,7 +341,7 @@ export const handlers = [
     );
   }),
 
-  rest.get('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', (req, res, ctx) => {
+  rest.get('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', (req, res, ctx) => {
     return res(
       ctx.json({
         resourceNames: ['customers/1234567890']

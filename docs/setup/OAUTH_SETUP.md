@@ -207,7 +207,7 @@ NODE_ENV=development
 - **PKCE Implementation**: Must use SHA-256 hashing for code challenge
 - **Customer ID Management**: Handle multiple Google Ads accounts per user
 - **Token Refresh**: Google Ads tokens expire every 1 hour, implement refresh logic
-- **API Version**: Use Google Ads API v14 (latest stable version)
+- **API Version**: Use Google Ads API v20 (current stable version)
 
 ### Debug Mode
 

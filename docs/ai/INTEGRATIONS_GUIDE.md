@@ -252,8 +252,8 @@ interface GoogleConfig {
 }
 
 const googleConfig: GoogleConfig = {
-  clientId: process.env.REACT_APP_GOOGLE_CLIENT_ID!,
-  clientSecret: process.env.REACT_APP_GOOGLE_CLIENT_SECRET!,
+  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID!,
+  clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET!,
   redirectUri: `${window.location.origin}/oauth/callback`,
   scope: ['https://www.googleapis.com/auth/adwords']
 };
@@ -262,9 +262,9 @@ const googleConfig: GoogleConfig = {
 #### 3. Environment Variables
 ```bash
 # .env.local
-REACT_APP_GOOGLE_CLIENT_ID=your_client_id
-REACT_APP_GOOGLE_CLIENT_SECRET=your_client_secret
-REACT_APP_GOOGLE_REDIRECT_URI=http://localhost:8080/oauth/callback
+VITE_GOOGLE_CLIENT_ID=your_client_id
+VITE_GOOGLE_CLIENT_SECRET=your_client_secret
+VITE_GOOGLE_ADS_DEVELOPER_TOKEN=your_developer_token
 ```
 
 ### Implementation
@@ -273,7 +273,7 @@ REACT_APP_GOOGLE_REDIRECT_URI=http://localhost:8080/oauth/callback
 ```typescript
 // src/services/googleAdsService.ts
 export class GoogleAdsService {
-  private baseUrl = 'https://googleads.googleapis.com/v14';
+  private baseUrl = 'https://googleads.googleapis.com/v20';
   private accessToken: string | null = null;
 
   async authenticate(): Promise<AuthResult> {
@@ -334,7 +334,7 @@ export class GoogleAdsService {
       {
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
-          'developer-token': process.env.REACT_APP_GOOGLE_DEVELOPER_TOKEN!
+          'developer-token': import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN!
         }
       }
     );
@@ -353,7 +353,7 @@ export class GoogleAdsService {
       {
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
-          'developer-token': process.env.REACT_APP_GOOGLE_DEVELOPER_TOKEN!
+          'developer-token': import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN!
         }
       }
     );
@@ -385,7 +385,7 @@ export class GoogleAdsService {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
-          'developer-token': process.env.REACT_APP_GOOGLE_DEVELOPER_TOKEN!,
+          'developer-token': import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN!,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ query })
@@ -1603,7 +1603,7 @@ export const handlers = [
   }),
 
   // Google Ads API mocks
-  rest.get('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', (req, res, ctx) => {
+  rest.get('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', (req, res, ctx) => {
     return res(
       ctx.json({
         resourceNames: ['customers/1234567890']
@@ -1611,7 +1611,7 @@ export const handlers = [
     );
   }),
 
-  rest.post('https://googleads.googleapis.com/v14/customers/:customerId/googleAds:search', (req, res, ctx) => {
+  rest.post('https://googleads.googleapis.com/v20/customers/:customerId/googleAds:search', (req, res, ctx) => {
     return res(
       ctx.json({
         results: [

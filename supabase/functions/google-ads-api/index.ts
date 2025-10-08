@@ -115,7 +115,7 @@ async function handleGetAccounts(supabaseClient: any) {
     }
 
     // Get accessible customers
-    const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+    const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'developer-token': developerToken,
@@ -138,7 +138,7 @@ async function handleGetAccounts(supabaseClient: any) {
       const customerId = customerResourceName.split('/').pop();
       
       try {
-        const customerResponse = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}`, {
+        const customerResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'developer-token': developerToken,
@@ -246,7 +246,7 @@ async function handleGetCampaigns(supabaseClient: any, customerId: string) {
       WHERE segments.date DURING LAST_30_DAYS
     `;
 
-    const response = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
+    const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
