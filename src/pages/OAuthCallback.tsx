@@ -6,7 +6,7 @@ import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { UserGoogleAdsService } from '@/services/auth/userGoogleAdsService';
-import { IntegrationService } from '@/services/integration/IntegrationService';
+import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { AccountInfo, IntegrationPlatform, OAuthTokens, PlatformMetadata } from '@/types/integration';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -67,7 +67,7 @@ const OAuthCallback = () => {
           
           // Verify the tokens were actually saved to the database
           console.log('🔍 Verifying database update...');
-          const integration = await IntegrationService.getIntegration('googleSheets');
+          const integration = await UnifiedIntegrationService.getIntegration('googleSheets');
           console.log('🔍 Integration from database:', {
             exists: !!integration,
             connected: integration?.config?.connected,
@@ -122,7 +122,7 @@ const OAuthCallback = () => {
             googleUserName: userAuth.googleUserName
           };
 
-          await IntegrationService.saveOAuthTokens('googleAds', oauthTokens, accountInfo, metadata);
+          await UnifiedIntegrationService.saveOAuthTokens('googleAds', oauthTokens, accountInfo, metadata);
           console.log('🔍 Saved Google Ads tokens to integrations table');
 
           setStatus('success');
