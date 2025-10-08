@@ -64,6 +64,13 @@ const OAuthCallback = () => {
           // Handle Google Sheets OAuth (WORKING PATTERN)
           console.log('🔍 Processing Google Sheets OAuth');
           await GoogleSheetsOAuthService.handleSheetsAuthCallback(code, state);
+          
+          // Verify the tokens were actually saved to the database
+          const integration = await IntegrationService.getIntegration('googleSheets');
+          if (!integration?.config?.connected || !integration?.config?.tokens?.accessToken) {
+            throw new Error('Failed to save Google Sheets tokens to database');
+          }
+          
           setStatus('success');
           setMessage('Successfully connected to Google Sheets!');
         } else if (platform === 'google' && stateData.scope?.includes('adwords')) {
