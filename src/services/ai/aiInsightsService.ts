@@ -140,9 +140,12 @@ export class AIInsightsService {
         .from('ai_insights_config')
         .select('*')
         .eq('client_id', clientId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        debugLogger.error('AIInsightsService', 'Error fetching client AI config', error);
+        return null;
+      }
       return data;
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error fetching client AI config', error);

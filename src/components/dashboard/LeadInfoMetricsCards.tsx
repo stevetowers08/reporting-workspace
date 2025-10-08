@@ -1,8 +1,9 @@
 import { Card } from '@/components/ui/card';
+import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import { Client } from '@/services/data/databaseService';
 import React, { useEffect, useState } from 'react';
+import { GHLReconnectPrompt } from './GHLReconnectPrompt';
 
 interface LeadInfoMetricsCardsProps {
   data: EventDashboardData | null | undefined;
@@ -13,6 +14,12 @@ interface LeadInfoMetricsCardsProps {
 export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data, clientData, dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ghlNeedsReconnect, setGhlNeedsReconnect] = useState(false);
+
+  const handleGHLReconnect = () => {
+    // Navigate to admin integrations page
+    window.location.href = '/admin/integrations';
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,6 +124,20 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   const ghlMetrics = data.ghlMetrics || {};
   const totalContacts = ghlMetrics.totalContacts || 0; // GHL contact count (REAL)
   
+  // Check if GoHighLevel needs reconnection
+  const isGHLConnected = data.clientAccounts?.goHighLevel && data.clientAccounts.goHighLevel !== 'none';
+  const hasGHLData = totalContacts > 0;
+  const shouldShowReconnectPrompt = isGHLConnected && !hasGHLData && !loading;
+  
+  console.log('LeadInfoMetricsCards: GHL Reconnect Check:', {
+    isGHLConnected,
+    hasGHLData,
+    shouldShowReconnectPrompt,
+    totalContacts,
+    loading,
+    ghlAccount: data.clientAccounts?.goHighLevel
+  });
+  
   // Remove fake funnel data - we don't have real page analytics
   // const funnelPageViews = ghlMetrics.pageViewAnalytics?.totalPageViews || 0; // FAKE
   // const conversionRate = ghlMetrics.conversionRate || 0; // FAKE
@@ -124,6 +145,9 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
 
   return (
     <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
+      {shouldShowReconnectPrompt && (
+        <GHLReconnectPrompt onReconnect={handleGHLReconnect} />
+      )}
       <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
         <div className="flex items-center justify-between">
           <div>

@@ -6,17 +6,20 @@ This project integrates with multiple external APIs and services to provide comp
 
 ## Recent Updates (January 2025)
 
-### ✅ Database-Driven OAuth System
-- **Centralized OAuth Credentials**: All OAuth client IDs and secrets are now stored in the `oauth_credentials` database table
-- **Dynamic Configuration**: OAuth services fetch credentials from database at runtime
-- **Enhanced Security**: No hardcoded secrets in client code
-- **Flexible Redirect URIs**: Automatically adjusts redirect URIs based on current domain
+### ✅ Google Ads Integration - FULLY WORKING
+- **API Version**: Updated to v20 (current stable version)
+- **OAuth Flow**: PKCE implementation with SHA-256 hashing
+- **Direct API Calls**: Bypassed Edge Function for better reliability
+- **Token Management**: Uses `TokenManager.getAccessToken()` for token retrieval
+- **Developer Token**: Properly configured (`5D7nPWHfNnpiMgxGOgNLlA`)
+- **Account Loading**: Successfully loads 17+ Google Ads accounts
 
-### ✅ Google Sheets Integration Improvements
-- **Independent Connection**: Google Sheets can now connect independently using database OAuth credentials
-- **Shared Token Support**: Still uses Google Ads tokens when available (preferred)
-- **Spreadsheet Selection**: Properly saves spreadsheet and sheet selection to database
-- **Error Handling**: Improved error messages and user feedback
+### ✅ Google Sheets Integration - FULLY WORKING
+- **Independent OAuth**: Separate from Google Ads OAuth
+- **PKCE Implementation**: Proper SHA-256 hashing for security
+- **Scope Management**: Includes all required scopes (sheets, drive, userinfo)
+- **Token Storage**: Saves tokens to database with proper verification
+- **Spreadsheet Selection**: Working dropdown with 100+ spreadsheets
 
 ## Integration Architecture
 

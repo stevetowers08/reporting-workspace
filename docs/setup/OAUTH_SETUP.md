@@ -198,11 +198,13 @@ NODE_ENV=development
 
 **7. Google Ads API Issues**
 
-- **"Developer token not approved"**: Use test developer token for development
+- **"Developer token not approved"**: Ensure developer token is approved for production use
 - **"Customer ID not found"**: Verify Customer ID is correct (10-digit number)
 - **"Insufficient permissions"**: Ensure Google Ads API is enabled and approved
 - **"Rate limit exceeded"**: Implement proper rate limiting (5 requests/second max)
 - **"Invalid scope"**: Verify `https://www.googleapis.com/auth/adwords` scope is configured
+- **"getTokens is not a function"**: Use `TokenManager.getAccessToken()` instead of `getTokens()`
+- **"404 on customer details"**: Skip individual customer details API calls, use customer IDs directly
 
 **8. Google Ads OAuth Flow Issues**
 
@@ -210,6 +212,7 @@ NODE_ENV=development
 - **Customer ID Management**: Handle multiple Google Ads accounts per user
 - **Token Refresh**: Google Ads tokens expire every 1 hour, implement refresh logic
 - **API Version**: Use Google Ads API v20 (current stable version)
+- **Direct API Calls**: Use direct API calls instead of Edge Functions for better reliability
 
 ### Debug Mode
 

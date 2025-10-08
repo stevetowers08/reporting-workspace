@@ -1793,28 +1793,46 @@ export class GoHighLevelService {
         
         try {
           // Refresh the token
-          const refreshResponse = await fetch(
-            'https://services.leadconnectorhq.com/oauth/token',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-              },
-              body: new URLSearchParams({
-                client_id: process.env.VITE_GHL_CLIENT_ID!,
-                client_secret: process.env.VITE_GHL_CLIENT_SECRET!,
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                user_type: 'Company'
-              })
-            }
-          );
+        // Get OAuth credentials from database
+        const { data: oauthCreds, error: credsError } = await supabase
+          .from('oauth_credentials')
+          .select('client_id, client_secret')
+          .eq('platform', 'goHighLevel')
+          .eq('is_active', true)
+          .single();
+
+        if (credsError || !oauthCreds) {
+          console.error('🔍 GoHighLevelService: OAuth credentials not found:', credsError);
+          throw new Error('OAuth credentials not found - please reconnect GoHighLevel');
+        }
+
+        const refreshResponse = await fetch(
+          'https://services.leadconnectorhq.com/oauth/token',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+              client_id: oauthCreds.client_id,
+              client_secret: oauthCreds.client_secret,
+              grant_type: 'refresh_token',
+              refresh_token: refreshToken,
+              user_type: 'Company'
+            })
+          }
+        );
 
           const newTokenData = await refreshResponse.json();
 
           if (!refreshResponse.ok) {
             console.error('🔍 GoHighLevelService: Token refresh failed:', newTokenData);
-            throw new Error('Token refresh failed - user needs to reconnect');
+            // Mark integration as disconnected so user can reconnect
+            await supabase
+              .from('integrations')
+              .update({ connected: false })
+              .eq('platform', 'goHighLevel');
+            throw new Error('Token refresh failed - GoHighLevel needs to be reconnected');
           }
 
           // Update database with new token

@@ -4,6 +4,71 @@
 
 This guide covers common problems you might encounter during development and how to resolve them using Cursor AI and other debugging techniques.
 
+## Google Sheets Integration Issues
+
+### Problem: "404 Not Found" from Google Sheets API
+**Symptoms**: Supabase Edge Function returns 404 error when fetching Google Sheets data
+**Root Cause**: Incorrect URL construction in Edge Function
+**Solution**:
+1. **Check URL Format**: Ensure using `/values/{range}` not `?range={range}`
+2. **Verify Edge Function**: Check `supabase/functions/google-sheets-data/index.ts`
+3. **Test Direct API**: Use curl to test Google Sheets API directly
+4. **Check Logs**: Review Supabase Edge Function logs for detailed error messages
+
+```typescript
+// ❌ Wrong (causes 404)
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values?range=${encodeURIComponent(range)}`
+
+// ✅ Correct (working)
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`
+```
+
+### Problem: Lead Info Page Not Showing Data
+**Symptoms**: Dashboard shows no lead metrics or empty charts
+**Root Cause**: Client-specific configuration not being used
+**Solution**:
+1. **Check Client Config**: Verify `clientData.accounts.googleSheetsConfig` exists
+2. **Update Components**: Ensure components pass client-specific parameters
+3. **Test Edge Function**: Test Supabase Edge Function directly
+4. **Check Database**: Verify integration data in Supabase
+
+### Problem: CORS Errors with Google Sheets API
+**Symptoms**: Browser blocks direct API calls to Google Sheets
+**Root Cause**: CORS policy prevents direct frontend API calls
+**Solution**:
+1. **Use Supabase Edge Function**: Never call Google Sheets API directly from frontend
+2. **Check Authorization**: Ensure proper Authorization header in Edge Function calls
+3. **Verify Tokens**: Check access tokens are valid and not expired
+
+## GoHighLevel Integration Issues
+
+### Problem: "Invalid JWT" or "Token refresh failed" from GoHighLevel API
+**Symptoms**: GoHighLevel data not loading, 401 errors in console
+**Root Cause**: GoHighLevel OAuth token has expired and refresh is failing
+**Solution**:
+1. **Check Token Expiration**: GoHighLevel tokens expire every 24 hours
+2. **Re-authenticate**: Go to admin integrations and reconnect GoHighLevel
+3. **Check Client Credentials**: Ensure GoHighLevel OAuth app credentials are correct
+4. **Manual Refresh**: Use Supabase Edge Function `refresh-ghl-token` if available
+
+### Problem: GoHighLevel Data Not Displaying
+**Symptoms**: Dashboard shows no GoHighLevel metrics or contacts
+**Root Cause**: Token expired or invalid client credentials
+**Solution**:
+1. **Check Integration Status**: Verify GoHighLevel is connected in admin panel
+2. **Reconnect Integration**: Disconnect and reconnect GoHighLevel OAuth
+3. **Check Location ID**: Ensure correct location ID is configured for client
+4. **Automatic Reconnection**: The system will show a reconnect prompt when tokens expire
+
+### Problem: GoHighLevel Token Refresh Failing
+**Symptoms**: "Token refresh failed" errors, 401 Unauthorized responses
+**Root Cause**: Refresh token expired or client credentials invalid
+**Long-term Solution**:
+1. **Automatic Re-authentication**: System detects expired tokens and prompts for reconnection
+2. **Database-stored Credentials**: OAuth credentials stored securely in Supabase database
+3. **Edge Function Proxy**: All GoHighLevel API calls go through Supabase Edge Function with automatic token refresh
+4. **User-friendly Prompts**: Clear reconnection prompts guide users through the process
+
 ## Development Environment Issues
 
 ### Node.js and npm Issues

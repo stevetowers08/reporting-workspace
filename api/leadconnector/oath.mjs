@@ -96,14 +96,12 @@ export default async function handler(req, res) {
     console.log('🔍 Saving token to Supabase...');
     
     // Store per-client token in integrations table
-    // Use a unique identifier that combines platform + locationId
-    const integrationId = `goHighLevel_${tokenData.locationId}`;
-    
+    // Use account_id to identify the specific location
     const { error: saveError } = await supabase
       .from('integrations')
       .upsert({
-        id: integrationId, // Use custom ID to avoid conflicts
         platform: 'goHighLevel',
+        account_id: tokenData.locationId, // Use locationId as account_id
         connected: true,
         config: {
           apiKey: {
@@ -120,7 +118,7 @@ export default async function handler(req, res) {
           connectedAt: new Date().toISOString()
         }
       }, {
-        onConflict: 'id' // Use custom ID for conflict resolution
+        onConflict: 'platform,account_id' // Use platform + account_id for conflict resolution
       });
 
     if (saveError) {

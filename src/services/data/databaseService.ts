@@ -728,7 +728,8 @@ export class DatabaseService {
     try {
       debugDatabase.query('disconnectIntegration', 'integrations');
       
-      const { error } = await supabase
+      // Update integration table
+      const { error: integrationError } = await supabase
         .from('integrations')
         .update({ 
           connected: false,
@@ -737,9 +738,35 @@ export class DatabaseService {
         })
         .eq('platform', platform);
 
-      if (error) {
-        debugDatabase.error('disconnectIntegration', 'integrations', error);
-        throw error;
+      if (integrationError) {
+        debugDatabase.error('disconnectIntegration', 'integrations', integrationError);
+        throw integrationError;
+      }
+
+      // Clear client account references for this platform
+      // Get all clients that have this platform in their accounts
+      const { data: clients, error: fetchError } = await supabase
+        .from('clients')
+        .select('id, accounts')
+        .not('accounts', 'is', null);
+
+      if (!fetchError && clients) {
+        // Update each client to remove the platform reference
+        for (const client of clients) {
+          if (client.accounts && client.accounts[platform]) {
+            const updatedAccounts = { ...client.accounts };
+            delete updatedAccounts[platform];
+            
+            const { error: updateError } = await supabase
+              .from('clients')
+              .update({ accounts: updatedAccounts })
+              .eq('id', client.id);
+
+            if (updateError) {
+              console.warn(`Failed to clear ${platform} reference for client ${client.id}:`, updateError);
+            }
+          }
+        }
       }
 
       debugDatabase.success('disconnectIntegration', 'integrations', { platform });
