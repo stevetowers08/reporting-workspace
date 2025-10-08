@@ -19,35 +19,28 @@ export class GoogleSheetsOAuthService {
   /**
    * Generate PKCE code verifier and challenge
    */
-  private static generatePKCE(): { codeVerifier: string; codeChallenge: string } {
-    const codeVerifier = this.generateRandomString(128);
-    const codeChallenge = this.generateCodeChallenge(codeVerifier);
-    return { codeVerifier, codeChallenge };
+  private static async generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+    // Generate verifier (43-128 chars, unreserved)
+    const verifier = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
+      .slice(0, 128);
+
+    // Generate challenge (S256)
+    const challenge = await this.generateChallenge(verifier);
+    
+    return { codeVerifier: verifier, codeChallenge: challenge };
   }
 
   /**
    * Generate code challenge from verifier using SHA-256
    */
-  private static generateCodeChallenge(verifier: string): string {
-    // Use a proper SHA-256 implementation
-    // For now, let's use a simple approach that works
+  private static async generateChallenge(verifier: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
-    
-    // Simple SHA-256-like hash using built-in functions
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      hash = ((hash << 5) - hash + data[i]) & 0xffffffff;
-    }
-    
-    // Convert to base64url
-    const hashBytes = new Uint8Array(4);
-    hashBytes[0] = (hash >>> 24) & 0xff;
-    hashBytes[1] = (hash >>> 16) & 0xff;
-    hashBytes[2] = (hash >>> 8) & 0xff;
-    hashBytes[3] = hash & 0xff;
-    
-    return btoa(String.fromCharCode(...hashBytes))
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
@@ -68,7 +61,7 @@ export class GoogleSheetsOAuthService {
   /**
    * Generate OAuth URL for Google Sheets authentication
    */
-  static generateSheetsAuthUrl(redirectUri?: string): string {
+  static async generateSheetsAuthUrl(redirectUri?: string): Promise<string> {
     const state = btoa(JSON.stringify({
       platform: 'googleSheets',
       timestamp: Date.now(),
@@ -76,7 +69,7 @@ export class GoogleSheetsOAuthService {
     }));
 
     // Generate PKCE parameters
-    const pkce = this.generatePKCE();
+    const pkce = await this.generatePKCE();
     
     // Store code verifier for later use
     localStorage.setItem(`oauth_code_verifier_googleSheets`, pkce.codeVerifier);

@@ -164,7 +164,7 @@ export class AdminService {
         debugLogger.info('AdminService', 'Connecting Google Sheets using dedicated OAuth service');
         
         // Generate OAuth URL using the Google Sheets OAuth service
-        const authUrl = GoogleSheetsOAuthService.generateSheetsAuthUrl();
+        const authUrl = await GoogleSheetsOAuthService.generateSheetsAuthUrl();
         
         debugLogger.info('AdminService', 'Redirecting to Google Sheets OAuth', { authUrl });
         
