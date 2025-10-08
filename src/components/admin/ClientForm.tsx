@@ -17,17 +17,9 @@ import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthServi
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
 import { IntegrationPlatform } from "@/types/integration";
-import { AlertCircle, Bot, CheckCircle, ExternalLink, ImageIcon, X } from "lucide-react";
+import { AlertCircle, Bot, CheckCircle, ImageIcon, X } from "lucide-react";
 import React, { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
-
-// Global type declarations for browser APIs
-declare global {
-  interface Window {
-    URL: typeof URL;
-    setTimeout: typeof setTimeout;
-  }
-}
 
 interface ConnectedAccount {
   id: string;
@@ -107,7 +99,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [conversionActions, setConversionActions] = useState<Record<string, unknown[]>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [aiConfig, setAiConfig] = useState<AIInsightsConfig | null>(null);
-  const [aiConfigLoading, setAiConfigLoading] = useState(false);
   const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
     spreadsheetId: string;
     sheetName: string;
@@ -422,11 +413,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         const logoUrl = await FileUploadService.uploadClientLogo(file, formData.name || 'client');
 
         // Create preview URL for immediate display
-        const previewUrl = URL.createObjectURL(file);
+        const previewUrl = window.URL.createObjectURL(file);
         setLogoPreview(previewUrl);
         setFormData(prev => ({ ...prev, logo_url: logoUrl }));
 
-        console.log('Logo uploaded successfully:', logoUrl);
+        debugLogger.info('ClientForm', 'Logo uploaded successfully', { logoUrl });
       } catch (error) {
         console.error('Error uploading logo:', error);
         setErrors({ logo: 'Failed to upload logo. Please try again.' });
@@ -436,7 +427,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   const removeLogo = () => {
     if (logoPreview) {
-      URL.revokeObjectURL(logoPreview);
+      window.URL.revokeObjectURL(logoPreview);
     }
     setLogoPreview(null);
     setLogoFile(null);
@@ -769,250 +760,252 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       </div>
 
       <div>
-        <Label className="text-sm font-medium">Connected Accounts</Label>
+        <Label className="text-sm font-medium">Integrations</Label>
         <div className="space-y-3 mt-2">
           {/* Facebook Ads */}
           <div className="border rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <LogoManager 
-                platform="meta" 
-                size={16} 
-                context="client-form"
-                className="text-blue-600"
-                fallback={
-                  <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">f</span>
-                  </div>
-                }
-              />
-              <span className="text-sm font-medium">Facebook Ads</span>
-            </div>
-            {isIntegrationConnected('facebookAds') ? (
-              <div className="space-y-2">
-                <SearchableSelect
-                  options={[
-                    { value: "none", label: "None" },
-                    ...getAvailableAccounts('facebookAds').map(account => ({
-                      value: account.id,
-                      label: account.name
-                    }))
-                  ]}
-                  value={formData.accounts.facebookAds || "none"}
-                  onValueChange={(value) => handleAccountSelect("facebookAds", value)}
-                  placeholder="Select Facebook Ad Account"
-                  searchPlaceholder="Search Facebook accounts..."
-                  className="min-w-[400px]"
-                  onOpenChange={(open) => {
-                    console.log('🔍 Facebook dropdown opened:', open, 'facebookAccountsLoaded:', facebookAccountsLoaded);
-                    if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
-                      console.log('🔍 Calling loadFacebookAccounts...');
-                      loadFacebookAccounts();
-                    }
-                  }}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <LogoManager 
+                  platform="meta" 
+                  size={16} 
+                  context="client-form"
+                  className="text-blue-600"
+                  fallback={
+                    <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">f</span>
+                    </div>
+                  }
                 />
-                {facebookAccountsLoading && (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <LoadingSpinner size="sm" />
-                    <span>Loading Facebook accounts...</span>
-                  </div>
-                )}
-                {facebookAccountsLoaded && !facebookAccountsLoading && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">
-                      {getAvailableAccounts('facebookAds').length} accounts loaded
-                    </span>
+                <span className="text-sm font-medium">Facebook Ads</span>
+              </div>
+              {isIntegrationConnected('facebookAds') && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-xs text-green-600">Connected</span>
+                </div>
+              )}
+            </div>
+            
+            {isIntegrationConnected('facebookAds') ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
+                  <SearchableSelect
+                    options={[
+                      { value: "none", label: "None" },
+                      ...getAvailableAccounts('facebookAds').map(account => ({
+                        value: account.id,
+                        label: account.name
+                      }))
+                    ]}
+                    value={formData.accounts.facebookAds || "none"}
+                    onValueChange={(value) => handleAccountSelect("facebookAds", value)}
+                    placeholder="Select account"
+                    searchPlaceholder="Search accounts..."
+                    className="mt-1"
+                    onOpenChange={(open) => {
+                      if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
+                        loadFacebookAccounts();
+                      }
+                    }}
+                  />
+                </div>
+                
+                {formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' && (
+                  <div>
+                    <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
+                    <Select
+                      value={formData.conversionActions.facebookAds || "lead"}
+                      onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select action" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {conversionActions.facebookAds?.map((action: any) => (
+                          <SelectItem key={action.id} value={action.id}>
+                            {action.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <AlertCircle className="h-4 w-4" />
-                <span>Facebook Ads not connected</span>
-                <Link to="/admin" className="text-blue-600 hover:underline">
-                  <ExternalLink className="h-3 w-3" />
+              <div className="text-center py-4">
+                <AlertCircle className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 mb-2">Not connected</p>
+                <Link to="/admin" className="text-blue-600 hover:underline text-sm">
+                  Connect Facebook Ads
                 </Link>
-              </div>
-            )}
-            {/* Conversion Action Selector for Facebook Ads */}
-            {isIntegrationConnected('facebookAds') && formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' && (
-              <div className="mt-3">
-                <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
-                <Select
-                  value={formData.conversionActions.facebookAds || "lead"}
-                  onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select conversion action" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {conversionActions.facebookAds?.map((action: any) => (
-                      <SelectItem key={action.id} value={action.id}>
-                        {action.name} ({action.category})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             )}
           </div>
 
           {/* Google Ads */}
           <div className="border rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <LogoManager 
-                platform="googleAds" 
-                size={16} 
-                context="client-form"
-                className="text-red-600"
-                fallback={
-                  <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">G</span>
-                  </div>
-                }
-              />
-              <span className="text-sm font-medium">Google Ads</span>
-            </div>
-            {isIntegrationConnected('googleAds') ? (
-              <SearchableSelect
-                options={[
-                  { value: "none", label: "None" },
-                  ...getAvailableAccounts('googleAds').map(account => ({
-                    value: account.id,
-                    label: account.name
-                  }))
-                ]}
-                value={formData.accounts.googleAds || "none"}
-                onValueChange={(value) => handleAccountSelect("googleAds", value)}
-                placeholder="Select Google Ads Account"
-                searchPlaceholder="Search Google accounts..."
-                className="min-w-[400px]"
-                onOpenChange={(open) => {
-                  console.log('🔍 Google Ads dropdown opened:', open, 'googleAccountsLoaded:', googleAccountsLoaded);
-                  if (open && !googleAccountsLoaded) {
-                    console.log('🔍 Calling loadGoogleAccounts...');
-                    loadGoogleAccounts();
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <LogoManager 
+                  platform="googleAds" 
+                  size={16} 
+                  context="client-form"
+                  className="text-red-600"
+                  fallback={
+                    <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">G</span>
+                    </div>
                   }
-                }}
-              />
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <AlertCircle className="h-4 w-4" />
-                <span>Google Ads not connected</span>
-                <Link to="/admin" className="text-blue-600 hover:underline">
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </div>
-            )}
-            {/* Conversion Action Selector for Google Ads */}
-            {isIntegrationConnected('googleAds') && formData.accounts.googleAds && formData.accounts.googleAds !== 'none' && (
-              <div className="mt-3">
-                <Label className="text-xs text-gray-600 mb-1 block">Conversion Action</Label>
-                <SearchableSelect
-                  options={[
-                    { value: "conversions", label: "Conversions" },
-                    ...(conversionActions.googleAds || []).map((action: any) => ({
-                      value: action.id,
-                      label: action.name
-                    }))
-                  ]}
-                  value={formData.conversionActions?.googleAds || "conversions"}
-                  onValueChange={(value) => handleConversionActionSelect("googleAds", value)}
-                  placeholder="Select conversion action"
-                  searchPlaceholder="Search conversion actions..."
-                  className="min-w-[400px]"
                 />
+                <span className="text-sm font-medium">Google Ads</span>
+              </div>
+              {isIntegrationConnected('googleAds') && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-xs text-green-600">Connected</span>
+                </div>
+              )}
+            </div>
+            
+            {isIntegrationConnected('googleAds') ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
+                  <SearchableSelect
+                    options={[
+                      { value: "none", label: "None" },
+                      ...getAvailableAccounts('googleAds').map(account => ({
+                        value: account.id,
+                        label: account.name
+                      }))
+                    ]}
+                    value={formData.accounts.googleAds || "none"}
+                    onValueChange={(value) => handleAccountSelect("googleAds", value)}
+                    placeholder="Select account"
+                    searchPlaceholder="Search accounts..."
+                    className="mt-1"
+                    onOpenChange={(open) => {
+                      if (open && !googleAccountsLoaded) {
+                        loadGoogleAccounts();
+                      }
+                    }}
+                  />
+                </div>
+                
+                {formData.accounts.googleAds && formData.accounts.googleAds !== 'none' && (
+                  <div>
+                    <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
+                    <SearchableSelect
+                      options={[
+                        { value: "conversions", label: "Conversions" },
+                        ...(conversionActions.googleAds || []).map((action: any) => ({
+                          value: action.id,
+                          label: action.name
+                        }))
+                      ]}
+                      value={formData.conversionActions?.googleAds || "conversions"}
+                      onValueChange={(value) => handleConversionActionSelect("googleAds", value)}
+                      placeholder="Select action"
+                      searchPlaceholder="Search actions..."
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <AlertCircle className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 mb-2">Not connected</p>
+                <Link to="/admin" className="text-blue-600 hover:underline text-sm">
+                  Connect Google Ads
+                </Link>
               </div>
             )}
           </div>
 
           {/* GoHighLevel */}
           <div className="border rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <LogoManager 
-                platform="goHighLevel" 
-                size={16} 
-                context="client-form"
-                className="text-purple-600"
-                fallback={
-                  <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">G</span>
-                  </div>
-                }
-              />
-              <span className="text-sm font-medium">GoHighLevel CRM</span>
-            </div>
-            <div className="space-y-2">
-              {isIntegrationConnected('goHighLevel') ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-green-600 mb-2">
-                    <CheckCircle className="h-4 w-4" />
-                    <span>GoHighLevel connected</span>
-                  </div>
-                  
-                  {/* Show connection info */}
-                  {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
-                    <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                      <div className="font-medium">Connected Location:</div>
-                      <div>{formData.accounts.goHighLevel.locationName}</div>
-                      <div className="text-gray-500 mt-1">
-                        Location ID: {formData.accounts.goHighLevel.locationId}
-                      </div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <LogoManager 
+                  platform="goHighLevel" 
+                  size={16} 
+                  context="client-form"
+                  className="text-purple-600"
+                  fallback={
+                    <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">G</span>
                     </div>
-                  )}
-                  
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleDisconnectGHL}
-                    className="w-full"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Disconnect GoHighLevel
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">Client-Level Integration</span>
-                    </div>
-                    <p className="text-xs text-blue-700 mb-3">
-                      GoHighLevel is configured per client. Each client connects their own location directly.
-                    </p>
-                  </div>
-                  
-                  {/* Connect Location Button */}
-                  <ConnectLocationButton 
-                    clientId={clientId || 'new_client'}
-                    onConnected={(locationId) => {
-                      console.log('🔍 Location connected:', locationId);
-                      // Refresh integration status
-                      window.location.reload();
-                    }}
-                  />
+                  }
+                />
+                <span className="text-sm font-medium">GoHighLevel CRM</span>
+              </div>
+              {isIntegrationConnected('goHighLevel') && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-xs text-green-600">Connected</span>
                 </div>
               )}
             </div>
+            
+            {isIntegrationConnected('goHighLevel') ? (
+              <div className="space-y-3">
+                {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
+                  <div className="bg-gray-50 p-2 rounded text-xs">
+                    <div className="font-medium text-gray-700">{formData.accounts.goHighLevel.locationName}</div>
+                    <div className="text-gray-500">ID: {formData.accounts.goHighLevel.locationId}</div>
+                  </div>
+                )}
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleDisconnectGHL}
+                  className="w-full"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <ConnectLocationButton 
+                  clientId={clientId || 'new_client'}
+                  onConnected={(locationId) => {
+                    window.location.reload();
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Google Sheets */}
           <div className="border rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <LogoManager 
-                platform="googleSheets" 
-                size={16} 
-                context="client-form"
-                className="text-green-600"
-                fallback={
-                  <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">S</span>
-                  </div>
-                }
-              />
-              <span className="text-sm font-medium">Google Sheets</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <LogoManager 
+                  platform="googleSheets" 
+                  size={16} 
+                  context="client-form"
+                  className="text-green-600"
+                  fallback={
+                    <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">S</span>
+                    </div>
+                  }
+                />
+                <span className="text-sm font-medium">Google Sheets</span>
+              </div>
+              {isIntegrationConnected('googleSheets') && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-xs text-green-600">Connected</span>
+                </div>
+              )}
             </div>
+            
             {isIntegrationConnected('googleSheets') ? (
               <div 
                 className="space-y-3"
@@ -1023,58 +1016,30 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   initialSpreadsheetId={googleSheetsConfig?.spreadsheetId}
                   initialSheetName={googleSheetsConfig?.sheetName}
                   onSelectionComplete={(spreadsheetId, sheetName) => {
-                    debugLogger.info('ClientForm', 'GoogleSheetsSelector callback triggered', { spreadsheetId, sheetName });
-                    try {
-                      setGoogleSheetsConfig({ spreadsheetId, sheetName });
-                      setFormData(prev => ({
-                        ...prev,
-                        accounts: {
-                          ...prev.accounts,
-                          googleSheets: spreadsheetId
-                        }
-                      }));
-                      debugLogger.info('ClientForm', 'Google Sheets configuration updated', {
-                        spreadsheetId,
-                        sheetName
-                      });
-                      // Clear any previous errors and show success
-                      setErrors(prev => {
-                        const newErrors = { ...prev };
-                        delete newErrors.googleSheets;
-                        return newErrors;
-                      });
-                      setGoogleSheetsSuccess(`Google Sheets configured: ${sheetName}`);
-                      // Clear success message after 3 seconds
-                      setTimeout(() => setGoogleSheetsSuccess(null), 3000);
-                    } catch (error) {
-                      debugLogger.error('ClientForm', 'Error updating Google Sheets configuration', error);
-                      setErrors(prev => ({ ...prev, googleSheets: 'Failed to save Google Sheets configuration' }));
-                    }
+                    setGoogleSheetsConfig({ spreadsheetId, sheetName });
+                    setFormData(prev => ({
+                      ...prev,
+                      accounts: {
+                        ...prev.accounts,
+                        googleSheets: spreadsheetId
+                      }
+                    }));
+                    setGoogleSheetsSuccess(`Configured: ${sheetName}`);
+                    setTimeout(() => setGoogleSheetsSuccess(null), 3000);
                   }}
                 />
-                {errors.googleSheets && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="text-sm text-red-800">{errors.googleSheets}</span>
-                    </div>
-                  </div>
-                )}
                 {googleSheetsSuccess && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-800">{googleSheetsSuccess}</span>
-                    </div>
+                  <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                    {googleSheetsSuccess}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <AlertCircle className="h-4 w-4" />
-                <span>Google Sheets not connected</span>
-                <Link to="/admin" className="text-blue-600 hover:underline">
-                  <ExternalLink className="h-3 w-3" />
+              <div className="text-center py-4">
+                <AlertCircle className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 mb-2">Not connected</p>
+                <Link to="/admin" className="text-blue-600 hover:underline text-sm">
+                  Connect Google Sheets
                 </Link>
               </div>
             )}
@@ -1088,60 +1053,37 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           <Label className="text-sm font-medium">AI Insights</Label>
           <div className="mt-2">
             <div className="border rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
-                  <Bot className="h-3 w-3 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
+                    <Bot className="h-3 w-3 text-white" />
+                  </div>
+                  <span className="text-sm font-medium">AI-Powered Insights</span>
                 </div>
-                <span className="text-sm font-medium">AI-Powered Insights</span>
+                <Switch
+                  checked={aiConfig?.enabled || false}
+                  onCheckedChange={handleAIEnabledChange}
+                  data-testid="ai-insights-enabled"
+                />
               </div>
               
-              {aiConfigLoading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <LoadingSpinner size="xs" className="border-purple-600 border-t-purple-600" />
-                  Loading AI configuration...
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-sm font-medium">Enable AI Insights</Label>
-                      <p className="text-xs text-gray-500">Generate AI-powered insights for this client</p>
-                    </div>
-                    <Switch
-                      checked={aiConfig?.enabled || false}
-                      onCheckedChange={handleAIEnabledChange}
-                      data-testid="ai-insights-enabled"
-                    />
-                  </div>
-                  
-                  {aiConfig?.enabled && (
-                    <div>
-                      <Label className="text-sm font-medium">Generation Frequency</Label>
-                      <Select
-                        value={aiConfig?.frequency || 'weekly'}
-                        onValueChange={handleAIFrequencyChange}
-                        data-testid="ai-frequency"
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select frequency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        AI insights will be generated automatically based on this frequency
-                      </p>
-                    </div>
-                  )}
-                  
-                  {aiConfig?.lastGenerated && (
-                    <div className="text-xs text-gray-500">
-                      Last generated: {new Date(aiConfig.lastGenerated).toLocaleDateString()}
-                    </div>
-                  )}
+              {aiConfig?.enabled && (
+                <div className="mt-3">
+                  <Label className="text-xs font-medium text-gray-600">Frequency</Label>
+                  <Select
+                    value={aiConfig?.frequency || 'weekly'}
+                    onValueChange={handleAIFrequencyChange}
+                    data-testid="ai-frequency"
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
@@ -1151,20 +1093,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
       {/* Success/Error Messages */}
       {submitSuccess && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="text-sm text-green-800">{submitSuccess}</span>
-          </div>
+        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
+          {submitSuccess}
         </div>
       )}
       
       {errors.submit && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <span className="text-sm text-red-800">{errors.submit}</span>
-          </div>
+        <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+          {errors.submit}
         </div>
       )}
 
