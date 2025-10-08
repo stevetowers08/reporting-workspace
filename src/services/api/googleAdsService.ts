@@ -269,43 +269,17 @@ export class GoogleAdsService {
       const data = await response.json();
       const customers = data.resourceNames || [];
 
-      // Get customer details for each accessible customer
-      const accounts: GoogleAdsAccount[] = [];
-
-      for (const customerResourceName of customers) {
+      // Create accounts from customer IDs (skip individual customer details call)
+      const accounts: GoogleAdsAccount[] = customers.map((customerResourceName: string) => {
         const customerId = customerResourceName.split('/').pop();
-        
-        try {
-          const customerResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'developer-token': developerToken,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (customerResponse.ok) {
-            const customerData = await customerResponse.json();
-            accounts.push({
-              id: customerId,
-              name: customerData.descriptiveName || `Customer ${customerId}`,
-              status: 'active',
-              currency: customerData.currencyCode || 'USD',
-              timezone: customerData.timeZone || 'UTC'
-            });
-          }
-        } catch (error) {
-          console.warn(`Failed to get details for customer ${customerId}:`, error);
-          // Add basic account info even if details fail
-          accounts.push({
-            id: customerId,
-            name: `Customer ${customerId}`,
-            status: 'active',
-            currency: 'USD',
-            timezone: 'UTC'
-          });
-        }
-      }
+        return {
+          id: customerId,
+          name: `Google Ads Account ${customerId}`,
+          status: 'active',
+          currency: 'USD',
+          timezone: 'UTC'
+        };
+      });
 
       debugLogger.info('GoogleAdsService', 'Successfully fetched Google Ads accounts via direct API', { count: accounts.length });
       return accounts;
