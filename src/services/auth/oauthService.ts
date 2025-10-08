@@ -44,7 +44,11 @@ export class OAuthService {
                     
                     // Different scopes for different Google services
                     const scopes = platform === 'googleAds' 
-                        ? ['https://www.googleapis.com/auth/adwords']
+                        ? [
+                            'https://www.googleapis.com/auth/adwords',
+                            'https://www.googleapis.com/auth/userinfo.email',
+                            'https://www.googleapis.com/auth/userinfo.profile'
+                          ]
                         : [
                             'https://www.googleapis.com/auth/spreadsheets',
                             'https://www.googleapis.com/auth/drive.readonly',
@@ -327,18 +331,33 @@ export class OAuthService {
             const tokens = await this.exchangeCodeForTokens('googleAds', code, state);
 
             // Get user info from Google
+            debugLogger.debug('OAuthService', 'Fetching user info from Google', {
+                accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING',
+                tokenType: tokens.tokenType,
+                scope: tokens.scope
+            });
+
             const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
                 headers: {
                     'Authorization': `Bearer ${tokens.accessToken}`
                 }
             });
 
+            debugLogger.debug('OAuthService', 'User info response', {
+                status: userInfoResponse.status,
+                statusText: userInfoResponse.statusText,
+                ok: userInfoResponse.ok
+            });
+
             if (!userInfoResponse.ok) {
+                const errorText = await userInfoResponse.text();
                 debugLogger.error('OAuthService', 'Failed to get Google user info', {
                     status: userInfoResponse.status,
-                    statusText: userInfoResponse.statusText
+                    statusText: userInfoResponse.statusText,
+                    errorText: errorText,
+                    accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING'
                 });
-                throw new Error('Failed to get user information from Google');
+                throw new Error(`Failed to get user information from Google: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
             }
 
             const userInfo = await userInfoResponse.json();
