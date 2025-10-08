@@ -79,8 +79,43 @@ export class TokenManager {
         scope: tokens.scope
       });
 
+      // Comprehensive token validation
+      if (!tokens) {
+        throw new Error('Invalid tokens: tokens object is null or undefined');
+      }
+      
       if (!tokens.accessToken) {
         throw new Error('Invalid tokens: missing accessToken');
+      }
+      
+      if (typeof tokens.accessToken !== 'string') {
+        throw new Error('Invalid tokens: accessToken must be a string');
+      }
+      
+      if (tokens.accessToken.length < 10) {
+        throw new Error('Invalid tokens: accessToken appears to be too short');
+      }
+      
+      if (tokens.refreshToken && typeof tokens.refreshToken !== 'string') {
+        throw new Error('Invalid tokens: refreshToken must be a string if provided');
+      }
+      
+      if (tokens.expiresIn && typeof tokens.expiresIn !== 'number') {
+        throw new Error('Invalid tokens: expiresIn must be a number if provided');
+      }
+      
+      if (tokens.expiresIn && tokens.expiresIn < 0) {
+        throw new Error('Invalid tokens: expiresIn cannot be negative');
+      }
+      
+      // Account info validation
+      if (accountInfo) {
+        if (!accountInfo.id || typeof accountInfo.id !== 'string') {
+          throw new Error('Invalid accountInfo: id must be a non-empty string');
+        }
+        if (!accountInfo.name || typeof accountInfo.name !== 'string') {
+          throw new Error('Invalid accountInfo: name must be a non-empty string');
+        }
       }
 
       // Calculate expiration time
@@ -102,6 +137,18 @@ export class TokenManager {
         connectedAt: new Date().toISOString()
       };
 
+      // Test database connection before attempting to store
+      const { data: connectionTest, error: connectionError } = await supabase
+        .from('integrations')
+        .select('platform')
+        .limit(1);
+      
+      if (connectionError) {
+        throw new Error(`Database connection failed: ${connectionError.message}`);
+      }
+      
+      debugLogger.debug('TokenManager', 'Database connection verified');
+      
       debugLogger.debug('TokenManager', 'About to upsert to Supabase', {
         platform,
         accountInfo,
@@ -135,8 +182,41 @@ export class TokenManager {
 
       debugLogger.info('TokenManager', `OAuth tokens stored successfully for ${platform}`);
     } catch (error) {
-      debugLogger.error('TokenManager', `Failed to store OAuth tokens for ${platform}`, error);
-      throw new Error(`Failed to store tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
+      // Enhanced error logging with full context
+      const errorDetails = {
+        platform,
+        errorType: error?.constructor?.name || 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        supabaseError: error?.code ? {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        } : undefined,
+        tokenValidation: {
+          hasAccessToken: !!tokens?.accessToken,
+          hasRefreshToken: !!tokens?.refreshToken,
+          accessTokenLength: tokens?.accessToken?.length || 0,
+          expiresIn: tokens?.expiresIn,
+          tokenType: tokens?.tokenType,
+          scope: tokens?.scope
+        },
+        accountInfoValidation: {
+          hasAccountInfo: !!accountInfo,
+          accountId: accountInfo?.id,
+          accountName: accountInfo?.name,
+          accountEmail: accountInfo?.email
+        }
+      };
+
+      debugLogger.error('TokenManager', 'Comprehensive error details', errorDetails);
+      
+      // Create a detailed error message for debugging
+      const detailedMessage = `Failed to store tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`;
+      const enhancedError = new Error(detailedMessage);
+      enhancedError.cause = error;
+      throw enhancedError;
     }
   }
 

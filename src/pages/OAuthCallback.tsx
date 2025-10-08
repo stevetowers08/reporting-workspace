@@ -142,9 +142,16 @@ const OAuthCallback = () => {
             });
             debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
           } catch (tokenError) {
+            // Comprehensive error handling to prevent [object Object] in UI
+            const errorMessage = tokenError instanceof Error 
+              ? tokenError.message 
+              : typeof tokenError === 'string' 
+                ? tokenError 
+                : JSON.stringify(tokenError, null, 2);
+            
             debugLogger.error('🔍 Token storage error:', {
               error: tokenError,
-              errorMessage: tokenError instanceof Error ? tokenError.message : String(tokenError),
+              errorMessage,
               errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
               tokens: {
                 hasAccessToken: !!oauthTokens.accessToken,
@@ -154,7 +161,9 @@ const OAuthCallback = () => {
                 expiresIn: oauthTokens.expiresIn
               }
             });
-            throw tokenError;
+            
+            // Throw a clean error with proper message
+            throw new Error(`Token storage failed: ${errorMessage}`);
           }
 
           setStatus('success');
