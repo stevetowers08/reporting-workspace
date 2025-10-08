@@ -149,16 +149,15 @@ export class GoogleSheetsOAuthService {
       const oauthTokens: OAuthTokens = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        tokenExpiresAt: sheetsTokens.tokenExpiresAt,
+        expiresIn: sheetsTokens.expiresIn,
         tokenType: 'Bearer',
-        scope: sheetsTokens.scope
+        scope: Array.isArray(sheetsTokens.scope) ? sheetsTokens.scope.join(' ') : sheetsTokens.scope
       };
 
       const accountInfo: AccountInfo = {
-        accountId: userInfo.id,
-        accountName: userInfo.email,
-        accountEmail: userInfo.email,
-        accountType: 'personal'
+        id: userInfo.id,
+        name: userInfo.email,
+        email: userInfo.email
       };
 
       await IntegrationService.saveOAuthTokens(
@@ -166,9 +165,11 @@ export class GoogleSheetsOAuthService {
         oauthTokens,
         accountInfo,
         {
-          googleUserId: userInfo.id,
-          googleUserEmail: userInfo.email,
-          googleUserName: userInfo.name
+          googleSheets: {
+            userId: userInfo.id,
+            userEmail: userInfo.email,
+            userName: userInfo.name
+          }
         }
       );
 
@@ -201,22 +202,22 @@ export class GoogleSheetsOAuthService {
   static async getSheetsAccessToken(): Promise<string | null> {
     try {
       const integration = await IntegrationService.getIntegration('googleSheets');
-      if (!integration?.tokens?.accessToken) {
+      if (!integration?.config?.tokens?.accessToken) {
         return null;
       }
 
       // Check if token is expired and refresh if needed
-      const tokenExpiresAt = new Date(integration.tokens.tokenExpiresAt);
-      if (tokenExpiresAt <= new Date()) {
+      const expiresIn = integration.config.tokens.expiresIn;
+      if (expiresIn && expiresIn <= Date.now()) {
         debugLogger.info('GoogleSheetsOAuthService', 'Google Sheets token expired, refreshing...');
         await this.refreshSheetsToken();
         
         // Get the refreshed integration
         const refreshedIntegration = await IntegrationService.getIntegration('googleSheets');
-        return refreshedIntegration?.tokens?.accessToken || null;
+        return refreshedIntegration?.config?.tokens?.accessToken || null;
       }
 
-      return integration.tokens.accessToken;
+      return integration.config.tokens.accessToken;
     } catch (error) {
       debugLogger.error('GoogleSheetsOAuthService', 'Error getting Google Sheets access token', error);
       return null;
@@ -229,7 +230,7 @@ export class GoogleSheetsOAuthService {
   static async refreshSheetsToken(): Promise<void> {
     try {
       const integration = await IntegrationService.getIntegration('googleSheets');
-      if (!integration?.tokens?.refreshToken) {
+      if (!integration?.config?.tokens?.refreshToken) {
         throw new Error('No refresh token available for Google Sheets');
       }
 
@@ -243,7 +244,7 @@ export class GoogleSheetsOAuthService {
         body: new URLSearchParams({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
           client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
-          refresh_token: integration.tokens.refreshToken,
+          refresh_token: integration.config.tokens.refreshToken,
           grant_type: 'refresh_token'
         })
       });
@@ -256,16 +257,16 @@ export class GoogleSheetsOAuthService {
 
       // Update tokens in integration service
       const updatedTokens: OAuthTokens = {
-        ...integration.tokens,
+        ...integration.config.tokens,
         accessToken: tokens.access_token,
-        tokenExpiresAt: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString()
+        expiresIn: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined
       };
 
       await IntegrationService.saveOAuthTokens(
         'googleSheets',
         updatedTokens,
-        integration.accountInfo,
-        integration.metadata
+        integration.config.accountInfo,
+        integration.config.metadata
       );
 
       debugLogger.info('GoogleSheetsOAuthService', 'Successfully refreshed Google Sheets token');
