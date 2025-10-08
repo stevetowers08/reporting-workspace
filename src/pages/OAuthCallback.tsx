@@ -66,10 +66,25 @@ const OAuthCallback = () => {
           await GoogleSheetsOAuthService.handleSheetsAuthCallback(code, state);
           
           // Verify the tokens were actually saved to the database
+          console.log('🔍 Verifying database update...');
           const integration = await IntegrationService.getIntegration('googleSheets');
+          console.log('🔍 Integration from database:', {
+            exists: !!integration,
+            connected: integration?.config?.connected,
+            hasTokens: !!integration?.config?.tokens?.accessToken,
+            config: integration?.config
+          });
+          
           if (!integration?.config?.connected || !integration?.config?.tokens?.accessToken) {
+            console.error('🔍 Database verification failed:', {
+              integration,
+              connected: integration?.config?.connected,
+              hasTokens: !!integration?.config?.tokens?.accessToken
+            });
             throw new Error('Failed to save Google Sheets tokens to database');
           }
+          
+          console.log('🔍 Database verification successful!');
           
           setStatus('success');
           setMessage('Successfully connected to Google Sheets!');
