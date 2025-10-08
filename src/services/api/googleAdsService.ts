@@ -268,17 +268,79 @@ export class GoogleAdsService {
       const data = await response.json();
       const customers = data.resourceNames || [];
 
-      // Create accounts from customer IDs (skip individual customer details call)
-      const accounts: GoogleAdsAccount[] = customers.map((customerResourceName: string) => {
+      // Get account details for each customer
+      const accounts: GoogleAdsAccount[] = [];
+      
+      for (const customerResourceName of customers) {
         const customerId = customerResourceName.split('/').pop();
-        return {
-          id: customerId,
-          name: `Google Ads Account ${customerId}`,
-          status: 'active',
-          currency: 'USD',
-          timezone: 'UTC'
-        };
-      });
+        
+        try {
+          // Use Google Ads API search to get customer details
+          const searchResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'developer-token': developerToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: `
+                SELECT 
+                  customer.id,
+                  customer.descriptive_name,
+                  customer.currency_code,
+                  customer.time_zone
+                FROM customer
+                LIMIT 1
+              `
+            })
+          });
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const results = searchData.results || [];
+            
+            if (results.length > 0) {
+              const customer = results[0].customer;
+              accounts.push({
+                id: customer.id.toString(),
+                name: customer.descriptiveName || `Google Ads Account ${customerId}`,
+                status: 'active',
+                currency: customer.currencyCode || 'USD',
+                timezone: customer.timeZone || 'UTC'
+              });
+            } else {
+              // Fallback if no results
+              accounts.push({
+                id: customerId,
+                name: `Google Ads Account ${customerId}`,
+                status: 'active',
+                currency: 'USD',
+                timezone: 'UTC'
+              });
+            }
+          } else {
+            // Fallback if search fails
+            accounts.push({
+              id: customerId,
+              name: `Google Ads Account ${customerId}`,
+              status: 'active',
+              currency: 'USD',
+              timezone: 'UTC'
+            });
+          }
+        } catch (error) {
+          debugLogger.warn('GoogleAdsService', `Failed to get details for customer ${customerId}`, error);
+          // Fallback
+          accounts.push({
+            id: customerId,
+            name: `Google Ads Account ${customerId}`,
+            status: 'active',
+            currency: 'USD',
+            timezone: 'UTC'
+          });
+        }
+      }
 
       debugLogger.info('GoogleAdsService', 'Successfully fetched Google Ads accounts via direct API', { count: accounts.length });
       return accounts;
