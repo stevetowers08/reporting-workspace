@@ -245,17 +245,17 @@ export class UserGoogleAdsService {
         }
       }
 
-      // Get developer token from backend config
-      const config = await DatabaseService.getActiveGoogleAdsConfig();
-      if (!config?.developer_token) {
-        throw new Error('No active Google Ads developer token configured');
+      // Get developer token from environment
+      const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
+      if (!developerToken) {
+        throw new Error('No Google Ads developer token configured');
       }
 
       // Get accessible customers
       const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${userAuth.accessToken}`,
-          'developer-token': config.developer_token,
+          'developer-token': developerToken,
           'Content-Type': 'application/json'
         }
       });
@@ -279,7 +279,7 @@ export class UserGoogleAdsService {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${userAuth.accessToken}`,
-              'developer-token': config.developer_token,
+              'developer-token': developerToken,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
