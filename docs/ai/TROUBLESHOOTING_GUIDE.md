@@ -40,6 +40,33 @@ const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/valu
 2. **Check Authorization**: Ensure proper Authorization header in Edge Function calls
 3. **Verify Tokens**: Check access tokens are valid and not expired
 
+## Build & OAuth Issues
+
+### Problem: "Duplicate member loadLocationToken in class body" Build Error
+**Symptoms**: Build fails with duplicate method error in GoHighLevelService
+**Root Cause**: Two `loadLocationToken` methods exist - old implementation using `integrationId` and new using `account_id`
+**Solution**:
+1. **Remove duplicate method**: Keep the newer implementation that uses `account_id`
+2. **Verify method signature**: Ensure only one `loadLocationToken` method exists
+3. **Test build**: Run `npm run build` to confirm error is resolved
+
+### Problem: "no unique or exclusion constraint matching ON CONFLICT specification"
+**Symptoms**: OAuth callback fails with constraint error during token saving
+**Root Cause**: OAuth callback uses `onConflict: 'platform,account_id'` but constraint doesn't exist
+**Solution**:
+1. **Add unique constraint**: 
+   ```sql
+   ALTER TABLE integrations ADD CONSTRAINT integrations_platform_account_id_unique UNIQUE (platform, account_id);
+   ```
+2. **Verify constraint exists**:
+   ```sql
+   SELECT constraint_name, constraint_type, column_name 
+   FROM information_schema.table_constraints tc 
+   JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name 
+   WHERE tc.table_name = 'integrations' AND tc.constraint_type = 'UNIQUE';
+   ```
+3. **Update OAuth callback**: Use `onConflict: 'platform,account_id'` in upsert operations
+
 ## GoHighLevel Integration Issues
 
 ### Problem: "Invalid JWT" or "Token refresh failed" from GoHighLevel API

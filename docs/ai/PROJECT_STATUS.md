@@ -49,7 +49,23 @@
 
 ## Recent Updates
 
-### GoHighLevel Integration Overhaul (Latest)
+### Critical Build & OAuth Fixes (Latest)
+- **Status**: ✅ **COMPLETED**
+- **Issues Fixed**:
+  - **Duplicate method error** in GoHighLevelService causing build failures
+  - **OAuth callback constraint error** - "no unique or exclusion constraint matching ON CONFLICT"
+  - **Database constraint missing** for platform+account_id combination
+- **Solutions Implemented**:
+  - **Removed duplicate `loadLocationToken` method** - kept newer implementation using `account_id`
+  - **Added unique constraint** `integrations_platform_account_id_unique` on `(platform, account_id)`
+  - **Fixed OAuth callback** to use correct `onConflict: 'platform,account_id'` specification
+  - **Verified build success** - application now compiles without errors
+- **Database Changes**:
+  - Added `UNIQUE` constraint on `integrations.platform, integrations.account_id`
+  - Enables proper upsert functionality for GoHighLevel OAuth callbacks
+- **Result**: OAuth callback now works correctly, build errors resolved
+
+### GoHighLevel Integration Overhaul
 - **Status**: ✅ **COMPLETED**
 - **Issues Fixed**:
   - Token refresh failures with "Invalid client credentials"
