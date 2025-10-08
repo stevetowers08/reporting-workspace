@@ -1554,44 +1554,6 @@ export class GoHighLevelService {
     }
   }
 
-  /**
-   * Load token for a specific location
-   */
-  static async loadLocationToken(locationId: string): Promise<string | null> {
-    try {
-      console.log('🔍 GoHighLevelService: Loading token for location:', locationId);
-      
-      const integrationId = `goHighLevel_${locationId}`;
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('config')
-        .eq('id', integrationId)
-        .eq('platform', 'goHighLevel')
-        .eq('connected', true)
-        .single();
-
-      if (error || !data?.config?.apiKey?.apiKey) {
-        console.error('🔍 GoHighLevelService: No token found for location:', locationId, error);
-        return null;
-      }
-
-      const token = data.config.apiKey.apiKey;
-      const keyType = data.config.apiKey.keyType;
-      
-      if (keyType === 'bearer') {
-        // Store in location tokens map for caching
-        this.setLocationToken(locationId, token);
-        console.log('🔍 GoHighLevelService: Location token loaded successfully for:', locationId);
-        return token;
-      } else {
-        console.error('🔍 GoHighLevelService: Invalid token type for location:', locationId, keyType);
-        return null;
-      }
-    } catch (error) {
-      console.error('🔍 GoHighLevelService: Error loading location token:', error);
-      return null;
-    }
-  }
 
   /**
    * Set location token for a specific location
