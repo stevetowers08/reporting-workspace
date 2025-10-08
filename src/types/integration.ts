@@ -68,6 +68,9 @@ export interface PlatformMetadata {
   
   // Google Sheets specific
   googleSheets?: {
+    userId?: string;
+    userEmail?: string;
+    userName?: string;
     spreadsheetId?: string;
     sheetName?: string;
     range?: string;
