@@ -63,6 +63,7 @@ export class LeadDataService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(viteEnv && viteEnv.VITE_SUPABASE_ANON_KEY) || process.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           spreadsheetId: actualSpreadsheetId,

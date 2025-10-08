@@ -223,7 +223,7 @@ export const facebookApiClient = createApiClient({
 });
 
 export const googleAdsApiClient = createApiClient({
-  baseUrl: 'https://googleads.googleapis.com/v14',
+  baseUrl: 'https://googleads.googleapis.com/v20',
   rateLimitDelay: 1000
 });
 

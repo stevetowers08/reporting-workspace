@@ -39,7 +39,7 @@ serve(async (req) => {
       .eq('connected', true)
       .single()
 
-    if (integrationError || !integrationData?.config?.tokens?.access_token) {
+    if (integrationError || !integrationData?.config?.tokens) {
       console.error('No Google Sheets tokens found:', integrationError)
       return new Response(
         JSON.stringify({ success: false, error: 'No Google Sheets authentication tokens found' }),
@@ -50,7 +50,88 @@ serve(async (req) => {
       )
     }
 
-    const accessToken = integrationData.config.tokens.access_token
+    let accessToken = integrationData.config.tokens.accessToken || integrationData.config.tokens.access_token
+    const refreshToken = integrationData.config.tokens.refreshToken || integrationData.config.tokens.refresh_token
+
+    // Use hardcoded credentials for token refresh (temporary solution)
+    const GOOGLE_CLIENT_ID = '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com'
+    const GOOGLE_CLIENT_SECRET = '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'
+    
+    // If access token is null or expired, try to refresh it
+    if (!accessToken && refreshToken) {
+      console.log('Access token is null, attempting to refresh...')
+      
+      try {
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+          }),
+        })
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json()
+          accessToken = refreshData.access_token
+          
+          // Update the tokens in the database
+          const { error: updateError } = await supabaseClient
+            .from('integrations')
+            .update({
+              config: {
+                ...integrationData.config,
+                tokens: {
+                  ...integrationData.config.tokens,
+                  accessToken: accessToken,
+                  access_token: accessToken,
+                  expiresIn: Date.now() + (refreshData.expires_in * 1000),
+                  expires_in: Date.now() + (refreshData.expires_in * 1000),
+                }
+              }
+            })
+            .eq('platform', 'googleSheets')
+
+          if (updateError) {
+            console.error('Failed to update tokens:', updateError)
+          } else {
+            console.log('Successfully refreshed and updated access token')
+          }
+        } else {
+          console.error('Failed to refresh token:', refreshResponse.status, refreshResponse.statusText)
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to refresh Google Sheets access token' }),
+            { 
+              status: 401, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
+        }
+      } catch (refreshError) {
+        console.error('Token refresh error:', refreshError)
+        return new Response(
+          JSON.stringify({ success: false, error: 'Token refresh failed' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+    }
+
+    if (!accessToken) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'No valid Google Sheets access token available' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
     const rangeParam = range ? `?range=${encodeURIComponent(range)}` : ''
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values${rangeParam}`
 

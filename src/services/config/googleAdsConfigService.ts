@@ -101,7 +101,7 @@ export class GoogleAdsConfigService {
   static async testConfig(config: GoogleAdsConfig): Promise<{ success: boolean; error?: string }> {
     try {
       // Test with a simple API call
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'developer-token': config.developerToken,
           'Content-Type': 'application/json'

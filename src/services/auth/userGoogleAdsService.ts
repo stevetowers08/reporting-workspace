@@ -252,7 +252,7 @@ export class UserGoogleAdsService {
       }
 
       // Get accessible customers
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${userAuth.accessToken}`,
           'developer-token': developerToken,
@@ -275,7 +275,7 @@ export class UserGoogleAdsService {
         if (!customerId) continue;
 
         try {
-          const accountResponse = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
+          const accountResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${userAuth.accessToken}`,

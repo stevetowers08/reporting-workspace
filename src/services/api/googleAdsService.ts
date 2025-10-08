@@ -65,7 +65,7 @@ export class GoogleAdsService {
     try {
       debugLogger.debug('GoogleAdsService', 'Fetching customer ID programmatically');
       
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'developer-token': developerToken,
@@ -220,7 +220,7 @@ export class GoogleAdsService {
       }
 
       // Validate credentials with Google Ads API
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'developer-token': devToken,
@@ -306,7 +306,7 @@ export class GoogleAdsService {
         WHERE conversion_action.status = 'ENABLED'
       `;
 
-      const response = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
+      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -375,7 +375,7 @@ export class GoogleAdsService {
         WHERE segments.date DURING ${dateRange ? `${dateRange.start.replace(/-/g, '')},${dateRange.end.replace(/-/g, '')}` : 'LAST_30_DAYS'}
       `;
 
-      const response = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
+      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -430,7 +430,7 @@ export class GoogleAdsService {
         WHERE segments.date DURING ${dateRange ? `${dateRange.start.replace(/-/g, '')},${dateRange.end.replace(/-/g, '')}` : 'LAST_30_DAYS'}
       `;
 
-      const response = await fetch(`https://googleads.googleapis.com/v14/customers/${customerId}/googleAds:search`, {
+      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -478,7 +478,7 @@ export class GoogleAdsService {
       }
 
       // Test authentication by getting accessible customers
-      const response = await fetch('https://googleads.googleapis.com/v14/customers:listAccessibleCustomers', {
+      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'developer-token': developerToken,
