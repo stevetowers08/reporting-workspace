@@ -66,6 +66,22 @@ export class TokenManager {
     try {
       debugLogger.info('TokenManager', `Storing OAuth tokens for ${platform}`);
 
+      // Validate tokens before processing
+      debugLogger.debug('TokenManager', 'Token validation', {
+        platform,
+        hasAccessToken: !!tokens.accessToken,
+        hasRefreshToken: !!tokens.refreshToken,
+        accessTokenLength: tokens.accessToken?.length || 0,
+        refreshTokenLength: tokens.refreshToken?.length || 0,
+        expiresIn: tokens.expiresIn,
+        tokenType: tokens.tokenType,
+        scope: tokens.scope
+      });
+
+      if (!tokens.accessToken) {
+        throw new Error('Invalid tokens: missing accessToken');
+      }
+
       // Calculate expiration time
       // Google OAuth refresh responses often don't include expires_in, default to 1 hour
       const expiresInSeconds = tokens.expiresIn || 3600; // Default to 1 hour for Google

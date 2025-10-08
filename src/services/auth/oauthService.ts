@@ -320,14 +320,41 @@ export class OAuthService {
 
             const tokens = await response.json();
 
+            // Normalize token response from Google (snake_case to camelCase)
+            const normalizedTokens: OAuthTokens = {
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                expiresIn: tokens.expires_in,
+                tokenType: tokens.token_type,
+                scope: tokens.scope
+            };
+
+            debugLogger.debug('OAuthService', 'Token normalization', {
+                platform,
+                originalTokens: {
+                    hasAccessToken: !!tokens.access_token,
+                    hasRefreshToken: !!tokens.refresh_token,
+                    expiresIn: tokens.expires_in,
+                    tokenType: tokens.token_type,
+                    scope: tokens.scope
+                },
+                normalizedTokens: {
+                    hasAccessToken: !!normalizedTokens.accessToken,
+                    hasRefreshToken: !!normalizedTokens.refreshToken,
+                    expiresIn: normalizedTokens.expiresIn,
+                    tokenType: normalizedTokens.tokenType,
+                    scope: normalizedTokens.scope
+                }
+            });
+
             // Store tokens using TokenManager (database-only)
-            await this.storeTokens(platform, tokens);
+            await this.storeTokens(platform, normalizedTokens);
 
             // Clean up state and PKCE code verifier
             localStorage.removeItem(`oauth_state_${platform}`);
             localStorage.removeItem(`oauth_code_verifier_${platform}`);
 
-            return tokens;
+            return normalizedTokens;
         } catch (error) {
             debugLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, error);
             throw error;

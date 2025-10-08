@@ -107,7 +107,10 @@ const OAuthCallback = () => {
           debugLogger.debug('🔍 Google Ads auth completed:', { 
             hasAccessToken: !!result.tokens.accessToken,
             hasRefreshToken: !!result.tokens.refreshToken,
-            googleUserId: result.userInfo.googleUserId
+            googleUserId: result.userInfo.googleUserId,
+            tokenType: result.tokens.tokenType,
+            scope: result.tokens.scope,
+            expiresIn: result.tokens.expiresIn
           });
 
           // Save tokens to integrations table
@@ -118,6 +121,15 @@ const OAuthCallback = () => {
             tokenType: result.tokens.tokenType,
             scope: result.tokens.scope
           };
+
+          debugLogger.debug('🔍 About to save OAuth tokens:', {
+            platform: 'googleAds',
+            hasAccessToken: !!oauthTokens.accessToken,
+            hasRefreshToken: !!oauthTokens.refreshToken,
+            tokenType: oauthTokens.tokenType,
+            scope: oauthTokens.scope,
+            expiresAt: oauthTokens.tokenExpiresAt
+          });
 
           const accountInfo: AccountInfo = {
             accountId: result.userInfo.googleUserId,
