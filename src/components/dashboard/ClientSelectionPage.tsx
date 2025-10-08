@@ -6,12 +6,12 @@ import {
     BarChart3,
     Calendar,
     ExternalLink,
-    FileSpreadsheet,
+    Filter,
     Plus,
     Search,
     TrendingUp,
     Users,
-    Zap
+    X
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
@@ -60,26 +60,26 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'paused': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'inactive': return 'bg-slate-50 text-slate-600 border-slate-200';
+      default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   };
 
   const getPlatformIcons = (accounts: Client['accounts']) => {
     const platforms = [];
     if (accounts.facebookAds && accounts.facebookAds !== 'none') {
-      platforms.push({ icon: 'f', color: 'bg-blue-600', label: 'Facebook Ads' });
+      platforms.push({ icon: 'f', color: 'bg-blue-100 text-blue-700', label: 'Facebook Ads' });
     }
     if (accounts.googleAds && accounts.googleAds !== 'none') {
-      platforms.push({ icon: 'G', color: 'bg-red-600', label: 'Google Ads' });
+      platforms.push({ icon: 'G', color: 'bg-red-100 text-red-700', label: 'Google Ads' });
     }
     if (accounts.goHighLevel && accounts.goHighLevel !== 'none') {
-      platforms.push({ icon: Zap, color: 'bg-purple-600', label: 'GoHighLevel' });
+      platforms.push({ icon: 'GHL', color: 'bg-purple-100 text-purple-700', label: 'GoHighLevel' });
     }
     if (accounts.googleSheets && accounts.googleSheets !== 'none') {
-      platforms.push({ icon: FileSpreadsheet, color: 'bg-green-600', label: 'Google Sheets' });
+      platforms.push({ icon: 'GS', color: 'bg-green-100 text-green-700', label: 'Google Sheets' });
     }
     return platforms;
   };
@@ -90,81 +90,78 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Internal Admin Header */}
-      <div className="bg-slate-800 text-white border-b border-slate-700">
-        <div className="px-20 py-4">
+      {/* Modern Header */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="px-6 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">Client Management</h1>
-                  <p className="text-sm text-slate-400">Internal Admin Dashboard</p>
-                </div>
+              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-slate-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-slate-900">Client Dashboard</h1>
+                <p className="text-sm text-slate-600 mt-1">Select a client to view their marketing analytics</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Button 
-                onClick={onAddClient}
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Add New Client
-              </Button>
-            </div>
+            <Button 
+              onClick={onAddClient}
+              size="sm"
+              className="h-9"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Client
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Content Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="px-20 py-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Select Client Dashboard</h2>
-            <p className="text-slate-600 mt-1">Choose a client to view their marketing analytics and performance data</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-20 py-8">
+      <div className="px-6 py-8">
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6 mb-8 shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search clients by name or type..."
+                  placeholder="Search clients..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
             
             {/* Filters */}
             <div className="flex gap-3">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-w-[140px]"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm min-w-[120px] bg-white"
+                >
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
               
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-w-[140px]"
+                className="px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-sm min-w-[140px] bg-white"
               >
                 <option value="">All Types</option>
                 <option value="ecommerce">E-commerce</option>
@@ -174,20 +171,39 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
               </select>
             </div>
           </div>
+          
+          {/* Results count */}
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm text-slate-600">
+              {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''} found
+            </span>
+            {(searchTerm || statusFilter || typeFilter) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('');
+                  setTypeFilter('');
+                }}
+                className="text-sm text-slate-500 hover:text-slate-700"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Results */}
         {filteredClients.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users className="h-12 w-12 text-slate-400" />
+            <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Users className="h-10 w-10 text-slate-400" />
             </div>
             <h3 className="text-xl font-semibold text-slate-900 mb-2">
               {clients.length === 0 ? 'No clients yet' : 'No clients found'}
             </h3>
-            <p className="text-slate-600 mb-6 max-w-md mx-auto">
+            <p className="text-slate-600 mb-8 max-w-md mx-auto">
               {clients.length === 0 
-                ? 'Get started by adding your first client to begin tracking their advertising performance.'
+                ? 'Get started by adding your first client to begin tracking their marketing performance.'
                 : 'Try adjusting your search criteria or filters to find what you\'re looking for.'
               }
             </p>
@@ -195,46 +211,46 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
               <Button 
                 onClick={onAddClient}
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="h-11"
               >
-                <Plus className="h-5 w-5 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Add Your First Client
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredClients.map((client) => {
               const platforms = getPlatformIcons(client.accounts);
               
               return (
                 <Card 
                   key={client.id} 
-                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02] border-slate-200"
+                  className="cursor-pointer hover:shadow-md hover:border-slate-300 transition-all duration-200 group"
                   onClick={() => onClientSelect(client.id)}
                 >
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         {client.logo_url ? (
                           <img
                             src={client.logo_url}
                             alt={`${client.name} logo`}
-                            className="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-sm"
+                            className="w-10 h-10 object-cover rounded-lg border border-slate-200"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                            <BarChart3 className="h-6 w-6 text-white" />
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
+                            <BarChart3 className="h-5 w-5 text-slate-500" />
                           </div>
                         )}
-                        <div>
-                          <CardTitle className="text-lg font-semibold text-slate-900">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base font-semibold text-slate-900 truncate">
                             {client.name}
                           </CardTitle>
-                          <p className="text-sm text-slate-600">{client.type}</p>
+                          <p className="text-sm text-slate-600 truncate">{client.type}</p>
                         </div>
                       </div>
-                      <Badge className={getStatusColor(client.status)}>
+                      <Badge className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(client.status)}`}>
                         {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                       </Badge>
                     </div>
@@ -247,14 +263,10 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                         platforms.map((platform, index) => (
                           <div
                             key={index}
-                            className={`w-6 h-6 rounded flex items-center justify-center ${platform.color}`}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${platform.color}`}
                             title={platform.label}
                           >
-                            {typeof platform.icon === 'string' ? (
-                              <span className="text-white font-bold text-xs">{platform.icon}</span>
-                            ) : (
-                              <platform.icon className="h-3 w-3 text-white" />
-                            )}
+                            {platform.icon}
                           </div>
                         ))
                       ) : (
@@ -266,13 +278,13 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                     {client.lastActivity && (
                       <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
                         <Calendar className="h-4 w-4" />
-                        <span>Last activity: {client.lastActivity}</span>
+                        <span className="truncate">Last activity: {client.lastActivity}</span>
                       </div>
                     )}
                     
                     {/* Action Button */}
                     <Button 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      className="w-full h-9 text-sm group-hover:bg-slate-700"
                       onClick={(e) => {
                         e.stopPropagation();
                         onClientSelect(client.id);

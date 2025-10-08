@@ -181,7 +181,7 @@ const App = () => {
       <ErrorProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <div className="page-bg-light">
+            <div className="app-shell">
               <Routes>
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={<EventDashboard />} />

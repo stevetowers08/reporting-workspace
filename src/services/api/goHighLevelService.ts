@@ -867,6 +867,79 @@ export class GoHighLevelService {
   }
 
   /**
+   * Get contact count for a specific location
+   */
+  static async getContactCount(locationId: string, dateParams?: { startDate?: string; endDate?: string }): Promise<number> {
+    try {
+      // Check cache first
+      const cacheKey = `ghl-contact-count-${locationId}-${JSON.stringify(dateParams || {})}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        debugLogger.debug('GoHighLevelService', 'Using cached contact count');
+        return cached.data;
+      }
+
+      // Load location-specific token
+      let token = this.locationTokens.get(locationId);
+      if (!token) {
+        token = await this.loadLocationToken(locationId);
+      }
+
+      if (!token) {
+        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
+      }
+
+      // Use Search Contacts endpoint to get count
+      const searchBody: any = {
+        locationId: locationId,
+        limit: 1, // We only need the count, not the actual contacts
+        offset: 0,
+        query: {}
+      };
+
+      // Add date filtering if provided
+      if (dateParams?.startDate || dateParams?.endDate) {
+        searchBody.query.dateAdded = {};
+        if (dateParams.startDate) {
+          searchBody.query.dateAdded.gte = dateParams.startDate;
+        }
+        if (dateParams.endDate) {
+          searchBody.query.dateAdded.lte = dateParams.endDate;
+        }
+      }
+
+      const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Version': '2021-07-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugLogger.error('GoHighLevelService', `Failed to search contacts: ${response.statusText}`, errorText);
+        throw new Error(`Failed to search contacts: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const count = data.meta?.total || data.total || 0;
+
+      // Cache the result
+      this.cache.set(cacheKey, { data: count, timestamp: Date.now() });
+
+      debugLogger.info('GoHighLevelService', `Retrieved contact count: ${count}`);
+      return count;
+
+    } catch (error) {
+      debugLogger.error('GoHighLevelService', 'Failed to get contact count', error);
+      throw error;
+    }
+  }
+
+  /**
    * Search contacts using the recommended Search Contacts endpoint (API 2.0)
    */
   private static async getAllContacts(locationId: string, dateParams?: { startDate?: string; endDate?: string }): Promise<any[]> {
@@ -1436,28 +1509,87 @@ export class GoHighLevelService {
    */
   private static async loadPrivateIntegrationToken(): Promise<void> {
     try {
-      console.log('🔍 GoHighLevelService: Loading private integration token from database...');
+      console.log('🔍 GoHighLevelService: Loading integration token from database...');
+      
+      // For now, we'll load the first available GHL token
+      // In the future, this should be called with a specific locationId
       const { data, error } = await supabase
         .from('integrations')
-        .select('config')
+        .select('config, id')
         .eq('platform', 'goHighLevel')
         .eq('connected', true)
+        .limit(1)
         .single();
 
       console.log('🔍 GoHighLevelService: Database query result:', { data, error });
 
       if (error || !data?.config?.apiKey?.apiKey) {
-        console.error('🔍 GoHighLevelService: No private integration token found', error);
-        debugLogger.error('GoHighLevelService', 'No private integration token found', error);
+        console.error('🔍 GoHighLevelService: No integration token found', error);
+        debugLogger.error('GoHighLevelService', 'No integration token found', error);
         return;
       }
 
-      this.agencyToken = data.config.apiKey.apiKey;
-      console.log('🔍 GoHighLevelService: Agency token loaded successfully');
-      debugLogger.info('GoHighLevelService', 'Loaded agency token');
+      // Check if this is a PIT token or OAuth bearer token
+      const token = data.config.apiKey.apiKey;
+      const keyType = data.config.apiKey.keyType;
+      
+      if (keyType === 'pit' && token.startsWith('pit-')) {
+        // This is a Private Integration Token
+        this.agencyToken = token;
+        console.log('🔍 GoHighLevelService: PIT token loaded successfully');
+        debugLogger.info('GoHighLevelService', 'Loaded PIT token');
+      } else if (keyType === 'bearer') {
+        // This is an OAuth bearer token - we can use it for API calls
+        this.agencyToken = token;
+        console.log('🔍 GoHighLevelService: OAuth bearer token loaded successfully');
+        debugLogger.info('GoHighLevelService', 'Loaded OAuth bearer token');
+      } else {
+        console.error('🔍 GoHighLevelService: Invalid token type or format', { keyType, tokenPrefix: token.substring(0, 10) });
+        debugLogger.error('GoHighLevelService', 'Invalid token type or format', { keyType });
+        return;
+      }
     } catch (error) {
-      console.error('🔍 GoHighLevelService: Error loading private integration token:', error);
-      debugLogger.error('GoHighLevelService', 'Error loading private integration token', error);
+      console.error('🔍 GoHighLevelService: Error loading integration token:', error);
+      debugLogger.error('GoHighLevelService', 'Error loading integration token', error);
+    }
+  }
+
+  /**
+   * Load token for a specific location
+   */
+  static async loadLocationToken(locationId: string): Promise<string | null> {
+    try {
+      console.log('🔍 GoHighLevelService: Loading token for location:', locationId);
+      
+      const integrationId = `goHighLevel_${locationId}`;
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('id', integrationId)
+        .eq('platform', 'goHighLevel')
+        .eq('connected', true)
+        .single();
+
+      if (error || !data?.config?.apiKey?.apiKey) {
+        console.error('🔍 GoHighLevelService: No token found for location:', locationId, error);
+        return null;
+      }
+
+      const token = data.config.apiKey.apiKey;
+      const keyType = data.config.apiKey.keyType;
+      
+      if (keyType === 'bearer') {
+        // Store in location tokens map for caching
+        this.setLocationToken(locationId, token);
+        console.log('🔍 GoHighLevelService: Location token loaded successfully for:', locationId);
+        return token;
+      } else {
+        console.error('🔍 GoHighLevelService: Invalid token type for location:', locationId, keyType);
+        return null;
+      }
+    } catch (error) {
+      console.error('🔍 GoHighLevelService: Error loading location token:', error);
+      return null;
     }
   }
 

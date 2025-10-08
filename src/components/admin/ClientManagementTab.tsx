@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Client } from '@/services/admin/adminService';
-import { BarChart3, Edit, FileSpreadsheet, Plus, Search, Trash2, Zap } from 'lucide-react';
+import { BarChart3, Edit, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface ClientManagementTabProps {
@@ -34,10 +34,10 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'paused': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'inactive': return 'bg-slate-50 text-slate-600 border-slate-200';
+      default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   };
 
@@ -46,172 +46,150 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-slate-900">Venues ({filteredClients.length})</h2>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-48 pl-7 pr-3 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="inactive">Inactive</option>
-            </select>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="border-b border-slate-200 pb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Venues</h2>
+            <p className="text-sm text-slate-600 mt-1">Manage client venues and their connected platforms</p>
           </div>
+          <Button 
+            onClick={onAddClient}
+            size="sm"
+            className="h-8"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Venue
+          </Button>
         </div>
-        <Button 
-          onClick={onAddClient}
-          size="sm"
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-6"
-        >
-          <Plus className="h-3 w-3 mr-1" />
-          Add Venue
-        </Button>
+
+        {/* Filters */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search venues"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-60 pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+            />
+          </div>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+          >
+            <option value="">All status</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <span className="text-xs text-slate-500 ml-auto">{filteredClients.length} result{filteredClients.length !== 1 ? 's' : ''}</span>
+        </div>
       </div>
 
-      {/* Compact Client Table */}
+      {/* Clients Table */}
       {filteredClients.length === 0 ? (
-        <div className="text-center py-8 text-slate-500 text-sm">
+        <div className="text-center py-12 text-slate-500 text-sm">
           {clients.length === 0 ? 'No venues yet' : 'No venues found'}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-md overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
-                    Venue
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
-                    Platforms
-                  </th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Venue</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Platforms</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors" data-testid="client-card">
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
                         {client.logo_url ? (
                           <img
                             src={client.logo_url}
                             alt={`${client.name} logo`}
-                            className="w-6 h-6 object-cover rounded border border-slate-200"
+                            className="w-8 h-8 object-cover rounded border border-slate-200"
                           />
                         ) : (
-                          <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded flex items-center justify-center">
-                            <BarChart3 className="h-3 w-3 text-white" />
+                          <div className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center border border-slate-200">
+                            <BarChart3 className="h-4 w-4 text-slate-500" />
                           </div>
                         )}
                         <div className="text-sm font-medium text-slate-900">{client.name}</div>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      <Badge className={`text-xs px-2 py-0.5 ${getStatusColor(client.status)}`}>
+                    <td className="px-4 py-3 text-center">
+                      <Badge className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(client.status)}`}>
                         {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
                         {client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' && (
                           <LogoManager 
                             platform="meta" 
-                            size={16} 
+                            size={18} 
                             context="client-table"
-                            className="text-blue-600"
+                            className="text-slate-600"
                             title="Facebook Ads"
-                            fallback={
-                              <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center" title="Facebook Ads">
-                                <span className="text-white font-bold text-xs">f</span>
-                              </div>
-                            }
                           />
                         )}
                         {client.accounts?.googleAds && client.accounts.googleAds !== 'none' && (
                           <LogoManager 
                             platform="googleAds" 
-                            size={16} 
+                            size={18} 
                             context="client-table"
-                            className="text-red-600"
+                            className="text-slate-600"
                             title="Google Ads"
-                            fallback={
-                              <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center" title="Google Ads">
-                                <span className="text-white font-bold text-xs">G</span>
-                              </div>
-                            }
                           />
                         )}
                         {client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' && (
                           <LogoManager 
                             platform="goHighLevel" 
-                            size={16} 
+                            size={18} 
                             context="client-table"
-                            className="text-purple-600"
+                            className="text-slate-600"
                             title="GoHighLevel"
-                            fallback={
-                              <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center" title="GoHighLevel">
-                                <Zap className="h-2 w-2 text-white" />
-                              </div>
-                            }
                           />
                         )}
                         {client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' && (
                           <LogoManager 
                             platform="googleSheets" 
-                            size={16} 
+                            size={18} 
                             context="client-table"
-                            className="text-green-600"
+                            className="text-slate-600"
                             title="Google Sheets"
-                            fallback={
-                              <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
-                                <FileSpreadsheet className="h-2 w-2 text-white" />
-                              </div>
-                            }
                           />
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={() => onEditClient(client)}
-                          className="h-6 w-6 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                          className="h-7 w-7 p-0 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                           data-testid="edit-client-btn"
                         >
-                          <Edit className="h-3 w-3" />
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onDeleteClient(client.id, client.name)}
                           disabled={deleting[client.id]}
-                          className="h-6 w-6 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          className="h-7 w-7 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>

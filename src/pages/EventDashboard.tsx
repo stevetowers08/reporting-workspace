@@ -9,7 +9,7 @@ import { PDFExportService } from "@/services/export/pdfExportService";
 
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
 import { useAvailableClients, useClientData, useDashboardData } from '@/hooks/useDashboardQueries';
-import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 // Lazy load dashboard components for better performance
@@ -81,18 +81,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     return clientId;
   }, [clientId, urlClientId]);
 
-  // Use React Query hooks for data fetching
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(actualClientId);
-  const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
-  const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
-  
-  // Transform clients for the dropdown
-  const clients = (availableClients || []).map(client => ({
-    id: client.id,
-    name: client.name,
-    logo_url: client.logo_url
-  }));
-
   // Helper function to get date range based on selected period
   const getDateRange = useCallback((period: string) => {
     const endDate = new Date();
@@ -123,6 +111,26 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       end: endDate.toISOString().split('T')[0]
     };
   }, []);
+
+  // Use React Query hooks for data fetching
+  const dateRange = getDateRange(selectedPeriod);
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError, refetch: refetchDashboardData } = useDashboardData(actualClientId, dateRange);
+  const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
+  const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
+
+  // Refetch data when selectedPeriod changes
+  useEffect(() => {
+    if (actualClientId) {
+      refetchDashboardData();
+    }
+  }, [selectedPeriod, actualClientId, refetchDashboardData]);
+  
+  // Transform clients for the dropdown
+  const clients = (availableClients || []).map(client => ({
+    id: client.id,
+    name: client.name,
+    logo_url: client.logo_url
+  }));
 
   const handleExportPDF = useCallback(async () => {
     if (!dashboardData || !clientData) {return;}

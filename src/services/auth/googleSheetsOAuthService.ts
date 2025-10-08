@@ -12,7 +12,7 @@ export interface GoogleSheetsAuthTokens {
 }
 
 export class GoogleSheetsOAuthService {
-  private static readonly GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+  private static readonly GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
   private static readonly GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
   private static readonly GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -62,7 +62,7 @@ export class GoogleSheetsOAuthService {
 
     const params = new URLSearchParams({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-      redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback'),
+      redirect_uri: redirectUri || (window.location.hostname === 'localhost' ? `${window.location.origin}/oauth/callback` : 'https://tulenreporting.vercel.app/oauth/callback'),
       response_type: 'code',
       scope: this.GOOGLE_SHEETS_SCOPE,
       access_type: 'offline',
@@ -102,7 +102,7 @@ export class GoogleSheetsOAuthService {
           client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: window.location.hostname === 'localhost' ? 'http://localhost:8080/oauth/callback' : 'https://tulenreporting.vercel.app/oauth/callback',
+          redirect_uri: window.location.hostname === 'localhost' ? `${window.location.origin}/oauth/callback` : 'https://tulenreporting.vercel.app/oauth/callback',
           code_verifier: codeVerifier
         })
       });

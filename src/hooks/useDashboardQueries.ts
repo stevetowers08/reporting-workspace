@@ -10,9 +10,9 @@ interface Client {
 }
 
 // Custom hook for fetching dashboard data with React Query
-export const useDashboardData = (clientId: string | undefined) => {
+export const useDashboardData = (clientId: string | undefined, dateRange?: { start: string; end: string }) => {
   return useQuery({
-    queryKey: ['dashboard-data', clientId],
+    queryKey: ['dashboard-data', clientId, dateRange],
     queryFn: async (): Promise<EventDashboardData> => {
       if (!clientId) throw new Error('Client ID is required');
       
@@ -34,21 +34,23 @@ export const useDashboardData = (clientId: string | undefined) => {
       
       console.log('🔍 useDashboardData: Client accounts:', clientAccounts);
       
-      // Use last 30 days for data
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 30);
+      // Use provided date range or default to last 30 days
+      const finalDateRange = dateRange || (() => {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - 30);
+        
+        return {
+          start: startDate.toISOString().split('T')[0], 
+          end: endDate.toISOString().split('T')[0] 
+        };
+      })();
       
-      const dateRange = {
-        start: startDate.toISOString().split('T')[0], 
-        end: endDate.toISOString().split('T')[0] 
-      };
-      
-      console.log('🔍 useDashboardData: Date range:', dateRange);
+      console.log('🔍 useDashboardData: Date range:', finalDateRange);
       
       const result = await EventMetricsService.getComprehensiveMetrics(
         clientId,
-        dateRange,
+        finalDateRange,
         clientAccounts
       );
       
