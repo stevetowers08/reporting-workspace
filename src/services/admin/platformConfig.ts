@@ -16,8 +16,8 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
     platform: 'facebookAds',
     icon: 'meta',
     color: 'blue',
-    credentials: ['appId', 'appSecret'],
-    usesOAuth: true,
+    credentials: ['developerToken'],
+    usesOAuth: false,
     defaultCredentials: {}
   },
   googleAds: {
@@ -54,7 +54,6 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
 };
 
 export const OAUTH_PLATFORM_MAP: Record<string, string> = {
-  'facebookAds': 'facebook',
   'googleAds': 'google',
   'googleSheets': 'google'
 };
