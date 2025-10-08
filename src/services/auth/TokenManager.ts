@@ -8,29 +8,57 @@ import {
     OAuthTokens
 } from '@/types/integration';
 
+import CryptoJS from 'crypto-js';
+
 /**
- * Simple encryption/decryption for tokens
- * In production, use a proper encryption library like crypto-js
+ * Secure AES encryption/decryption for tokens
+ * Uses AES-256 encryption with proper key derivation
  */
 class TokenEncryption {
-  private static readonly ENCRYPTION_KEY = 'your-32-character-secret-key-here'; // TODO: Move to env var
+  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'your-32-character-secret-key-here';
+  private static readonly SALT = 'tulen-token-salt-2025';
   
   static encrypt(text: string): string {
-    // Simple XOR encryption (replace with proper encryption in production)
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-      result += String.fromCharCode(text.charCodeAt(i) ^ this.ENCRYPTION_KEY.charCodeAt(i % this.ENCRYPTION_KEY.length));
+    try {
+      // Derive key using PBKDF2
+      const key = CryptoJS.PBKDF2(this.ENCRYPTION_KEY, this.SALT, {
+        keySize: 256/32,
+        iterations: 10000
+      });
+      
+      // Encrypt using AES
+      const encrypted = CryptoJS.AES.encrypt(text, key, {
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+      
+      return encrypted.toString();
+    } catch (error) {
+      debugLogger.error('TokenEncryption', 'Failed to encrypt token', error);
+      throw new Error('Failed to encrypt token');
     }
-    return btoa(result);
   }
   
   static decrypt(encryptedText: string): string {
     try {
-      const text = atob(encryptedText);
-      let result = '';
-      for (let i = 0; i < text.length; i++) {
-        result += String.fromCharCode(text.charCodeAt(i) ^ this.ENCRYPTION_KEY.charCodeAt(i % this.ENCRYPTION_KEY.length));
+      // Derive key using PBKDF2
+      const key = CryptoJS.PBKDF2(this.ENCRYPTION_KEY, this.SALT, {
+        keySize: 256/32,
+        iterations: 10000
+      });
+      
+      // Decrypt using AES
+      const decrypted = CryptoJS.AES.decrypt(encryptedText, key, {
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+      
+      const result = decrypted.toString(CryptoJS.enc.Utf8);
+      
+      if (!result) {
+        throw new Error('Decryption resulted in empty string');
       }
+      
       return result;
     } catch (error) {
       debugLogger.error('TokenEncryption', 'Failed to decrypt token', error);

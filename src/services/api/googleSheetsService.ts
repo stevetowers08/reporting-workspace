@@ -1,4 +1,5 @@
 import { API_BASE_URLS } from '@/constants/apiVersions';
+import { debugLogger } from '@/lib/debug';
 
 export interface GoogleSheet {
   id: string;
@@ -106,6 +107,22 @@ export class GoogleSheetsService {
       });
       console.log('GoogleSheetsService: Found', sheetsData.files?.length || 0, 'spreadsheets');
 
+      // Get user info
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!userInfoResponse.ok) {
+        const errorText = await userInfoResponse.text();
+        debugLogger.error('GoogleSheetsService', 'Failed to get user info', { status: userInfoResponse.status, error: errorText });
+        throw new Error(`Failed to get user info: ${userInfoResponse.status} ${errorText}`);
+      }
+
+      const userInfo = await userInfoResponse.json();
+      debugLogger.info('GoogleSheetsService', 'Retrieved user info', { email: userInfo.email });
+
       // Transform the data
       const sheets: GoogleSheet[] = (sheetsData.files || []).map((file: any) => ({
         id: file.id,
@@ -116,9 +133,9 @@ export class GoogleSheetsService {
       }));
 
       const account: GoogleSheetsAccount = {
-        id: 'google-account', // Mock ID since userinfo is not available
-        name: 'Google Account', // Mock name
-        email: 'google@account.com', // Mock email
+        id: userInfo.id,
+        name: userInfo.name || userInfo.email,
+        email: userInfo.email,
         sheets: sheets
       };
 

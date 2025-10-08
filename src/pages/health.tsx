@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { TokenManager } from '@/services/auth/TokenManager';
-import { IntegrationService } from '@/services/integration/IntegrationService';
+import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -122,7 +122,7 @@ async function checkDatabaseHealth(): Promise<'connected' | 'disconnected' | 'er
 async function checkIntegrationsHealth(): Promise<'operational' | 'degraded' | 'error'> {
   try {
     // Check if we can fetch integrations
-    const integrations = await IntegrationService.getAllIntegrations();
+    const integrations = await UnifiedIntegrationService.getAllIntegrations();
     
     if (!integrations) {
       return 'error';

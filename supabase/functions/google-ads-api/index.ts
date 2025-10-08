@@ -43,6 +43,42 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
+// Enhanced error handling with detailed error codes
+interface ApiError {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp: string;
+  requestId?: string;
+}
+
+function createErrorResponse(error: ApiError, status: number): Response {
+  console.error(`[${error.code}] ${error.message}`, {
+    details: error.details,
+    timestamp: error.timestamp,
+    requestId: error.requestId
+  });
+  
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: error.code,
+      message: error.message,
+      details: error.details,
+      timestamp: error.timestamp,
+      requestId: error.requestId
+    }),
+    { 
+      status, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
+  );
+}
+
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 interface GoogleAdsAccount {
   id: string;
   name: string;
@@ -183,6 +219,19 @@ Deno.serve(async (req: Request) => {
         }
         return await handleGetAccounts(supabaseClient);
       
+      case 'getAdAccounts':
+        // Check rate limit
+        if (!checkRateLimit()) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded for getAdAccounts endpoint' }),
+            { 
+              status: 429, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await handleGetAdAccounts(supabaseClient);
+      
       case 'campaigns':
         const customerId = url.searchParams.get('customerId');
         if (!customerId) {
@@ -232,7 +281,7 @@ Deno.serve(async (req: Request) => {
       
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported actions: accounts, campaigns, campaign-performance' }),
+          JSON.stringify({ error: 'Invalid action. Supported actions: accounts, getAdAccounts, campaigns, campaign-performance' }),
           { 
             status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -240,17 +289,22 @@ Deno.serve(async (req: Request) => {
         );
     }
   } catch (error) {
-    console.error('Google Ads API Edge Function Error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        message: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    const requestId = generateRequestId();
+    const apiError: ApiError = {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred in the Google Ads API Edge Function',
+      details: {
+        error: error.message,
+        stack: error.stack,
+        url: req.url,
+        method: req.method,
+        headers: Object.fromEntries(req.headers.entries())
+      },
+      timestamp: new Date().toISOString(),
+      requestId
+    };
+    
+    return createErrorResponse(apiError, 500);
   }
 });
 
@@ -286,13 +340,18 @@ async function handleGetAccounts(supabaseClient: any) {
       .single();
 
     if (error || !integration) {
-      return new Response(
-        JSON.stringify({ error: 'Google Ads not connected' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      const apiError: ApiError = {
+        code: 'GOOGLE_ADS_NOT_CONNECTED',
+        message: 'Google Ads integration is not connected or configured',
+        details: {
+          error: error?.message,
+          integrationExists: !!integration,
+          platform: 'googleAds'
+        },
+        timestamp: new Date().toISOString(),
+        requestId: generateRequestId()
+      };
+      return createErrorResponse(apiError, 404);
     }
 
     const config = integration.config;
@@ -391,6 +450,165 @@ async function handleGetAccounts(supabaseClient: any) {
   }
 }
 
+async function handleGetAdAccounts(supabaseClient: any) {
+  try {
+    // Check cache first
+    const cacheKey = 'google-ads-individual-accounts';
+    const cachedAccounts = SimpleCache.get(cacheKey);
+    
+    if (cachedAccounts) {
+      console.log('Cache hit for individual ad accounts');
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          accounts: cachedAccounts,
+          cached: true
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log('Cache miss for individual ad accounts, fetching from API');
+    
+    // Get Google Ads integration tokens
+    const { data: integration, error } = await supabaseClient
+      .from('integrations')
+      .select('config')
+      .eq('platform', 'googleAds')
+      .eq('connected', true)
+      .single();
+
+    if (error || !integration) {
+      const apiError: ApiError = {
+        code: 'GOOGLE_ADS_NOT_CONNECTED',
+        message: 'Google Ads integration is not connected or configured',
+        details: {
+          error: error?.message,
+          integrationExists: !!integration,
+          platform: 'googleAds'
+        },
+        timestamp: new Date().toISOString(),
+        requestId: generateRequestId()
+      };
+      return createErrorResponse(apiError, 404);
+    }
+
+    const config = integration.config;
+    const accessToken = config.tokens?.accessToken || config.tokens?.access_token;
+    const developerToken = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
+
+    if (!accessToken || !developerToken) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Google Ads credentials' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Get accessible customers
+    const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': developerToken,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const customers = data.resourceNames || [];
+
+    console.log(`Found ${customers.length} accessible customers`);
+
+    // Get customer details for each accessible customer to identify individual ad accounts
+    const individualAccounts: GoogleAdsAccount[] = [];
+
+    for (const customerResourceName of customers) {
+      const customerId = customerResourceName.split('/').pop();
+      
+      try {
+        const customerResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': developerToken,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (customerResponse.ok) {
+          const customerData = await customerResponse.json();
+          
+          // Check if this is a manager account or individual ad account
+          // Manager accounts typically have testAccountAccess = MANAGER
+          // Individual ad accounts have testAccountAccess = NONE or CUSTOMER
+          const isManagerAccount = customerData.testAccountAccess === 'MANAGER';
+          
+          console.log(`Customer ${customerId}: ${customerData.descriptiveName || 'Unknown'} - ${isManagerAccount ? 'MANAGER' : 'INDIVIDUAL'}`);
+          
+          if (!isManagerAccount) {
+            // This is an individual ad account
+            individualAccounts.push({
+              id: customerId,
+              name: customerData.descriptiveName || `Ad Account ${customerId}`,
+              currency: customerData.currencyCode || 'USD',
+              timezone: customerData.timeZone || 'UTC',
+              descriptiveName: customerData.descriptiveName || `Ad Account ${customerId}`
+            });
+            
+            console.log(`Added individual ad account: ${customerData.descriptiveName} (${customerId})`);
+          } else {
+            console.log(`Skipped manager account: ${customerData.descriptiveName} (${customerId})`);
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to get details for customer ${customerId}:`, error);
+        // Still add basic account info even if details fail
+        individualAccounts.push({
+          id: customerId,
+          name: `Ad Account ${customerId}`,
+          currency: 'USD',
+          timezone: 'UTC',
+          descriptiveName: `Ad Account ${customerId}`
+        });
+      }
+    }
+
+    // Cache the results
+    SimpleCache.set(cacheKey, individualAccounts);
+    console.log(`Cached ${individualAccounts.length} individual ad accounts`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        accounts: individualAccounts,
+        cached: false
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  } catch (error) {
+    console.error('Get Individual Ad Accounts Error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch individual Google Ads accounts', message: error.message }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+
 async function handleGetCampaigns(supabaseClient: any, customerId: string) {
   try {
     // Check cache first
@@ -423,13 +641,18 @@ async function handleGetCampaigns(supabaseClient: any, customerId: string) {
       .single();
 
     if (error || !integration) {
-      return new Response(
-        JSON.stringify({ error: 'Google Ads not connected' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      const apiError: ApiError = {
+        code: 'GOOGLE_ADS_NOT_CONNECTED',
+        message: 'Google Ads integration is not connected or configured',
+        details: {
+          error: error?.message,
+          integrationExists: !!integration,
+          platform: 'googleAds'
+        },
+        timestamp: new Date().toISOString(),
+        requestId: generateRequestId()
+      };
+      return createErrorResponse(apiError, 404);
     }
 
     const config = integration.config;

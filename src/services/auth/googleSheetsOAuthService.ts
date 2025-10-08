@@ -1,6 +1,7 @@
 /* eslint-disable no-undef, no-unused-vars, @typescript-eslint/no-unused-vars */
 import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
+import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { OAuthTokens } from '@/types/integration';
 
 export interface GoogleSheetsAuthTokens {
@@ -203,7 +204,7 @@ export class GoogleSheetsOAuthService {
    */
   static async getSheetsAccessToken(): Promise<string | null> {
     try {
-      const integration = await IntegrationService.getIntegration('googleSheets');
+      const integration = await UnifiedIntegrationService.getIntegration('googleSheets');
       if (!integration?.config?.tokens?.accessToken) {
         return null;
       }
@@ -215,7 +216,7 @@ export class GoogleSheetsOAuthService {
         await this.refreshSheetsToken();
         
         // Get the refreshed integration
-        const refreshedIntegration = await IntegrationService.getIntegration('googleSheets');
+        const refreshedIntegration = await UnifiedIntegrationService.getIntegration('googleSheets');
         return refreshedIntegration?.config?.tokens?.accessToken || null;
       }
 
@@ -231,7 +232,7 @@ export class GoogleSheetsOAuthService {
    */
   static async refreshSheetsToken(): Promise<void> {
     try {
-      const integration = await IntegrationService.getIntegration('googleSheets');
+      const integration = await UnifiedIntegrationService.getIntegration('googleSheets');
       if (!integration?.config?.tokens?.refreshToken) {
         throw new Error('No refresh token available for Google Sheets');
       }
@@ -283,7 +284,7 @@ export class GoogleSheetsOAuthService {
   static async disconnectSheets(): Promise<void> {
     try {
       debugLogger.info('GoogleSheetsOAuthService', 'Disconnecting Google Sheets');
-      await IntegrationService.deleteIntegration('googleSheets');
+      await UnifiedIntegrationService.deleteIntegration('googleSheets');
       debugLogger.info('GoogleSheetsOAuthService', 'Successfully disconnected Google Sheets');
     } catch (error) {
       debugLogger.error('GoogleSheetsOAuthService', 'Error disconnecting Google Sheets', error);

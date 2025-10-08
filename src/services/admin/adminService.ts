@@ -3,7 +3,7 @@ import { GoogleAiService } from '@/services/ai/googleAiService';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
 import { DatabaseService } from '@/services/data/databaseService';
-import { IntegrationService } from '@/services/integration/IntegrationService';
+import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
 
 export interface Client {
@@ -59,7 +59,7 @@ export class AdminService {
       debugLogger.info('AdminService', 'Loading integrations');
       
       // Use the new unified integration service
-      const integrations = await IntegrationService.getIntegrationDisplay();
+      const integrations = await UnifiedIntegrationService.getIntegrationDisplay();
       
       debugLogger.info('AdminService', 'Loaded integrations', { count: integrations.length });
       return integrations;
@@ -147,7 +147,7 @@ export class AdminService {
           const isValid = await GoogleAiService.testConnection();
           
           if (isValid) {
-            await IntegrationService.saveApiKey('google-ai', {
+            await UnifiedIntegrationService.saveApiKey('google-ai', {
               apiKey,
               keyType: 'bearer'
             }, {
@@ -242,7 +242,7 @@ export class AdminService {
       }
       
       // Update database to mark as disconnected using new service
-      await IntegrationService.disconnect(platform as IntegrationPlatform);
+      await UnifiedIntegrationService.disconnect(platform as IntegrationPlatform);
       
       // For Facebook, also call the service disconnect
       if (platform === 'facebookAds') {

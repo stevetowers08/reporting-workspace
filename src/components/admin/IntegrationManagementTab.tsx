@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { debugLogger } from '@/lib/debug';
 import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';
-import { IntegrationService } from '@/services/integration/IntegrationService';
+import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { IntegrationPlatform } from '@/types/integration';
 import { AlertCircle, CheckCircle, Copy, Edit, Settings, TestTube, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -110,7 +110,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
       try {
         // For API key platforms like Google AI Studio
         if (platform === 'google-ai' && finalCredentials.apiKey) {
-          await IntegrationService.saveApiKey(platform as IntegrationPlatform, {
+          await UnifiedIntegrationService.saveApiKey(platform as IntegrationPlatform, {
             apiKey: finalCredentials.apiKey,
             keyType: 'bearer'
           }, {
@@ -291,7 +291,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                               const selectedSpreadsheet = accounts[0]?.sheets.find(sheet => sheet.id === spreadsheetId);
                               const spreadsheetName = selectedSpreadsheet?.name || 'Unknown Spreadsheet';
                               
-                              await IntegrationService.saveIntegration('googleSheets', {
+                              await UnifiedIntegrationService.saveIntegration('googleSheets', {
                                 connected: true,
                                 lastSync: new Date().toISOString(),
                                 syncStatus: 'idle',
