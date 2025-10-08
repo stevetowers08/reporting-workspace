@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { debugLogger } from '@/lib/debug';
 import { AIInsightsConfig, AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
-import { GoHighLevelService } from "@/services/api/goHighLevelService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { FileUploadService } from "@/services/config/fileUploadService";
@@ -329,7 +328,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   };
 
-  // Load GoHighLevel locations when needed
+  // Load GoHighLevel accounts when needed (simplified for location-level OAuth)
   const loadGHLAccounts = async () => {
     if (ghlAccountsLoaded) {
       return;
@@ -350,19 +349,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                                  ghlIntegration?.config?.refreshToken;
       
       if (hasOAuthConnection) {
-        console.log('🔍 ClientForm: GoHighLevel OAuth connection found, calling getAllLocations()...');
-        const locations = await GoHighLevelService.getAllLocations();
-        console.log('🔍 ClientForm: GoHighLevel API response:', locations);
-        
-        const ghlAccounts = locations.map(location => ({
-          id: location.id,
-          name: `${location.name} (${location.city}, ${location.state})`,
+        console.log('🔍 ClientForm: GoHighLevel OAuth connection found');
+        setConnectedAccounts(prev => [...prev, {
+          id: 'ghl_connected',
+          name: 'GoHighLevel Connected',
           platform: 'goHighLevel' as const
-        }));
-        
-        setConnectedAccounts(prev => [...prev, ...ghlAccounts]);
+        }]);
         setGhlAccountsLoaded(true);
-        console.log('🔍 ClientForm: GoHighLevel accounts loaded', ghlAccounts.length);
+        console.log('🔍 ClientForm: GoHighLevel connection confirmed');
       } else {
         console.log('🔍 ClientForm: GoHighLevel not connected, adding not connected option');
         setConnectedAccounts(prev => [...prev, {

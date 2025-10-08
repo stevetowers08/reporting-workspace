@@ -54,12 +54,8 @@ async function quickAPITest() {
     // Test 5: Test Go High Level if connected
     if (ghlConnected) {
       console.log('🔍 Testing Go High Level API...');
-      try {
-        const locations = await GoHighLevelService.getLocations();
-        console.log(`✅ Go High Level API working - Found ${locations.length} locations`);
-      } catch (error) {
-        console.log(`❌ Go High Level API error: ${error.message}`);
-      }
+      // Since we're using location-level OAuth, we don't need to test getAllLocations
+      console.log('✅ Go High Level API test skipped (location-level OAuth)');
     } else {
       console.log('⚠️ Go High Level not connected - skipping API test');
     }

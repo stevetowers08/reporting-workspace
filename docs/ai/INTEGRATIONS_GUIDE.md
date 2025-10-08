@@ -667,69 +667,6 @@ export class GoHighLevelService {
     }
   }
 
-  /**
-   * Get all locations using agency token
-   */
-  static async getAllLocations(): Promise<Array<{
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-    phone: string;
-    website: string;
-    timezone: string;
-    currency: string;
-    status: string;
-  }>> {
-    try {
-      if (!this.agencyToken) {
-        await this.loadAgencyToken();
-      }
-
-      if (!this.agencyToken) {
-        throw new Error('Agency token not set. Please configure in admin settings.');
-      }
-
-      const { companyId } = await this.getCompanyInfo();
-
-      const response = await fetch(`${this.API_BASE_URL}/locations/search?companyId=${companyId}&limit=100`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.agencyToken}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get locations: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const locations = data.locations || [];
-      
-      return locations.map((location: any) => ({
-        id: location.id,
-        name: location.name,
-        address: location.address,
-        city: location.city,
-        state: location.state,
-        zipCode: location.postalCode || location.zipCode,
-        country: location.country,
-        phone: location.phone,
-        website: location.website,
-        timezone: location.timezone,
-        currency: location.currency,
-        status: location.status || 'active'
-      }));
-
-    } catch (error) {
-      throw error;
-    }
-  }
 
   /**
    * Get contacts for a specific location
@@ -1137,14 +1074,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, i
       const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
       
       if (ghlIntegration?.connected) {
-        const locations = await GoHighLevelService.getAllLocations();
-        const ghlAccounts = locations.map(location => ({
-          id: location.id,
-          name: `${location.name} (${location.city}, ${location.state})`,
+        // Since we're using location-level OAuth, we don't need to fetch all locations
+        setConnectedAccounts(prev => [...prev, {
+          id: 'ghl_connected',
+          name: 'GoHighLevel Connected',
           platform: 'goHighLevel' as const
-        }));
-        
-        setConnectedAccounts(prev => [...prev, ...ghlAccounts]);
+        }]);
       }
     } catch (error) {
       console.error('🔍 ClientForm: GoHighLevel error', error);

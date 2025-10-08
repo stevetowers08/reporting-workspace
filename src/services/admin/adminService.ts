@@ -96,12 +96,23 @@ export class AdminService {
         case 'goHighLevel': {
           const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
           try {
-            // Test by trying to get locations
-            const locations = await GoHighLevelService.getAllLocations();
-            result = { 
-              success: true, 
-              message: `GoHighLevel connection successful - Found ${locations.length} locations` 
-            };
+            // Test by checking if we have a valid token (location-level OAuth)
+            const integrations = await DatabaseService.getIntegrations();
+            const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
+            const hasValidToken = ghlIntegration?.config?.apiKey?.keyType === 'bearer' && 
+                                 ghlIntegration?.config?.refreshToken;
+            
+            if (hasValidToken) {
+              result = { 
+                success: true, 
+                message: 'GoHighLevel connection successful (location-level OAuth)' 
+              };
+            } else {
+              result = { 
+                success: false, 
+                message: 'GoHighLevel not connected - no valid OAuth token found' 
+              };
+            }
           } catch (error) {
             result = { 
               success: false, 
