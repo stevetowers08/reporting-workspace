@@ -6,14 +6,14 @@ When setting up OAuth applications with each platform, you'll need to configure 
 
 ### Base URLs
 
-- **Development**: `http://localhost:8080`
-- **Production**: `https://yourdomain.com`
+- **Development**: `http://localhost:5173`
+- **Production**: `https://tulenreporting.vercel.app`
 
 ### Redirect URIs
 
-- **Facebook**: `http://localhost:8080/oauth/callback`
-- **Google**: `http://localhost:8080/oauth/callback`
-- **GoHighLevel**: `http://localhost:8080/oauth/callback`
+- **Facebook**: `http://localhost:5173/oauth/callback`
+- **Google**: `http://localhost:5173/oauth/callback`
+- **GoHighLevel**: `http://localhost:5173/oauth/callback`
 
 ## Platform-Specific Setup
 
@@ -23,8 +23,8 @@ When setting up OAuth applications with each platform, you'll need to configure 
 2. Create a new app → **Business** type
 3. Add **Facebook Login** product
 4. In **Facebook Login** → **Settings**:
-   - Add `http://localhost:8080/oauth/callback` to **Valid OAuth Redirect URIs**
-   - Add `https://yourdomain.com/oauth/callback` for production
+   - Add `http://localhost:5173/oauth/callback` to **Valid OAuth Redirect URIs**
+   - Add `https://tulenreporting.vercel.app/oauth/callback` for production
 5. Get your **App ID** and **App Secret**
 
 ### 2. Google Cloud Console
@@ -36,11 +36,11 @@ When setting up OAuth applications with each platform, you'll need to configure 
 5. Create **OAuth 2.0 Client ID**:
    - Application type: **Web application**
    - Authorized JavaScript origins:
-     - `http://localhost:8080` (development)
-     - `https://yourdomain.com` (production)
+     - `http://localhost:5173` (development)
+     - `https://tulenreporting.vercel.app` (production)
    - Authorized redirect URIs:
-     - `http://localhost:8080/oauth/callback` (development)
-     - `https://yourdomain.com/oauth/callback` (production)
+     - `http://localhost:5173/oauth/callback` (development)
+     - `https://tulenreporting.vercel.app/oauth/callback` (production)
 6. Go to **APIs & Services** → **OAuth consent screen**:
    - Application type: **Web application**
    - Add these scopes:
@@ -81,8 +81,8 @@ When setting up OAuth applications with each platform, you'll need to configure 
 2. Sign up for developer account
 3. Create a new app
 4. In **OAuth Settings**:
-   - Redirect URI: `http://localhost:8080/oauth/callback`
-   - Production URI: `https://yourdomain.com/oauth/callback`
+   - Redirect URI: `http://localhost:5173/oauth/callback`
+   - Production URI: `https://tulenreporting.vercel.app/oauth/callback`
 5. Get your **Client ID** and **Client Secret**
 
 ## Environment Variables
