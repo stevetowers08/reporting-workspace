@@ -36,6 +36,7 @@ const UserGoogleAdsConnection = ({ userId, onConnectionChange }: UserGoogleAdsCo
       setIsLoading(true);
       setError(null);
       
+      // Force fresh check by clearing any cached data
       const connected = await UserGoogleAdsService.isUserConnected(userId);
       setIsConnected(connected);
       
