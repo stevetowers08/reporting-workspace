@@ -56,40 +56,56 @@ export class GoogleAdsService {
     debugLogger.debug('GoogleAdsService', 'getAdAccounts called - using Edge Function');
 
     try {
+      // Check if Google Ads is connected first
+      const isConnected = await TokenManager.isConnected('googleAds');
+      if (!isConnected) {
+        debugLogger.warn('GoogleAdsService', 'Google Ads not connected, returning empty accounts');
+        return [];
+      }
+
       // Use Supabase Edge Function instead of direct API calls
       const { supabase } = await import('@/lib/supabase');
       
-      console.log('🔍 GoogleAdsService: Using Edge Function for Google Ads accounts');
+      debugLogger.debug('GoogleAdsService', 'Using Edge Function for Google Ads accounts');
       
       const { data, error } = await supabase.functions.invoke('google-ads-api/accounts');
 
       if (error) {
-        console.log('🔍 GoogleAdsService: Edge Function error:', error);
+        debugLogger.error('GoogleAdsService', 'Edge Function error', error);
+        // Check if it's an authentication error
+        if (error.message?.includes('token') || error.message?.includes('unauthorized')) {
+          debugLogger.warn('GoogleAdsService', 'Google Ads authentication error - token may be expired');
+          return [];
+        }
         throw new Error(`Google Ads Edge Function error: ${error.message}`);
       }
 
       if (!data?.success || !data?.data) {
-        throw new Error('Invalid response from Google Ads Edge Function');
+        debugLogger.warn('GoogleAdsService', 'Invalid response from Google Ads Edge Function', data);
+        return [];
       }
 
-      console.log('🔍 GoogleAdsService: Edge Function response:', data);
+      debugLogger.debug('GoogleAdsService', 'Edge Function response', data);
       
       // Transform Edge Function response to match our interface
-      const accounts: GoogleAdsAccount[] = data.data.map((account: any) => ({
-        id: account.id,
-        name: account.descriptiveName || account.name,
-        status: 'active', // Edge Function doesn't return status, assume active
-        currency: account.currency || 'USD',
-        timezone: account.timezone || 'UTC'
-      }));
+      const accounts: GoogleAdsAccount[] = data.data.map((account: unknown) => {
+        const acc = account as Record<string, unknown>;
+        return {
+          id: acc.id as string,
+          name: (acc.descriptiveName || acc.name) as string,
+          status: 'active' as const, // Edge Function doesn't return status, assume active
+          currency: (acc.currency || 'USD') as string,
+          timezone: (acc.timezone || 'UTC') as string
+        };
+      });
 
-      console.log('🔍 GoogleAdsService: Transformed accounts:', accounts);
+      debugLogger.debug('GoogleAdsService', 'Transformed accounts', accounts);
       return accounts;
 
     } catch (error) {
-      console.log('🔍 GoogleAdsService: Error in getAdAccounts:', error);
       debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads accounts via Edge Function', error);
-      throw error;
+      // Return empty array instead of throwing to prevent UI crashes
+      return [];
     }
   }
 
@@ -102,12 +118,12 @@ export class GoogleAdsService {
     try {
       const { supabase } = await import('@/lib/supabase');
       
-      console.log('🔍 GoogleAdsService: Using Edge Function for Google Ads campaigns');
+      debugLogger.debug('GoogleAdsService', 'Using Edge Function for Google Ads campaigns');
       
       const { data, error } = await supabase.functions.invoke(`google-ads-api/campaigns?customerId=${customerId}`);
 
       if (error) {
-        console.log('🔍 GoogleAdsService: Edge Function error:', error);
+        debugLogger.error('GoogleAdsService', 'Edge Function error', error);
         throw new Error(`Google Ads Edge Function error: ${error.message}`);
       }
 
@@ -115,23 +131,25 @@ export class GoogleAdsService {
         throw new Error('Invalid response from Google Ads Edge Function');
       }
 
-      console.log('🔍 GoogleAdsService: Edge Function campaigns response:', data);
+      debugLogger.debug('GoogleAdsService', 'Edge Function campaigns response', data);
       
       // Transform Edge Function response to match our interface
-      const campaigns: GoogleAdsCampaign[] = data.data.map((campaign: any) => ({
-        id: campaign.id,
-        name: campaign.name,
-        status: campaign.status,
-        type: campaign.type,
-        metrics: campaign.metrics,
-        dateRange: dateRange || { start: '', end: '' }
-      }));
+      const campaigns: GoogleAdsCampaign[] = data.data.map((campaign: unknown) => {
+        const camp = campaign as Record<string, unknown>;
+        return {
+          id: camp.id as string,
+          name: camp.name as string,
+          status: camp.status as 'enabled' | 'paused' | 'removed',
+          type: camp.type as string,
+          metrics: camp.metrics as GoogleAdsMetrics,
+          dateRange: dateRange || { start: '', end: '' }
+        };
+      });
 
-      console.log('🔍 GoogleAdsService: Transformed campaigns:', campaigns);
+      debugLogger.debug('GoogleAdsService', 'Transformed campaigns', campaigns);
       return campaigns;
 
     } catch (error) {
-      console.log('🔍 GoogleAdsService: Error in getCampaigns:', error);
       debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads campaigns via Edge Function', error);
       throw error;
     }
@@ -149,10 +167,11 @@ export class GoogleAdsService {
       }
 
       // Test with a simple API call
-      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
+      const developerToken = this.getDeveloperToken();
+      const response = await globalThis.fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'developer-token': '5D7nPWHfNnpiMgxGOgNLlA', // Use the developer token directly for testing
+          'developer-token': developerToken,
           'Content-Type': 'application/json'
         }
       });
@@ -185,11 +204,12 @@ export class GoogleAdsService {
         WHERE conversion_action.status = 'ENABLED'
       `;
 
-      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+      const developerToken = this.getDeveloperToken();
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'developer-token': '5D7nPWHfNnpiMgxGOgNLlA',
+          'developer-token': developerToken,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ query })
@@ -202,13 +222,16 @@ export class GoogleAdsService {
       const data = await response.json();
       const results = data.results || [];
       
-      return results.map((result: any) => ({
-        id: result.conversionAction.id,
-        name: result.conversionAction.name,
-        category: result.conversionAction.category,
-        type: result.conversionAction.type,
-        status: result.conversionAction.status
-      }));
+      return results.map((result: Record<string, unknown>) => {
+        const conversionAction = result.conversionAction as Record<string, unknown>;
+        return {
+          id: conversionAction.id as string,
+          name: conversionAction.name as string,
+          category: conversionAction.category as string,
+          type: conversionAction.type as string,
+          status: conversionAction.status as string
+        };
+      });
 
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error fetching conversion actions', error);
@@ -253,7 +276,7 @@ export class GoogleAdsService {
         WHERE ${dateFilter}
       `;
 
-      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -276,13 +299,13 @@ export class GoogleAdsService {
       }
       
       // Aggregate metrics across all days
-      const aggregatedMetrics = results.reduce((acc: any, result: any) => {
-        const metrics = result.metrics;
-        acc.impressions += parseInt(metrics.impressions || '0');
-        acc.clicks += parseInt(metrics.clicks || '0');
-        acc.cost += parseFloat(metrics.costMicros || '0') / 1000000; // Convert micros to dollars
-        acc.leads += parseInt(metrics.leads || '0');
-        acc.conversions += parseInt(metrics.conversions || '0');
+      const aggregatedMetrics = results.reduce((acc: Record<string, number>, result: Record<string, unknown>) => {
+        const metrics = result.metrics as Record<string, unknown>;
+        acc.impressions += parseInt(metrics.impressions as string || '0');
+        acc.clicks += parseInt(metrics.clicks as string || '0');
+        acc.cost += parseFloat(metrics.costMicros as string || '0') / 1000000; // Convert micros to dollars
+        acc.leads += parseInt(metrics.leads as string || '0');
+        acc.conversions += parseInt(metrics.conversions as string || '0');
         return acc;
       }, {
         impressions: 0,
@@ -325,10 +348,6 @@ export class GoogleAdsService {
   private static getDeveloperToken(): string {
     // Use environment variable directly for development
     const token = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || '';
-    console.log('🔍 GoogleAdsService: getDeveloperToken() called');
-    console.log('🔍 GoogleAdsService: Environment variable VITE_GOOGLE_ADS_DEVELOPER_TOKEN:', token);
-    console.log('🔍 GoogleAdsService: Token length:', token.length);
-    console.log('🔍 GoogleAdsService: Token starts with:', token.substring(0, 10));
     debugLogger.debug('GoogleAdsService', 'Developer token retrieved', { 
       hasToken: !!token, 
       tokenLength: token.length,

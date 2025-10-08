@@ -108,11 +108,35 @@ export class UserGoogleAdsService {
     userId: string
   ): Promise<UserGoogleAdsAuth> {
     try {
+      debugLogger.info('UserGoogleAdsService', 'Handling user auth callback', { userId, hasCode: !!code });
+      
       // Get the code verifier from localStorage
       const codeVerifier = localStorage.getItem(`oauth_code_verifier_google`);
       if (!codeVerifier) {
+        debugLogger.error('UserGoogleAdsService', 'Code verifier not found in localStorage');
         throw new Error('Code verifier not found. Please try connecting again.');
       }
+
+      // Validate environment variables
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        debugLogger.error('UserGoogleAdsService', 'Missing Google OAuth credentials', {
+          hasClientId: !!clientId,
+          hasClientSecret: !!clientSecret
+        });
+        throw new Error('Google OAuth credentials not configured. Please check environment variables.');
+      }
+
+      const redirectUri = window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/oauth/callback` 
+        : 'https://tulenreporting.vercel.app/oauth/callback';
+
+      debugLogger.info('UserGoogleAdsService', 'Exchanging code for tokens', {
+        clientId: clientId.substring(0, 10) + '...',
+        redirectUri
+      });
 
       // Exchange code for tokens
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -121,20 +145,31 @@ export class UserGoogleAdsService {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
+          client_id: clientId,
+          client_secret: clientSecret,
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: window.location.hostname === 'localhost' ? `${window.location.origin}/oauth/callback` : 'https://tulenreporting.vercel.app/oauth/callback',
+          redirect_uri: redirectUri,
           code_verifier: codeVerifier
         })
       });
 
       if (!tokenResponse.ok) {
-        throw new Error('Failed to exchange authorization code for tokens');
+        const errorText = await tokenResponse.text();
+        debugLogger.error('UserGoogleAdsService', 'Token exchange failed', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to exchange authorization code for tokens: ${tokenResponse.status} ${tokenResponse.statusText}`);
       }
 
       const tokens = await tokenResponse.json();
+      debugLogger.info('UserGoogleAdsService', 'Token exchange successful', {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        expiresIn: tokens.expires_in
+      });
 
       // Get user info from Google
       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -143,7 +178,19 @@ export class UserGoogleAdsService {
         }
       });
 
+      if (!userInfoResponse.ok) {
+        debugLogger.error('UserGoogleAdsService', 'Failed to get user info', {
+          status: userInfoResponse.status,
+          statusText: userInfoResponse.statusText
+        });
+        throw new Error('Failed to get user information from Google');
+      }
+
       const userInfo = await userInfoResponse.json();
+      debugLogger.info('UserGoogleAdsService', 'User info retrieved', {
+        googleUserId: userInfo.id,
+        email: userInfo.email
+      });
 
       // Save user authentication
       const userAuth: UserGoogleAdsAuth = {
@@ -158,6 +205,7 @@ export class UserGoogleAdsService {
       };
 
       await this.saveUserAuth(userAuth);
+      debugLogger.info('UserGoogleAdsService', 'User auth saved successfully');
       
       // Clean up the code verifier
       localStorage.removeItem(`oauth_code_verifier_google`);
@@ -165,6 +213,8 @@ export class UserGoogleAdsService {
       return userAuth;
     } catch (error) {
       debugLogger.error('UserGoogleAdsService', 'Error handling user auth callback', error);
+      // Clean up code verifier on error
+      localStorage.removeItem(`oauth_code_verifier_google`);
       throw error;
     }
   }
