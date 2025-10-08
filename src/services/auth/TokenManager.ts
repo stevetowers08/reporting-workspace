@@ -8,6 +8,37 @@ import {
 } from '@/types/integration';
 
 /**
+ * Simple encryption/decryption for tokens
+ * In production, use a proper encryption library like crypto-js
+ */
+class TokenEncryption {
+  private static readonly ENCRYPTION_KEY = 'your-32-character-secret-key-here'; // TODO: Move to env var
+  
+  static encrypt(text: string): string {
+    // Simple XOR encryption (replace with proper encryption in production)
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      result += String.fromCharCode(text.charCodeAt(i) ^ this.ENCRYPTION_KEY.charCodeAt(i % this.ENCRYPTION_KEY.length));
+    }
+    return btoa(result);
+  }
+  
+  static decrypt(encryptedText: string): string {
+    try {
+      const text = atob(encryptedText);
+      let result = '';
+      for (let i = 0; i < text.length; i++) {
+        result += String.fromCharCode(text.charCodeAt(i) ^ this.ENCRYPTION_KEY.charCodeAt(i % this.ENCRYPTION_KEY.length));
+      }
+      return result;
+    } catch (error) {
+      debugLogger.error('TokenEncryption', 'Failed to decrypt token', error);
+      throw new Error('Failed to decrypt token');
+    }
+  }
+}
+
+/**
  * TokenManager - Database-only token management service
  * 
  * This service eliminates localStorage dependencies and provides:
@@ -44,6 +75,8 @@ export class TokenManager {
         connected: true,
         tokens: {
           ...tokens,
+          accessToken: TokenEncryption.encrypt(tokens.accessToken),
+          refreshToken: tokens.refreshToken ? TokenEncryption.encrypt(tokens.refreshToken) : undefined,
           expiresAt
         },
         accountInfo,
@@ -149,10 +182,20 @@ export class TokenManager {
       const config = data.config as IntegrationConfig;
 
       // Check OAuth tokens first (handle both camelCase and snake_case)
-      const accessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token;
-      if (accessToken) {
-        console.log(`TokenManager: Found access token for ${platform}`);
-        debugLogger.info('TokenManager', `Found access token for ${platform}`);
+      const encryptedAccessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token;
+      if (encryptedAccessToken) {
+        console.log(`TokenManager: Found encrypted access token for ${platform}`);
+        debugLogger.info('TokenManager', `Found encrypted access token for ${platform}`);
+        
+        // Decrypt the access token
+        let accessToken: string;
+        try {
+          accessToken = TokenEncryption.decrypt(encryptedAccessToken);
+        } catch (error) {
+          debugLogger.error('TokenManager', `Failed to decrypt access token for ${platform}`, error);
+          return null;
+        }
+        
         // Check if token is expired or needs refresh
         const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
         if (expiresAt) {
@@ -167,8 +210,8 @@ export class TokenManager {
             debugLogger.info('TokenManager', `Attempting token refresh for ${platform}`);
             
             // Attempt automatic refresh
-            const refreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
-            if (refreshToken) {
+            const encryptedRefreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
+            if (encryptedRefreshToken) {
               try {
                 await this.refreshTokens(platform);
                 // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop

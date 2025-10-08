@@ -15,6 +15,38 @@ interface GoogleAdsAccount {
   descriptiveName: string;
 }
 
+// Rate limiting configuration
+const RATE_LIMITS = {
+  accounts: { requests: 100, window: 60 * 1000 }, // 100 requests per minute
+  campaigns: { requests: 50, window: 60 * 1000 }, // 50 requests per minute
+};
+
+// Simple in-memory rate limiter (in production, use Redis or database)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(action: string, identifier: string): boolean {
+  const key = `${action}:${identifier}`;
+  const now = Date.now();
+  const limit = RATE_LIMITS[action as keyof typeof RATE_LIMITS];
+  
+  if (!limit) return true;
+  
+  const current = rateLimitStore.get(key);
+  
+  if (!current || now > current.resetTime) {
+    // Reset or create new entry
+    rateLimitStore.set(key, { count: 1, resetTime: now + limit.window });
+    return true;
+  }
+  
+  if (current.count >= limit.requests) {
+    return false; // Rate limit exceeded
+  }
+  
+  current.count++;
+  return true;
+}
+
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -63,6 +95,17 @@ Deno.serve(async (req: Request) => {
 
     switch (action) {
       case 'accounts':
+        // Check rate limit
+        const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+        if (!checkRateLimit('accounts', clientIp)) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded for accounts endpoint' }),
+            { 
+              status: 429, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
         return await handleGetAccounts(supabaseClient);
       
       case 'campaigns':
@@ -72,6 +115,16 @@ Deno.serve(async (req: Request) => {
             JSON.stringify({ error: 'customerId parameter is required' }),
             { 
               status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        // Check rate limit
+        if (!checkRateLimit('campaigns', clientIp)) {
+          return new Response(
+            JSON.stringify({ error: 'Rate limit exceeded for campaigns endpoint' }),
+            { 
+              status: 429, 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
             }
           );

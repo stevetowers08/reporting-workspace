@@ -185,7 +185,15 @@ export class OAuthService {
         localStorage.setItem(`oauth_state_${platform}`, state);
 
         const authUrl = `${config.authUrl}?${params.toString()}`;
-        debugLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { platform, authUrl, hasPKCE: !!pkceParams.code_challenge });
+        debugLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
+            platform, 
+            authUrl, 
+            hasPKCE: !!pkceParams.code_challenge,
+            scopes: config.scopes,
+            scopeString: config.scopes.join(' '),
+            clientId: config.clientId.substring(0, 10) + '...',
+            redirectUri: config.redirectUri
+        });
         
         return authUrl;
     }
@@ -294,7 +302,20 @@ export class OAuthService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(`Token exchange failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
+                debugLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData: errorData
+                });
+                
+                // Handle specific OAuth errors
+                if (response.status === 401) {
+                    throw new Error('OAuth token exchange failed: Invalid credentials or token revoked');
+                } else if (response.status === 400) {
+                    throw new Error(`OAuth token exchange failed: ${JSON.stringify(errorData)}`);
+                } else {
+                    throw new Error(`OAuth token exchange failed: ${response.status} ${response.statusText}`);
+                }
             }
 
             const tokens = await response.json();
@@ -334,19 +355,41 @@ export class OAuthService {
             debugLogger.debug('OAuthService', 'Fetching user info from Google', {
                 accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING',
                 tokenType: tokens.tokenType,
-                scope: tokens.scope
+                scope: tokens.scope,
+                tokenLength: tokens.accessToken?.length || 0
             });
+
+            // Debug: Try to decode the token to see what scopes it has (for debugging only)
+            if (tokens.accessToken) {
+                try {
+                    const tokenParts = tokens.accessToken.split('.');
+                    if (tokenParts.length === 3) {
+                        const payload = JSON.parse(atob(tokenParts[1]));
+                        debugLogger.debug('OAuthService', 'Token payload analysis', {
+                            scopes: payload.scope,
+                            audience: payload.aud,
+                            issuer: payload.iss,
+                            expiresAt: new Date(payload.exp * 1000).toISOString(),
+                            issuedAt: new Date(payload.iat * 1000).toISOString()
+                        });
+                    }
+                } catch (error) {
+                    debugLogger.warn('OAuthService', 'Could not decode token payload', error);
+                }
+            }
 
             const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
                 headers: {
-                    'Authorization': `Bearer ${tokens.accessToken}`
+                    'Authorization': `Bearer ${tokens.accessToken}`,
+                    'Accept': 'application/json'
                 }
             });
 
             debugLogger.debug('OAuthService', 'User info response', {
                 status: userInfoResponse.status,
                 statusText: userInfoResponse.statusText,
-                ok: userInfoResponse.ok
+                ok: userInfoResponse.ok,
+                headers: Object.fromEntries(userInfoResponse.headers.entries())
             });
 
             if (!userInfoResponse.ok) {
@@ -355,9 +398,10 @@ export class OAuthService {
                     status: userInfoResponse.status,
                     statusText: userInfoResponse.statusText,
                     errorText: errorText,
-                    accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING'
+                    accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING',
+                    tokenScope: tokens.scope
                 });
-                throw new Error(`Failed to get user information from Google: ${userInfoResponse.status} ${userInfoResponse.statusText}`);
+                throw new Error(`Failed to get user information from Google: ${userInfoResponse.status} ${userInfoResponse.statusText} - ${errorText}`);
             }
 
             const userInfo = await userInfoResponse.json();
