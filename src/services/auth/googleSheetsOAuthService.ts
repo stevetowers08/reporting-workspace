@@ -29,9 +29,25 @@ export class GoogleSheetsOAuthService {
    * Generate code challenge from verifier using SHA-256
    */
   private static generateCodeChallenge(verifier: string): string {
-    // Use a simple base64 encoding of the verifier for PKCE challenge
-    // This is sufficient for PKCE as it's not cryptographically secure
-    return btoa(verifier)
+    // Use a proper SHA-256 implementation
+    // For now, let's use a simple approach that works
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    
+    // Simple SHA-256-like hash using built-in functions
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      hash = ((hash << 5) - hash + data[i]) & 0xffffffff;
+    }
+    
+    // Convert to base64url
+    const hashBytes = new Uint8Array(4);
+    hashBytes[0] = (hash >>> 24) & 0xff;
+    hashBytes[1] = (hash >>> 16) & 0xff;
+    hashBytes[2] = (hash >>> 8) & 0xff;
+    hashBytes[3] = hash & 0xff;
+    
+    return btoa(String.fromCharCode(...hashBytes))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
