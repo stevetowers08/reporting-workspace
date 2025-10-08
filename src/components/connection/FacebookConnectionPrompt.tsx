@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
-import { OAuthService } from "@/services/auth/oauthService";
 import { AlertCircle, CheckCircle, Facebook } from "lucide-react";
 import { useState } from "react";
 
@@ -22,13 +21,22 @@ export const FacebookConnectionPrompt: React.FC<FacebookConnectionPromptProps> =
       setConnectionStatus('idle');
       setErrorMessage('');
 
-      // Generate OAuth URL and redirect
-      const authUrl = await OAuthService.generateAuthUrl('facebook');
-      window.location.href = authUrl;
+      // Test existing connection instead of OAuth flow
+      const { FacebookAdsService } = await import('@/services/api/facebookAdsService');
+      const result = await FacebookAdsService.testConnection();
+
+      if (result.success) {
+        setConnectionStatus('success');
+        onConnectionSuccess?.();
+      } else {
+        setConnectionStatus('error');
+        setErrorMessage(result.error || 'Facebook connection failed');
+      }
     } catch (error) {
-      debugLogger.error('FacebookConnectionPrompt', 'Error initiating Facebook connection', error);
+      debugLogger.error('FacebookConnectionPrompt', 'Error testing Facebook connection', error);
       setConnectionStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'Failed to connect to Facebook');
+    } finally {
       setIsConnecting(false);
     }
   };

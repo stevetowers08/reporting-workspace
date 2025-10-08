@@ -67,7 +67,7 @@ const UserGoogleAdsConnection = ({ userId, onConnectionChange }: UserGoogleAdsCo
       setIsConnecting(true);
       setError(null);
       
-      const authUrl = UserGoogleAdsService.generateUserAuthUrl(userId);
+      const authUrl = await UserGoogleAdsService.generateUserAuthUrl(userId);
       window.location.href = authUrl;
     } catch (error) {
       debugLogger.error('UserGoogleAdsConnection', 'Error initiating connection', error);

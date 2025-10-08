@@ -28,6 +28,7 @@ const GuestCountDistribution = lazy(() => import('@/components/dashboard/GuestCo
 const PreferredDayBreakdown = lazy(() => import('@/components/dashboard/PreferredDayBreakdown').then(m => ({ default: m.PreferredDayBreakdown })));
 const LandingPagePerformance = lazy(() => import('@/components/dashboard/LandingPagePerformance').then(m => ({ default: m.LandingPagePerformance })));
 const SmartChartLayout = lazy(() => import('@/components/dashboard/SmartChartLayout').then(m => ({ default: m.SmartChartLayout })));
+const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(m => ({ default: m.LeadInfoMetricsCards })));
 
 // GHL-specific components
 const GHLContactQualityCards = lazy(() => import('@/components/dashboard/GHLContactQualityCards').then(m => ({ default: m.GHLContactQualityCards })));
@@ -330,6 +331,15 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
+            {/* Lead Info Metrics Cards - Google Sheets Data */}
+            <Suspense fallback={<ComponentLoader />}>
+              <LeadInfoMetricsCards 
+                data={dashboardData} 
+                clientData={clientData}
+                dateRange={getDateRange(selectedPeriod)}
+              />
+            </Suspense>
+            
             {/* Top-Level Funnel Metrics - Very Top */}
             <Suspense fallback={<ComponentLoader />}>
               <FunnelMetricsCards 

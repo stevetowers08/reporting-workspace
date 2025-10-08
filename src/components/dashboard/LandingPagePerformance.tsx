@@ -1,20 +1,31 @@
 import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
+import { Client } from '@/services/data/databaseService';
 import React, { useEffect, useState } from 'react';
 
 interface LandingPagePerformanceProps {
   data: EventDashboardData | null | undefined;
+  clientData?: Client | null;
 }
 
-export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ data }) => {
+export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ data, clientData }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const leadDataResult = await LeadDataService.fetchLeadData();
+        // Use client-specific Google Sheets configuration if available
+        let leadDataResult;
+        if (clientData?.accounts?.googleSheetsConfig) {
+          leadDataResult = await LeadDataService.fetchLeadData(
+            clientData.accounts.googleSheetsConfig.spreadsheetId,
+            clientData.accounts.googleSheetsConfig.sheetName
+          );
+        } else {
+          leadDataResult = await LeadDataService.fetchLeadData();
+        }
         setLeadData(leadDataResult);
       } catch (error) {
         console.error('Failed to fetch lead data:', error);
@@ -24,7 +35,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
     };
 
     fetchData();
-  }, []);
+  }, [clientData]);
 
   if (loading) {
     return (

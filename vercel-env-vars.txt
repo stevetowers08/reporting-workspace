@@ -23,3 +23,7 @@ GHL_CLIENT_SECRET=your_ghl_client_secret_here
 # App Configuration
 VITE_APP_URL=https://tulenreporting.vercel.app
 APP_URL=https://tulenreporting.vercel.app
+
+# Proxy Server Configuration
+VITE_PROXY_URL=https://tulenreporting.vercel.app
+PROXY_URL=https://tulenreporting.vercel.app

@@ -27,19 +27,28 @@ export class UserGoogleAdsService {
   /**
    * Generate PKCE code verifier and challenge
    */
-  private static generatePKCE(): { codeVerifier: string; codeChallenge: string } {
-    const codeVerifier = this.generateRandomString(128);
-    const codeChallenge = this.generateCodeChallenge(codeVerifier);
-    return { codeVerifier, codeChallenge };
+  private static async generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+    // Generate verifier (43-128 chars, unreserved)
+    const verifier = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
+      .slice(0, 128);
+
+    // Generate challenge (S256)
+    const challenge = await this.generateChallenge(verifier);
+    
+    return { codeVerifier: verifier, codeChallenge: challenge };
   }
 
   /**
-   * Generate code challenge from verifier
+   * Generate code challenge from verifier using SHA-256
    */
-  private static generateCodeChallenge(verifier: string): string {
-    // Use a simple base64 encoding of the verifier for PKCE challenge
-    // This is sufficient for PKCE as it's not cryptographically secure
-    return btoa(verifier)
+  private static async generateChallenge(verifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
@@ -60,7 +69,7 @@ export class UserGoogleAdsService {
   /**
    * Generate OAuth URL for user to connect their Google Ads account
    */
-  static generateUserAuthUrl(userId: string, redirectUri?: string): string {
+  static async generateUserAuthUrl(userId: string, redirectUri?: string): Promise<string> {
     const state = btoa(JSON.stringify({
       userId,
       platform: 'google',
@@ -70,7 +79,7 @@ export class UserGoogleAdsService {
     }));
 
     // Generate PKCE parameters
-    const pkce = this.generatePKCE();
+    const pkce = await this.generatePKCE();
     
     // Store code verifier for later use
     localStorage.setItem(`oauth_code_verifier_google`, pkce.codeVerifier);

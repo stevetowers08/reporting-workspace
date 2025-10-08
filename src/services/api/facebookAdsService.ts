@@ -1,5 +1,4 @@
 import { debugLogger, debugService } from '@/lib/debug';
-import { UnifiedCredentialService } from '@/services/auth/unifiedCredentialService';
 
 export interface FacebookAdsMetrics {
   impressions: number;
@@ -69,20 +68,32 @@ export class FacebookAdsService {
     this.requestCache.set(key, { data, timestamp: Date.now() });
   }
 
-  // Get access token from unified credential service (Supabase only)
+  // Get access token from database directly
   static async getAccessToken(): Promise<string> {
     try {
-      // Use unified credential service (Supabase) - PRIMARY SOURCE
-      const token = await UnifiedCredentialService.getAccessToken('facebookAds');
-      
-      if (token) {
-        debugLogger.debug('FacebookAdsService', 'Using Facebook token from Supabase');
-        return token;
+      // Get token directly from integrations table
+      const { supabase } = await import('@/lib/supabase');
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'facebookAds')
+        .eq('connected', true)
+        .single();
+
+      if (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching Facebook config from database', error);
+        throw new Error('No Facebook integration found in database');
       }
-      
-      throw new Error('No Facebook access token found in Supabase. Please authenticate through OAuth.');
+
+      const config = data?.config;
+      if (!config?.accessToken) {
+        throw new Error('No Facebook access token found in database');
+      }
+
+      debugLogger.debug('FacebookAdsService', 'Using Facebook token from database');
+      return config.accessToken;
     } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Error getting access token from Supabase', error);
+      debugLogger.error('FacebookAdsService', 'Error getting access token from database', error);
       throw error;
     }
   }
@@ -244,7 +255,19 @@ export class FacebookAdsService {
     try {
       // First try to get cached accounts from Supabase integration
       try {
-        const integration = await UnifiedCredentialService.getCredentials('facebookAds');
+        const { supabase } = await import('@/lib/supabase');
+        const { data, error } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'facebookAds')
+          .eq('connected', true)
+          .single();
+        
+        if (error || !data?.config) {
+          throw new Error('Facebook integration not found');
+        }
+        
+        const integration = data.config;
         
         if (integration?.settings?.adAccounts && integration.settings.adAccounts.length > 0) {
           debugLogger.debug('FacebookAdsService', 'Using cached ad accounts from Supabase', { 
@@ -975,38 +998,14 @@ export class FacebookAdsService {
 
   // Clear cached ad accounts to force fresh fetch
   static async clearAdAccountsCache(): Promise<void> {
-    try {
-      // Clear the cached ad accounts from Supabase integration
-      await UnifiedCredentialService.updateCredentials('facebookAds', {
-        settings: {
-          adAccounts: []
-        },
-        lastUpdated: new Date().toISOString()
-      });
-      
-      debugLogger.info('FacebookAdsService', 'Cleared cached ad accounts');
-    } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Failed to clear cached ad accounts', error);
-      throw error;
-    }
+    // No caching needed for direct token approach
+    debugLogger.info('FacebookAdsService', 'Cache clear requested (no-op for direct token)');
   }
 
   // Cache ad accounts in Supabase integration
   private static async cacheAdAccounts(accounts: any[]): Promise<void> {
-    try {
-      // Update the integration with cached ad accounts
-      await UnifiedCredentialService.updateCredentials('facebookAds', {
-        settings: {
-          adAccounts: accounts
-        },
-        lastUpdated: new Date().toISOString()
-      });
-      
-      debugLogger.debug('FacebookAdsService', 'Cached ad accounts in Supabase', { count: accounts.length });
-    } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Failed to cache ad accounts', error);
-      throw error;
-    }
+    // No caching needed for direct token approach
+    debugLogger.debug('FacebookAdsService', 'Cache requested (no-op for direct token)', { count: accounts.length });
   }
 
   static async getPlatformBreakdown(adAccountId?: string, dateRange?: { start: string; end: string }): Promise<FacebookAdsMetrics['platformBreakdown']> {
@@ -1392,17 +1391,7 @@ export class FacebookAdsService {
       let accountId = adAccountId;
       
       if (!accountId) {
-        // Try to get account ID from integration config instead of making API call
-        try {
-          const integration = await UnifiedCredentialService.getCredentials('facebookAds');
-          if (integration?.config?.adAccounts?.[0]?.id) {
-            accountId = integration.config.adAccounts[0].id;
-          }
-        } catch (error) {
-          debugLogger.warn('FacebookAdsService', 'Could not get account from integration config', error);
-        }
-        
-        // Fallback to API call only if needed
+        // Get first account from API call
         if (!accountId) {
           const accounts = await this.getAdAccounts();
           accountId = accounts[0]?.id;
@@ -1564,9 +1553,22 @@ export class FacebookAdsService {
 
   static async disconnect(): Promise<void> {
     try {
-      // Disconnect from Supabase
-      await UnifiedCredentialService.disconnectPlatform('facebookAds');
-      debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected from Supabase');
+      // Update database to mark as disconnected
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase
+        .from('integrations')
+        .update({ 
+          connected: false,
+          config: {},
+          updated_at: new Date().toISOString()
+        })
+        .eq('platform', 'facebookAds');
+
+      if (error) {
+        throw error;
+      }
+
+      debugLogger.info('FacebookAdsService', 'Facebook Ads disconnected');
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error disconnecting Facebook Ads', error);
       throw error;

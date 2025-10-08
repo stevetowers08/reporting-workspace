@@ -31,16 +31,51 @@ When setting up OAuth applications with each platform, you'll need to configure 
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select existing
-3. Enable **Google Ads API** and **Google Sheets API**
+3. Enable **Google Ads API**, **Google Sheets API**, and **Google Drive API**
 4. Go to **APIs & Services** → **Credentials**
 5. Create **OAuth 2.0 Client ID**:
    - Application type: **Web application**
+   - Authorized JavaScript origins:
+     - `http://localhost:8080` (development)
+     - `https://yourdomain.com` (production)
    - Authorized redirect URIs:
-     - `http://localhost:8080/oauth/callback`
-     - `https://yourdomain.com/oauth/callback`
-6. Get your **Client ID** and **Client Secret**
+     - `http://localhost:8080/oauth/callback` (development)
+     - `https://yourdomain.com/oauth/callback` (production)
+6. Go to **APIs & Services** → **OAuth consent screen**:
+   - Application type: **Web application**
+   - Add these scopes:
+     - `https://www.googleapis.com/auth/spreadsheets`
+     - `https://www.googleapis.com/auth/drive.readonly`
+     - `https://www.googleapis.com/auth/userinfo.email`
+     - `https://www.googleapis.com/auth/userinfo.profile`
+7. Get your **Client ID** and **Client Secret**
 
-### 3. GoHighLevel Marketplace
+### 3. Google Ads API Setup
+
+1. **Google Cloud Console Configuration**:
+   - Enable **Google Ads API** in your Google Cloud project
+   - Go to **APIs & Services** → **Library**
+   - Search for "Google Ads API" and enable it
+   - Note: This requires approval from Google (can take 1-2 weeks)
+
+2. **OAuth Consent Screen** (same as Google Sheets):
+   - Add these scopes:
+     - `https://www.googleapis.com/auth/adwords`
+     - `https://www.googleapis.com/auth/userinfo.email`
+     - `https://www.googleapis.com/auth/userinfo.profile`
+
+3. **Google Ads Developer Token**:
+   - Go to [Google Ads API Center](https://ads.google.com/home/tools/api-center/)
+   - Apply for a developer token (requires Google Ads account)
+   - **Test Account**: Use test developer token for development
+   - **Production**: Requires approval and live Google Ads account
+
+4. **Google Ads Account Setup**:
+   - Create or use existing Google Ads account
+   - Note your Customer ID (10-digit number)
+   - Ensure account has API access enabled
+
+### 4. GoHighLevel Marketplace
 
 1. Go to [GoHighLevel Marketplace](https://marketplace.gohighlevel.com)
 2. Sign up for developer account
@@ -56,16 +91,27 @@ Create a `.env.local` file in your project root:
 
 ```bash
 # Facebook OAuth
-REACT_APP_FACEBOOK_CLIENT_ID=your_facebook_app_id
-REACT_APP_FACEBOOK_CLIENT_SECRET=your_facebook_app_secret
+VITE_FACEBOOK_CLIENT_ID=your_facebook_app_id
+VITE_FACEBOOK_CLIENT_SECRET=your_facebook_app_secret
 
-# Google OAuth
-REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
-REACT_APP_GOOGLE_CLIENT_SECRET=your_google_client_secret
+# Google OAuth (for Google Sheets and Google Ads)
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+VITE_GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Google Ads Developer Token (required for all Google Ads API calls)
+VITE_GOOGLE_ADS_DEVELOPER_TOKEN=your_google_ads_developer_token
+
+# Google Ads Test Account (for development)
+VITE_GOOGLE_ADS_TEST_CUSTOMER_ID=1234567890
 
 # GoHighLevel OAuth
-REACT_APP_GHL_CLIENT_ID=your_ghl_client_id
-REACT_APP_GHL_CLIENT_SECRET=your_ghl_client_secret
+VITE_GHL_CLIENT_ID=your_ghl_client_id
+VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
+VITE_GHL_REDIRECT_URI=https://yourdomain.com/api/leadconnector/oath
+
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Environment
 NODE_ENV=development
@@ -138,6 +184,31 @@ NODE_ENV=development
 - Check if the OAuth provider allows your domain
 - Verify the redirect URI is properly configured
 
+**5. Google Sheets "Insufficient Permissions" Error**
+
+- Ensure **Google Drive API** is enabled in Google Cloud Console
+- Add `https://www.googleapis.com/auth/drive.readonly` scope to OAuth consent screen
+- Verify all required scopes are configured:
+  - `https://www.googleapis.com/auth/spreadsheets`
+  - `https://www.googleapis.com/auth/drive.readonly`
+  - `https://www.googleapis.com/auth/userinfo.email`
+  - `https://www.googleapis.com/auth/userinfo.profile`
+
+**7. Google Ads API Issues**
+
+- **"Developer token not approved"**: Use test developer token for development
+- **"Customer ID not found"**: Verify Customer ID is correct (10-digit number)
+- **"Insufficient permissions"**: Ensure Google Ads API is enabled and approved
+- **"Rate limit exceeded"**: Implement proper rate limiting (5 requests/second max)
+- **"Invalid scope"**: Verify `https://www.googleapis.com/auth/adwords` scope is configured
+
+**8. Google Ads OAuth Flow Issues**
+
+- **PKCE Implementation**: Must use SHA-256 hashing for code challenge
+- **Customer ID Management**: Handle multiple Google Ads accounts per user
+- **Token Refresh**: Google Ads tokens expire every 1 hour, implement refresh logic
+- **API Version**: Use Google Ads API v14 (latest stable version)
+
 ### Debug Mode
 
 Enable debug logging by opening browser console and looking for:
@@ -149,6 +220,22 @@ Enable debug logging by opening browser console and looking for:
 
 ## Production Checklist
 
+### Google Sheets
+- [ ] Google Sheets API enabled
+- [ ] Google Drive API enabled
+- [ ] OAuth scopes configured correctly
+- [ ] Redirect URIs configured for production domain
+
+### Google Ads
+- [ ] Google Ads API enabled and approved
+- [ ] Developer token obtained and approved
+- [ ] Test Customer ID configured for development
+- [ ] Production Customer IDs configured
+- [ ] Rate limiting implemented (5 requests/second max)
+- [ ] PKCE implementation uses SHA-256 hashing
+- [ ] Token refresh logic implemented
+
+### General
 - [ ] OAuth apps created for all platforms
 - [ ] Redirect URIs configured for production domain
 - [ ] Environment variables set in hosting platform

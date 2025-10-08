@@ -46,20 +46,20 @@ export class LeadDataService {
     const actualSheetName = sheetName || this.DEFAULT_SHEET_NAME;
     
     try {
-      debugLogger.info('LeadDataService', 'Fetching lead data via local proxy server', {
+      debugLogger.info('LeadDataService', 'Fetching lead data via Supabase Edge Function', {
         spreadsheetId: actualSpreadsheetId,
         sheetName: actualSheetName
       });
       
-      // Use configured proxy server to avoid CORS issues
+      // Use Supabase Edge Function instead of local proxy server
       // @ts-expect-error Vite injects import.meta.env at build
       const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
-      const baseUrl = (viteEnv && viteEnv.VITE_PROXY_URL) || process.env.VITE_PROXY_URL;
-      if (!baseUrl) {
-        throw new Error('Missing VITE_PROXY_URL environment variable');
+      const supabaseUrl = (viteEnv && viteEnv.VITE_SUPABASE_URL) || process.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Missing VITE_SUPABASE_URL environment variable');
       }
 
-      const response = await fetch(`${baseUrl}/google-sheets-data`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-sheets-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,19 +71,19 @@ export class LeadDataService {
       });
 
       if (!response.ok) {
-        throw new Error(`Server API responded with status: ${response.status}`);
+        throw new Error(`Supabase Edge Function responded with status: ${response.status}`);
       }
 
       const apiResponse = await response.json();
       
-      debugLogger.info('LeadDataService', 'Server API response', {
+      debugLogger.info('LeadDataService', 'Supabase Edge Function response', {
         success: apiResponse.success,
         hasData: !!apiResponse.data,
         rowCount: apiResponse.data?.values?.length || 0
       });
 
       if (!apiResponse.success || !apiResponse.data) {
-        debugLogger.error('LeadDataService', 'Server API returned no data', apiResponse);
+        debugLogger.error('LeadDataService', 'Supabase Edge Function returned no data', apiResponse);
         return null;
       }
 
@@ -240,7 +240,7 @@ export class LeadDataService {
 
     } catch (error) {
       debugLogger.error('LeadDataService', 'Failed to fetch lead data', error);
-      console.error('LeadDataService: Failed to fetch data via local proxy server:', error);
+      console.error('LeadDataService: Failed to fetch data via Supabase Edge Function:', error);
       return null;
     }
   }

@@ -1,14 +1,16 @@
 import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
+import { Client } from '@/services/data/databaseService';
 import React, { useEffect, useState } from 'react';
 
 interface LeadInfoMetricsCardsProps {
   data: EventDashboardData | null | undefined;
+  clientData?: Client | null;
   dateRange?: { start: string; end: string };
 }
 
-export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data, dateRange }) => {
+export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data, clientData, dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +18,21 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     const fetchData = async () => {
       try {
         console.log('LeadInfoMetricsCards: Starting to fetch lead data...');
-        const leadDataResult = await LeadDataService.fetchLeadData();
+        console.log('LeadInfoMetricsCards: Client data:', clientData);
+        
+        // Use client-specific Google Sheets configuration if available
+        let leadDataResult;
+        if (clientData?.accounts?.googleSheetsConfig) {
+          console.log('LeadInfoMetricsCards: Using client-specific Google Sheets config:', clientData.accounts.googleSheetsConfig);
+          leadDataResult = await LeadDataService.fetchLeadData(
+            clientData.accounts.googleSheetsConfig.spreadsheetId,
+            clientData.accounts.googleSheetsConfig.sheetName
+          );
+        } else {
+          console.log('LeadInfoMetricsCards: Using default Google Sheets config');
+          leadDataResult = await LeadDataService.fetchLeadData();
+        }
+        
         console.log('LeadInfoMetricsCards: Received lead data:', leadDataResult);
         setLeadData(leadDataResult);
       } catch (error) {
@@ -27,7 +43,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     };
 
     fetchData();
-  }, []);
+  }, [clientData]);
 
   // Use dashboard data if available, otherwise show loading
   const isLoading = loading || !data;
@@ -35,10 +51,21 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   const handleTestAPI = async () => {
     console.log('Testing Google Sheets API...');
     try {
-      const result = await LeadDataService.fetchLeadData();
+      let result;
+      if (clientData?.accounts?.googleSheetsConfig) {
+        console.log('Testing with client-specific config:', clientData.accounts.googleSheetsConfig);
+        result = await LeadDataService.fetchLeadData(
+          clientData.accounts.googleSheetsConfig.spreadsheetId,
+          clientData.accounts.googleSheetsConfig.sheetName
+        );
+      } else {
+        console.log('Testing with default config');
+        result = await LeadDataService.fetchLeadData();
+      }
+      
       console.log('API Test Result:', result);
       if (result) {
-        alert(`API Test Success! Found ${result.totalLeads} leads via local proxy server`);
+        alert(`API Test Success! Found ${result.totalLeads} leads via Supabase Edge Function`);
       } else {
         alert('API Test Failed: No data returned');
       }
@@ -64,7 +91,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
             onClick={handleTestAPI}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Test Local Proxy Server
+            Test Supabase Edge Function
           </button>
         </div>
       </div>
