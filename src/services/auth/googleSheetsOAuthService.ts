@@ -163,7 +163,7 @@ export class GoogleSheetsOAuthService {
       const oauthTokens: OAuthTokens = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        expiresIn: sheetsTokens.expiresIn,
+        expiresIn: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
         tokenType: 'Bearer',
         scope: Array.isArray(sheetsTokens.scope) ? sheetsTokens.scope.join(' ') : sheetsTokens.scope
       };
