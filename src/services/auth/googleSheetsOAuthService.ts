@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { IntegrationService } from '@/services/integration/IntegrationService';
+import { TokenManager } from '@/services/auth/TokenManager';
 import { AccountInfo, OAuthTokens } from '@/types/integration';
 
 export interface GoogleSheetsAuthTokens {
@@ -163,29 +164,16 @@ export class GoogleSheetsOAuthService {
       const oauthTokens: OAuthTokens = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        expiresIn: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
+        expiresIn: tokens.expires_in, // Keep as number (seconds)
         tokenType: 'Bearer',
         scope: Array.isArray(sheetsTokens.scope) ? sheetsTokens.scope.join(' ') : sheetsTokens.scope
       };
 
-      const accountInfo: AccountInfo = {
+      await TokenManager.storeOAuthTokens('googleSheets', oauthTokens, {
         id: userInfo.id,
         name: userInfo.email,
         email: userInfo.email
-      };
-
-      await IntegrationService.saveOAuthTokens(
-        'googleSheets',
-        oauthTokens,
-        accountInfo,
-        {
-          googleSheets: {
-            userId: userInfo.id,
-            userEmail: userInfo.email,
-            userName: userInfo.name
-          }
-        }
-      );
+      });
 
       // Clean up the code verifier
       localStorage.removeItem(`oauth_code_verifier_googleSheets`);
@@ -203,7 +191,7 @@ export class GoogleSheetsOAuthService {
    */
   static async getSheetsAuthStatus(): Promise<boolean> {
     try {
-      return await IntegrationService.isConnected('googleSheets');
+      return await TokenManager.isConnected('googleSheets');
     } catch (error) {
       debugLogger.error('GoogleSheetsOAuthService', 'Error getting Google Sheets auth status', error);
       return false;

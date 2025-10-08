@@ -134,12 +134,28 @@ const OAuthCallback = () => {
 
           // Account info and metadata are now handled by TokenManager
 
-          await TokenManager.storeOAuthTokens('googleAds', oauthTokens, {
-            id: result.userInfo.googleUserId,
-            name: result.userInfo.googleUserName || 'Google Ads User',
-            email: result.userInfo.googleUserEmail
-          });
-          debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
+          try {
+            await TokenManager.storeOAuthTokens('googleAds', oauthTokens, {
+              id: result.userInfo.googleUserId,
+              name: result.userInfo.googleUserName || 'Google Ads User',
+              email: result.userInfo.googleUserEmail
+            });
+            debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
+          } catch (tokenError) {
+            debugLogger.error('🔍 Token storage error:', {
+              error: tokenError,
+              errorMessage: tokenError instanceof Error ? tokenError.message : String(tokenError),
+              errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
+              tokens: {
+                hasAccessToken: !!oauthTokens.accessToken,
+                hasRefreshToken: !!oauthTokens.refreshToken,
+                tokenType: oauthTokens.tokenType,
+                scope: oauthTokens.scope,
+                expiresIn: oauthTokens.expiresIn
+              }
+            });
+            throw tokenError;
+          }
 
           setStatus('success');
           setMessage('Successfully connected to Google Ads!');

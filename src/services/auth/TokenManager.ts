@@ -102,6 +102,14 @@ export class TokenManager {
         connectedAt: new Date().toISOString()
       };
 
+      debugLogger.debug('TokenManager', 'About to upsert to Supabase', {
+        platform,
+        accountInfo,
+        configKeys: Object.keys(config),
+        hasTokens: !!config.tokens,
+        hasAccessToken: !!config.tokens?.accessToken
+      });
+
       const { error } = await supabase
         .from('integrations')
         .upsert({
@@ -115,6 +123,13 @@ export class TokenManager {
         }, { onConflict: 'platform' });
 
       if (error) {
+        debugLogger.error('TokenManager', 'Supabase upsert error', {
+          error,
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint
+        });
         throw error;
       }
 
