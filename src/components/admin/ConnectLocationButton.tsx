@@ -4,7 +4,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -50,56 +49,32 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ExternalLink className="h-5 w-5" />
-          Connect GoHighLevel Location
-        </CardTitle>
-        <CardDescription>
-          Connect a GoHighLevel location to access contacts, opportunities, and funnel data.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
-            <p className="font-medium mb-2">Required Scopes:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>contacts.readonly</li>
-              <li>opportunities.readonly</li>
-              <li>calendars.readonly</li>
-              <li>funnels/funnel.readonly</li>
-              <li>funnels/page.readonly</li>
-            </ul>
-          </div>
-          
-          <Button 
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="w-full"
-          >
-            {isConnecting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Connecting...
-              </>
-            ) : (
-              <>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Connect Location
-              </>
-            )}
-          </Button>
-          
-          {locationId && (
-            <div className="flex items-center gap-2 text-sm text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              Connected to location: {locationId}
-            </div>
-          )}
+    <div className="text-center py-4">
+      <Button 
+        onClick={handleConnect}
+        disabled={isConnecting}
+        className="w-full"
+      >
+        {isConnecting ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Connect GoHighLevel
+          </>
+        )}
+      </Button>
+      
+      {locationId && (
+        <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
+          <CheckCircle className="h-4 w-4" />
+          Connected to location: {locationId}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 

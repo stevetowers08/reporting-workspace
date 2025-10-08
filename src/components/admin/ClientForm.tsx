@@ -114,6 +114,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   // Load connected accounts when component mounts
   useEffect(() => {
     console.log('🔍 ClientForm: useEffect called - NOT loading accounts automatically');
+    
+    // DEBUG: Check environment variables
+    console.log('🔍 ClientForm: Environment variables check:');
+    console.log('🔍 ClientForm: VITE_GOOGLE_ADS_DEVELOPER_TOKEN:', import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN);
+    console.log('🔍 ClientForm: All VITE_ env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
+    
     // Don't load accounts automatically - only when user clicks dropdowns
     if (isEdit && clientId) {
       loadAIConfig();

@@ -1,4 +1,4 @@
-import { debugLogger } from '@/lib/debug';
+import { API_BASE_URLS } from '@/constants/apiVersions';
 import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
@@ -410,7 +410,7 @@ export class OAuthService {
             try {
                 // Platform-specific revocation endpoints
                 const revokeUrls: Record<string, string> = {
-                    facebook: `https://graph.facebook.com/v18.0/me/permissions?access_token=${tokens.accessToken}`,
+                    facebook: `${API_BASE_URLS.FACEBOOK}/me/permissions?access_token=${tokens.accessToken}`,
                     google: `https://oauth2.googleapis.com/revoke?token=${tokens.accessToken}`,
                     gohighlevel: 'https://services.leadconnectorhq.com/oauth/revoke'
                 };

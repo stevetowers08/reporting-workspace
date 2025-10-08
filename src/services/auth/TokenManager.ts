@@ -351,9 +351,13 @@ export class TokenManager {
    */
   static async isConnected(platform: IntegrationPlatform): Promise<boolean> {
     try {
+      console.log(`🔍 TokenManager: isConnected(${platform}) called`);
       const token = await this.getAccessToken(platform);
-      return !!token;
+      const isConnected = !!token;
+      console.log(`🔍 TokenManager: isConnected(${platform}) = ${isConnected}`);
+      return isConnected;
     } catch (error) {
+      console.log(`🔍 TokenManager: isConnected(${platform}) error:`, error);
       debugLogger.error('TokenManager', `Failed to check connection status for ${platform}`, error);
       return false;
     }

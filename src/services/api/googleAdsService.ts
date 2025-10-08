@@ -48,182 +48,111 @@ export class GoogleAdsService {
   private static lastRequestTime = 0;
   private static readonly MIN_REQUEST_INTERVAL = 200; // 200ms between requests (5 requests/second max)
   private static readonly MAX_RETRIES = 3;
-  private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
   /**
-   * Fetch customer ID programmatically after OAuth authentication
-   * This follows Google Ads API best practices for getting customer ID
+   * Get Google Ads accounts using Edge Function
    */
-  static async fetchCustomerId(accessToken: string): Promise<string | null> {
-    const developerToken = this.getDeveloperToken();
-    
-    if (!accessToken || !developerToken) {
-      debugLogger.error('GoogleAdsService', 'Missing access token or developer token for customer ID fetch');
-      return null;
-    }
+  static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
+    debugLogger.debug('GoogleAdsService', 'getAdAccounts called - using Edge Function');
 
     try {
-      debugLogger.debug('GoogleAdsService', 'Fetching customer ID programmatically');
+      // Use Supabase Edge Function instead of direct API calls
+      const { supabase } = await import('@/lib/supabase');
       
-      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('🔍 GoogleAdsService: Using Edge Function for Google Ads accounts');
+      
+      const { data, error } = await supabase.functions.invoke('google-ads-api/accounts');
 
-      if (!response.ok) {
-        debugLogger.error('GoogleAdsService', 'Failed to fetch accessible customers', { 
-          status: response.status, 
-          statusText: response.statusText 
-        });
-        return null;
+      if (error) {
+        console.log('🔍 GoogleAdsService: Edge Function error:', error);
+        throw new Error(`Google Ads Edge Function error: ${error.message}`);
       }
 
-      const data = await response.json();
-      const customers = data.resourceNames || [];
-      
-      if (customers.length === 0) {
-        debugLogger.warn('GoogleAdsService', 'No accessible customers found');
-        return null;
+      if (!data?.success || !data?.data) {
+        throw new Error('Invalid response from Google Ads Edge Function');
       }
 
-      // Get the first customer ID (most common use case)
-      const customerId = customers[0].split('/').pop();
-      debugLogger.info('GoogleAdsService', 'Successfully fetched customer ID', { customerId });
+      console.log('🔍 GoogleAdsService: Edge Function response:', data);
       
-      return customerId;
+      // Transform Edge Function response to match our interface
+      const accounts: GoogleAdsAccount[] = data.data.map((account: any) => ({
+        id: account.id,
+        name: account.descriptiveName || account.name,
+        status: 'active', // Edge Function doesn't return status, assume active
+        currency: account.currency || 'USD',
+        timezone: account.timezone || 'UTC'
+      }));
+
+      console.log('🔍 GoogleAdsService: Transformed accounts:', accounts);
+      return accounts;
+
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Error fetching customer ID', error);
-      return null;
+      console.log('🔍 GoogleAdsService: Error in getAdAccounts:', error);
+      debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads accounts via Edge Function', error);
+      throw error;
     }
   }
 
-  private static getDeveloperToken(): string {
-    // Use environment variable directly for development
-    return import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || '';
-  }
+  /**
+   * Get Google Ads campaigns for a specific customer
+   */
+  static async getCampaigns(customerId: string, dateRange?: { start: string; end: string }): Promise<GoogleAdsCampaign[]> {
+    debugLogger.debug('GoogleAdsService', 'getCampaigns called - using Edge Function');
 
-  private static async getAccessToken(): Promise<string | null> {
-    // First try TokenManager (database-only)
-    const token = await TokenManager.getAccessToken('googleAds');
-    if (token) {
-      debugLogger.debug('GoogleAdsService', 'Using token from TokenManager', { hasAccessToken: true });
-      return token;
-    }
-    
-    // SECURITY: Environment tokens should NEVER be used in client-side code
-    // This exposes API keys in the client bundle and is a critical security vulnerability
-    // All authentication must go through OAuth flows only
-    
-    debugLogger.warn('GoogleAdsService', 'No Google access token found. Please authenticate through OAuth.');
-    return null;
-  }
-
-  // Rate-limited fetch with retry logic
-  private static async rateLimitedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // Rate limiting: ensure minimum interval between requests
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      const delay = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      debugLogger.debug('GoogleAdsService', `Rate limiting: waiting ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    this.lastRequestTime = Date.now();
-
-    // Retry logic with exponential backoff
-    for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
-      try {
-        debugLogger.debug('GoogleAdsService', `API request attempt ${attempt}/${this.MAX_RETRIES}`, { url });
-        
-        const response = await fetch(url, options);
-        
-        // Check for rate limit headers
-        const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
-        const rateLimitReset = response.headers.get('X-RateLimit-Reset');
-        
-        if (rateLimitRemaining) {
-          debugLogger.debug('GoogleAdsService', `Rate limit remaining: ${rateLimitRemaining}`);
-        }
-        
-        if (rateLimitReset) {
-          debugLogger.debug('GoogleAdsService', `Rate limit resets at: ${rateLimitReset}`);
-        }
-
-        // Check for rate limit errors
-        if (response.status === 429) {
-          const retryAfter = response.headers.get('Retry-After') || '60';
-          const delay = parseInt(retryAfter) * 1000;
-          
-          debugLogger.warn('GoogleAdsService', `Rate limited! Waiting ${delay}ms before retry ${attempt}/${this.MAX_RETRIES}`);
-          
-          if (attempt < this.MAX_RETRIES) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          } else {
-            throw new Error(`Rate limited after ${this.MAX_RETRIES} attempts`);
-          }
-        }
-
-        // Check for other errors
-        if (!response.ok) {
-          const errorText = await response.text();
-          debugLogger.error('GoogleAdsService', `API request failed with status ${response.status}`, { 
-            url, 
-            status: response.status, 
-            error: errorText 
-          });
-          
-          // Don't retry on client errors (4xx)
-          if (response.status >= 400 && response.status < 500) {
-            throw new Error(`API request failed: ${response.status} ${errorText}`);
-          }
-          
-          // Retry on server errors (5xx)
-          if (attempt < this.MAX_RETRIES) {
-            const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
-            debugLogger.warn('GoogleAdsService', `Server error, retrying in ${delay}ms (attempt ${attempt}/${this.MAX_RETRIES})`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          } else {
-            throw new Error(`API request failed after ${this.MAX_RETRIES} attempts: ${response.status} ${errorText}`);
-          }
-        }
-
-        return response;
-      } catch (error) {
-        debugLogger.error('GoogleAdsService', `API request attempt ${attempt} failed`, { url, error });
-        
-        if (attempt === this.MAX_RETRIES) {
-          throw error;
-        }
-        
-        // Wait before retry
-        const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
-        debugLogger.warn('GoogleAdsService', `Retrying in ${delay}ms (attempt ${attempt}/${this.MAX_RETRIES})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    throw new Error('This should never be reached');
-  }
-
-  static async authenticate(accessToken?: string, developerToken?: string): Promise<boolean> {
     try {
-      const token = accessToken || await this.getAccessToken();
-      const devToken = developerToken || this.getDeveloperToken();
+      const { supabase } = await import('@/lib/supabase');
+      
+      console.log('🔍 GoogleAdsService: Using Edge Function for Google Ads campaigns');
+      
+      const { data, error } = await supabase.functions.invoke(`google-ads-api/campaigns?customerId=${customerId}`);
 
-      if (!token || !devToken) {
+      if (error) {
+        console.log('🔍 GoogleAdsService: Edge Function error:', error);
+        throw new Error(`Google Ads Edge Function error: ${error.message}`);
+      }
+
+      if (!data?.success || !data?.data) {
+        throw new Error('Invalid response from Google Ads Edge Function');
+      }
+
+      console.log('🔍 GoogleAdsService: Edge Function campaigns response:', data);
+      
+      // Transform Edge Function response to match our interface
+      const campaigns: GoogleAdsCampaign[] = data.data.map((campaign: any) => ({
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        type: campaign.type,
+        metrics: campaign.metrics,
+        dateRange: dateRange || { start: '', end: '' }
+      }));
+
+      console.log('🔍 GoogleAdsService: Transformed campaigns:', campaigns);
+      return campaigns;
+
+    } catch (error) {
+      console.log('🔍 GoogleAdsService: Error in getCampaigns:', error);
+      debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads campaigns via Edge Function', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Test Google Ads API connection
+   */
+  static async authenticate(): Promise<boolean> {
+    try {
+      const accessToken = await TokenManager.getAccessToken('googleAds');
+      if (!accessToken) {
+        debugLogger.error('GoogleAdsService', 'No Google Ads access token available');
         return false;
       }
 
-      // Validate credentials with Google Ads API
+      // Test with a simple API call
       const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'developer-token': devToken,
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': '5D7nPWHfNnpiMgxGOgNLlA', // Use the developer token directly for testing
           'Content-Type': 'application/json'
         }
       });
@@ -235,134 +164,16 @@ export class GoogleAdsService {
     }
   }
 
-  static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
-    debugLogger.debug('GoogleAdsService', 'getAdAccounts called - using direct API');
-
+  /**
+   * Get conversion actions for a customer
+   */
+  static async getConversionActions(customerId: string): Promise<GoogleAdsConversionAction[]> {
     try {
-      // Get tokens from TokenManager
       const accessToken = await TokenManager.getAccessToken('googleAds');
       if (!accessToken) {
         throw new Error('Google Ads not connected');
       }
 
-      const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
-
-      if (!developerToken) {
-        throw new Error('Missing Google Ads developer token');
-      }
-
-      // Get accessible customers
-      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      const customers = data.resourceNames || [];
-
-      // Get account details for each customer
-      const accounts: GoogleAdsAccount[] = [];
-      
-      for (const customerResourceName of customers) {
-        const customerId = customerResourceName.split('/').pop();
-        
-        try {
-          // Use Google Ads API search to get customer details
-          const searchResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'developer-token': developerToken,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              query: `
-                SELECT 
-                  customer.id,
-                  customer.descriptive_name,
-                  customer.currency_code,
-                  customer.time_zone
-                FROM customer
-                LIMIT 1
-              `
-            })
-          });
-
-          if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
-            const results = searchData.results || [];
-            
-            if (results.length > 0) {
-              const customer = results[0].customer;
-              accounts.push({
-                id: customer.id.toString(),
-                name: customer.descriptiveName || `Google Ads Account ${customerId}`,
-                status: 'active',
-                currency: customer.currencyCode || 'USD',
-                timezone: customer.timeZone || 'UTC'
-              });
-            } else {
-              // Fallback if no results
-              accounts.push({
-                id: customerId,
-                name: `Google Ads Account ${customerId}`,
-                status: 'active',
-                currency: 'USD',
-                timezone: 'UTC'
-              });
-            }
-          } else {
-            // Fallback if search fails
-            accounts.push({
-              id: customerId,
-              name: `Google Ads Account ${customerId}`,
-              status: 'active',
-              currency: 'USD',
-              timezone: 'UTC'
-            });
-          }
-        } catch (error) {
-          debugLogger.warn('GoogleAdsService', `Failed to get details for customer ${customerId}`, error);
-          // Fallback
-          accounts.push({
-            id: customerId,
-            name: `Google Ads Account ${customerId}`,
-            status: 'active',
-            currency: 'USD',
-            timezone: 'UTC'
-          });
-        }
-      }
-
-      debugLogger.info('GoogleAdsService', 'Successfully fetched Google Ads accounts via direct API', { count: accounts.length });
-      return accounts;
-    } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Error fetching Google Ads accounts via direct API', error);
-      throw error;
-    }
-  }
-
-  static async getConversionActions(customerId: string): Promise<GoogleAdsConversionAction[]> {
-    const accessToken = await this.getAccessToken();
-    const developerToken = this.getDeveloperToken();
-
-    if (!accessToken || !developerToken) {
-      throw new Error('Google Ads not authenticated');
-    }
-
-    if (!customerId) {
-      throw new Error('No customer ID provided');
-    }
-
-    try {
       const query = `
         SELECT 
           conversion_action.id,
@@ -378,76 +189,7 @@ export class GoogleAdsService {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Google Ads conversion actions error:', errorData);
-        // Return fallback conversion actions
-        return [
-          { id: 'conversions', name: 'Conversions', category: 'PURCHASE', type: 'WEBSITE', status: 'ENABLED' },
-          { id: 'leads', name: 'Leads', category: 'LEAD', type: 'WEBSITE', status: 'ENABLED' },
-          { id: 'calls', name: 'Calls', category: 'PURCHASE', type: 'PHONE_CALL', status: 'ENABLED' },
-          { id: 'downloads', name: 'Downloads', category: 'DOWNLOAD', type: 'WEBSITE', status: 'ENABLED' },
-          { id: 'signups', name: 'Sign-ups', category: 'SIGNUP', type: 'WEBSITE', status: 'ENABLED' }
-        ];
-      }
-
-      const data = await response.json();
-      const results = data.results || [];
-
-      return results.map((result: any) => ({
-        id: result.conversionAction.id,
-        name: result.conversionAction.name,
-        category: result.conversionAction.category,
-        type: result.conversionAction.type,
-        status: result.conversionAction.status
-      }));
-    } catch (error) {
-      console.error('Error fetching Google Ads conversion actions:', error);
-      // Return empty array instead of fallback data
-      return [];
-    }
-  }
-
-  static async getCampaigns(customerId: string, dateRange?: { start: string; end: string }): Promise<GoogleAdsCampaign[]> {
-    const accessToken = await this.getAccessToken();
-    const developerToken = this.getDeveloperToken();
-
-    if (!accessToken || !developerToken) {
-      throw new Error('Google Ads not authenticated');
-    }
-
-    try {
-      const query = `
-        SELECT 
-          campaign.id,
-          campaign.name,
-          campaign.status,
-          campaign.advertising_channel_type,
-          metrics.impressions,
-          metrics.clicks,
-          metrics.cost_micros,
-          metrics.leads,
-          metrics.ctr,
-          metrics.average_cpc,
-          metrics.conversions_from_interactions_rate,
-          metrics.cost_per_conversion,
-          metrics.search_impression_share,
-          metrics.quality_score
-        FROM campaign 
-        WHERE segments.date DURING ${dateRange ? `${dateRange.start.replace(/-/g, '')},${dateRange.end.replace(/-/g, '')}` : 'LAST_30_DAYS'}
-      `;
-
-      const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
+          'developer-token': '5D7nPWHfNnpiMgxGOgNLlA',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ query })
@@ -458,21 +200,25 @@ export class GoogleAdsService {
       }
 
       const data = await response.json();
-
-      return (data.results || []).map((result: any) => ({
-        id: result.campaign.id,
-        name: result.campaign.name,
-        status: result.campaign.status.toLowerCase(),
-        type: result.campaign.advertisingChannelType,
-        metrics: this.parseMetrics(result.metrics),
-        dateRange: dateRange || { start: '', end: '' }
+      const results = data.results || [];
+      
+      return results.map((result: any) => ({
+        id: result.conversionAction.id,
+        name: result.conversionAction.name,
+        category: result.conversionAction.category,
+        type: result.conversionAction.type,
+        status: result.conversionAction.status
       }));
+
     } catch (error) {
-      console.error('Error fetching Google Ads campaigns:', error);
+      debugLogger.error('GoogleAdsService', 'Error fetching conversion actions', error);
       throw error;
     }
   }
 
+  /**
+   * Get account metrics for a customer
+   */
   static async getAccountMetrics(customerId: string, dateRange?: { start: string; end: string }): Promise<GoogleAdsMetrics> {
     const accessToken = await this.getAccessToken();
     const developerToken = this.getDeveloperToken();
@@ -531,99 +277,79 @@ export class GoogleAdsService {
       
       // Aggregate metrics across all days
       const aggregatedMetrics = results.reduce((acc: any, result: any) => {
-        const metrics = result.metrics || {};
-        return {
-          impressions: (acc.impressions || 0) + parseInt(metrics.impressions || '0'),
-          clicks: (acc.clicks || 0) + parseInt(metrics.clicks || '0'),
-          cost_micros: (acc.cost_micros || 0) + parseInt(metrics.cost_micros || '0'),
-          leads: (acc.leads || 0) + parseInt(metrics.leads || '0'),
-          ctr: acc.ctr || parseFloat(metrics.ctr || '0'),
-          average_cpc: acc.average_cpc || parseFloat(metrics.average_cpc || '0'),
-          conversions_from_interactions_rate: acc.conversions_from_interactions_rate || parseFloat(metrics.conversions_from_interactions_rate || '0'),
-          cost_per_conversion: acc.cost_per_conversion || parseFloat(metrics.cost_per_conversion || '0'),
-          search_impression_share: acc.search_impression_share || parseFloat(metrics.search_impression_share || '0'),
-          quality_score: acc.quality_score || parseFloat(metrics.quality_score || '0')
-        };
-      }, {});
-      
-      debugLogger.info('GoogleAdsService', 'Google Ads metrics aggregated', { 
-        days: results.length, 
-        totalImpressions: aggregatedMetrics.impressions,
-        totalClicks: aggregatedMetrics.clicks,
-        totalCost: aggregatedMetrics.cost_micros / 1000000 // Convert from micros
+        const metrics = result.metrics;
+        acc.impressions += parseInt(metrics.impressions || '0');
+        acc.clicks += parseInt(metrics.clicks || '0');
+        acc.cost += parseFloat(metrics.costMicros || '0') / 1000000; // Convert micros to dollars
+        acc.leads += parseInt(metrics.leads || '0');
+        acc.conversions += parseInt(metrics.conversions || '0');
+        return acc;
+      }, {
+        impressions: 0,
+        clicks: 0,
+        cost: 0,
+        leads: 0,
+        conversions: 0
       });
-      
-      return this.parseMetrics(aggregatedMetrics);
+
+      // Calculate derived metrics
+      const ctr = aggregatedMetrics.impressions > 0 ? (aggregatedMetrics.clicks / aggregatedMetrics.impressions) * 100 : 0;
+      const cpc = aggregatedMetrics.clicks > 0 ? aggregatedMetrics.cost / aggregatedMetrics.clicks : 0;
+      const conversionRate = aggregatedMetrics.clicks > 0 ? (aggregatedMetrics.conversions / aggregatedMetrics.clicks) * 100 : 0;
+      const costPerConversion = aggregatedMetrics.conversions > 0 ? aggregatedMetrics.cost / aggregatedMetrics.conversions : 0;
+
+      return {
+        impressions: aggregatedMetrics.impressions,
+        clicks: aggregatedMetrics.clicks,
+        cost: aggregatedMetrics.cost,
+        leads: aggregatedMetrics.leads,
+        conversions: aggregatedMetrics.conversions,
+        ctr: Math.round(ctr * 100) / 100,
+        cpc: Math.round(cpc * 100) / 100,
+        conversionRate: Math.round(conversionRate * 100) / 100,
+        costPerConversion: Math.round(costPerConversion * 100) / 100,
+        searchImpressionShare: 0, // Would need additional query
+        qualityScore: 0 // Would need additional query
+      };
+
     } catch (error) {
-      console.error('Error fetching Google Ads account metrics:', error);
+      debugLogger.error('GoogleAdsService', 'Error fetching account metrics', error);
       throw error;
     }
   }
 
-  private static parseMetrics(metrics: any): GoogleAdsMetrics {
+  private static getAccessToken(): Promise<string | null> {
+    return TokenManager.getAccessToken('googleAds');
+  }
+
+  private static getDeveloperToken(): string {
+    // Use environment variable directly for development
+    const token = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || '';
+    console.log('🔍 GoogleAdsService: getDeveloperToken() called');
+    console.log('🔍 GoogleAdsService: Environment variable VITE_GOOGLE_ADS_DEVELOPER_TOKEN:', token);
+    console.log('🔍 GoogleAdsService: Token length:', token.length);
+    console.log('🔍 GoogleAdsService: Token starts with:', token.substring(0, 10));
+    debugLogger.debug('GoogleAdsService', 'Developer token retrieved', { 
+      hasToken: !!token, 
+      tokenLength: token.length,
+      tokenPrefix: token.substring(0, 10)
+    });
+    return token;
+  }
+
+  private static getEmptyGoogleMetrics(): GoogleAdsMetrics {
     return {
-      impressions: parseInt(metrics.impressions || '0'),
-      clicks: parseInt(metrics.clicks || '0'),
-      cost: parseFloat(metrics.costMicros || '0') / 1000000, // Convert from micros
-      leads: parseFloat(metrics.leads || '0'),
-      conversions: parseFloat(metrics.conversions || '0'),
-      ctr: parseFloat(metrics.ctr || '0') * 100, // Convert to percentage
-      cpc: parseFloat(metrics.averageCpc || '0') / 1000000, // Convert from micros
-      conversionRate: parseFloat(metrics.conversionsFromInteractionsRate || '0') * 100,
-      costPerConversion: parseFloat(metrics.costPerConversion || '0') / 1000000,
-      searchImpressionShare: parseFloat(metrics.searchImpressionShare || '0') * 100,
-      qualityScore: parseFloat(metrics.qualityScore || '0')
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      leads: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      conversionRate: 0,
+      costPerConversion: 0,
+      searchImpressionShare: 0,
+      qualityScore: 0
     };
-  }
-
-  static async testConnection(): Promise<{ success: boolean; error?: string; accountInfo?: any }> {
-    try {
-      const accessToken = await this.getAccessToken();
-      const developerToken = this.getDeveloperToken();
-
-      if (!accessToken || !developerToken) {
-        return { success: false, error: 'Google Ads not authenticated' };
-      }
-
-      // Test authentication by getting accessible customers
-      const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: `Google Ads API error: ${errorData.error?.message || response.statusText}` };
-      }
-
-      const data = await response.json();
-      const customers = data.resourceNames || [];
-
-      // Get account details
-      const accounts = await this.getAdAccounts();
-
-      return {
-        success: true,
-        accountInfo: {
-          accessibleCustomers: customers,
-          adAccounts: accounts
-        }
-      };
-    } catch (error) {
-      console.error('Google Ads connection test failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  }
-
-  static async disconnect(): Promise<void> {
-    // Clear OAuth tokens using TokenManager
-    await TokenManager.removeTokens('googleAds');
-    console.log('Google Ads disconnected');
   }
 }

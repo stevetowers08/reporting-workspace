@@ -1,4 +1,4 @@
-import { debugLogger } from '@/lib/debug';
+import { API_BASE_URLS } from '@/constants/apiVersions';
 
 export interface GoogleSheet {
   id: string;
@@ -16,7 +16,7 @@ export interface GoogleSheetsAccount {
 }
 
 export class GoogleSheetsService {
-  private static readonly API_BASE_URL = 'https://sheets.googleapis.com/v4';
+  private static readonly API_BASE_URL = API_BASE_URLS.GOOGLE_SHEETS;
 
   /**
    * Get access token for Google Sheets API with automatic refresh

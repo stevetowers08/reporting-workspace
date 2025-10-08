@@ -181,10 +181,6 @@ export interface Client {
   name: string;
   logo_url?: string;
   status: 'active' | 'paused' | 'inactive';
-  facebook_ads_account_id?: string;
-  google_ads_account_id?: string;
-  gohighlevel_account_id?: string;
-  google_sheets_account_id?: string;
   conversion_actions?: {
     facebookAds?: string;
     googleAds?: string;
@@ -194,6 +190,10 @@ export interface Client {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
   };
   shareable_link: string;
   created_at: string;
@@ -295,12 +295,6 @@ export class DatabaseService {
         name: validatedData.name,
         logo_url: validatedData.logo_url,
         status: 'active' as const,
-        facebook_ads_account_id: clientData.accounts.facebookAds,
-        google_ads_account_id: clientData.accounts.googleAds,
-        gohighlevel_account_id: typeof clientData.accounts.goHighLevel === 'string' 
-          ? clientData.accounts.goHighLevel 
-          : clientData.accounts.goHighLevel?.locationId,
-        google_sheets_account_id: clientData.accounts.googleSheets,
         conversion_actions: clientData.conversionActions || {},
         accounts: accountsWithSheetsConfig,
         shareable_link: `https://eventmetrics.com/share/${Date.now()}`

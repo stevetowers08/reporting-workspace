@@ -60,7 +60,7 @@ const GoogleAdsPage = () => {
             const accountsData: GoogleAdAccountData[] = [];
 
             for (const client of individualClients) {
-                // Only include clients that have Google ads connected
+                // Only include clients that have Google ads connected AND the integration is actually working
                 const hasGoogleAds = client.accounts?.googleAds && client.accounts.googleAds !== 'none';
 
                 if (!hasGoogleAds) continue;
@@ -73,6 +73,16 @@ const GoogleAdsPage = () => {
                         client.accounts,
                         client.conversion_actions
                     );
+
+                    // Only show clients with actual Google Ads data (not just zeros)
+                    const hasRealGoogleData = metrics.googleMetrics.impressions > 0 || 
+                                            metrics.googleMetrics.clicks > 0 || 
+                                            metrics.googleMetrics.cost > 0;
+
+                    if (!hasRealGoogleData) {
+                        console.log(`🔍 GoogleAdsPage: Skipping ${client.name} - no real Google Ads data`);
+                        continue;
+                    }
 
                     const accountData: GoogleAdAccountData = {
                         clientId: client.id,
@@ -100,29 +110,8 @@ const GoogleAdsPage = () => {
                     accountsData.push(accountData);
                 } catch (error) {
                     debugLogger.error('GoogleAdsPage', `Error loading metrics for client ${client.name}`, error);
-                    // Still add the client with zero metrics if there's an error
-                    accountsData.push({
-                        clientId: client.id,
-                        venueName: client.name,
-                        logoUrl: client.logo_url,
-                        status: client.status,
-                        googleAccount: {
-                            accountId: client.accounts?.googleAds || '',
-                            accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
-                            connected: true
-                        },
-                        metrics: {
-                            impressions: 0,
-                            clicks: 0,
-                            cost: 0,
-                            leads: 0,
-                            conversions: 0,
-                            ctr: 0,
-                            cpc: 0,
-                            conversionRate: 0
-                        },
-                        shareableLink: client.shareable_link || ''
-                    });
+                    // Don't add clients with errors - only show real data
+                    console.log(`🔍 GoogleAdsPage: Error loading ${client.name}, skipping`);
                 }
             }
 

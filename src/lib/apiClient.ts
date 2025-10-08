@@ -218,16 +218,16 @@ export const createApiClient = (config: ApiRequestConfig) => new ApiClient(confi
 
 // Pre-configured clients for common services
 export const facebookApiClient = createApiClient({
-  baseUrl: 'https://graph.facebook.com/v19.0',
+  baseUrl: API_BASE_URLS.FACEBOOK,
   rateLimitDelay: 1000
 });
 
 export const googleAdsApiClient = createApiClient({
-  baseUrl: 'https://googleads.googleapis.com/v20',
+  baseUrl: API_BASE_URLS.GOOGLE_ADS,
   rateLimitDelay: 1000
 });
 
 export const goHighLevelApiClient = createApiClient({
-  baseUrl: 'https://services.leadconnectorhq.com',
+  baseUrl: API_BASE_URLS.GOHIGHLEVEL,
   rateLimitDelay: 500
 });

@@ -10,12 +10,14 @@ interface GoogleSheetsSelectorProps {
   onSelectionComplete?: (_spreadsheetId: string, _sheetName: string) => void;
   initialSpreadsheetId?: string;
   initialSheetName?: string;
+  hideSaveButton?: boolean;
 }
 
 export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({ 
   onSelectionComplete, 
   initialSpreadsheetId, 
-  initialSheetName 
+  initialSheetName,
+  hideSaveButton = false
 }) => {
   const [accounts, setAccounts] = useState<GoogleSheetsAccount[]>([]);
   const [selectedSpreadsheet, setSelectedSpreadsheet] = useState<string>(initialSpreadsheetId || '');
@@ -349,7 +351,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         )}
 
         {/* Save Button */}
-        {selectedSpreadsheet && selectedSheet && (
+        {!hideSaveButton && selectedSpreadsheet && selectedSheet && (
           <div className="pt-4">
             <Button 
               type="button"

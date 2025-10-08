@@ -49,10 +49,10 @@ const HomePageWrapper = () => {
         logo_url: client.logo_url,
         status: client.status as 'active' | 'paused' | 'inactive',
         accounts: {
-          facebookAds: client.facebook_ads_account_id,
-          googleAds: client.google_ads_account_id,
-          goHighLevel: client.gohighlevel_account_id,
-          googleSheets: client.google_sheets_account_id
+          facebookAds: client.accounts?.facebookAds,
+          googleAds: client.accounts?.googleAds,
+          goHighLevel: client.accounts?.goHighLevel,
+          googleSheets: client.accounts?.googleSheets
         }
       }));
       

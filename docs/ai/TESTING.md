@@ -77,7 +77,7 @@ import { setupServer } from 'msw/node';
 import { FacebookAdsService } from '../../src/services/facebookAdsService';
 
 const server = setupServer(
-  rest.get('https://graph.facebook.com/v18.0/me/adaccounts', (req, res, ctx) => {
+  rest.get('https://graph.facebook.com/v20.0/me/adaccounts', (req, res, ctx) => {
     return res(ctx.json({
       data: [{ id: '123', name: 'Test Account' }]
     }));
@@ -326,7 +326,7 @@ export default defineConfig({
 import { rest } from 'msw';
 
 export const handlers = [
-  rest.get('https://graph.facebook.com/v18.0/me/adaccounts', (req, res, ctx) => {
+  rest.get('https://graph.facebook.com/v20.0/me/adaccounts', (req, res, ctx) => {
     return res(
       ctx.json({
         data: [

@@ -1,3 +1,4 @@
+import { API_BASE_URLS, API_VERSIONS } from '@/constants/apiVersions';
 import { debugLogger, debugService } from '@/lib/debug';
 
 export interface FacebookAdsMetrics {
@@ -50,8 +51,8 @@ export interface FacebookAdsCampaign {
 }
 
 export class FacebookAdsService {
-  private static readonly API_VERSION = 'v19.0';
-  private static readonly BASE_URL = `https://graph.facebook.com/${this.API_VERSION}`;
+  private static readonly API_VERSION = API_VERSIONS.FACEBOOK;
+  private static readonly BASE_URL = API_BASE_URLS.FACEBOOK;
   private static requestCache = new Map<string, { data: any; timestamp: number }>();
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
