@@ -31,18 +31,18 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
 
-    // Get Google Ads tokens from integrations table
+    // Get Google Sheets tokens from integrations table
     const { data: integrationData, error: integrationError } = await supabaseClient
       .from('integrations')
       .select('config')
-      .eq('platform', 'googleAds')
+      .eq('platform', 'googleSheets')
       .eq('connected', true)
       .single()
 
     if (integrationError || !integrationData?.config?.tokens?.access_token) {
-      console.error('No Google tokens found:', integrationError)
+      console.error('No Google Sheets tokens found:', integrationError)
       return new Response(
-        JSON.stringify({ success: false, error: 'No Google authentication tokens found' }),
+        JSON.stringify({ success: false, error: 'No Google Sheets authentication tokens found' }),
         { 
           status: 401, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

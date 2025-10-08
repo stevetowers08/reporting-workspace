@@ -213,10 +213,10 @@ export class UnifiedIntegrationService {
         return hasValidApiKey;
       }
       
-      // Google Sheets now has its own separate OAuth tokens
+      // Google Sheets has its own separate OAuth tokens and integration
       
       // For OAuth platforms, check if we have valid tokens (ignore connected flag for now)
-      // This allows Google Sheets to work even if Google Ads is marked as disconnected but has tokens
+      // Each platform (Google Sheets, Google Ads, etc.) has independent authentication
       return hasValidTokens || hasValidApiKey;
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', `Failed to check connection status for ${platform}`, error);

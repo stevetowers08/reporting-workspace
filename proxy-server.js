@@ -38,19 +38,19 @@ app.post('/google-sheets-data', async (req, res) => {
       });
     }
 
-    // Get Google Ads tokens from integrations table
+    // Get Google Sheets tokens from integrations table
     const { data: integrationData, error: integrationError } = await supabase
       .from('integrations')
       .select('config')
-      .eq('platform', 'googleAds')
+      .eq('platform', 'googleSheets')
       .eq('connected', true)
       .single();
 
     if (integrationError || !integrationData?.config?.tokens?.access_token) {
-      console.error('No Google tokens found:', integrationError);
+      console.error('No Google Sheets tokens found:', integrationError);
       return res.status(401).json({ 
         success: false, 
-        error: 'No Google authentication tokens found' 
+        error: 'No Google Sheets authentication tokens found' 
       });
     }
 

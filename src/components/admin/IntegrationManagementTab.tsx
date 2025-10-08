@@ -144,13 +144,13 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
 
     if (platform === 'googleSheets') {
       return (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Copy className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">Uses Google Ads Credentials</span>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-medium text-green-800">Google Sheets Integration</span>
           </div>
-          <p className="text-xs text-blue-700">
-            Google Sheets uses the same OAuth credentials as Google Ads. Make sure Google Ads is connected first.
+          <p className="text-xs text-green-700">
+            Connect your Google account to access and manage Google Sheets for data export and reporting.
           </p>
         </div>
       );
