@@ -568,6 +568,81 @@ export class GoHighLevelService {
   }
 
   /**
+   * Make authenticated API request using a specific token
+   */
+  private static async makeApiRequestWithToken<T>(
+    endpoint: string,
+    token: string,
+    options: globalThis.RequestInit = {}
+  ): Promise<T> {
+    // Enforce API rate limiting
+    await this.enforceRateLimit();
+
+    const url = `${this.API_BASE_URL}${endpoint}`;
+    
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      // Handle API specific error responses
+      if (response.status === 429) {
+        // Rate limit exceeded - wait and retry
+        const retryAfter = response.headers.get('Retry-After');
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000; // Default 10 seconds
+        
+        debugLogger.warn('GoHighLevelService', `Rate limit exceeded, waiting ${waitTime}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Retry the request
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Version': '2021-07-28',
+            'Content-Type': 'application/json',
+            ...options.headers
+          }
+        });
+
+        if (!retryResponse.ok) {
+          const errorData = await retryResponse.json().catch(() => ({}));
+          let errorMessage = `API request failed with status ${retryResponse.status}`;
+          
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        return retryResponse.json();
+      }
+
+      const errorData = await response.json().catch(() => ({}));
+      let errorMessage = `API request failed with status ${response.status}`;
+      
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Get comprehensive GHL metrics for a specific location
    */
   static async getGHLMetrics(locationId: string, dateRange?: { start: string; end: string }): Promise<{
@@ -1051,17 +1126,18 @@ export class GoHighLevelService {
         return cached.data;
       }
 
-      // Load token if not set
-      if (!this.agencyToken) {
-        await this.loadPrivateIntegrationToken();
+      // Load location-specific token
+      let token = this.locationTokens.get(locationId);
+      if (!token) {
+        token = await this.loadLocationToken(locationId);
       }
 
-      if (!this.agencyToken) {
-        throw new Error('Private integration token not set. Please configure in admin settings.');
+      if (!token) {
+        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
       }
 
       // Get funnels - corrected for subaccount/location level
-      const funnelsResponse: any = await this.makeApiRequest(`/funnels/?locationId=${locationId}`);
+      const funnelsResponse: any = await this.makeApiRequestWithToken(`/funnels/?locationId=${locationId}`, token);
       const funnels = funnelsResponse.funnels || [];
 
       // Get funnel pages and redirects for each funnel
@@ -1069,11 +1145,11 @@ export class GoHighLevelService {
         funnels.map(async (funnel: any) => {
           try {
             // Get funnel pages
-            const pagesResponse: any = await this.makeApiRequest(`/funnels/${funnel.id}/pages`);
+            const pagesResponse: any = await this.makeApiRequestWithToken(`/funnels/${funnel.id}/pages`, token);
             const pages = pagesResponse.pages || [];
 
             // Get funnel redirects
-            const redirectsResponse: any = await this.makeApiRequest(`/funnels/${funnel.id}/redirects`);
+            const redirectsResponse: any = await this.makeApiRequestWithToken(`/funnels/${funnel.id}/redirects`, token);
             const redirects = redirectsResponse.redirects || [];
 
             return {
@@ -1175,17 +1251,18 @@ export class GoHighLevelService {
         return cached.data;
       }
 
-      // Load token if not set
-      if (!this.agencyToken) {
-        await this.loadPrivateIntegrationToken();
+      // Load location-specific token
+      let token = this.locationTokens.get(locationId);
+      if (!token) {
+        token = await this.loadLocationToken(locationId);
       }
 
-      if (!this.agencyToken) {
-        throw new Error('Private integration token not set. Please configure in admin settings.');
+      if (!token) {
+        throw new Error(`No OAuth token found for location ${locationId}. Please connect this location via OAuth.`);
       }
 
       // Get pages - corrected for subaccount/location level
-      const pagesResponse: any = await this.makeApiRequest(`/pages/?locationId=${locationId}`);
+      const pagesResponse: any = await this.makeApiRequestWithToken(`/pages/?locationId=${locationId}`, token);
       const pages = pagesResponse.pages || [];
 
       // Process page data
