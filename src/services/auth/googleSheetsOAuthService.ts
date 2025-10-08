@@ -19,19 +19,20 @@ export class GoogleSheetsOAuthService {
   /**
    * Generate PKCE code verifier and challenge
    */
-  private static generatePKCE(): { codeVerifier: string; codeChallenge: string } {
+  private static async generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
     const codeVerifier = this.generateRandomString(128);
-    const codeChallenge = this.generateCodeChallenge(codeVerifier);
+    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
     return { codeVerifier, codeChallenge };
   }
 
   /**
-   * Generate code challenge from verifier
+   * Generate code challenge from verifier using SHA-256
    */
-  private static generateCodeChallenge(verifier: string): string {
-    // Use a simple base64 encoding of the verifier for PKCE challenge
-    // This is sufficient for PKCE as it's not cryptographically secure
-    return btoa(verifier)
+  private static async generateCodeChallenge(verifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '');
@@ -52,7 +53,7 @@ export class GoogleSheetsOAuthService {
   /**
    * Generate OAuth URL for Google Sheets authentication
    */
-  static generateSheetsAuthUrl(redirectUri?: string): string {
+  static async generateSheetsAuthUrl(redirectUri?: string): Promise<string> {
     const state = btoa(JSON.stringify({
       platform: 'googleSheets',
       timestamp: Date.now(),
@@ -60,7 +61,7 @@ export class GoogleSheetsOAuthService {
     }));
 
     // Generate PKCE parameters
-    const pkce = this.generatePKCE();
+    const pkce = await this.generatePKCE();
     
     // Store code verifier for later use
     localStorage.setItem(`oauth_code_verifier_googleSheets`, pkce.codeVerifier);
