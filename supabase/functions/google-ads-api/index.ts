@@ -36,8 +36,8 @@ Deno.serve(async (req: Request) => {
     const method = req.method;
     const pathSegments = url.pathname.split('/').filter(Boolean);
     
-    // Extract action from path: /google-ads-api/{action}
-    const action = pathSegments[2];
+    // Extract action from path: /functions/v1/google-ads-api/{action}
+    const action = pathSegments[3];
 
     switch (action) {
       case 'accounts':
