@@ -82,7 +82,7 @@ export class OAuthService {
     /**
      * Generate PKCE code verifier and challenge
      */
-    private static generatePKCE(): { codeVerifier: string; codeChallenge: string } {
+    private static async generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
         const codeVerifier = this.generateRandomString(128);
         const encoder = new TextEncoder();
         const data = encoder.encode(codeVerifier);
@@ -129,7 +129,7 @@ export class OAuthService {
         
         // Generate PKCE parameters for Google OAuth
         let pkceParams = {};
-        if (platform === 'google') {
+        if (platform === 'google' || platform === 'googleAds' || platform === 'googleSheets') {
             try {
                 const pkce = await this.generatePKCE();
                 pkceParams = {

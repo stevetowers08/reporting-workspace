@@ -446,6 +446,11 @@ export class DatabaseService {
         .single();
       
       if (error) {
+        // Handle "no record found" case gracefully
+        if (error.code === 'PGRST116') {
+          debugDatabase.info('getUserGoogleAdsAuth', 'user_google_ads_auth', 'No user auth record found');
+          return null;
+        }
         debugDatabase.error('getUserGoogleAdsAuth', 'user_google_ads_auth', error);
         throw error;
       }
