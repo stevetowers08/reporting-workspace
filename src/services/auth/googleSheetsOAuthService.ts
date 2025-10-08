@@ -12,7 +12,7 @@ export interface GoogleSheetsAuthTokens {
 }
 
 export class GoogleSheetsOAuthService {
-  private static readonly GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+  private static readonly GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
   private static readonly GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
   private static readonly GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -130,7 +130,12 @@ export class GoogleSheetsOAuthService {
       });
 
       if (!userInfoResponse.ok) {
-        throw new Error('Failed to get user info from Google');
+        const errorText = await userInfoResponse.text();
+        debugLogger.error('GoogleSheetsOAuthService', 'Failed to get user info from Google', { 
+          status: userInfoResponse.status, 
+          error: errorText 
+        });
+        throw new Error(`Failed to get user info from Google: ${userInfoResponse.status} ${errorText}`);
       }
 
       const userInfo = await userInfoResponse.json();
