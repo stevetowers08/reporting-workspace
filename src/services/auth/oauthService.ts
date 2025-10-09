@@ -56,9 +56,9 @@ export class OAuthService {
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ];
                     
-                    // Use backend OAuth for Google Ads, frontend for Google Sheets
-                    const redirectUri = platform === 'googleAds' 
-                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                    // Use frontend OAuth callback for both Google Ads and Google Sheets
+                    const redirectUri = window.location.hostname === 'localhost' 
+                        ? `${window.location.origin}/oauth/callback`
                         : 'https://tulenreporting.vercel.app/oauth/callback';
                     
                     return {
@@ -213,10 +213,7 @@ export class OAuthService {
         code: string,
         state: string
     ): Promise<OAuthTokens> {
-        // For Google Ads, use backend OAuth endpoint
-        if (platform === 'googleAds') {
-            return this.exchangeCodeForTokensBackend(platform, code, state);
-        }
+        // Use standard frontend OAuth flow for all platforms
 
         const config = await this.getOAuthConfig(platform);
 
@@ -250,8 +247,8 @@ export class OAuthService {
             DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
         }
 
-        // Add PKCE code verifier for Google OAuth
-        if (platform === 'googleSheets') {
+        // Add PKCE code verifier for Google OAuth (both Google Ads and Google Sheets)
+        if (platform === 'googleAds' || platform === 'googleSheets') {
             const codeVerifier = sessionStorage.getItem(`oauth_code_verifier_${platform}`);
             DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
                 platform,

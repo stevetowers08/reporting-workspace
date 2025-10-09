@@ -12,7 +12,7 @@ import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } 
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 // Lazy load chart components to avoid circular dependencies
 const SummaryMetricsCards = lazy(() => import('@/components/dashboard/SummaryMetricsCards').then(module => ({ default: module.SummaryMetricsCards })));
@@ -24,12 +24,12 @@ const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDem
 const MetaAdsPlatformBreakdown = lazy(() => import('@/components/dashboard/MetaAdsPlatformBreakdown').then(module => ({ default: module.MetaAdsPlatformBreakdown })));
 const GoogleAdsDemographics = lazy(() => import('@/components/dashboard/GoogleAdsDemographics').then(module => ({ default: module.GoogleAdsDemographics })));
 const GoogleAdsCampaignBreakdown = lazy(() => import('@/components/dashboard/GoogleAdsCampaignBreakdown').then(module => ({ default: module.GoogleAdsCampaignBreakdown })));
-// Removed unused lazy imports to fix linting errors
+const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(module => ({ default: module.LeadInfoMetricsCards })));
 
 // Chart.js replacements for recharts components
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
-import { LeadInfoMetricsCards } from '@/components/dashboard/LeadInfoMetricsCards';
 import { SimpleChart } from '@/components/dashboard/SimpleChart';
+import { SmartChartLayout } from '@/components/dashboard/SmartChartLayout';
 import { CHART_COLORS } from '@/components/ui/chart-wrapper';
 
 interface EventDashboardProps {
@@ -56,7 +56,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   
   // Handle tab change by updating URL params
   const handleTabChange = useCallback((tab: string) => {
-    console.log('🔍 EventDashboard: Switching to tab:', tab);
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('tab', tab);
     setSearchParams(newSearchParams);
@@ -177,7 +176,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   };
 
   // Helper function to ensure we have valid dashboard data
-  const getValidDashboardData = (data: any): EventDashboardData | undefined => {
+  const getValidDashboardData = (data: unknown): EventDashboardData | undefined => {
     if (!data || typeof data !== 'object') {
       return undefined;
     }

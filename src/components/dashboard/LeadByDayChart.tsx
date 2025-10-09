@@ -5,7 +5,7 @@ import {
     getLineDatasetConfig
 } from '@/lib/chartConfig';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 
 interface LeadByDayChartProps {
@@ -20,8 +20,8 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
   // eslint-disable-next-line no-console
   console.log('🔍 LeadByDayChart: Google leads:', data?.googleMetrics?.leads);
   
-  // Generate daily data for the last 30 days using real data
-  const generateDailyData = () => {
+  // Generate daily data for the last 30 days using real data - memoized
+  const dailyData = useMemo(() => {
     const leadsData = [];
 
     // Get total leads from all sources
@@ -56,20 +56,19 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
     // eslint-disable-next-line no-console
     console.log('🔍 LeadByDayChart: Generated daily data:', leadsData.slice(0, 5), '... (showing first 5 days)');
     return leadsData;
-  };
+  }, [data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
 
-  const leadsData = generateDailyData();
-  const days = generateDateLabels(30);
-  const totalLeads = (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0);
+  const days = useMemo(() => generateDateLabels(30), []);
+  const totalLeads = useMemo(() => (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0), [data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
 
-  const chartData = {
+  const chartData = useMemo(() => ({
     labels: days,
     datasets: [
-      getLineDatasetConfig('Daily Leads', leadsData, CHART_COLORS.primary, true)
-    ],
-  };
+      getLineDatasetConfig('Daily Leads', dailyData, CHART_COLORS.primary, true)
+    ]
+  }), [days, dailyData]);
 
-  const options = getDefaultChartOptions();
+  const options = useMemo(() => getDefaultChartOptions(), []);
 
   // Show message if no data
   if (totalLeads === 0) {
