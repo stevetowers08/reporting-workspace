@@ -65,7 +65,7 @@ export class OAuthService {
                     
                     // Use backend OAuth for Google Ads (secure), frontend for Google Sheets
                     const redirectUri = platform === 'googleAds' 
-                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth-exchange`
                         : (window.location.hostname === 'localhost' 
                             ? `${window.location.origin}/oauth/callback`
                             : 'https://tulenreporting.vercel.app/oauth/callback');
@@ -84,7 +84,7 @@ export class OAuthService {
 
             // Use backend OAuth for Google Ads (secure), frontend for others
             const redirectUri = platform === 'googleAds' 
-                ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth-exchange`
                 : credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
 
             return {
@@ -162,7 +162,7 @@ export class OAuthService {
         
         // Generate PKCE parameters for Google OAuth
         let pkceParams: { code_challenge?: string; code_challenge_method?: string } = {};
-        if (platform === 'googleAds' || platform === 'googleSheets') {
+        if (platform === 'googleSheets') {
             try {
                 const pkce = await this.generatePKCE();
                 pkceParams = {
@@ -261,8 +261,8 @@ export class OAuthService {
             DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
         }
 
-        // Add PKCE code verifier for Google OAuth (both Google Ads and Google Sheets)
-        if (platform === 'googleAds' || platform === 'googleSheets') {
+        // Add PKCE code verifier for Google Sheets only (Google Ads uses backend)
+        if (platform === 'googleSheets') {
             const codeVerifier = sessionStorage.getItem(`oauth_code_verifier_${platform}`);
             DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
                 platform,
@@ -401,21 +401,49 @@ export class OAuthService {
             throw new Error('Invalid OAuth state - possible CSRF attack');
         }
 
-        // The backend OAuth endpoint handles the token exchange
-        // This method is called after the backend redirects back to frontend
-        // The tokens are already stored in the database by the backend
-        
-        // Clean up state
-        sessionStorage.removeItem(`oauth_state_${platform}`);
-        sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
+        try {
+            // Call backend OAuth exchange endpoint
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth-exchange`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({
+                    code: code,
+                    state: state,
+                    platform: platform
+                })
+            });
 
-        // Return a placeholder - the actual tokens are stored by the backend
-        return {
-            accessToken: 'backend-stored',
-            refreshToken: 'backend-stored',
-            tokenType: 'Bearer',
-            expiresIn: 3600
-        };
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Backend OAuth exchange failed: ${response.status} ${JSON.stringify(errorData)}`);
+            }
+
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(`Backend OAuth exchange failed: ${result.error}`);
+            }
+
+            DevLogger.info('OAuthService', `Backend OAuth exchange successful for ${platform}`);
+            
+            // Clean up state
+            sessionStorage.removeItem(`oauth_state_${platform}`);
+            sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
+
+            // Return tokens that will be retrieved from database
+            return {
+                accessToken: 'backend-stored',
+                refreshToken: 'backend-stored',
+                tokenType: 'Bearer',
+                expiresIn: 3600
+            };
+        } catch (error) {
+            DevLogger.error('OAuthService', `Backend OAuth exchange failed for ${platform}:`, error);
+            throw error;
+        }
     }
 
     /**
