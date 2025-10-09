@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button-simple';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label-simple';
 import { Textarea } from '@/components/ui/textarea';
 import { AIInsightsService, AISystemPrompt } from '@/services/ai/aiInsightsService';
 import { Bot, Save, TestTube } from 'lucide-react';

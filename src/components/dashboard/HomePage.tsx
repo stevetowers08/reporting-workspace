@@ -1,6 +1,6 @@
 import { AdminHeader } from '@/components/dashboard/AdminHeader';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button-simple';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import {

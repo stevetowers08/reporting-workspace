@@ -1,7 +1,7 @@
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button-simple';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
 import { ArrowLeft, BarChart3, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React from 'react';
 

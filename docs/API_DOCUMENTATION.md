@@ -70,42 +70,53 @@ These integrations are stored in the `clients.accounts` field and are specific t
 
 **Method**: `GoogleAdsService.getAdAccounts()`
 
-**Implementation Strategy** (2025 Best Practices):
+**Implementation Strategy** (2025 Best Practices - WORKING WITH ACCOUNT NAMES):
 ```typescript
-// Step 1: Get all accessible customers using listAccessibleCustomers
-const response = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'developer-token': developerToken
-  }
-});
-
-// Step 2: For each customer, check if it's an individual ad account (not manager)
+// Use customer_client resource to get both customer IDs and account names
 const query = `
   SELECT
-    customer.id,
-    customer.descriptive_name,
-    customer.currency_code,
-    customer.time_zone,
-    customer.manager
-  FROM customer
-  WHERE customer.status = 'ENABLED'
+    customer_client.client_customer,
+    customer_client.descriptive_name,
+    customer_client.status,
+    customer_client.currency_code,
+    customer_client.time_zone,
+    customer_client.manager
+  FROM customer_client
+  WHERE customer_client.level <= 1
+    AND customer_client.status = 'ENABLED'
 `;
 
-const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`, {
+const response = await fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': developerToken,
+    'login-customer-id': managerAccountId,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ query })
 });
 
-// Step 3: Filter out manager accounts (customer.manager = true)
-// Only return individual ad accounts (customer.manager = false)
+// Process results and filter out manager accounts
+const individualAccounts = results
+  .filter(result => !result.customerClient.manager && result.customerClient.status === 'ENABLED')
+  .map(result => ({
+    id: result.customerClient.clientCustomer,
+    name: result.customerClient.descriptiveName,
+    status: 'active',
+    currency: result.customerClient.currencyCode || 'USD',
+    timezone: result.customerClient.timeZone || 'UTC'
+  }));
 ```
+
+**Key Points**:
+- ✅ **Endpoint**: `https://googleads.googleapis.com/v20/customers/{managerAccountId}/googleAds:searchStream`
+- ✅ **Method**: `POST` with GAQL query body
+- ✅ **Resource**: `customer_client` (gets both IDs and names)
+- ✅ **Filtering**: `level <= 1` (direct clients only), `status = 'ENABLED'`
+- ✅ **Real Account Names**: Uses `customer_client.descriptive_name`
+- ✅ **Single API Call**: Gets all data in one request
+- ✅ **Proper Headers**: Includes `login-customer-id` for manager account access
 
 **Status**: ✅ **WORKING** - Returns real individual ad accounts from Google Ads API
 **Recent Fix**: Restored real API calls (removed temporary hardcoded accounts)
@@ -417,7 +428,7 @@ const response = await fetch(
 const data = await GoogleSheetsService.getSpreadsheetData(spreadsheetId, range);
 
 // URL format used internally
-const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values?range=${encodeURIComponent(range)}`;
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
 ```
 
 #### 2. Authentication Status
@@ -734,10 +745,10 @@ interface ClientAccounts {
 
 ### ✅ Resolved Issues
 
-#### Google Ads Dropdown Timing Issue - RESOLVED ✅
-**Issue**: Google Ads dropdown not working in edit client modal
-**Root Cause**: **Critical timing issue** - `isIntegrationConnected()` function was synchronous but integration status was loaded asynchronously in useEffect
-**Impact**: Dropdown would show "None" even when Google Ads integration was connected
+#### Google Ads Dropdown Issue - RESOLVED ✅
+**Issue**: Google Ads dropdown not working in edit client modal - Google Sheets was pulling client dropdowns but Google Ads wasn't
+**Root Cause**: **Hardcoded customer ID** - Google Ads service was hardcoded to only use customer ID `3921734484` instead of dynamically fetching all accessible customers
+**Impact**: Dropdown would show "None" even when Google Ads integration was connected, while Google Sheets worked correctly
 
 **Technical Problem**:
 ```typescript

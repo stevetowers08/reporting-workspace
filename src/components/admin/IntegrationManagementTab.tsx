@@ -1,9 +1,9 @@
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LoadingSpinner, LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button-simple';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label-simple';
 import { debugLogger } from '@/lib/debug';
 import { IntegrationDisplay, TestResult } from '@/services/admin/adminService';
 import { getPlatformConfig } from '@/services/admin/platformConfig';

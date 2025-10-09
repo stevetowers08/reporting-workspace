@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
-import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ChartWrapper } from '@/components/ui/chart-wrapper';
 
 interface EventTypesBreakdownProps {
   data: {

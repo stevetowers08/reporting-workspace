@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button-simple';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Progress } from '@/components/ui/progress-simple';
 import React, { useEffect, useState } from 'react';
 import { DevAPITester, ServiceTestResults, TestResult } from '../../tests/dev-helpers/api-tester';
 

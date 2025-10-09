@@ -2,12 +2,12 @@ import { ConnectLocationButton } from '@/components/admin/ConnectLocationButton'
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LoadingSpinner } from "@/components/ui/LoadingStates";
 import { LogoManager } from "@/components/ui/LogoManager";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button-simple";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label-simple";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select-simple";
+import { Switch } from "@/components/ui/switch-simple";
 import { debugLogger } from '@/lib/debug';
 import { AIInsightsConfig, AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
@@ -258,35 +258,55 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   }, [initialData]);
 
-  // Load accounts for connected integrations on component mount
+  // Load accounts for platforms that have account IDs in initial data
   useEffect(() => {
-    console.log('🔍 ClientForm: Checking for connected integrations to load accounts');
-    
-    const loadConnectedAccounts = async () => {
-      // Load Google Ads accounts if integration is connected
-      const isGoogleAdsConnected = await isIntegrationConnected('googleAds');
-      if (isGoogleAdsConnected && !googleAccountsLoaded) {
-        console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration');
-        loadGoogleAccounts();
-      }
+    if (initialData?.accounts) {
+      console.log('🔍 ClientForm: Initial data received, checking for account IDs to load', initialData.accounts);
       
-      // Load Facebook accounts if integration is connected
-      const isFacebookConnected = await isIntegrationConnected('facebookAds');
-      if (isFacebookConnected && !facebookAccountsLoaded) {
-        console.log('🔍 ClientForm: Loading Facebook accounts for connected integration');
+      // Load Facebook accounts if we have a Facebook account ID
+      if (initialData.accounts.facebookAds && initialData.accounts.facebookAds !== 'none') {
+        console.log('🔍 ClientForm: Loading Facebook accounts for existing account ID:', initialData.accounts.facebookAds);
         loadFacebookAccounts();
       }
       
-      // Load GHL accounts if integration is connected
-      const isGHLConnected = await isIntegrationConnected('goHighLevel');
-      if (isGHLConnected && !ghlAccountsLoaded) {
-        console.log('🔍 ClientForm: Loading GHL accounts for connected integration');
+      // Load Google Ads accounts if we have a Google Ads account ID
+      if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
+        console.log('🔍 ClientForm: Loading Google Ads accounts for existing account ID:', initialData.accounts.googleAds);
+        loadGoogleAccounts();
+      } else {
+        // Check if Google Ads is connected and load accounts if needed
+        isIntegrationConnected('googleAds').then(isGoogleAdsConnected => {
+          if (isGoogleAdsConnected) {
+            console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
+            loadGoogleAccounts();
+          }
+        });
+      }
+      
+      // Load GHL accounts if we have a GHL account ID
+      if (initialData.accounts.goHighLevel && initialData.accounts.goHighLevel !== 'none') {
+        console.log('🔍 ClientForm: Loading GHL accounts for existing account ID:', initialData.accounts.goHighLevel);
+        
+        // If it's a string (location ID), convert it to object format
+        if (typeof initialData.accounts.goHighLevel === 'string') {
+          console.log('🔍 ClientForm: Converting string GoHighLevel ID to object format');
+          setFormData(prev => ({
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              goHighLevel: {
+                locationId: initialData.accounts.goHighLevel as string,
+                locationName: `Location ${initialData.accounts.goHighLevel}`,
+                platform: 'goHighLevel'
+              }
+            }
+          }));
+        }
+        
         loadGHLAccounts();
       }
-    };
-    
-    loadConnectedAccounts();
-  }, []); // Run once on mount
+    }
+  }, [initialData]);
 
   // Initialize Google Sheets configuration from initial data
   useEffect(() => {
@@ -385,7 +405,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Load Google Ads accounts when needed
   const loadGoogleAccounts = async () => {
+    console.log('🔍 ClientForm: loadGoogleAccounts function called');
+    
     if (googleAccountsLoaded) {
+      console.log('🔍 ClientForm: Google accounts already loaded, skipping');
       return;
     }
     

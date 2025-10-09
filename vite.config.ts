@@ -40,11 +40,6 @@ export default defineConfig({
     include: [
       'react', 
       'react-dom', 
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-slot',
-      '@radix-ui/react-label',
-      '@radix-ui/react-switch',
-      '@radix-ui/react-select',
       '@tanstack/react-query',
       '@supabase/supabase-js',
       'chart.js',
@@ -55,7 +50,6 @@ export default defineConfig({
       'tailwind-merge',
       'class-variance-authority',
       'lucide-react',
-      'recharts'
     ],
     exclude: ['@vite/client', '@vite/env'],
     force: false,
@@ -67,6 +61,11 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  define: {
+    global: 'globalThis',
+    'process.env': JSON.stringify(process.env),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   build: {
     target: 'es2020',
@@ -85,7 +84,7 @@ export default defineConfig({
           }
           
           // Chart libraries - separate for lazy loading
-          if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('recharts')) {
+          if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
             return 'chart-vendor';
           }
           

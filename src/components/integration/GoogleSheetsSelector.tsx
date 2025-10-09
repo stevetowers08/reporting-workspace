@@ -1,6 +1,6 @@
 import { LoadingSpinner } from '@/components/ui/LoadingStates';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button-simple';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select-simple';
 import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsAccount, GoogleSheetsService } from '@/services/api/googleSheetsService';
 import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';

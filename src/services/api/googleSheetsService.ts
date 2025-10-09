@@ -162,7 +162,7 @@ export class GoogleSheetsService {
         return null;
       }
 
-      const rangeParam = range ? `?range=${encodeURIComponent(range)}` : '';
+      const rangeParam = range ? `/${encodeURIComponent(range)}` : '';
       const url = `${this.API_BASE_URL}/spreadsheets/${spreadsheetId}/values${rangeParam}`;
 
       DevLogger.debug('GoogleSheetsService', 'Fetching spreadsheet data', { spreadsheetId, range });
