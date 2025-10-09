@@ -104,17 +104,22 @@ export default async function handler(req, res) {
         account_id: tokenData.locationId, // Use locationId as account_id
         connected: true,
         config: {
-          apiKey: {
-            apiKey: tokenData.access_token,
-            keyType: 'bearer'
+          tokens: {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresIn: tokenData.expires_in,
+            expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+            tokenType: 'Bearer',
+            scope: tokenData.scope
           },
-          refreshToken: tokenData.refresh_token,
-          expiresIn: tokenData.expires_in,
-          expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          scopes: tokenData.scope?.split(' ') || [],
+          accountInfo: {
+            id: tokenData.locationId,
+            name: tokenData.locationName || 'GoHighLevel Location'
+          },
           locationId: tokenData.locationId,
           userType: tokenData.userType,
           lastSync: new Date().toISOString(),
+          syncStatus: 'idle',
           connectedAt: new Date().toISOString()
         }
       }, {

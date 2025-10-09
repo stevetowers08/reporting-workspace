@@ -56,10 +56,15 @@ export class OAuthService {
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ];
                     
+                    // Use backend OAuth for Google Ads, frontend for Google Sheets
+                    const redirectUri = platform === 'googleAds' 
+                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                        : 'https://tulenreporting.vercel.app/oauth/callback';
+                    
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
                         clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
-                        redirectUri: 'https://tulenreporting.vercel.app/oauth/callback',
+                        redirectUri: redirectUri,
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
                         tokenUrl: 'https://oauth2.googleapis.com/token'

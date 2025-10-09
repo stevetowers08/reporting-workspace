@@ -34,6 +34,8 @@ const AdminPanel = () => {
   useEffect(() => {
     const connected = searchParams.get('connected');
     const ghlConnected = searchParams.get('ghl_connected');
+    const googleAdsConnected = searchParams.get('googleAds_connected');
+    const managerId = searchParams.get('manager_id');
     const location = searchParams.get('location');
     const locationName = searchParams.get('location_name');
     const clientId = searchParams.get('clientId') || routeClientId;
@@ -45,6 +47,13 @@ const AdminPanel = () => {
       if (clientId) {
         loadClientForEdit(clientId);
       }
+      
+      // Clear the URL parameters after showing the message
+      setSearchParams({});
+    } else if (googleAdsConnected === 'true' && managerId) {
+      // Handle Google Ads backend OAuth success
+      debugLogger.info('AdminPanel', 'Google Ads backend OAuth successful', { managerId });
+      setShowSuccessMessage(true);
       
       // Clear the URL parameters after showing the message
       setSearchParams({});

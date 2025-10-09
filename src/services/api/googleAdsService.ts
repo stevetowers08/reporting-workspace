@@ -11,7 +11,118 @@ export interface GoogleAdsAccount {
 
 export class GoogleAdsService {
   /**
-   * Get Google Ads accounts - individual ad accounts, not manager account
+   * Normalize customer ID by removing all non-digit characters
+   */
+  private static normalizeCid(id: string | number): string {
+    return String(id).replace(/\D/g, '');
+  }
+
+  /**
+   * Parse Google Ads searchStream response with tolerant parsing
+   * Handles both single JSON arrays and NDJSON streams
+   */
+  private static parseSearchStreamText(text: string): unknown[] {
+    const trimmed = (text ?? "").trim();
+    if (!trimmed) return [];
+
+    // 1) Try single JSON (array/object)
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      // fall through to NDJSON parsing
+    }
+
+    // 2) NDJSON tolerant: accumulate until JSON.parse succeeds
+    const out: unknown[] = [];
+    let buf = "";
+    for (const rawLine of trimmed.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      buf += line;
+      try {
+        out.push(JSON.parse(buf));
+        buf = "";
+      } catch {
+        // keep buffering until we have a complete JSON object
+      }
+    }
+
+    if (buf.trim().length > 0) {
+      // As a last resort, try treating each newline-separated chunk as a JSON element of an array
+      try {
+        const asArray = `[${trimmed.split(/\r?\n/).filter(Boolean).join(",")}]`;
+        const parsed = JSON.parse(asArray);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        debugLogger.error('GoogleAdsService', `Unable to parse searchStream payload. First 200 chars: ${trimmed.slice(0, 200)}`);
+        return [];
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Preview payload for logging (avoids flooding and redacting tokens)
+   */
+  private static previewPayload(s: string, len = 512): string {
+    const t = (s ?? "");
+    if (t.length <= len * 2) return t;
+    return `${t.slice(0, len)} ... [${t.length - len * 2} bytes omitted] ... ${t.slice(-len)}`;
+  }
+
+  /**
+   * Generic Google Ads searchStream helper following the exact pattern
+   */
+  private static async adsSearchStream({
+    accessToken,
+    developerToken,
+    customerId,
+    managerId,
+    gaql
+  }: {
+    accessToken: string;
+    developerToken: string;
+    customerId: string | number;
+    managerId?: string | number;
+    gaql: string;
+  }): Promise<unknown[]> {
+    const pathCid = this.normalizeCid(customerId);
+    const loginCid = managerId ? this.normalizeCid(managerId) : undefined;
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${accessToken}`,
+      'developer-token': developerToken,
+      'Content-Type': 'application/json'
+    };
+    if (loginCid) {
+      headers['login-customer-id'] = loginCid;
+    }
+
+    const url = `https://googleads.googleapis.com/v21/customers/${pathCid}/googleAds:searchStream`;
+    
+
+    const resp = await globalThis.fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: gaql })
+    });
+
+    const text = await resp.text();
+    if (!resp.ok) {
+      throw new Error(`Google Ads API ${resp.status}: ${text}`);
+    }
+    
+    debugLogger.debug('GoogleAdsService', `searchStream raw preview: ${this.previewPayload(text)}`);
+    const blocks = this.parseSearchStreamText(text);
+    debugLogger.debug('GoogleAdsService', `Parsed ${blocks.length} blocks from searchStream`);
+    
+    return blocks;
+  }
+
+  /**
+   * Get Google Ads accounts - handles both single accounts and manager accounts with sub-accounts
    */
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
     debugLogger.debug('GoogleAdsService', 'Getting Google Ads accounts');
@@ -31,93 +142,61 @@ export class GoogleAdsService {
         return [];
       }
 
-      // Use the correct GAQL query to get individual ad accounts
-        const query = `
-          SELECT 
-            customer_client.id, 
-            customer_client.descriptive_name,
-            customer_client.status,
-          customer_client.manager,
-          customer_client.level
-          FROM customer_client
-        WHERE customer_client.level > 0
-        `;
+      // Listing accounts under a manager - use manager in both path and login-customer-id
+      const gaql = `
+        SELECT 
+          customer_client.id, 
+          customer_client.descriptive_name, 
+          customer_client.status, 
+          customer_client.manager, 
+          customer_client.level 
+        FROM customer_client
+      `;
 
-      debugLogger.debug('GoogleAdsService', `Querying customer_client with searchStream: ${query}`);
+      debugLogger.debug('GoogleAdsService', `Querying customer_client with searchStream: ${gaql}`);
 
-      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'login-customer-id': managerAccountId,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
+      const blocks = await this.adsSearchStream({
+        accessToken,
+        developerToken,
+        customerId: managerAccountId, // manager in path
+        managerId: managerAccountId, // manager in login header
+        gaql
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        debugLogger.error('GoogleAdsService', `Failed to get customer_client data: ${response.status} - ${errorText}`);
-        return [];
-      }
-
-        const responseText = await response.text();
-        debugLogger.debug('GoogleAdsService', 'Raw customer_client searchStream response length:', responseText.length);
-
-      const individualAccounts: GoogleAdsAccount[] = [];
+      const accounts: GoogleAdsAccount[] = [];
       const seenAccountIds = new Set<string>();
 
-      // Parse searchStream response
-        try {
-          const responseData = JSON.parse(responseText);
-
-          if (Array.isArray(responseData)) {
-          for (const resultBlock of responseData) {
-              if (resultBlock.results && Array.isArray(resultBlock.results)) {
-              for (const result of resultBlock.results) {
-                   const customerClient = result.customerClient;
-                   if (customerClient && customerClient.id) {
-                     const customerId = String(customerClient.id);
-                     const descriptiveName = customerClient.descriptive_name;
-                     const status = customerClient.status;
-                     const isManager = customerClient.manager;
-                     
-                     // Skip if we've already seen this account ID
-                     if (seenAccountIds.has(customerId)) {
-                       continue;
-                     }
-                     
-                     // Skip manager accounts - we only want individual ad accounts
-                     if (isManager) {
-                       continue;
-                     }
-                     
-                     seenAccountIds.add(customerId);
-
-                     // Use descriptive_name as the account name
-                     const accountName = descriptiveName || `Ad Account ${customerId}`;
-
-                     individualAccounts.push({
-                       id: customerId,
-                       name: accountName,
-                    status: status?.toLowerCase() || 'active',
-                       currency: 'USD',
-                       timezone: 'UTC'
-                     });
-
-                  debugLogger.debug('GoogleAdsService', `✅ Added individual ad account: ${accountName} (${customerId})`);
-                   }
-                }
-              }
-            }
+      // Parse results following the exact pattern
+      for (const b of blocks) {
+        const blockData = b as { results?: unknown[] };
+        for (const r of blockData.results ?? []) {
+          const result = r as { customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; status?: string } };
+          const cc = result.customerClient;
+          if (!cc?.id) {
+            continue;
           }
-        } catch (parseError) {
-        debugLogger.error('GoogleAdsService', 'Error parsing customer_client searchStream response:', parseError);
+          
+          const id = this.normalizeCid(cc.id);
+          if (seenAccountIds.has(id)) {
+            continue;
+          }
+          
+          seenAccountIds.add(id);
+          
+          accounts.push({
+            id,
+            name: cc.descriptiveName ?? `Ad Account ${id}`,
+            status: (cc.status ?? 'ENABLED').toLowerCase(),
+            currency: 'USD', // TODO: Replace with real values from customer query
+            timezone: 'UTC' // TODO: Replace with real values from customer query
+          });
+
+          debugLogger.debug('GoogleAdsService', `✅ Added account: ${cc.descriptiveName ?? `Ad Account ${id}`} (${id}) - Manager: ${!!cc.manager}`);
+        }
       }
 
-      debugLogger.debug('GoogleAdsService', `✅ Successfully found ${individualAccounts.length} individual ad accounts`);
-      return individualAccounts;
+      debugLogger.debug('GoogleAdsService', `✅ Successfully found ${accounts.length} Google Ads accounts`);
+      return accounts;
 
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting Google Ads accounts', error);
@@ -175,6 +254,18 @@ export class GoogleAdsService {
 
       if (error || !integration?.account_id) {
         debugLogger.warn('GoogleAdsService', 'No manager account ID found in integration data');
+        // Try to auto-discover and persist the correct manager account ID
+        try {
+          const { GoogleAdsAccountDiscovery } = await import('@/services/api/googleAdsAccountDiscovery');
+          const discovered = await GoogleAdsAccountDiscovery.discoverAndStoreManagerAccount();
+          if (discovered) {
+            const normalized = this.normalizeCid(discovered);
+            debugLogger.debug('GoogleAdsService', `Discovered manager ID: ${normalized}`);
+            return normalized || null;
+          }
+        } catch (discoverErr) {
+          debugLogger.error('GoogleAdsService', 'Auto-discovery failed while recovering missing manager ID', discoverErr);
+        }
         return null;
       }
 
@@ -184,9 +275,29 @@ export class GoogleAdsService {
         .replace(/\]$/, '')
         .trim();
 
+      // Normalize to digits and validate
+      const normalizedId = this.normalizeCid(longManagerId);
       debugLogger.debug('GoogleAdsService', `Manager ID from database (cleaned): ${longManagerId}`);
 
-      return longManagerId;
+      if (!normalizedId || normalizedId.length < 10) {
+        debugLogger.warn('GoogleAdsService', `Invalid manager ID stored: "${longManagerId}" → normalized: "${normalizedId}". Attempting auto-discovery.`);
+        try {
+          const { GoogleAdsAccountDiscovery } = await import('@/services/api/googleAdsAccountDiscovery');
+          const discovered = await GoogleAdsAccountDiscovery.discoverAndStoreManagerAccount();
+          if (discovered) {
+            const fixed = this.normalizeCid(discovered);
+            if (fixed) {
+              debugLogger.debug('GoogleAdsService', `Auto-fixed manager ID to: ${fixed}`);
+              return fixed;
+            }
+          }
+        } catch (discoverErr) {
+          debugLogger.error('GoogleAdsService', 'Auto-discovery failed while fixing invalid manager ID', discoverErr);
+        }
+        return null;
+      }
+
+      return normalizedId;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to get manager account ID', error);
       return null;
@@ -222,78 +333,64 @@ export class GoogleAdsService {
         return this.getEmptyMetrics();
       }
 
-      // Format dates for GAQL
-      const startDate = dateRange.start.replace(/-/g, '');
-      const endDate = dateRange.end.replace(/-/g, '');
-
-      const query = `
-        SELECT 
-          metrics.impressions,
-          metrics.clicks,
-          metrics.cost_micros,
-          metrics.conversions,
-          metrics.ctr,
-          metrics.average_cpc,
-          segments.date
-        FROM campaign 
-        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-          AND campaign.status = 'ENABLED'
-      `;
-
-      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': developerToken,
-          'login-customer-id': managerAccountId,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
+      debugLogger.debug('GoogleAdsService', 'Account access details', {
+        targetCustomerId: customerId,
+        managerAccountId: managerAccountId,
+        normalizedCustomerId: this.normalizeCid(customerId),
+        normalizedManagerId: this.normalizeCid(managerAccountId)
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        debugLogger.error('GoogleAdsService', `Failed to get metrics: ${response.status} - ${errorText}`);
-        return this.getEmptyMetrics();
-      }
+      // Reporting on a single customer (with MCC) - use customer ID in path, manager ID in login-customer-id
+      const gaql = `
+        SELECT 
+          metrics.conversions,
+          metrics.cost_micros,
+          metrics.impressions,
+          metrics.clicks
+        FROM customer 
+        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+      `;
 
-      const responseText = await response.text();
-      const responseData = JSON.parse(responseText);
-      
-      // Aggregate metrics across all campaigns
-      let totalImpressions = 0;
-      let totalClicks = 0;
-      let totalCostMicros = 0;
-      let totalConversions = 0;
+      debugLogger.debug('GoogleAdsService', 'Calling adsSearchStream with:', {
+        customerId: customerId,
+        managerId: managerAccountId,
+        gaql: gaql.trim()
+      });
 
-      if (Array.isArray(responseData)) {
-        for (const resultBlock of responseData) {
-          if (resultBlock.results && Array.isArray(resultBlock.results)) {
-            for (const result of resultBlock.results) {
-          const metrics = result.metrics;
-              if (metrics) {
-                totalImpressions += parseInt(metrics.impressions || '0');
-                totalClicks += parseInt(metrics.clicks || '0');
-                totalCostMicros += parseInt(metrics.costMicros || '0');
-                totalConversions += parseFloat(metrics.conversions || '0');
-              }
-            }
-          }
+      const blocks = await this.adsSearchStream({
+        accessToken,
+        developerToken,
+        customerId: customerId, // advertiser id from DB
+        managerId: managerAccountId, // manager id from DB
+        gaql
+      });
+
+      // Aggregate following the exact pattern
+      let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
+      for (const b of blocks) {
+        const blockData = b as { results?: unknown[] };
+        for (const r of blockData.results ?? []) {
+          const result = r as { metrics?: { impressions?: string | number; clicks?: string | number; costMicros?: string | number; conversions?: string | number } };
+          const m = result.metrics ?? {};
+          impressions += Number(m.impressions ?? 0);
+          clicks += Number(m.clicks ?? 0);
+          costMicros += Number(m.costMicros ?? 0);
+          conversions += Number(m.conversions ?? 0);
         }
       }
 
-      const cost = totalCostMicros / 1000000; // Convert micros to dollars
-      const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-      const avgCpc = totalClicks > 0 ? cost / totalClicks : 0;
+      const cost = costMicros / 1e6;
+      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      const averageCpc = clicks > 0 ? (costMicros / clicks) / 1e6 : 0;
 
       const metrics = {
-        impressions: totalImpressions,
-        clicks: totalClicks,
-        cost: cost,
-        leads: totalConversions,
-        ctr: ctr,
-        averageCpc: avgCpc,
-        conversions: totalConversions
+        impressions,
+        clicks,
+        cost,
+        leads: conversions,
+        ctr,
+        averageCpc,
+        conversions
       };
 
       debugLogger.debug('GoogleAdsService', 'Account metrics calculated', metrics);
@@ -331,63 +428,52 @@ export class GoogleAdsService {
         return [];
       }
 
-      const query = `
+      // Getting conversion actions for a customer - scope is per customer, not manager
+      const gaql = `
         SELECT 
           conversion_action.id,
           conversion_action.name,
           conversion_action.status,
           conversion_action.type
         FROM conversion_action
-        WHERE conversion_action.status = 'ENABLED'
+        WHERE conversion_action.status = ENABLED
       `;
 
-      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
-        method: 'POST',
-        headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'developer-token': developerToken,
-          'login-customer-id': managerAccountId,
-        'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
+      const blocks = await this.adsSearchStream({
+        accessToken,
+        developerToken,
+        customerId: customerId, // customer account
+        managerId: managerAccountId, // include if going via MCC
+        gaql
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        debugLogger.error('GoogleAdsService', `Failed to get conversion actions: ${response.status} - ${errorText}`);
-        return [];
-      }
-
-      const responseText = await response.text();
-      const responseData = JSON.parse(responseText);
-      
-      const conversionActions: Array<{
+      const actions: Array<{
         id: string;
         name: string;
         status: string;
         type: string;
       }> = [];
 
-      if (Array.isArray(responseData)) {
-        for (const resultBlock of responseData) {
-          if (resultBlock.results && Array.isArray(resultBlock.results)) {
-            for (const result of resultBlock.results) {
-              const conversionAction = result.conversionAction;
-              if (conversionAction) {
-                conversionActions.push({
-                  id: conversionAction.id,
-                  name: conversionAction.name,
-                  status: conversionAction.status,
-                  type: conversionAction.type
-                });
-              }
-            }
+      for (const b of blocks) {
+        const blockData = b as { results?: unknown[] };
+        for (const r of blockData.results ?? []) {
+          const result = r as { conversionAction?: { id?: string | number; name?: string; status?: string; type?: string } };
+          const ca = result.conversionAction;
+          if (!ca) {
+            continue;
           }
+          
+          actions.push({
+            id: String(ca.id),
+            name: ca.name ?? '',
+            status: ca.status ?? '',
+            type: ca.type ?? ''
+          });
         }
       }
 
-      debugLogger.debug('GoogleAdsService', `Found ${conversionActions.length} conversion actions`);
-      return conversionActions;
+      debugLogger.debug('GoogleAdsService', `Found ${actions.length} conversion actions`);
+      return actions;
 
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting conversion actions', error);
@@ -424,6 +510,10 @@ export class GoogleAdsService {
         };
       }
 
+      // Normalize customer IDs
+      const pathCid = this.normalizeCid(managerAccountId);
+      const loginCid = pathCid;
+
       // Test with a simple query
       const query = `
         SELECT customer.id, customer.descriptive_name
@@ -431,12 +521,12 @@ export class GoogleAdsService {
         LIMIT 1
       `;
 
-      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v21/customers/${pathCid}/googleAds:searchStream`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'developer-token': developerToken,
-          'login-customer-id': managerAccountId,
+          'login-customer-id': loginCid,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ query })
@@ -472,7 +562,7 @@ export class GoogleAdsService {
   /**
    * Authenticate with Google Ads API
    */
-  static async authenticate(accessToken?: string, _customerId?: string): Promise<boolean> {
+  static async authenticate(accessToken?: string): Promise<boolean> {
     try {
       debugLogger.debug('GoogleAdsService', 'Authenticating');
       

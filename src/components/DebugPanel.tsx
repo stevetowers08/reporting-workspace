@@ -20,7 +20,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
         if (!isOpen) return;
 
         const updateLogs = () => {
-            // Mock logs for now since debugLogger is not available
+            // Logs not available
             setLogs([]);
         };
 

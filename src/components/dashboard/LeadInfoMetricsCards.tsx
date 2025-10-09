@@ -139,9 +139,6 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   });
   
   // Remove fake funnel data - we don't have real page analytics
-  // const funnelPageViews = ghlMetrics.pageViewAnalytics?.totalPageViews || 0; // FAKE
-  // const conversionRate = ghlMetrics.conversionRate || 0; // FAKE
-  // const totalGuests = ghlMetrics.totalGuests || 0; // FAKE
 
   return (
     <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">

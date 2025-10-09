@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
 import React, { useEffect, useState } from 'react';
-import { ChartWrapper } from '@/components/ui/chart-wrapper';
+import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface DailyFunnelAnalyticsProps {
   locationId: string;

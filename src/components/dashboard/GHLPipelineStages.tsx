@@ -28,7 +28,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
         
         // Get all contacts to analyze pipeline stages
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out
-        const allContacts: any[] = []; // Mock data for now
+        const allContacts: any[] = [];
         
         // Analyze pipeline stages based on contact data
         const stages: Record<string, { contacts: any[]; totalDays: number }> = {

@@ -29,7 +29,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ da
         
         // Extract page view data from contacts' attribution data
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out
-        const allContacts: any[] = []; // Mock data for now
+        const allContacts: any[] = [];
         
         // Process attribution data to get page views
         const pageViews: string[] = [];

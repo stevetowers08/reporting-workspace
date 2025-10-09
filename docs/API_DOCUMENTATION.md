@@ -77,97 +77,275 @@ These integrations are stored in the `clients.accounts` field and are specific t
 - **Account Discovery**: `src/services/api/googleAdsAccountDiscovery.ts`
 
 ### API Version
-- **Current**: v20 (Latest stable)
-- **Base URL**: `https://googleads.googleapis.com/v20`
+- **Current**: v21 (Latest stable as of October 2025)
+- **Base URL**: `https://googleads.googleapis.com/v21`
 
-### ✅ WORKING SETUP (North Star)
+### ✅ CORRECT IMPLEMENTATION (Verified Working)
 
-#### 1. OAuth Flow & Account Discovery
-**Purpose**: Properly discover and store the correct manager account ID during OAuth
+#### 1. Critical Implementation Rules
 
-**Best Practice Implementation**:
+**Customer ID Normalization**:
 ```typescript
-// Step 1: After OAuth, get all accessible customer IDs
-const accessibleCustomersResponse = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-  headers: {
+function normalizeCid(id: string | number): string {
+  return String(id).replace(/\D/g, '');
+}
+```
+- **Always normalize IDs**: `123-456-7890` → `1234567890`
+- **Apply to both URL path and login-customer-id header**
+
+**NDJSON Parsing**:
+```typescript
+function parseSearchStreamText(text: string): unknown[] {
+  return text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .map(l => JSON.parse(l));
+}
+```
+- **Never use `JSON.parse(responseText)`** on searchStream responses
+- **Parse line by line** - each line is a separate JSON object
+
+**Date Format**:
+- **Always use `YYYY-MM-DD`** format in GAQL queries
+- **Never strip dashes** from dates
+- **Example**: `WHERE segments.date BETWEEN '2025-09-01' AND '2025-10-09'`
+
+#### 2. Generic API Helper Pattern
+
+**Core Helper Function**:
+```typescript
+private static async adsSearchStream({
+  accessToken,
+  developerToken,
+  customerId,
+  managerId,
+  gaql
+}: {
+  accessToken: string;
+  developerToken: string;
+  customerId: string | number;
+  managerId?: string | number;
+  gaql: string;
+}): Promise<unknown[]> {
+  const pathCid = this.normalizeCid(customerId);
+  const loginCid = managerId ? this.normalizeCid(managerId) : undefined;
+
+  const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': developerToken,
-  },
+    'Content-Type': 'application/json'
+  };
+  if (loginCid) {
+    headers['login-customer-id'] = loginCid;
+  }
+
+  const url = `https://googleads.googleapis.com/v21/customers/${pathCid}/googleAds:searchStream`;
+  const resp = await globalThis.fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query: gaql })
+  });
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`Google Ads API ${resp.status}: ${text}`);
+  }
+  return this.parseSearchStreamText(text);
+}
+```
+
+#### 3. Account Discovery (Manager Accounts)
+
+**Purpose**: List all accounts under a manager account
+
+**Implementation**:
+```typescript
+// Listing accounts under a manager - use manager in both path and login-customer-id
+const gaql = `
+  SELECT 
+    customer_client.id, 
+    customer_client.descriptive_name, 
+    customer_client.status, 
+    customer_client.manager, 
+    customer_client.level 
+  FROM customer_client
+`;
+
+const blocks = await this.adsSearchStream({
+  accessToken,
+  developerToken,
+  customerId: managerAccountId, // manager in path
+  managerId: managerAccountId, // manager in login header
+  gaql
 });
 
-// Step 2: Find the manager account (MCC)
-const customerIds = (accessibleCustomersResponse.resourceNames || [])
-  .map(name => name.replace('customers/', ''));
-
-for (const id of customerIds) {
-  const customerDetailsResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'developer-token': developerToken,
-    },
-  });
-  
-  if (customerDetailsResponse.ok) {
-    const details = await customerDetailsResponse.json();
-    if (details.manager) {
-      // This is the manager account - store it!
-      return id;
-    }
+const accounts = [];
+for (const b of blocks) {
+  const blockData = b as { results?: unknown[] };
+  for (const r of blockData.results ?? []) {
+    const result = r as { customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; status?: string } };
+    const cc = result.customerClient;
+    if (!cc?.id) continue;
+    
+    const id = this.normalizeCid(cc.id);
+    accounts.push({
+      id,
+      name: cc.descriptiveName ?? `Ad Account ${id}`,
+      status: (cc.status ?? 'ENABLED').toLowerCase(),
+      currency: 'USD',
+      timezone: 'UTC'
+    });
   }
 }
 ```
 
-**Key Points**:
-- ✅ **Always use `listAccessibleCustomers`** first to get all accessible account IDs
-- ✅ **Check each account** with `/customers/{id}` to find the manager account
-- ✅ **Store the manager account ID** in the database `account_id` field
-- ✅ **Use manager account ID** for all subsequent API calls
+#### 4. Metrics Reporting (Client Accounts)
 
-#### 2. Get All Accounts (Manager + Sub-accounts)
-**Purpose**: Retrieve ALL accounts (both manager and client accounts) for dropdown selection
+**Purpose**: Get performance metrics for a specific client account
 
-**Method**: `GoogleAdsService.getAdAccounts()`
-
-**Working Implementation**:
+**Implementation**:
 ```typescript
-// Query ALL customer_client records (no WHERE clause)
-const query = `
-  SELECT
-    customer_client.id,
-    customer_client.descriptive_name,
-    customer_client.status,
-    customer_client.manager,
-    customer_client.level
-  FROM customer_client
+// Reporting on a single customer (with MCC) - use customer ID in path, manager ID in login-customer-id
+const gaql = `
+  SELECT 
+    metrics.conversions,
+    metrics.cost_micros,
+    metrics.impressions,
+    metrics.clicks
+  FROM customer 
+  WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
 `;
 
-const response = await fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'developer-token': developerToken,
-    'login-customer-id': managerAccountId, // Use the manager account ID
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ query })
+const blocks = await this.adsSearchStream({
+  accessToken,
+  developerToken,
+  customerId: customerId, // advertiser id from DB
+  managerId: managerAccountId, // manager id from DB
+  gaql
 });
 
-// Include ALL accounts - both manager and client accounts
-const accounts = results.map(result => ({
-  id: result.customerClient.id,
-  name: result.customerClient.descriptiveName || result.customerClient.descriptive_name,
-  status: result.customerClient.status?.toLowerCase() || 'active',
-  currency: 'USD',
-  timezone: 'UTC'
-}));
+// Aggregate following the exact pattern
+let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
+for (const b of blocks) {
+  const blockData = b as { results?: unknown[] };
+  for (const r of blockData.results ?? []) {
+    const result = r as { metrics?: { impressions?: string | number; clicks?: string | number; costMicros?: string | number; conversions?: string | number } };
+    const m = result.metrics ?? {};
+    impressions += Number(m.impressions ?? 0);
+    clicks += Number(m.clicks ?? 0);
+    costMicros += Number(m.costMicros ?? 0);
+    conversions += Number(m.conversions ?? 0);
+  }
+}
+
+// Compute metrics from totals (mathematically correct)
+const cost = costMicros / 1e6;
+const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+const averageCpc = clicks > 0 ? (costMicros / clicks) / 1e6 : 0;
 ```
 
-**Key Points**:
-- ✅ **No WHERE clause** - Get all customer_client records
-- ✅ **Include ALL accounts** - Both manager and client accounts
-- ✅ **Handle field names** - Support both `descriptiveName` and `descriptive_name`
-- ✅ **Use manager account ID** - Set `login-customer-id` header correctly
-- ✅ **Search functionality** - Built-in search with `SearchableSelect` component
+#### 5. Conversion Actions (Client Accounts)
+
+**Purpose**: Get conversion actions for a specific client account
+
+**Implementation**:
+```typescript
+// Getting conversion actions for a customer - scope is per customer, not manager
+const gaql = `
+  SELECT 
+    conversion_action.id,
+    conversion_action.name,
+    conversion_action.status,
+    conversion_action.type
+  FROM conversion_action
+  WHERE conversion_action.status = ENABLED
+`;
+
+const blocks = await this.adsSearchStream({
+  accessToken,
+  developerToken,
+  customerId: customerId, // customer account
+  managerId: managerAccountId, // include if going via MCC
+  gaql
+});
+
+const actions = [];
+for (const b of blocks) {
+  const blockData = b as { results?: unknown[] };
+  for (const r of blockData.results ?? []) {
+    const result = r as { conversionAction?: { id?: string | number; name?: string; status?: string; type?: string } };
+    const ca = result.conversionAction;
+    if (!ca) continue;
+    
+    actions.push({
+      id: String(ca.id),
+      name: ca.name ?? '',
+      status: ca.status ?? '',
+      type: ca.type ?? ''
+    });
+  }
+}
+```
+
+#### 6. Key Rules & Gotchas
+
+**When to include login-customer-id**:
+- ✅ **Include it when**: Your developer token is tied to an MCC and you're accessing child accounts via that MCC
+- ✅ **Include it when**: The OAuth user authenticating belongs to a manager (not directly to the customer)
+- ❌ **Omit it when**: The OAuth user connects directly to the customer account and you aren't using an MCC
+
+**Account ID Usage**:
+- **Path customer ID**: The customer you want to report on (`customers/{customerId}`)
+- **login-customer-id header**: A manager account ID in the hierarchy that has access to that customer (usually the MCC linked to your developer token)
+- **Normalize both IDs**: Remove dashes before using them in URLs/headers
+
+**Common Pitfalls**:
+- ❌ **Don't remove dashes from IDs in your database** - store original, normalize only at call time
+- ❌ **Don't strip dashes from dates** - GAQL dates must be `YYYY-MM-DD`
+- ❌ **Don't use `JSON.parse()` on searchStream responses** - parse NDJSON line by line
+- ❌ **Don't average row-level ratios** - compute CTR/CPC from totals for mathematical accuracy
+- ❌ **Don't query metrics on manager accounts** - use client accounts only
+
+#### 7. Testing & Verification
+
+**Quick Verification with search endpoint**:
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "developer-token: YOUR_DEV_TOKEN" \
+  -H "login-customer-id: MCC_ID_NO_DASHES" \
+  -H "Content-Type: application/json" \
+  https://googleads.googleapis.com/v21/customers/CLIENT_ID_NO_DASHES/googleAds:search \
+  -d '{
+    "query": "SELECT metrics.clicks, metrics.impressions, metrics.cost_micros, metrics.conversions FROM customer WHERE segments.date BETWEEN '\''2025-09-01'\'' AND '\''2025-10-09'\''"
+  }'
+```
+
+**Expected Response Format**:
+```json
+{
+  "results": [
+    {
+      "customer": {
+        "resourceName": "customers/5659913242"
+      },
+      "metrics": {
+        "clicks": "2607",
+        "conversions": 5,
+        "costMicros": "736382979",
+        "impressions": "175171"
+      }
+    }
+  ]
+}
+```
+
+**Unit Conversions**:
+- **Cost ($)**: `costMicros / 1e6`
+- **CPC ($)**: `averageCpc / 1e6` or `costMicros / clicks / 1e6`
+- **CTR (%)**: `ctr * 100` or `(clicks / impressions) * 100`
+- **Cost/Conv ($)**: `costMicros / conversions / 1e6`
 
 #### 3. Database Setup
 **Critical**: The `store_oauth_tokens_safely` RPC function must set the `account_id` field:

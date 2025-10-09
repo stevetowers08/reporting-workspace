@@ -101,13 +101,19 @@ export class EventMetricsService {
       const promises = [];
 
       // Check which accounts are connected (not 'none' and not undefined)
+      debugLogger.debug('EventMetricsService', 'Client accounts data:', {
+        clientAccounts,
+        googleAdsAccount: clientAccounts?.googleAds,
+        googleAdsAccountType: typeof clientAccounts?.googleAds
+      });
+
       const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
       const hasGoogleAds = clientAccounts?.googleAds && clientAccounts.googleAds !== 'none';
       const hasGoHighLevel = clientAccounts?.goHighLevel && clientAccounts.goHighLevel !== 'none';
       const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds));}
-      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange));}
+      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds));}
       if (hasGoHighLevel) {
         promises.push(this.getGHLMetrics(dateRange, clientAccounts?.goHighLevel));
       }
@@ -211,9 +217,9 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(dateRange: { start: string; end: string }): Promise<GoogleAdsMetrics> {
+  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics> {
     try {
-      debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange });
+      debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange, clientGoogleAdsAccount });
       
       // Import GoogleAdsService dynamically to avoid circular dependencies
       const { GoogleAdsService } = await import('@/services/api/googleAdsService');
@@ -227,23 +233,30 @@ export class EventMetricsService {
         return this.getEmptyGoogleMetrics();
       }
       
-      // Get Google Ads accounts
-      const accounts = await GoogleAdsService.getAdAccounts();
-      
-      if (accounts.length === 0) {
-        debugLogger.warn('EventMetricsService', 'No Google Ads accounts found');
+      // Get the manager account ID from the integration (for login-customer-id header)
+      const managerAccountId = await GoogleAdsService.getManagerAccountId();
+      if (!managerAccountId) {
+        debugLogger.warn('EventMetricsService', 'No manager account ID found in integration');
         return this.getEmptyGoogleMetrics();
       }
       
-      // Use the first account for now (most common use case)
-      const primaryAccount = accounts[0];
-      debugLogger.debug('EventMetricsService', 'Using Google Ads account', { 
-        accountId: primaryAccount.id, 
-        accountName: primaryAccount.name 
+      // Use the client's Google Ads account ID for metrics (not the manager account)
+      const targetAccountId = clientGoogleAdsAccount && clientGoogleAdsAccount !== 'none' 
+        ? clientGoogleAdsAccount 
+        : managerAccountId; // fallback to manager if no client account specified
+      
+      debugLogger.debug('EventMetricsService', 'Google Ads account selection:', { 
+        managerAccountId: managerAccountId,
+        clientAccountId: clientGoogleAdsAccount,
+        clientAccountIdType: typeof clientGoogleAdsAccount,
+        clientAccountIdIsNone: clientGoogleAdsAccount === 'none',
+        targetAccountId: targetAccountId,
+        targetAccountIdType: typeof targetAccountId,
+        willUseManagerAccount: targetAccountId === managerAccountId
       });
       
-      // Fetch metrics for the primary account
-      const metrics = await GoogleAdsService.getAccountMetrics(primaryAccount.id, dateRange);
+      // Use the client account ID for the API call (manager account is used for login-customer-id header)
+      const metrics = await GoogleAdsService.getAccountMetrics(targetAccountId, dateRange);
       debugLogger.debug('EventMetricsService', 'Google Ads metrics result', metrics);
       
       // Log if we got empty data
@@ -375,7 +388,7 @@ export class EventMetricsService {
         leads: facebook.leads,
         percentage: totalLeads > 0 ? (facebook.leads / totalLeads) * 100 : 0,
         costPerLead: facebook.leads > 0 ? facebook.spend / facebook.leads : 0,
-        conversionRate: 0 // No mock data
+        conversionRate: 0
       });
     }
 
@@ -385,7 +398,7 @@ export class EventMetricsService {
         leads: google.leads,
         percentage: totalLeads > 0 ? (google.leads / totalLeads) * 100 : 0,
         costPerLead: google.leads > 0 ? google.cost / google.leads : 0,
-        conversionRate: 0 // No mock data
+        conversionRate: 0
       });
     }
 
@@ -403,8 +416,8 @@ export class EventMetricsService {
       averageGuestsPerEvent,
       mostPopularEventType,
       seasonalTrends,
-      landingPageConversionRate: 0, // No mock data
-      formCompletionRate: 0, // No mock data
+      landingPageConversionRate: 0,
+      formCompletionRate: 0,
       leadSourceBreakdown
     };
   }

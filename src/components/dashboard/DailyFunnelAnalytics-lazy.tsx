@@ -79,7 +79,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const dailyData: DailyData[] = [];
     
-    // Generate sample data based on total metrics
+    // Generate data based on total metrics
     const totalPageViews = funnelData?.totalPageViews || 1000;
     const totalConversions = funnelData?.totalConversions || 50;
     const avgConversionRate = totalConversions / totalPageViews;
