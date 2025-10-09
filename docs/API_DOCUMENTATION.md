@@ -1,5 +1,23 @@
 # Marketing Analytics Dashboard - API Documentation
 
+## 🎯 North Star - Working Setup
+
+**This document is the definitive guide for the WORKING Google Ads integration.**
+
+### ✅ What Works (Current State)
+- **Google Ads Integration**: Fully functional with 40+ accounts
+- **Manager Account**: Tulen Agency (3791504588) - correctly identified and stored
+- **Account Discovery**: Proper OAuth flow with `listAccessibleCustomers` API
+- **Search Functionality**: Real-time search through all accounts
+- **Database Setup**: Correct `store_oauth_tokens_safely` RPC function
+- **Frontend Integration**: `SearchableSelect` component with filtering
+
+### ❌ What Doesn't Work (Removed)
+- ~~Edge Functions for Google Ads OAuth~~ (reverted to frontend OAuth)
+- ~~Hardcoded account lists~~ (replaced with real API calls)
+- ~~Filtering out manager accounts~~ (now includes all accounts)
+- ~~Complex WHERE clauses~~ (simplified to get all accounts)
+
 ## Overview
 
 This document provides comprehensive API documentation for the Marketing Analytics Dashboard, covering Google Ads, Google Sheets, and all supporting services. This is the definitive guide for developers working on this system.
@@ -56,34 +74,71 @@ These integrations are stored in the `clients.accounts` field and are specific t
 
 ### Service Location
 - **Main Service**: `src/services/api/googleAdsService.ts`
-- **Edge Function**: `supabase/functions/google-ads-api/index.ts`
+- **Account Discovery**: `src/services/api/googleAdsAccountDiscovery.ts`
 
 ### API Version
-- **Current**: v20 (Released 2025-06-04)
-- **Latest Available**: v21
-- **Base URL**: `https://googleads.googleapis.com/v20` or `https://googleads.googleapis.com/v21`
+- **Current**: v20 (Latest stable)
+- **Base URL**: `https://googleads.googleapis.com/v20`
 
-### API Endpoints
+### ✅ WORKING SETUP (North Star)
 
-#### 1. Get Individual Ad Accounts
-**Purpose**: Retrieve individual ad accounts (not manager accounts) for dropdown selection
+#### 1. OAuth Flow & Account Discovery
+**Purpose**: Properly discover and store the correct manager account ID during OAuth
+
+**Best Practice Implementation**:
+```typescript
+// Step 1: After OAuth, get all accessible customer IDs
+const accessibleCustomersResponse = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'developer-token': developerToken,
+  },
+});
+
+// Step 2: Find the manager account (MCC)
+const customerIds = (accessibleCustomersResponse.resourceNames || [])
+  .map(name => name.replace('customers/', ''));
+
+for (const id of customerIds) {
+  const customerDetailsResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${id}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'developer-token': developerToken,
+    },
+  });
+  
+  if (customerDetailsResponse.ok) {
+    const details = await customerDetailsResponse.json();
+    if (details.manager) {
+      // This is the manager account - store it!
+      return id;
+    }
+  }
+}
+```
+
+**Key Points**:
+- ✅ **Always use `listAccessibleCustomers`** first to get all accessible account IDs
+- ✅ **Check each account** with `/customers/{id}` to find the manager account
+- ✅ **Store the manager account ID** in the database `account_id` field
+- ✅ **Use manager account ID** for all subsequent API calls
+
+#### 2. Get All Accounts (Manager + Sub-accounts)
+**Purpose**: Retrieve ALL accounts (both manager and client accounts) for dropdown selection
 
 **Method**: `GoogleAdsService.getAdAccounts()`
 
-**Implementation Strategy** (2025 Best Practices - WORKING WITH ACCOUNT NAMES):
+**Working Implementation**:
 ```typescript
-// Use customer_client resource to get both customer IDs and account names
+// Query ALL customer_client records (no WHERE clause)
 const query = `
   SELECT
-    customer_client.client_customer,
+    customer_client.id,
     customer_client.descriptive_name,
     customer_client.status,
-    customer_client.currency_code,
-    customer_client.time_zone,
-    customer_client.manager
+    customer_client.manager,
+    customer_client.level
   FROM customer_client
-  WHERE customer_client.level <= 1
-    AND customer_client.status = 'ENABLED'
 `;
 
 const response = await fetch(`https://googleads.googleapis.com/v20/customers/${managerAccountId}/googleAds:searchStream`, {
@@ -91,177 +146,85 @@ const response = await fetch(`https://googleads.googleapis.com/v20/customers/${m
   headers: {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': developerToken,
-    'login-customer-id': managerAccountId,
+    'login-customer-id': managerAccountId, // Use the manager account ID
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ query })
 });
 
-// Process results and filter out manager accounts
-const individualAccounts = results
-  .filter(result => !result.customerClient.manager && result.customerClient.status === 'ENABLED')
-  .map(result => ({
-    id: result.customerClient.clientCustomer,
-    name: result.customerClient.descriptiveName,
-    status: 'active',
-    currency: result.customerClient.currencyCode || 'USD',
-    timezone: result.customerClient.timeZone || 'UTC'
-  }));
+// Include ALL accounts - both manager and client accounts
+const accounts = results.map(result => ({
+  id: result.customerClient.id,
+  name: result.customerClient.descriptiveName || result.customerClient.descriptive_name,
+  status: result.customerClient.status?.toLowerCase() || 'active',
+  currency: 'USD',
+  timezone: 'UTC'
+}));
 ```
 
 **Key Points**:
-- ✅ **Endpoint**: `https://googleads.googleapis.com/v20/customers/{managerAccountId}/googleAds:searchStream`
-- ✅ **Method**: `POST` with GAQL query body
-- ✅ **Resource**: `customer_client` (gets both IDs and names)
-- ✅ **Filtering**: `level <= 1` (direct clients only), `status = 'ENABLED'`
-- ✅ **Real Account Names**: Uses `customer_client.descriptive_name`
-- ✅ **Single API Call**: Gets all data in one request
-- ✅ **Proper Headers**: Includes `login-customer-id` for manager account access
+- ✅ **No WHERE clause** - Get all customer_client records
+- ✅ **Include ALL accounts** - Both manager and client accounts
+- ✅ **Handle field names** - Support both `descriptiveName` and `descriptive_name`
+- ✅ **Use manager account ID** - Set `login-customer-id` header correctly
+- ✅ **Search functionality** - Built-in search with `SearchableSelect` component
 
-**Status**: ✅ **WORKING** - Returns real individual ad accounts from Google Ads API
-**Recent Fix**: Restored real API calls (removed temporary hardcoded accounts)
+#### 3. Database Setup
+**Critical**: The `store_oauth_tokens_safely` RPC function must set the `account_id` field:
 
-**Key Features**:
-- ✅ **No Fake Accounts**: Removed all fallback/simulation logic as requested
-- ✅ **Real API Data**: Uses actual Google Ads API endpoints
-- ✅ **Proper Filtering**: Correctly identifies and filters out manager accounts
-- ✅ **Automatic Token Refresh**: Handles token expiration seamlessly
-
-#### 2. Get Campaigns
-**Method**: `GoogleAdsService.getCampaigns(customerId: string)`
-
-**Edge Function Endpoint**: `/functions/v1/google-ads-api/campaigns?customerId={customerId}`
-
-**Implementation**:
-```typescript
-const query = `
-  SELECT
-    campaign.id,
-    campaign.name,
-    campaign.status,
-    campaign.advertising_channel_type
-  FROM campaign
-  WHERE campaign.status IN ('ENABLED', 'PAUSED')
-`;
+```sql
+CREATE OR REPLACE FUNCTION store_oauth_tokens_safely(
+  p_platform text,
+  p_tokens jsonb,
+  p_account_info jsonb DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_config jsonb;
+  v_account_id text;
+BEGIN
+  -- Extract account_id from p_account_info
+  v_account_id := p_account_info->>'id';
+  
+  -- Build the config object
+  v_config := jsonb_build_object(
+    'connected', true,
+    'tokens', p_tokens,
+    'accountInfo', p_account_info,
+    'lastSync', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'syncStatus', 'idle',
+    'connectedAt', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  );
+  
+  -- Upsert with atomic update, including account_id
+  INSERT INTO integrations (platform, connected, account_id, config)
+  VALUES (p_platform, true, v_account_id, v_config)
+  ON CONFLICT (platform) 
+  DO UPDATE SET 
+    connected = true,
+    account_id = COALESCE(v_account_id, integrations.account_id),
+    config = v_config,
+    updated_at = now();
+END;
+$$;
 ```
 
-#### 3. Get Campaign Performance (Enhanced with v20/v21 Features)
-**Method**: `GoogleAdsService.getAccountMetrics(customerId: string, dateRange?: DateRange)`
+#### 4. Frontend Integration
+**Search Feature**: Already implemented with `SearchableSelect` component:
+- ✅ **Real-time search** - Filter accounts as you type
+- ✅ **Case-insensitive** - Works regardless of capitalization
+- ✅ **Auto-focus** - Search input focuses automatically
+- ✅ **Clean UI** - Shows "No options found" when no matches
 
-**Edge Function Endpoint**: `/functions/v1/google-ads-api/campaign-performance?customerId={customerId}&dateRange={dateRange}`
+**Status**: ✅ **FULLY WORKING** - Returns all 40+ accounts from Tulen Agency manager account
 
-**Basic Implementation**:
-```typescript
-const query = `
-  SELECT 
-    metrics.impressions,
-    metrics.clicks,
-    metrics.cost_micros,
-    metrics.conversions,
-    metrics.ctr,
-    metrics.average_cpc,
-    metrics.conversions_from_interactions_rate,
-    metrics.cost_per_conversion,
-    segments.date
-  FROM customer 
-  WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
-#### 4. 🆕 NEW: Enhanced Conversion Metrics (v20/v21)
-**New Conversion Date Metrics**:
-```typescript
-const enhancedQuery = `
-  SELECT 
-    campaign.name,
-    metrics.impressions,
-    metrics.clicks,
-    metrics.cost_micros,
-    metrics.conversions,
-    metrics.conversions_by_conversion_date,
-    metrics.all_conversions_by_conversion_date,
-    metrics.conversions_value_by_conversion_date,
-    metrics.value_per_conversions_by_conversion_date,
-    segments.date
-  FROM campaign 
-  WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
-#### 5. 🆕 NEW: Platform-Comparable Conversions (Demand Gen)
-**For Demand Generation Campaigns**:
-```typescript
-const demandGenQuery = `
-  SELECT 
-    campaign.name,
-    metrics.impressions,
-    metrics.clicks,
-    metrics.cost_micros,
-    metrics.platform_comparable_conversions,
-    metrics.platform_comparable_conversions_value,
-    metrics.cost_per_platform_comparable_conversion,
-    segments.date
-  FROM campaign 
-  WHERE campaign.advertising_channel_type = 'DISPLAY'
-    AND segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
-#### 6. 🆕 NEW: Geographic Performance Segmentation
-**Location-Based Reporting**:
-```typescript
-const geographicQuery = `
-  SELECT
-    campaign.name,
-    campaign_destination_segments.destination_name,
-    campaign_destination_segments.country_code,
-    metrics.impressions,
-    metrics.clicks,
-    metrics.cost_micros,
-    segments.date
-  FROM campaign_destination_segments
-  WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
-#### 7. 🆕 NEW: Content Targeting Performance
-**Display/Video Campaign Insights**:
-```typescript
-const contentQuery = `
-  SELECT
-    campaign.name,
-    ad_group.name,
-    content_criterion_view.criterion_id,
-    metrics.impressions,
-    metrics.clicks,
-    metrics.cost_micros,
-    segments.date
-  FROM content_criterion_view
-  WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
-#### 8. 🆕 NEW: Ad Performance with Conversion Attribution
-**Detailed Ad-Level Metrics**:
-```typescript
-const adPerformanceQuery = `
-  SELECT
-    campaign.name,
-    ad_group.name,
-    ad_group_ad.ad.id,
-    metrics.impressions,
-    metrics.clicks,
-    metrics.conversions_by_conversion_date,
-    metrics.conversions_value_by_conversion_date,
-    segments.conversion_action_name,
-    segments.conversion_action_category,
-    segments.external_conversion_source,
-    segments.date
-  FROM ad_group_ad
-  WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-`;
-```
-
+#### 5. Additional Methods (Available but not primary focus)
+**Get Account Metrics**: `GoogleAdsService.getAccountMetrics(customerId: string, dateRange: DateRange)`
+**Get Conversion Actions**: `GoogleAdsService.getConversionActions(customerId: string)`
+**Test Connection**: `GoogleAdsService.testConnection()`
+**Authenticate**: `GoogleAdsService.authenticate(accessToken?: string)`
 ### Authentication Requirements
 
 #### OAuth Scopes
@@ -274,6 +237,7 @@ const adPerformanceQuery = `
 {
   'Authorization': `Bearer ${accessToken}`,
   'developer-token': developerToken,
+  'login-customer-id': managerAccountId, // CRITICAL: Must be the manager account ID
   'Content-Type': 'application/json'
 }
 ```
@@ -282,37 +246,28 @@ const adPerformanceQuery = `
 - **Environment Variable**: `VITE_GOOGLE_ADS_DEVELOPER_TOKEN`
 - **Current Token**: `5D7nPWHfNnpiMgxGOgNLlA`
 - **Status**: ✅ **VALID** - Successfully tested and working
-- **Configuration**: Must be set in both `.env.local` AND `.env.development` files
 
 #### Token Management
 - **Automatic Refresh**: ✅ **WORKING** - Tokens refresh automatically before expiration
-- **Refresh Threshold**: 5 minutes before expiry
-- **Storage**: Encrypted tokens in Supabase database
+- **Storage**: Tokens stored in Supabase database via `store_oauth_tokens_safely` RPC
 - **Scope**: OAuth tokens are shared across all clients (account-level integration)
 
-### Rate Limiting
-- **Google Ads API Limits**: Based on developer token access level
-  - **Basic Access**: 15 queries per second (QPS)
-  - **Standard Access**: 100 QPS
-  - **Advanced Access**: 1000 QPS
-- **Self-Imposed Limit**: 5 requests/second (200ms interval) for safety
-- **Implementation**: Simple delay-based limiting (not robust for production)
-- **Recommendation**: Implement proper QPS tracking based on developer token level
+### Common Issues & Solutions
 
-### Error Handling
-```typescript
-// Token refresh on 401 errors
-if (response.status === 401) {
-  await TokenManager.refreshTokens('googleAds');
-  // Retry with new token
-}
+#### Issue: "Invalid customer ID" Error
+**Cause**: Using Google User ID (18 digits) instead of Google Ads Customer ID (10 digits)
+**Solution**: Always use `listAccessibleCustomers` to discover the correct manager account ID
 
-// Rate limit handling
-if (response.status === 429) {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  // Retry request
-}
-```
+#### Issue: Only 1 Account Showing
+**Cause**: Using wrong manager account ID or filtering out accounts incorrectly
+**Solution**: Use the correct manager account ID and include ALL accounts (no WHERE clause)
+
+#### Issue: "Optional[...]" in Headers
+**Cause**: Database storing account_id with Optional wrapper
+**Solution**: Clean the account_id field: `String(accountId).replace(/^Optional\[/, '').replace(/\]$/, '')`
+
+### Current Status
+✅ **FULLY WORKING** - All 40+ accounts from Tulen Agency manager account (3791504588) are accessible with search functionality
 
 ---
 
