@@ -68,11 +68,13 @@ export default defineConfig({
     global: 'globalThis',
     'process.env': JSON.stringify(process.env),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'window.React': 'React',
   },
   build: {
     target: 'es2020',
     sourcemap: true,
     rollupOptions: {
+      external: [],
       output: {
         manualChunks: (id) => {
           // Core React libraries
