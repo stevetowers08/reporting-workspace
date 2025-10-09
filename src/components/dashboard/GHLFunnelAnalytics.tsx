@@ -31,6 +31,11 @@ interface FunnelData {
       conversionRate: number;
     }>;
   }>;
+  funnelBreakdown: Array<{
+    name: string;
+    type: string;
+    pages: number;
+  }>;
   totalFunnels: number;
   totalPageViews: number;
   totalConversions: number;
@@ -46,17 +51,53 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
   useEffect(() => {
     const fetchFunnelData = async () => {
       try {
-        const data = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
-        setFunnelData(data);
+        // Convert date range format for API
+        const apiDateRange = dateRange ? {
+          startDate: dateRange.start,
+          endDate: dateRange.end
+        } : undefined;
+        
+        const data = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
+        
+        // Transform the API response to match our interface
+        const transformedData: FunnelData = {
+          funnels: data.map(funnel => ({
+            id: funnel.id,
+            name: funnel.name,
+            status: 'active', // Default status
+            createdAt: new Date().toISOString(),
+            pages: funnel.pages.map(page => ({
+              id: page.id,
+              name: page.name,
+              url: '', // Not available in API
+              views: page.views,
+              conversions: page.conversions,
+              conversionRate: page.conversionRate
+            })),
+            redirects: [] // Not available in current API
+          })),
+          funnelBreakdown: data.map(funnel => ({
+            name: funnel.name,
+            type: 'funnel',
+            pages: funnel.pages.length
+          })),
+          totalFunnels: data.length,
+          totalPageViews: data.reduce((sum, funnel) => sum + funnel.views, 0),
+          totalConversions: data.reduce((sum, funnel) => sum + funnel.conversions, 0),
+          averageConversionRate: data.length > 0 ? 
+            data.reduce((sum, funnel) => sum + funnel.conversionRate, 0) / data.length : 0
+        };
+        
+        setFunnelData(transformedData);
       } catch (error) {
-        console.error('Failed to fetch funnel analytics:', error);
+        // Error handled by error boundary
       } finally {
         setLoading(false);
       }
     };
 
     fetchFunnelData();
-  }, [dateRange]);
+  }, [locationId, dateRange]);
 
   if (loading) {
     return (
@@ -84,28 +125,30 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
     );
   }
 
-  // Prepare chart data from funnelBreakdown
+  // Prepare chart data from funnelBreakdown - use real data from API
   const funnelPerformanceData = funnelData.funnelBreakdown.map((funnel, index) => {
-    // Calculate estimated views and conversions based on funnel type
-    const estimatedViews = funnel.type === 'funnel' ? funnel.pages * 150 : funnel.pages * 50;
-    const estimatedConversions = Math.round(estimatedViews * 0.03); // 3% conversion rate
+    // Use real funnel data from GoHighLevel API
+    const realFunnel = funnelData.funnels.find(f => f.name === funnel.name);
+    const views = realFunnel ? realFunnel.totalViews : 0;
+    const conversions = realFunnel ? realFunnel.totalConversions : 0;
+    const conversionRate = realFunnel ? realFunnel.conversionRate : 0;
     
     return {
       name: funnel.name.length > 15 ? funnel.name.substring(0, 15) + '...' : funnel.name,
       fullName: funnel.name,
-      views: estimatedViews,
-      conversions: estimatedConversions,
-      conversionRate: estimatedViews > 0 ? (estimatedConversions / estimatedViews) * 100 : 0,
+      views: views,
+      conversions: conversions,
+      conversionRate: conversionRate,
       color: FUNNEL_COLORS[index % FUNNEL_COLORS.length]
     };
   });
 
-  const topPagesData = funnelData.funnelBreakdown
+  const topPagesData = funnelData.funnels
     .map(funnel => ({
       name: funnel.name,
-      views: funnel.type === 'funnel' ? funnel.pages * 150 : funnel.pages * 50,
-      conversions: Math.round((funnel.type === 'funnel' ? funnel.pages * 150 : funnel.pages * 50) * 0.03),
-      conversionRate: 3.0 // 3% conversion rate
+      views: funnel.totalViews,
+      conversions: funnel.totalConversions,
+      conversionRate: funnel.conversionRate
     }))
     .sort((a, b) => b.views - a.views)
     .slice(0, 5)
@@ -223,40 +266,30 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
               </tr>
             </thead>
             <tbody>
-              {funnelData.funnelBreakdown.map((funnel) => {
-                const estimatedViews = funnel.type === 'funnel' ? funnel.pages * 150 : funnel.pages * 50;
-                const estimatedConversions = Math.round(estimatedViews * 0.03);
-                const conversionRate = estimatedViews > 0 ? (estimatedConversions / estimatedViews) * 100 : 0;
-                
-                return (
-                  <tr key={funnel.name} className="border-b border-slate-100">
-                    <td className="py-2">
-                      <div className="font-medium text-slate-700">{funnel.name}</div>
-                    </td>
-                    <td className="text-right py-2 text-slate-600">
-                      {funnel.pages}
-                    </td>
-                    <td className="text-right py-2 text-slate-600">
-                      {estimatedViews.toLocaleString()}
-                    </td>
-                    <td className="text-right py-2 text-slate-600">
-                      {estimatedConversions.toLocaleString()}
-                    </td>
-                    <td className="text-right py-2 text-slate-600">
-                      {conversionRate.toFixed(1)}%
-                    </td>
-                    <td className="text-right py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        funnel.type === 'funnel' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {funnel.type}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {funnelData.funnels.map((funnel) => (
+                <tr key={funnel.id} className="border-b border-slate-100">
+                  <td className="py-2">
+                    <div className="font-medium text-slate-700">{funnel.name}</div>
+                  </td>
+                  <td className="text-right py-2 text-slate-600">
+                    {funnel.pages.length}
+                  </td>
+                  <td className="text-right py-2 text-slate-600">
+                    {funnel.totalViews.toLocaleString()}
+                  </td>
+                  <td className="text-right py-2 text-slate-600">
+                    {funnel.totalConversions.toLocaleString()}
+                  </td>
+                  <td className="text-right py-2 text-slate-600">
+                    {funnel.conversionRate.toFixed(1)}%
+                  </td>
+                  <td className="text-right py-2">
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      active
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

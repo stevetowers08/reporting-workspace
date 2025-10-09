@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { DatabaseService } from '@/services/data/databaseService';
-import { ClientForm } from '@/components/admin/ClientForm';
+import { ClientForm } from '@/components/agency/ClientForm';
 import { debugLogger } from '@/lib/debug';
+import { DatabaseService } from '@/services/data/databaseService';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 interface Client {
   id: string;
@@ -59,7 +59,7 @@ const ClientEditPage: React.FC = () => {
       newSearchParams.delete('location_name');
       
       // Update URL without the OAuth parameters
-      navigate(`/admin/clients/${clientId}/edit?${newSearchParams.toString()}`, { replace: true });
+      navigate(`/agency/clients/${clientId}/edit?${newSearchParams.toString()}`, { replace: true });
       
       // Hide success message after 5 seconds
       setTimeout(() => {
@@ -109,8 +109,8 @@ const ClientEditPage: React.FC = () => {
       await DatabaseService.updateClient(clientId, updates);
       debugLogger.info('ClientEditPage', 'Client updated successfully');
       
-      // Navigate back to admin panel
-      navigate('/admin');
+      // Navigate back to agency panel
+      navigate('/agency');
     } catch (error) {
       debugLogger.error('ClientEditPage', 'Failed to update client', error);
       throw error;
@@ -118,7 +118,7 @@ const ClientEditPage: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate('/admin');
+    navigate('/agency');
   };
 
   if (loading) {
@@ -144,10 +144,10 @@ const ClientEditPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/agency')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
-            Back to Admin Panel
+            Back to Agency Panel
           </button>
         </div>
       </div>
@@ -161,10 +161,10 @@ const ClientEditPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Client Not Found</h2>
           <p className="text-gray-600 mb-4">The requested client could not be found.</p>
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/agency')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
-            Back to Admin Panel
+            Back to Agency Panel
           </button>
         </div>
       </div>
@@ -215,7 +215,7 @@ const ClientEditPage: React.FC = () => {
             clientId={clientId}
             onSubmit={handleUpdateClient}
             onCancel={handleCancel}
-            cancelLabel="Back to Admin Panel"
+            cancelLabel="Back to Agency Panel"
           />
         </div>
       </div>

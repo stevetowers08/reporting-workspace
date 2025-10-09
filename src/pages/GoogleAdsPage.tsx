@@ -80,7 +80,7 @@ const GoogleAdsPage = () => {
                                             metrics.googleMetrics.cost > 0;
 
                     if (!hasRealGoogleData) {
-                        console.log(`🔍 GoogleAdsPage: Skipping ${client.name} - no real Google Ads data`);
+                        // Skipping client - no real Google Ads data
                         continue;
                     }
 
@@ -111,7 +111,7 @@ const GoogleAdsPage = () => {
                 } catch (error) {
                     debugLogger.error('GoogleAdsPage', `Error loading metrics for client ${client.name}`, error);
                     // Don't add clients with errors - only show real data
-                    console.log(`🔍 GoogleAdsPage: Error loading ${client.name}, skipping`);
+                    // Error loading client, skipping
                 }
             }
 
@@ -234,7 +234,7 @@ const GoogleAdsPage = () => {
                                     </div>
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">No Google Ads Found</h3>
                                     <p className="text-gray-500 mb-4">No clients have Google ad accounts connected yet.</p>
-                                    <Link to="/admin">
+                                    <Link to="/agency">
                                         <Button>
                                             <BarChart3 className="h-4 w-4 mr-2" />
                                             Manage Clients

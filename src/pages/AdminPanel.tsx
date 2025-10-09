@@ -1,4 +1,4 @@
-import { AdminPanel as RefactoredAdminPanel } from "@/components/admin/AdminPanel";
+import { AgencyPanel as RefactoredAgencyPanel } from "@/components/agency/AgencyPanel";
 import { IntegrationErrorBoundary } from "@/components/error/IntegrationErrorBoundary";
 import AddClientModal from "@/components/modals/AddClientModal";
 import EditClientModal from "@/components/modals/EditClientModal";
@@ -21,7 +21,7 @@ interface Client {
   shareable_link: string;
 }
 
-const AdminPanel = () => {
+const AgencyPanel = () => {
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -52,7 +52,7 @@ const AdminPanel = () => {
       setSearchParams({});
     } else if (googleAdsConnected === 'true' && managerId) {
       // Handle Google Ads backend OAuth success
-      debugLogger.info('AdminPanel', 'Google Ads backend OAuth successful', { managerId });
+      debugLogger.info('AgencyPanel', 'Google Ads backend OAuth successful', { managerId });
       setShowSuccessMessage(true);
       
       // Clear the URL parameters after showing the message
@@ -78,7 +78,7 @@ const AdminPanel = () => {
         setShowEditClientModal(true);
       }
     } catch (error) {
-      debugLogger.error('AdminPanel', 'Failed to load client for edit', error);
+      debugLogger.error('AgencyPanel', 'Failed to load client for edit', error);
     }
   };
 
@@ -117,19 +117,19 @@ const AdminPanel = () => {
       await DatabaseService.createClient(clientData);
       setShowAddClientModal(false);
     } catch (error) {
-      debugLogger.error('ADMIN', 'Failed to add client', error);
+      debugLogger.error('AGENCY', 'Failed to add client', error);
     }
   };
 
   const handleUpdateClientSubmit = async (clientId: string, updates: Partial<Client>) => {
     try {
-      debugLogger.info('AdminPanel', 'handleUpdateClientSubmit called', { clientId, updates });
+      debugLogger.info('AgencyPanel', 'handleUpdateClientSubmit called', { clientId, updates });
       await DatabaseService.updateClient(clientId, updates);
-      debugLogger.info('AdminPanel', 'Client updated successfully');
+      debugLogger.info('AgencyPanel', 'Client updated successfully');
       setShowEditClientModal(false);
       setEditingClient(null);
     } catch (error) {
-      debugLogger.error('ADMIN', 'Failed to update client', error);
+      debugLogger.error('AGENCY', 'Failed to update client', error);
     }
   };
 
@@ -150,7 +150,7 @@ const AdminPanel = () => {
         </div>
       )}
 
-      <RefactoredAdminPanel
+        <RefactoredAgencyPanel
         onBackToDashboard={handleBackToDashboard}
         onAddClient={handleAddClient}
         onEditClient={handleEditClient}
@@ -180,4 +180,4 @@ const AdminPanel = () => {
   );
 };
 
-export default AdminPanel;
+export default AgencyPanel;

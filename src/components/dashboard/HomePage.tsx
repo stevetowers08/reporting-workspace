@@ -1,21 +1,109 @@
-import { AdminHeader } from '@/components/dashboard/AdminHeader';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button-simple';
-import { Card, CardContent } from '@/components/ui/card';
+import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
+import EditClientModal from '@/components/modals/EditClientModal';
+import { IntegrationOnboardingBar } from '@/components/ui/IntegrationOnboardingBar';
 import { LoadingState } from '@/components/ui/LoadingStates';
+import { LogoManager } from '@/components/ui/LogoManager';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { DatabaseService } from '@/services/data/databaseService';
 import {
-    ArrowRight,
-    BarChart3,
-    FileSpreadsheet,
-    Plus,
-    Users,
-    Zap
+  BarChart3,
+  Edit,
+  Plus,
+  Users
 } from 'lucide-react';
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
+
+type Client = {
+  id: string;
+  name: string;
+  logo_url?: string;
+  status: 'active' | 'paused' | 'inactive';
+  accounts: {
+    facebookAds?: string;
+    googleAds?: string;
+    goHighLevel?: string;
+    googleSheets?: string;
+  };
+  conversion_actions?: {
+    facebookAds?: string;
+    googleAds?: string;
+  };
+  googleSheetsConfig?: {
+    spreadsheetId: string;
+    sheetName: string;
+  };
+  shareable_link: string;
+};
 
 interface HomePageProps {
-  clients: Array<{
-    id: string;
+  clients: Array<Client>;
+  onClientSelect: (clientId: string) => void;
+  onGoToAgency: () => void;
+  loading?: boolean;
+}
+
+export const HomePage: React.FC<HomePageProps> = ({
+  clients,
+  onClientSelect,
+  onGoToAgency,
+  loading = false
+}) => {
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+  // Use TokenManager for proper connection status checking
+  const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
+  
+  // Load integration status using TokenManager (same as agency panel)
+  React.useEffect(() => {
+    const loadIntegrationStatus = async () => {
+      try {
+        const { TokenManager } = await import('@/services/auth/TokenManager');
+        const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+        
+        const statusMap: Record<string, boolean> = {};
+        
+        // Check agency-level platforms using TokenManager
+        const agencyPlatforms = ['facebookAds', 'googleAds', 'googleSheets'] as const;
+        
+        for (const platform of agencyPlatforms) {
+          if (platform === 'googleSheets') {
+            statusMap[platform] = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+          } else {
+            statusMap[platform] = await TokenManager.isConnected(platform);
+          }
+        }
+        
+        setIntegrationStatus(statusMap);
+      } catch (error) {
+        setIntegrationStatus({});
+      }
+    };
+
+    loadIntegrationStatus();
+  }, []);
+
+  // Check if a client has GoHighLevel configured (client-level check)
+  const isClientGHLConnected = (client: Client): boolean => {
+    const hasLocationId = typeof client.accounts.goHighLevel === 'string' 
+      ? client.accounts.goHighLevel && client.accounts.goHighLevel !== 'none'
+      : (client.accounts.goHighLevel as any)?.locationId && (client.accounts.goHighLevel as any)?.locationId !== 'none';
+    return Boolean(hasLocationId);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setShowEditClientModal(true);
+  };
+
+  const handleAddClient = () => {
+    // Open the client form modal for adding a new client
+    setEditingClient(null);
+    setShowEditClientModal(true);
+  };
+
+  const handleCreateClient = async (clientData: {
     name: string;
     logo_url?: string;
     status: 'active' | 'paused' | 'inactive';
@@ -24,41 +112,39 @@ interface HomePageProps {
       googleAds?: string;
       goHighLevel?: string;
       googleSheets?: string;
+      googleSheetsConfig?: {
+        spreadsheetId: string;
+        sheetName: string;
+      };
     };
-  }>;
-  integrations: Array<{
-    id: string;
-    name: string;
-    platform: string;
-    status: 'connected' | 'not connected' | 'error';
-    clientsUsing: number;
-  }>;
-  onClientSelect: (clientId: string) => void;
-  onAddClient: () => void;
-  onGoToAdmin: () => void;
-  loading?: boolean;
-}
+    conversion_actions?: {
+      facebookAds?: string;
+      googleAds?: string;
+    };
+  }) => {
+    try {
+      await DatabaseService.createClient(clientData);
+      setShowEditClientModal(false);
+      setEditingClient(null);
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      // Handle error silently or show user-friendly message
+    }
+  };
 
-export const HomePage: React.FC<HomePageProps> = ({
-  clients,
-  integrations,
-  onClientSelect,
-  onAddClient,
-  onGoToAdmin,
-  loading = false
-}) => {
-  useEffect(() => {
-    const activeClients = clients.filter(c => c.status === 'active').length;
-    const connectedIntegrations = integrations.filter(i => i.status === 'connected').length;
-    
-    // Update stats if needed in the future
-    console.log('Stats updated:', {
-      totalClients: clients.length,
-      activeClients,
-      connectedIntegrations,
-      totalIntegrations: integrations.length
-    });
-  }, [clients, integrations]);
+  const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
+    try {
+      await DatabaseService.updateClient(clientId, updates);
+      setShowEditClientModal(false);
+      setEditingClient(null);
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      // Handle error silently or show user-friendly message
+    }
+  };
+
 
   if (loading) {
     return <LoadingState message="Loading dashboard..." fullScreen />;
@@ -66,8 +152,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Admin Header with Venue Dropdown */}
-      <AdminHeader
+      {/* Agency Header with Venue Dropdown */}
+      <AgencyHeader
         clients={clients.map(client => ({
           id: client.id,
           name: client.name,
@@ -76,7 +162,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         selectedClientId={undefined}
         onClientSelect={onClientSelect}
         onBackToDashboard={() => {}}
-        onGoToAdmin={onGoToAdmin}
+        onGoToAgency={onGoToAgency}
         onExportPDF={() => {}}
         onShare={() => {}}
         exportingPDF={false}
@@ -84,16 +170,21 @@ export const HomePage: React.FC<HomePageProps> = ({
         showVenueSelector={true}
       />
 
-      <div className="px-20 py-6">
+      {/* Integration Onboarding Progress */}
+      <div className="px-20 py-6 bg-slate-50 border-b border-slate-200">
+        <IntegrationOnboardingBar />
+      </div>
+
+      <div className="px-20 py-12">
         {/* Venue Selection - Moved to Top */}
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Select Venue Dashboard</h2>
               <p className="text-sm text-slate-600">Choose a client to view their marketing analytics</p>
             </div>
             <Button 
-              onClick={onAddClient}
+              onClick={handleAddClient}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
@@ -113,7 +204,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   Get started by adding your first client venue.
                 </p>
                 <Button 
-                  onClick={onAddClient}
+                  onClick={handleAddClient}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -122,62 +213,98 @@ export const HomePage: React.FC<HomePageProps> = ({
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-3 grid-cols-4">
               {clients.map((client) => (
                 <Card 
                   key={client.id} 
-                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.01] border-slate-200"
+                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.01] border-slate-200 relative group"
                   onClick={() => onClientSelect(client.id)}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
+                  <CardContent className="p-3">
+                    {/* Edit Button - positioned like agency page */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        handleEditClient(client);
+                      }}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    
+                    <div className="flex items-center gap-3 mb-3">
                       {client.logo_url ? (
                         <img
                           src={client.logo_url}
                           alt={`${client.name} logo`}
-                          className="w-8 h-8 object-cover rounded-lg border border-slate-200"
+                          className="w-8 h-8 object-cover rounded-lg border border-slate-200 shadow-sm"
                         />
                       ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
                           <BarChart3 className="h-4 w-4 text-white" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-slate-900 truncate">
+                        <h3 className="text-base font-semibold text-slate-900 truncate">
                           {client.name}
                         </h3>
-                        <Badge className={`text-xs ${
-                          client.status === 'active' ? 'bg-green-100 text-green-800 border-green-200' :
-                          client.status === 'paused' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                          'bg-gray-100 text-gray-800 border-gray-200'
-                        }`}>
-                          {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                        </Badge>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
                     </div>
                     
-                    <div className="flex items-center gap-1 mt-2">
-                      {client.accounts.facebookAds && client.accounts.facebookAds !== 'none' && (
-                        <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center" title="Facebook Ads">
-                          <span className="text-white font-bold text-xs">f</span>
-                        </div>
-                      )}
-                      {client.accounts.googleAds && client.accounts.googleAds !== 'none' && (
-                        <div className="w-5 h-5 bg-red-600 rounded flex items-center justify-center" title="Google Ads">
-                          <span className="text-white font-bold text-xs">G</span>
-                        </div>
-                      )}
-                      {client.accounts.goHighLevel && client.accounts.goHighLevel !== 'none' && (
-                        <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center" title="GoHighLevel">
-                          <Zap className="h-2 w-2 text-white" />
-                        </div>
-                      )}
-                      {client.accounts.googleSheets && client.accounts.googleSheets !== 'none' && (
-                        <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
-                          <FileSpreadsheet className="h-2 w-2 text-white" />
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1.5">
+                      {/* Facebook Ads */}
+                      <div 
+                        className={`flex items-center ${integrationStatus.facebookAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatus.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected'}
+                      >
+                        <LogoManager 
+                          platform="meta" 
+                          size={22} 
+                          context="client-table"
+                          className="text-slate-600"
+                        />
+                      </div>
+                      
+                      {/* Google Ads */}
+                      <div 
+                        className={`flex items-center ${integrationStatus.googleAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatus.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected'}
+                      >
+                        <LogoManager 
+                          platform="googleAds" 
+                          size={22} 
+                          context="client-table"
+                          className="text-slate-600"
+                        />
+                      </div>
+                      
+                      {/* GoHighLevel */}
+                      <div 
+                        className={`flex items-center ${isClientGHLConnected(client) ? 'opacity-100' : 'opacity-40'}`}
+                        title={isClientGHLConnected(client) ? 'GoHighLevel - Connected' : 'GoHighLevel - Not Connected'}
+                      >
+                        <LogoManager 
+                          platform="goHighLevel" 
+                          size={22} 
+                          context="client-table"
+                          className="text-slate-600"
+                        />
+                      </div>
+                      
+                      {/* Google Sheets */}
+                      <div 
+                        className={`flex items-center ${integrationStatus.googleSheets ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatus.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
+                      >
+                        <LogoManager 
+                          platform="googleSheets" 
+                          size={22} 
+                          context="client-table"
+                          className="text-slate-600"
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -187,6 +314,20 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
       </div>
+
+      {/* Edit Client Modal */}
+      {showEditClientModal && (
+        <EditClientModal
+          isOpen={showEditClientModal}
+          onClose={() => {
+            setShowEditClientModal(false);
+            setEditingClient(null);
+          }}
+          onUpdateClient={handleUpdateClient}
+          onCreateClient={handleCreateClient}
+          client={editingClient}
+        />
+      )}
     </div>
   );
 };

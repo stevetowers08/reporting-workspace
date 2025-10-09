@@ -1,4 +1,5 @@
 import { HomePage } from "@/components/dashboard/HomePage";
+import { debugLogger } from "@/lib/debug";
 import { DatabaseService } from "@/services/data/databaseService";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -71,7 +72,7 @@ const HomePageWrapper = () => {
       setClients(transformedClients);
       setIntegrations(transformedIntegrations);
     } catch (error) {
-      console.error('Failed to load homepage data:', error);
+      debugLogger.error('HomePageWrapper', 'Failed to load homepage data', error);
       setClients([]);
       setIntegrations([]);
     } finally {
@@ -84,11 +85,11 @@ const HomePageWrapper = () => {
   };
 
   const handleAddClient = () => {
-    navigate('/admin');
+    navigate('/agency');
   };
 
-  const handleGoToAdmin = () => {
-    navigate('/admin');
+  const handleGoToAgency = () => {
+    navigate('/agency');
   };
 
   return (
@@ -97,7 +98,7 @@ const HomePageWrapper = () => {
       integrations={integrations}
       onClientSelect={handleClientSelect}
       onAddClient={handleAddClient}
-      onGoToAdmin={handleGoToAdmin}
+      onGoToAgency={handleGoToAgency}
       loading={loading}
     />
   );

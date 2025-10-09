@@ -1,5 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { AdminService, IntegrationDisplay, TestResult } from '@/services/admin/adminService';
+import { AgencyService, IntegrationDisplay, TestResult } from '@/services/agency/agencyService';
 import { useCallback, useState } from 'react';
 
 export interface UseIntegrationsReturn {
@@ -26,14 +26,14 @@ export const useIntegrations = (): UseIntegrationsReturn => {
   const loadIntegrations = useCallback(async () => {
     try {
       setLoading(true);
-      const integrationsData = await AdminService.loadIntegrations();
+      const integrationsData = await AgencyService.loadIntegrations();
       setIntegrations(integrationsData);
     } catch (error) {
       debugLogger.error('useIntegrations', 'Failed to load integrations', error);
       // Set empty integrations array to prevent infinite loading
       setIntegrations([]);
-      // Log the error but don't throw it to prevent the admin panel from getting stuck
-      console.warn('Integrations loading failed, but continuing with empty state:', error);
+      // Log the error but don't throw it to prevent the agency panel from getting stuck
+      debugLogger.warn('useIntegrations', 'Integrations loading failed, but continuing with empty state', error);
     } finally {
       setLoading(false);
     }
@@ -42,7 +42,7 @@ export const useIntegrations = (): UseIntegrationsReturn => {
   const connectIntegration = useCallback(async (platform: string) => {
     try {
       setConnecting(prev => ({ ...prev, [platform]: true }));
-      await AdminService.connectIntegration(platform);
+      await AgencyService.connectIntegration(platform);
       await loadIntegrations(); // Refresh the list
     } catch (error) {
       debugLogger.error('useIntegrations', `Failed to connect ${platform}`, error);
@@ -55,7 +55,7 @@ export const useIntegrations = (): UseIntegrationsReturn => {
   const disconnectIntegration = useCallback(async (platform: string) => {
     try {
       setConnecting(prev => ({ ...prev, [platform]: true }));
-      await AdminService.disconnectIntegration(platform);
+      await AgencyService.disconnectIntegration(platform);
       await loadIntegrations(); // Refresh the list
     } catch (error) {
       debugLogger.error('useIntegrations', `Failed to disconnect ${platform}`, error);
@@ -68,7 +68,7 @@ export const useIntegrations = (): UseIntegrationsReturn => {
   const testConnection = useCallback(async (platform: string): Promise<TestResult> => {
     try {
       setTesting(prev => ({ ...prev, [platform]: true }));
-      const result = await AdminService.testConnection(platform);
+      const result = await AgencyService.testConnection(platform);
       setTestResults(prev => ({ ...prev, [platform]: result }));
       return result;
     } catch (error) {

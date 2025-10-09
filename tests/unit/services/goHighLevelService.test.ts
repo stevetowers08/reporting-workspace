@@ -1,4 +1,4 @@
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Supabase

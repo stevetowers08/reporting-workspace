@@ -10,9 +10,10 @@ export const GHLCallbackPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Debug logging
-  console.log('GHL Callback Page - Component loaded');
-  console.log('GHL Callback Page - URL:', window.location.href);
-  console.log('GHL Callback Page - Search params:', Object.fromEntries(searchParams.entries()));
+  debugLogger.info('GHLCallbackPage', 'Component loaded', {
+    url: window.location.href,
+    searchParams: Object.fromEntries(searchParams.entries())
+  });
 
   // Immediate fallback render to ensure something shows
   if (!status) {
@@ -29,13 +30,13 @@ export const GHLCallbackPage: React.FC = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        console.log('GHL Callback - Starting OAuth callback processing');
+        debugLogger.info('GHLCallbackPage', 'Starting OAuth callback processing');
         const code = searchParams.get('code');
         const locationId = searchParams.get('locationId');
         const errorParam = searchParams.get('error');
         const state = searchParams.get('state');
 
-        console.log('GHL Callback - URL parameters:', { code, locationId, errorParam, state });
+        debugLogger.info('GHLCallbackPage', 'URL parameters', { code, locationId, errorParam, state });
 
         debugLogger.info('GHLCallbackPage', 'Processing OAuth callback', {
           hasCode: !!code,
@@ -55,11 +56,11 @@ export const GHLCallbackPage: React.FC = () => {
         // Note: In a production app, you should validate the state parameter
         // against the one you generated during authorization
         if (!state) {
-          console.warn('GHL Callback - No state parameter received (potential CSRF risk)');
+          debugLogger.warn('GHLCallbackPage', 'No state parameter received (potential CSRF risk)');
         }
 
         // Exchange code for token
-        console.log('GHL Callback - Starting token exchange', { 
+        debugLogger.info('GHLCallbackPage', 'Starting token exchange', { 
           code: code ? code.substring(0, 10) + '...' : 'MISSING', 
           locationId,
           fullUrl: window.location.href
@@ -67,7 +68,7 @@ export const GHLCallbackPage: React.FC = () => {
         // Get OAuth credentials from environment
         const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
         const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-        const redirectUri = `${window.location.origin}/api/leadconnector/oath`;
+        const redirectUri = `${window.location.origin}/oauth/callback`;
         
         if (!clientId || !clientSecret) {
           throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');
@@ -75,12 +76,23 @@ export const GHLCallbackPage: React.FC = () => {
         
         const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
         
+        // Save token to database
+        const success = await GoHighLevelService.saveLocationToken(
+          tokenData.locationId,
+          tokenData.access_token,
+          tokenData.scope.split(' ')
+        );
+        
+        if (!success) {
+          throw new Error('Failed to save GoHighLevel token to database');
+        }
+        
         // Set credentials for future API calls
-        GoHighLevelService.setCredentials(tokenData.accessToken, tokenData.locationId);
+        GoHighLevelService.setCredentials(tokenData.access_token, tokenData.locationId);
 
         // Note: Database saving is handled by the backend API callback
         // The frontend callback just processes the OAuth flow
-        console.log('GHL Callback - OAuth flow completed successfully');
+        debugLogger.info('GHLCallbackPage', 'OAuth flow completed successfully');
 
         debugLogger.info('GHLCallbackPage', 'Successfully connected to GHL', {
           locationId: tokenData.locationId
@@ -100,8 +112,8 @@ export const GHLCallbackPage: React.FC = () => {
         }
 
       } catch (error) {
-        console.error('GHL Callback - Error details:', error);
-        console.error('GHL Callback - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        debugLogger.error('GHLCallbackPage', 'Error details', error);
+        debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
         debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
         
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -109,7 +121,7 @@ export const GHLCallbackPage: React.FC = () => {
         setStatus('error');
         
         // Don't auto-close on error - let user see the error message
-        console.log('GHL Callback - Error displayed, window will not auto-close');
+        debugLogger.info('GHLCallbackPage', 'Error displayed, window will not auto-close');
         
         // Notify parent window but don't close immediately
         if (window.opener) {

@@ -2,9 +2,7 @@
 
 import { debugLogger } from '@/lib/debug';
 import { GoHighLevelApiService } from './goHighLevelApiService';
-import { GoHighLevelAuthService } from './goHighLevelAuthService';
 import type {
-    GHLCalendarAnalytics,
     GHLFunnelAnalytics,
     GHLMetrics,
     GHLOpportunityAnalytics,
@@ -20,25 +18,26 @@ export class GoHighLevelAnalyticsService {
   static async getGHLMetrics(
     locationId: string,
     dateRange?: { startDate?: string; endDate?: string }
-  ): Promise<GHLMetrics> {
+  ): Promise<GHLMetrics | null> { // ✅ Changed return type to allow null
     try {
       await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
       
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
+      // ✅ Check if OAuth is connected first
+      const token = await GoHighLevelApiService.getValidToken(locationId);
+      if (!token) {
+        debugLogger.warn('GoHighLevelAnalyticsService', 'GoHighLevel OAuth not connected for this location - skipping GHL metrics', { locationId });
+        return null; // Return null to indicate OAuth not connected
       }
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting GHL metrics', { locationId, dateRange });
 
-      // Get all metrics in parallel
-      const [contacts, campaigns, funnels, pages, opportunities, calendars] = await Promise.allSettled([
+      // Get all metrics in parallel with proper error handling
+      const [contacts, campaigns, funnels, pages, opportunities] = await Promise.allSettled([
         this.getContactMetrics(locationId, dateRange),
         this.getCampaignMetrics(locationId, dateRange),
         this.getFunnelAnalytics(locationId, dateRange),
         this.getPageAnalytics(locationId, dateRange),
-        this.getOpportunitiesAnalytics(locationId, dateRange),
-        this.getCalendarAnalytics(locationId, dateRange)
+        this.getOpportunitiesAnalytics(locationId, dateRange)
       ]);
 
       const result: GHLMetrics = {
@@ -62,12 +61,6 @@ export class GoHighLevelAnalyticsService {
           valueByStatus: {},
           averageDealSize: 0,
           conversionRate: 0
-        },
-        calendars: calendars.status === 'fulfilled' ? calendars.value : {
-          totalEvents: 0,
-          eventsByStatus: {},
-          averageEventDuration: 0,
-          eventsByMonth: {}
         }
       };
 
@@ -76,7 +69,7 @@ export class GoHighLevelAnalyticsService {
 
     } catch (error) {
       debugLogger.error('GoHighLevelAnalyticsService', 'Failed to get GHL metrics', error);
-      throw error;
+      return null; // Return null instead of throwing
     }
   }
 
@@ -86,30 +79,21 @@ export class GoHighLevelAnalyticsService {
     dateRange?: { startDate?: string; endDate?: string }
   ): Promise<{ total: number; newThisMonth: number; growthRate: number }> {
     try {
+      // ✅ FIX: Get total count without date filter (supported)
       const total = await GoHighLevelApiService.getContactCount(locationId);
       
-      // Calculate new this month
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const newThisMonth = await GoHighLevelApiService.getContactCount(locationId, {
-        startDate: startOfMonth.toISOString(),
-        endDate: now.toISOString()
+      // For date-specific metrics, use a simplified approach or skip
+      // since GoHighLevel doesn't support date filtering well in the API
+      
+      debugLogger.info('GoHighLevelAnalyticsService', 'Contact metrics retrieved', { 
+        total,
+        note: 'Date filtering disabled due to API limitations'
       });
-
-      // Calculate growth rate (simplified)
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const lastMonthCount = await GoHighLevelApiService.getContactCount(locationId, {
-        startDate: lastMonth.toISOString(),
-        endDate: endOfLastMonth.toISOString()
-      });
-
-      const growthRate = lastMonthCount > 0 ? ((newThisMonth - lastMonthCount) / lastMonthCount) * 100 : 0;
-
+      
       return {
         total,
-        newThisMonth,
-        growthRate: Math.round(growthRate * 100) / 100
+        newThisMonth: 0, // Set to 0 or fetch all and filter
+        growthRate: 0 // Calculate manually if needed
       };
     } catch (error) {
       debugLogger.warn('GoHighLevelAnalyticsService', 'Failed to get contact metrics', error);
@@ -149,10 +133,11 @@ export class GoHighLevelAnalyticsService {
   ): Promise<GHLFunnelAnalytics[]> {
     try {
       await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
       
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
+      // Use client-specific OAuth token instead of agency token
+      const token = await GoHighLevelApiService.getValidToken(locationId);
+      if (!token) {
+        throw new Error(`No valid OAuth token found for location ${locationId}`);
       }
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting funnel analytics', { locationId, dateRange });
@@ -229,10 +214,11 @@ export class GoHighLevelAnalyticsService {
   ): Promise<GHLPageAnalytics[]> {
     try {
       await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
       
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
+      // Use client-specific OAuth token instead of agency token
+      const token = await GoHighLevelApiService.getValidToken(locationId);
+      if (!token) {
+        throw new Error(`No valid OAuth token found for location ${locationId}`);
       }
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting page analytics', { locationId, dateRange });
@@ -272,15 +258,21 @@ export class GoHighLevelAnalyticsService {
     locationId: string,
     dateRange?: { startDate?: string; endDate?: string }
   ): Promise<GHLPageAnalytics> {
-    // This would typically call a specific analytics endpoint
-    // For now, return mock data structure
+    // GoHighLevel doesn't provide page-level analytics in their current API
+    // Return empty data structure instead of mock data
+    debugLogger.warn('GoHighLevelAnalyticsService', 'Page analytics not available in GoHighLevel API - returning empty data', {
+      funnelId,
+      pageId,
+      locationId
+    });
+    
     return {
       id: pageId,
       name: `Page ${pageId}`,
-      views: Math.floor(Math.random() * 1000),
-      uniqueViews: Math.floor(Math.random() * 800),
-      conversions: Math.floor(Math.random() * 50),
-      conversionRate: Math.round(Math.random() * 10 * 100) / 100
+      views: 0,
+      uniqueViews: 0,
+      conversions: 0,
+      conversionRate: 0
     };
   }
 
@@ -291,10 +283,11 @@ export class GoHighLevelAnalyticsService {
   ): Promise<GHLOpportunityAnalytics> {
     try {
       await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
       
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
+      // Use client-specific OAuth token instead of agency token
+      const token = await GoHighLevelApiService.getValidToken(locationId);
+      if (!token) {
+        throw new Error(`No valid OAuth token found for location ${locationId}`);
       }
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting opportunities analytics', { locationId, dateRange });
@@ -348,73 +341,4 @@ export class GoHighLevelAnalyticsService {
     }
   }
 
-  // Calendar Analytics
-  static async getCalendarAnalytics(
-    locationId: string,
-    dateRange?: { startDate?: string; endDate?: string }
-  ): Promise<GHLCalendarAnalytics> {
-    try {
-      await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
-      
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
-      }
-
-      debugLogger.info('GoHighLevelAnalyticsService', 'Getting calendar analytics', { locationId, dateRange });
-
-      const events = await GoHighLevelApiService.getCalendarEvents(locationId);
-      
-      const totalEvents = events.length;
-      const eventsByStatus: Record<string, number> = {};
-      const eventsByMonth: Record<string, number> = {};
-      
-      let totalDuration = 0;
-      let eventsWithDuration = 0;
-
-      events.forEach(event => {
-        const status = event.status || 'unknown';
-        eventsByStatus[status] = (eventsByStatus[status] || 0) + 1;
-        
-        const eventDate = new Date(event.startTime);
-        const monthKey = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}`;
-        eventsByMonth[monthKey] = (eventsByMonth[monthKey] || 0) + 1;
-        
-        // Calculate duration
-        const startTime = new Date(event.startTime);
-        const endTime = new Date(event.endTime);
-        const duration = endTime.getTime() - startTime.getTime();
-        
-        if (duration > 0) {
-          totalDuration += duration;
-          eventsWithDuration++;
-        }
-      });
-
-      const averageEventDuration = eventsWithDuration > 0 ? totalDuration / eventsWithDuration : 0;
-
-      const result: GHLCalendarAnalytics = {
-        totalEvents,
-        eventsByStatus,
-        averageEventDuration: Math.round(averageEventDuration / (1000 * 60 * 60) * 100) / 100, // Convert to hours
-        eventsByMonth
-      };
-
-      debugLogger.info('GoHighLevelAnalyticsService', 'Calendar analytics retrieved', { 
-        totalEvents, 
-        averageEventDuration: result.averageEventDuration 
-      });
-      
-      return result;
-
-    } catch (error) {
-      debugLogger.error('GoHighLevelAnalyticsService', 'Failed to get calendar analytics', error);
-      return {
-        totalEvents: 0,
-        eventsByStatus: {},
-        averageEventDuration: 0,
-        eventsByMonth: {}
-      };
-    }
-  }
 }

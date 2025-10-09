@@ -1,22 +1,30 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
-
-interface GoogleAdsAccount {
-  id: string;
-  name: string;
-  manager: boolean;
 }
 
-Deno.serve(async (req: Request) => {
+interface OAuthTokens {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type: string;
+  scope?: string;
+}
+
+interface GoogleUserInfo {
+  id: string;
+  email: string;
+  name: string;
+  verified_email: boolean;
+}
+
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
@@ -28,210 +36,190 @@ Deno.serve(async (req: Request) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
-    );
+    )
 
-    const url = new URL(req.url);
-    const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
-    const error = url.searchParams.get('error');
+    const url = new URL(req.url)
+    const code = url.searchParams.get('code')
+    const state = url.searchParams.get('state')
+    const error = url.searchParams.get('error')
 
-    console.log('🔍 Google Ads OAuth callback received:', { 
-      hasCode: !!code, 
-      hasState: !!state, 
-      hasError: !!error 
-    });
-
+    // Handle OAuth errors
     if (error) {
-      console.error('❌ OAuth error:', error);
+      console.error('OAuth error:', error)
       return new Response(
-        JSON.stringify({ error: `OAuth error: ${error}` }),
+        JSON.stringify({ 
+          success: false, 
+          error: `OAuth error: ${error}`,
+          redirectUrl: `${Deno.env.get('FRONTEND_URL')}/integrations?error=${encodeURIComponent(error)}`
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    if (!code) {
-      console.error('❌ No authorization code received');
+    if (!code || !state) {
       return new Response(
-        JSON.stringify({ error: 'No authorization code received' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing authorization code or state parameter' 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    // Step 1: Exchange code for tokens
-    console.log('🔍 Step 1: Exchanging code for tokens...');
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
-        client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
-        redirect_uri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-ads-oauth`,
-        grant_type: 'authorization_code',
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('❌ Token exchange failed:', errorText);
+    // Parse and validate state
+    let stateData: { platform: string; timestamp: number; nonce: string; integrationPlatform?: string }
+    try {
+      stateData = JSON.parse(atob(state))
+      
+      // Validate state timestamp (prevent replay attacks)
+      const now = Date.now()
+      const stateAge = now - stateData.timestamp
+      if (stateAge > 10 * 60 * 1000) { // 10 minutes max
+        throw new Error('OAuth state expired')
+      }
+    } catch (error) {
+      console.error('Invalid OAuth state:', error)
       return new Response(
-        JSON.stringify({ error: 'Token exchange failed', details: errorText }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid OAuth state - possible CSRF attack' 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    const tokens = await tokenResponse.json();
-    const { access_token, refresh_token, expires_in } = tokens;
+    // Get OAuth configuration from environment (server-side only)
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-ads-oauth`
 
-    console.log('✅ Step 1: Tokens received successfully');
-
-    // Step 2: Get accessible customers
-    console.log('🔍 Step 2: Getting accessible customers...');
-    const developerToken = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
-    if (!developerToken) {
-      console.error('❌ Missing Google Ads developer token');
+    if (!clientId || !clientSecret) {
+      console.error('Missing OAuth credentials')
       return new Response(
-        JSON.stringify({ error: 'Missing Google Ads developer token' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'OAuth configuration missing' 
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    const listResponse = await fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
-      headers: { 
-        Authorization: `Bearer ${access_token}`,
-        'developer-token': developerToken,
+    // Exchange authorization code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
       },
-    });
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri
+      })
+    })
 
-    if (!listResponse.ok) {
-      const errorText = await listResponse.text();
-      console.error('❌ Failed to get accessible customers:', errorText);
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json().catch(() => ({}))
+      console.error('Token exchange failed:', errorData)
       return new Response(
-        JSON.stringify({ error: 'Failed to get accessible customers', details: errorText }),
+        JSON.stringify({ 
+          success: false, 
+          error: `Token exchange failed: ${tokenResponse.status} ${JSON.stringify(errorData)}` 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    const listData = await listResponse.json();
-    const resourceNames = listData.resourceNames || [];
-    const customerIds = resourceNames.map((name: string) => name.replace('customers/', ''));
+    const tokens: OAuthTokens = await tokenResponse.json()
 
-    console.log('✅ Step 2: Found accessible customers:', customerIds);
-
-    // Step 3: Get details for each customer to find the manager account
-    console.log('🔍 Step 3: Finding manager account...');
-    const accounts: GoogleAdsAccount[] = [];
-    
-    for (const customerId of customerIds) {
-      try {
-        const customerResponse = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}`, {
-          headers: { 
-            Authorization: `Bearer ${access_token}`,
-            'developer-token': developerToken,
-          },
-        });
-
-        if (customerResponse.ok) {
-          const customerData = await customerResponse.json();
-          accounts.push({
-            id: customerId,
-            name: customerData.descriptiveName || `Account ${customerId}`,
-            manager: customerData.manager || false
-          });
-        }
-      } catch (error) {
-        console.warn(`⚠️ Failed to get details for customer ${customerId}:`, error);
+    // Get user info from Google
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${tokens.access_token}`,
+        'Accept': 'application/json'
       }
-    }
+    })
 
-    // Find the manager account (MCC)
-    const managerAccount = accounts.find(account => account.manager);
-    
-    if (!managerAccount) {
-      console.error('❌ No manager account found');
+    if (!userInfoResponse.ok) {
+      console.error('Failed to get user info:', userInfoResponse.status)
       return new Response(
-        JSON.stringify({ error: 'No manager account found. Please ensure you have access to a Google Ads Manager account.' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to get user information from Google' 
+        }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-      );
+      )
     }
 
-    console.log('✅ Step 3: Found manager account:', managerAccount);
+    const userInfo: GoogleUserInfo = await userInfoResponse.json()
 
-    // Step 4: Store tokens and account info in database
-    console.log('🔍 Step 4: Storing tokens and account info...');
-    
-    const expiresAt = new Date(Date.now() + (expires_in * 1000)).toISOString();
-    
-    const integrationConfig = {
-      platform: 'googleAds',
-      connected: true,
-      connectedAt: new Date().toISOString(),
-      lastSync: new Date().toISOString(),
-      syncStatus: 'idle',
-      accountInfo: {
-        id: managerAccount.id,
-        name: managerAccount.name,
-        email: '', // We don't get email from this API
-      },
-      tokens: {
-        accessToken: access_token,
-        refreshToken: refresh_token,
-        expiresIn: expires_in,
-        expiresAt: expiresAt,
-        tokenType: 'Bearer',
-        scope: 'https://www.googleapis.com/auth/adwords'
-      },
-      metadata: {
-        accessibleAccounts: accounts,
-        managerAccount: managerAccount
-      }
-    };
+    // Calculate token expiration
+    const expiresAt = tokens.expires_in 
+      ? new Date(Date.now() + (tokens.expires_in * 1000)).toISOString()
+      : new Date(Date.now() + 3600000).toISOString() // Default 1 hour
 
-    const { data, error } = await supabaseClient
+    // Store tokens securely in database
+    const { error: storeError } = await supabaseClient
       .from('integrations')
       .upsert({
         platform: 'googleAds',
         connected: true,
-        account_name: managerAccount.name,
-        account_id: managerAccount.id, // Store the 10-digit manager account ID
-        connected_at: integrationConfig.connectedAt,
-        last_sync: integrationConfig.lastSync,
-        sync_status: integrationConfig.syncStatus,
-        config: integrationConfig
+        account_name: userInfo.name,
+        account_id: userInfo.id,
+        config: {
+          tokens: {
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: expiresAt,
+            tokenType: tokens.token_type,
+            scope: tokens.scope
+          },
+          account_info: {
+            id: userInfo.id,
+            name: userInfo.name,
+            email: userInfo.email
+          }
+        },
+        last_sync: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }, { onConflict: 'platform' })
-      .select('*')
-      .single();
 
-    if (error) {
-      console.error('❌ Failed to store integration:', error);
-      throw error;
+    if (storeError) {
+      console.error('Failed to store tokens:', storeError)
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to store authentication tokens' 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
-    console.log('✅ Step 4: Integration stored successfully');
-
-    // Step 5: Redirect back to frontend
-    const baseUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
-    const redirectUrl = `${baseUrl}/admin?googleAds_connected=true&manager_id=${managerAccount.id}`;
-    
-    console.log('✅ Redirecting to:', redirectUrl);
+    // Redirect to frontend with success
+    const redirectUrl = `${Deno.env.get('FRONTEND_URL')}/integrations?success=googleAds&user=${encodeURIComponent(userInfo.name)}`
     
     return new Response(null, {
       status: 302,
@@ -239,20 +227,19 @@ Deno.serve(async (req: Request) => {
         ...corsHeaders,
         'Location': redirectUrl
       }
-    });
+    })
 
   } catch (error) {
-    console.error('❌ Google Ads OAuth Error:', error);
+    console.error('OAuth callback error:', error)
     return new Response(
       JSON.stringify({ 
-        error: 'Google Ads OAuth callback failed', 
-        message: error.message,
-        details: error.toString()
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
       }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
-    );
+    )
   }
-});
+})

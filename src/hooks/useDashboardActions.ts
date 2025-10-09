@@ -55,8 +55,8 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
 
   const handleSettings = useCallback(() => {
     try {
-      // Navigate to admin panel or settings page
-      window.location.href = '/admin';
+      // Navigate to agency panel or settings page
+      window.location.href = '/agency';
     } catch (error) {
       debugLogger.error('useDashboardActions', 'Error navigating to settings', error);
     }
@@ -68,7 +68,7 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
     setExportingPDF: (loading: boolean) => void
   ) => {
     if (!dashboardData || !clientData) {
-      console.warn('Missing data for PDF export');
+      // Missing data for PDF export
       return;
     }
     
@@ -77,7 +77,7 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
       const { PDFExportService } = await import('@/services/export/pdfExportService');
       await PDFExportService.exportDashboardToPDF(dashboardData, clientData);
     } catch (error) {
-      console.error('PDF export failed:', error);
+      // PDF export failed
       alert('Failed to export PDF');
     } finally {
       setExportingPDF(false);

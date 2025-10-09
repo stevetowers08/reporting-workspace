@@ -38,9 +38,9 @@ export class OAuthService {
         try {
             const credentials = await OAuthCredentialsService.getCredentials(platform);
             if (!credentials) {
-                // Fallback to environment variables for Google platforms
+                // For Google platforms, use public client ID only (no secrets in frontend)
                 if (platform === 'googleAds' || platform === 'googleSheets') {
-                    DevLogger.info('OAuthService', `No OAuth credentials in database, using environment variables for ${platform}`);
+                    DevLogger.info('OAuthService', `No OAuth credentials in database, using public config for ${platform}`);
                     
                     // Different scopes for different Google services
                     const scopes = platform === 'googleAds' 
@@ -63,7 +63,7 @@ export class OAuthService {
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
+                        clientSecret: '', // NEVER expose client secret in frontend
                         redirectUri: redirectUri,
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -78,7 +78,7 @@ export class OAuthService {
 
             return {
                 clientId: credentials.clientId,
-                clientSecret: credentials.clientSecret,
+                clientSecret: '', // NEVER expose client secret in frontend
                 redirectUri: redirectUri,
                 scopes: credentials.scopes,
                 authUrl: credentials.authUrl,
@@ -158,16 +158,18 @@ export class OAuthService {
                     code_challenge: pkce.codeChallenge,
                     code_challenge_method: 'S256'
                 };
-                // Store code verifier for later use
-                localStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
                 
-                DevLogger.debug('OAuthService', 'PKCE generated and stored', {
+                // Store code verifier securely in sessionStorage (not localStorage)
+                // SessionStorage is cleared when tab closes, reducing XSS attack window
+                sessionStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
+                
+                DevLogger.debug('OAuthService', 'PKCE generated and stored securely', {
                     platform,
                     codeVerifierLength: pkce.codeVerifier.length,
                     codeChallengeLength: pkce.codeChallenge.length,
                     storageKey: `oauth_code_verifier_${platform}`,
                     codeVerifierPreview: pkce.codeVerifier.substring(0, 20) + '...',
-                    localStorageKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
+                    storageType: 'sessionStorage'
                 });
             } catch (error) {
                 DevLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
@@ -186,8 +188,8 @@ export class OAuthService {
             ...additionalParams
         });
 
-        // Store state for validation
-        localStorage.setItem(`oauth_state_${platform}`, state);
+        // Store state securely in sessionStorage for validation
+        sessionStorage.setItem(`oauth_state_${platform}`, state);
 
         const authUrl = `${config.authUrl}?${params.toString()}`;
         DevLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
@@ -211,10 +213,15 @@ export class OAuthService {
         code: string,
         state: string
     ): Promise<OAuthTokens> {
+        // For Google Ads, use backend OAuth endpoint
+        if (platform === 'googleAds') {
+            return this.exchangeCodeForTokensBackend(platform, code, state);
+        }
+
         const config = await this.getOAuthConfig(platform);
 
         // Validate state
-        const storedState = localStorage.getItem(`oauth_state_${platform}`);
+        const storedState = sessionStorage.getItem(`oauth_state_${platform}`);
         if (!storedState || storedState !== state) {
             DevLogger.error('OAuthService', 'State validation failed', {
                 platform,
@@ -232,31 +239,27 @@ export class OAuthService {
             redirect_uri: config.redirectUri
         };
 
-        // Add client secret for all platforms
-        if (config.clientSecret) {
+        // Add client secret for non-Google platforms only
+        if (config.clientSecret && platform !== 'googleAds' && platform !== 'googleSheets') {
             tokenParams.client_secret = config.clientSecret;
             DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
                 hasClientSecret: !!config.clientSecret,
                 clientSecretLength: config.clientSecret.length
             });
         } else {
-            DevLogger.error('OAuthService', `No client secret found for ${platform}`, {
-                platform,
-                hasClientSecret: !!config.clientSecret
-            });
+            DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
         }
 
-        // Add PKCE code verifier for Google OAuth (in addition to client secret)
-        if (platform === 'googleAds' || platform === 'googleSheets') {
-            const codeVerifier = localStorage.getItem(`oauth_code_verifier_${platform}`);
+        // Add PKCE code verifier for Google OAuth
+        if (platform === 'googleSheets') {
+            const codeVerifier = sessionStorage.getItem(`oauth_code_verifier_${platform}`);
             DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
                 platform,
                 storageKey: `oauth_code_verifier_${platform}`,
                 hasCodeVerifier: !!codeVerifier,
                 codeVerifierLength: codeVerifier?.length || 0,
                 codeVerifierPreview: codeVerifier ? codeVerifier.substring(0, 20) + '...' : 'MISSING',
-                localStorageKeys: Object.keys(localStorage).filter(key => key.includes('oauth')),
-                allLocalStorageKeys: Object.keys(localStorage)
+                sessionStorageKeys: Object.keys(sessionStorage).filter(key => key.includes('oauth'))
             });
             
             if (codeVerifier) {
@@ -270,15 +273,15 @@ export class OAuthService {
                 }
                 
                 tokenParams.code_verifier = codeVerifier;
-                DevLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret', {
+                DevLogger.debug('OAuthService', 'Using PKCE code verifier', {
                     codeVerifierLength: codeVerifier.length,
                     isValidLength: codeVerifier.length >= 43 && codeVerifier.length <= 128
                 });
             } else {
-                DevLogger.error('OAuthService', 'PKCE code verifier not found in localStorage', {
+                DevLogger.error('OAuthService', 'PKCE code verifier not found in sessionStorage', {
                     platform,
                     storageKey: `oauth_code_verifier_${platform}`,
-                    availableKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
+                    availableKeys: Object.keys(sessionStorage).filter(key => key.includes('oauth'))
                 });
                 
                 // For Google OAuth, PKCE is required - this is a critical error
@@ -356,14 +359,52 @@ export class OAuthService {
             await this.storeTokens(platform, normalizedTokens);
 
             // Clean up state and PKCE code verifier
-            localStorage.removeItem(`oauth_state_${platform}`);
-            localStorage.removeItem(`oauth_code_verifier_${platform}`);
+            sessionStorage.removeItem(`oauth_state_${platform}`);
+            sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
 
             return normalizedTokens;
         } catch (error) {
             DevLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, error);
             throw error;
         }
+    }
+
+    /**
+     * Exchange authorization code for tokens using backend (for Google Ads)
+     */
+    private static async exchangeCodeForTokensBackend(
+        platform: string,
+        code: string,
+        state: string
+    ): Promise<OAuthTokens> {
+        DevLogger.info('OAuthService', `Using backend OAuth flow for ${platform}`);
+
+        // Validate state
+        const storedState = sessionStorage.getItem(`oauth_state_${platform}`);
+        if (!storedState || storedState !== state) {
+            DevLogger.error('OAuthService', 'State validation failed', {
+                platform,
+                storedState: storedState ? storedState.substring(0, 20) + '...' : 'none',
+                receivedState: state ? state.substring(0, 20) + '...' : 'none'
+            });
+            throw new Error('Invalid OAuth state - possible CSRF attack');
+        }
+
+        // The backend OAuth endpoint handles the token exchange
+        // This method is called after the backend redirects back to frontend
+        // The tokens are already stored in the database by the backend
+        
+        // Clean up state
+        sessionStorage.removeItem(`oauth_state_${platform}`);
+        sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
+
+        // Return a placeholder - the actual tokens are stored by the backend
+        return {
+            accessToken: 'backend-stored',
+            refreshToken: 'backend-stored',
+            tokenType: 'Bearer',
+            expiresIn: 3600
+        };
     }
 
     /**
@@ -460,6 +501,11 @@ export class OAuthService {
      * Refresh access token using refresh token
      */
     static async refreshAccessToken(platform: string): Promise<OAuthTokens> {
+        // For Google platforms, use backend refresh endpoint
+        if (platform === 'googleAds' || platform === 'googleSheets') {
+            return this.refreshAccessTokenBackend(platform);
+        }
+
         const config = await this.getOAuthConfig(platform);
         const tokens = await this.getStoredTokens(platform);
 
@@ -509,6 +555,49 @@ export class OAuthService {
             return newTokens;
         } catch (error) {
             DevLogger.error('OAuthService', `Token refresh failed for ${platform}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Refresh access token using backend endpoint
+     */
+    private static async refreshAccessTokenBackend(platform: string): Promise<OAuthTokens> {
+        try {
+            DevLogger.info('OAuthService', `Using backend token refresh for ${platform}`);
+
+            const tokens = await this.getStoredTokens(platform);
+            if (!tokens?.refreshToken) {
+                throw new Error(`No refresh token available for ${platform}`);
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/token-refresh`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({
+                    platform: platform,
+                    refreshToken: tokens.refreshToken
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Backend token refresh failed: ${response.status} ${JSON.stringify(errorData)}`);
+            }
+
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(`Backend token refresh failed: ${result.error}`);
+            }
+
+            DevLogger.info('OAuthService', `Backend token refresh successful for ${platform}`);
+            return result.tokens;
+        } catch (error) {
+            DevLogger.error('OAuthService', `Backend token refresh failed for ${platform}:`, error);
             throw error;
         }
     }

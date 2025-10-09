@@ -170,7 +170,7 @@ const supabaseHelpers = {
         status: 'healthy',
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       throw new Error('Database health check failed');
     }
   }
@@ -784,7 +784,7 @@ export class DatabaseService {
               .eq('id', client.id);
 
             if (updateError) {
-              console.warn(`Failed to clear ${platform} reference for client ${client.id}:`, updateError);
+              // Failed to clear platform reference for client
             }
           }
         }

@@ -29,7 +29,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         includeDetailedMetrics: true
       });
     } catch (err) {
-      console.error('Export failed:', err);
+      debugLogger.error('ExportButton', 'Export failed', err);
     }
   };
 

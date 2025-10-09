@@ -8,7 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { initSentry } from "@/lib/sentry";
 import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
-import AdminPanel from "@/pages/AdminPanel";
+import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
 import EventDashboard from "@/pages/EventDashboard";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
@@ -201,12 +201,12 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={<EventDashboard />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/admin/clients" element={<AdminPanel />} />
-                <Route path="/admin/integrations" element={<AdminPanel />} />
-                <Route path="/admin/ai-insights" element={<AdminPanel />} />
-                <Route path="/admin/clients/:clientId/edit" element={<ClientEditPage />} />
-                <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
+                <Route path="/agency" element={<AgencyPanel />} />
+                <Route path="/agency/clients" element={<AgencyPanel />} />
+                <Route path="/agency/integrations" element={<AgencyPanel />} />
+                <Route path="/agency/ai-insights" element={<AgencyPanel />} />
+                <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
+                <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
                 <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                 <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />

@@ -54,7 +54,13 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
         setLoading(true);
         
         // Get funnel analytics data
-        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
+        // Convert date range format for API
+        const apiDateRange = dateRange ? {
+          startDate: dateRange.start,
+          endDate: dateRange.end
+        } : undefined;
+        
+        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
         
         // Generate daily data based on total metrics and date range
         const dailyData = generateDailyData(funnelData, dateRange);
@@ -62,7 +68,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
         setDailyData(dailyData);
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch daily funnel data:', err);
+        // Error handled by error boundary
         setError(err instanceof Error ? err.message : 'Failed to fetch daily funnel data');
       } finally {
         setLoading(false);

@@ -135,7 +135,7 @@ export class UnifiedIntegrationService {
       
       const integrations = await this.getAllIntegrations();
       
-      // Define platform configurations (admin-level only)
+      // Define platform configurations (agency-level only)
       const platformConfigs = [
         { key: 'facebook', name: 'Facebook Ads', platform: 'facebookAds' as IntegrationPlatform },
         { key: 'google', name: 'Google Ads', platform: 'googleAds' as IntegrationPlatform },

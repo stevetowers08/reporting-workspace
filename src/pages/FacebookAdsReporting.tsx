@@ -1,4 +1,4 @@
-import { AdminHeader } from '@/components/dashboard/AdminHeader';
+import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import { FacebookAdsReportingTable } from '@/components/reporting/FacebookAdsReportingTable';
 import { GoogleAdsReportingTable } from '@/components/reporting/GoogleAdsReportingTable';
 import { LogoManager } from '@/components/ui/LogoManager';
@@ -78,8 +78,8 @@ const FacebookAdsReporting: React.FC = () => {
     navigate('/');
   };
 
-  const handleGoToAdmin = () => {
-    navigate('/admin');
+  const handleGoToAgency = () => {
+    navigate('/agency');
   };
 
   const handleExportPDF = () => {
@@ -92,19 +92,19 @@ const FacebookAdsReporting: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {/* Admin Header */}
-      <AdminHeader
+      {/* Agency Header */}
+      <AgencyHeader
         clients={[]}
         selectedClientId={undefined}
         onClientSelect={() => {}}
         onBackToDashboard={handleBackToDashboard}
-        onGoToAdmin={handleGoToAdmin}
+        onGoToAgency={handleGoToAgency}
         onExportPDF={handleExportPDF}
         onShare={handleShare}
         exportingPDF={false}
         isShared={false}
         showVenueSelector={false}
-        isAdminPanel={false}
+        isAgencyPanel={false}
       />
 
       <div className="px-20 py-6">

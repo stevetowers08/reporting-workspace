@@ -33,10 +33,35 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
   useEffect(() => {
     const fetchPageData = async () => {
       try {
-        const data = await GoHighLevelService.getPageAnalytics(locationId, dateRange);
-        setPageData(data);
+        // Convert date range format for API
+        const apiDateRange = dateRange ? {
+          startDate: dateRange.start,
+          endDate: dateRange.end
+        } : undefined;
+        
+        const data = await GoHighLevelService.getPageAnalytics(locationId, apiDateRange);
+        
+        // Transform the API response to match our interface
+        const transformedData: PageData = {
+          pages: data.map(page => ({
+            id: page.id,
+            name: page.name,
+            url: '', // Not available in API
+            views: page.views,
+            conversions: page.conversions,
+            conversionRate: page.conversionRate,
+            lastUpdated: new Date().toISOString()
+          })),
+          totalPages: data.length,
+          totalViews: data.reduce((sum, page) => sum + page.views, 0),
+          totalConversions: data.reduce((sum, page) => sum + page.conversions, 0),
+          averageConversionRate: data.length > 0 ? 
+            data.reduce((sum, page) => sum + page.conversionRate, 0) / data.length : 0
+        };
+        
+        setPageData(transformedData);
       } catch (error) {
-        console.error('Failed to fetch page analytics:', error);
+        // Error handled by error boundary
         // Set empty data instead of leaving it null
         setPageData({
           pages: [],

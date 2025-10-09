@@ -60,8 +60,8 @@ export default async function handler(req, res) {
           client_secret: ghlClientSecret,
           grant_type: 'authorization_code',
           code: code,
-          user_type: 'Company',
-          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
+          user_type: 'Location',
+          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/oauth/callback`
         })
       }
     );

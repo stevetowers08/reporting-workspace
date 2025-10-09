@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/card';
+import { debugLogger } from '@/lib/debug';
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
@@ -17,33 +18,32 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   const [ghlNeedsReconnect, setGhlNeedsReconnect] = useState(false);
 
   const handleGHLReconnect = () => {
-    // Navigate to admin integrations page
-    window.location.href = '/admin/integrations';
+    // Navigate to agency integrations page
+    window.location.href = '/agency/integrations';
   };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('LeadInfoMetricsCards: Starting to fetch lead data...');
-        console.log('LeadInfoMetricsCards: Client data:', clientData);
+        debugLogger.info('LeadInfoMetricsCards', 'Starting to fetch lead data', { clientData });
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
         if (clientData?.accounts?.googleSheetsConfig) {
-          console.log('LeadInfoMetricsCards: Using client-specific Google Sheets config:', clientData.accounts.googleSheetsConfig);
+          debugLogger.info('LeadInfoMetricsCards', 'Using client-specific Google Sheets config', clientData.accounts.googleSheetsConfig);
           leadDataResult = await LeadDataService.fetchLeadData(
             clientData.accounts.googleSheetsConfig.spreadsheetId,
             clientData.accounts.googleSheetsConfig.sheetName
           );
         } else {
-          console.log('LeadInfoMetricsCards: Using default Google Sheets config');
+          debugLogger.info('LeadInfoMetricsCards', 'Using default Google Sheets config');
           leadDataResult = await LeadDataService.fetchLeadData();
         }
         
-        console.log('LeadInfoMetricsCards: Received lead data:', leadDataResult);
+        debugLogger.info('LeadInfoMetricsCards', 'Received lead data', leadDataResult);
         setLeadData(leadDataResult);
       } catch (error) {
-        console.error('Failed to fetch lead data:', error);
+        debugLogger.error('LeadInfoMetricsCards', 'Failed to fetch lead data', error);
       } finally {
         setLoading(false);
       }
@@ -56,28 +56,28 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   const isLoading = loading || !data;
 
   const handleTestAPI = async () => {
-    console.log('Testing Google Sheets API...');
+    debugLogger.info('LeadInfoMetricsCards', 'Testing Google Sheets API');
     try {
       let result;
       if (clientData?.accounts?.googleSheetsConfig) {
-        console.log('Testing with client-specific config:', clientData.accounts.googleSheetsConfig);
+        debugLogger.info('LeadInfoMetricsCards', 'Testing with client-specific config', clientData.accounts.googleSheetsConfig);
         result = await LeadDataService.fetchLeadData(
           clientData.accounts.googleSheetsConfig.spreadsheetId,
           clientData.accounts.googleSheetsConfig.sheetName
         );
       } else {
-        console.log('Testing with default config');
+        debugLogger.info('LeadInfoMetricsCards', 'Testing with default config');
         result = await LeadDataService.fetchLeadData();
       }
       
-      console.log('API Test Result:', result);
+      debugLogger.info('LeadInfoMetricsCards', 'API Test Result', result);
       if (result) {
         alert(`API Test Success! Found ${result.totalLeads} leads via Supabase Edge Function`);
       } else {
         alert('API Test Failed: No data returned');
       }
     } catch (error) {
-      console.error('API Test Error:', error);
+      debugLogger.error('LeadInfoMetricsCards', 'API Test Error', error);
       alert(`API Test Error: ${error}`);
     }
   };
@@ -124,12 +124,12 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
   const ghlMetrics = data.ghlMetrics || {};
   const totalContacts = ghlMetrics.totalContacts || 0; // GHL contact count (REAL)
   
-  // Check if GoHighLevel needs reconnection
-  const isGHLConnected = data.clientAccounts?.goHighLevel && data.clientAccounts.goHighLevel !== 'none';
-  const hasGHLData = totalContacts > 0;
-  const shouldShowReconnectPrompt = isGHLConnected && !hasGHLData && !loading;
+  // ✅ FIX: Check if GoHighLevel is actually connected (has valid OAuth)
+  const isGHLConnected = data.ghlMetrics !== null && data.ghlMetrics !== undefined;
+  const hasGHLData = isGHLConnected && totalContacts > 0;
+  const shouldShowReconnectPrompt = data.clientAccounts?.goHighLevel && data.clientAccounts.goHighLevel !== 'none' && !isGHLConnected;
   
-  console.log('LeadInfoMetricsCards: GHL Reconnect Check:', {
+  debugLogger.debug('LeadInfoMetricsCards', 'GHL Reconnect Check', {
     isGHLConnected,
     hasGHLData,
     shouldShowReconnectPrompt,
@@ -149,15 +149,25 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Total Contacts</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-blue-600 font-medium">GHL</span>
-                <span className="text-xs text-slate-500">(All Time)</span>
+            {isGHLConnected ? (
+              <div className="flex items-baseline gap-2">
+                <p className="text-3xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-blue-600 font-medium">GHL</span>
+                  <span className="text-xs text-slate-500">(All Time)</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <p className="text-lg font-medium text-slate-400">Not Connected</p>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-slate-400 font-medium">GHL</span>
+                  <span className="text-xs text-slate-400">(Setup Required)</span>
+                </div>
+              </div>
+            )}
             <div className="text-xs text-slate-400 mt-1">
-              API: POST /contacts/search | Sheets: GET /spreadsheets/values
+              {isGHLConnected ? 'API: POST /contacts/search' : 'GoHighLevel integration not configured'}
             </div>
           </div>
         </div>

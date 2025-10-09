@@ -122,10 +122,10 @@ const GoogleAdsConfigPage = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/admin">
+            <Link to="/agency">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Admin
+                Back to Agency
               </Button>
             </Link>
             <div className="flex items-center gap-2">

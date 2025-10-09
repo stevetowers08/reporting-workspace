@@ -26,10 +26,10 @@ const Fallback = () => {
                             </Button>
                         </Link>
 
-                        <Link to="/admin" className="block">
+                        <Link to="/agency" className="block">
                             <Button variant="outline" className="w-full">
                                 <Settings className="h-4 w-4 mr-2" />
-                                Admin Panel
+                                Agency Panel
                             </Button>
                         </Link>
                     </div>

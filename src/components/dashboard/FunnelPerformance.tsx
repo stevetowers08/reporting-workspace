@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
-import React, { useEffect, useState } from 'react';
+import { useGHLContactCount, useGHLFunnelAnalytics } from '@/hooks/useGHLHooks';
+import React from 'react';
 
 interface FunnelPerformanceProps {
   data: {
@@ -20,36 +20,13 @@ interface FunnelPerformanceProps {
 }
 
 export const FunnelPerformance: React.FC<FunnelPerformanceProps> = ({ data, dateRange }) => {
-  const [funnelData, setFunnelData] = useState<any>(null);
-  const [totalContacts, setTotalContacts] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const locationId = data.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0';
+  
+  const { data: funnelData, loading: funnelLoading, error: funnelError } = useGHLFunnelAnalytics(locationId, dateRange);
+  const { count: totalContacts, loading: contactsLoading, error: contactsError } = useGHLContactCount(locationId, dateRange);
 
-  useEffect(() => {
-    const fetchFunnelData = async () => {
-      try {
-        const locationId = data.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0';
-        console.log('🔍 FunnelPerformance: Fetching data for location:', locationId);
-        
-        const funnelAnalytics = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
-        console.log('🔍 FunnelPerformance: Funnel analytics:', funnelAnalytics);
-        
-        const contacts = await GoHighLevelService.getContactCount(locationId, dateRange ? { startDate: dateRange.start, endDate: dateRange.end } : undefined);
-        console.log('🔍 FunnelPerformance: Total contacts:', contacts);
-        
-        setFunnelData(funnelAnalytics);
-        setTotalContacts(contacts);
-        setError(null);
-      } catch (err) {
-        console.error('🔍 FunnelPerformance: Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch funnel data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFunnelData();
-  }, [data.clientAccounts?.goHighLevel, dateRange]);
+  const loading = funnelLoading || contactsLoading;
+  const error = funnelError || contactsError;
 
   if (loading) {
     return (
@@ -83,7 +60,7 @@ export const FunnelPerformance: React.FC<FunnelPerformanceProps> = ({ data, date
           </p>
         </div>
         <div className="h-80 flex items-center justify-center">
-          <div className="text-red-500">Error: {error}</div>
+          <div className="text-slate-500">GoHighLevel Not Connected</div>
         </div>
       </Card>
     );
@@ -102,7 +79,7 @@ export const FunnelPerformance: React.FC<FunnelPerformanceProps> = ({ data, date
           </p>
         </div>
         <div className="h-80 flex items-center justify-center">
-          <div className="text-slate-500">No funnel data available</div>
+          <div className="text-slate-500">GoHighLevel Not Connected</div>
         </div>
       </Card>
     );

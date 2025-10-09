@@ -23,13 +23,19 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
   const validation = logoService.validateLogoUsage(platform, recommendedSize, context);
   
   if (!logoMetadata) {
-    console.warn(`Logo not found for platform: ${platform}`);
+    // Silently return fallback without console warnings
     return fallback ? <>{fallback}</> : <div className={`bg-gray-200 rounded ${className}`} style={{ width: recommendedSize, height: recommendedSize }} />;
   }
 
-  // Log warnings in development
+  // Only log warnings in development for critical issues
   if (process.env.NODE_ENV === 'development' && validation.warnings.length > 0) {
-    console.warn(`Logo usage warnings for ${platform}:`, validation.warnings);
+    // Filter out non-critical warnings
+    const criticalWarnings = validation.warnings.filter(warning => 
+      !warning.includes('may not be approved by brand guidelines')
+    );
+    if (criticalWarnings.length > 0) {
+      debugLogger.warn('LogoManager', `Logo usage warnings for ${platform}`, criticalWarnings);
+    }
   }
 
   // Map platform to logo file path
@@ -50,7 +56,7 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
   const logoPath = getLogoPath(platform);
   
   if (!logoPath) {
-    console.warn(`No logo path found for platform: ${platform}`);
+    // Silently return fallback without console warnings
     return fallback ? <>{fallback}</> : <div className={`bg-gray-200 rounded ${className}`} style={{ width: recommendedSize, height: recommendedSize }} />;
   }
 
@@ -63,11 +69,15 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
       className={className}
       style={{ width: recommendedSize, height: recommendedSize }}
       onError={(e) => {
-        console.error(`Failed to load logo for ${platform}:`, logoPath);
-        // Fallback to gray box if image fails to load
+        // Silently handle image loading errors without console spam
         e.currentTarget.style.display = 'none';
-        if (e.currentTarget.nextElementSibling) {
-          (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
+        // Create fallback element if it doesn't exist
+        if (!e.currentTarget.nextElementSibling) {
+          const fallbackDiv = document.createElement('div');
+          fallbackDiv.className = `bg-gray-200 rounded ${className}`;
+          fallbackDiv.style.width = `${recommendedSize}px`;
+          fallbackDiv.style.height = `${recommendedSize}px`;
+          e.currentTarget.parentNode?.appendChild(fallbackDiv);
         }
       }}
     />

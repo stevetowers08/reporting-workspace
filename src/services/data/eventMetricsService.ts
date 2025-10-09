@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
-import { GoHighLevelService } from '../ghl/goHighLevelService';
 import { GoogleAdsMetrics } from '../api/googleAdsService';
+import { GoHighLevelService } from '../ghl/goHighLevelService';
 import { LeadDataService } from './leadDataService';
 
 // Event metrics interface (moved from old export service)
@@ -100,26 +100,48 @@ export class EventMetricsService {
       // Only fetch data for connected accounts
       const promises = [];
 
+      console.log('🔍 EventMetricsService: Client accounts data:', {
+        clientAccounts,
+        facebookAdsAccount: clientAccounts?.facebookAds,
+        facebookAdsAccountType: typeof clientAccounts?.facebookAds,
+        googleAdsAccount: clientAccounts?.googleAds,
+        googleAdsAccountType: typeof clientAccounts?.googleAds
+      });
+
       // Check which accounts are connected (not 'none' and not undefined)
       debugLogger.debug('EventMetricsService', 'Client accounts data:', {
         clientAccounts,
+        facebookAdsAccount: clientAccounts?.facebookAds,
+        facebookAdsAccountType: typeof clientAccounts?.facebookAds,
         googleAdsAccount: clientAccounts?.googleAds,
         googleAdsAccountType: typeof clientAccounts?.googleAds
       });
 
       const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
+      debugLogger.info('EventMetricsService', 'Facebook Ads check:', {
+        facebookAdsValue: clientAccounts?.facebookAds,
+        hasFacebookAds,
+        willCallFacebookAPI: hasFacebookAds && clientAccounts?.facebookAds
+      });
       const hasGoogleAds = clientAccounts?.googleAds && clientAccounts.googleAds !== 'none';
-      const hasGoHighLevel = clientAccounts?.goHighLevel && clientAccounts.goHighLevel !== 'none';
+      const hasGoHighLevel = clientAccounts?.goHighLevel && 
+        clientAccounts.goHighLevel !== 'none' && 
+        (typeof clientAccounts.goHighLevel === 'string' || 
+         (typeof clientAccounts.goHighLevel === 'object' && clientAccounts.goHighLevel?.locationId));
       const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds));}
       if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds));}
       if (hasGoHighLevel) {
-        promises.push(this.getGHLMetrics(dateRange, clientAccounts?.goHighLevel));
+        // Extract locationId from goHighLevel object if it's an object, otherwise use as string
+        const locationId = typeof clientAccounts?.goHighLevel === 'object' 
+          ? clientAccounts.goHighLevel?.locationId 
+          : clientAccounts?.goHighLevel;
+        promises.push(this.getGHLMetrics(dateRange, locationId));
       }
       if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange, clientAccounts));}
 
-      const results = await Promise.all(promises);
+      const results = await Promise.allSettled(promises);
 
       // Initialize metrics with default values
       let facebookMetrics: FacebookAdsMetrics = { 
@@ -144,16 +166,46 @@ export class EventMetricsService {
       // Assign results based on what was fetched
       let resultIndex = 0;
       if (hasFacebookAds) {
-        facebookMetrics = results[resultIndex++] as FacebookAdsMetrics;
+        const result = results[resultIndex++];
+        debugLogger.info('EventMetricsService', 'Facebook API result:', {
+          status: result.status,
+          hasData: result.status === 'fulfilled' ? !!result.value : false,
+          error: result.status === 'rejected' ? result.reason : null
+        });
+        if (result.status === 'fulfilled') {
+          facebookMetrics = result.value as FacebookAdsMetrics;
+          debugLogger.info('EventMetricsService', 'Facebook metrics loaded:', {
+            leads: facebookMetrics.leads,
+            spend: facebookMetrics.spend,
+            impressions: facebookMetrics.impressions
+          });
+        } else {
+          debugLogger.warn('EventMetricsService', 'Facebook metrics failed:', result.reason);
+        }
       }
       if (hasGoogleAds) {
-        googleMetrics = results[resultIndex++] as GoogleAdsMetrics;
+        const result = results[resultIndex++];
+        if (result.status === 'fulfilled') {
+          googleMetrics = result.value as GoogleAdsMetrics;
+        } else {
+          debugLogger.warn('EventMetricsService', 'Google metrics failed:', result.reason);
+        }
       }
       if (hasGoHighLevel) {
-        ghlMetrics = results[resultIndex++] as any;
+        const result = results[resultIndex++];
+        if (result.status === 'fulfilled') {
+          ghlMetrics = result.value as any;
+        } else {
+          debugLogger.warn('EventMetricsService', 'GoHighLevel metrics failed:', result.reason);
+        }
       }
       if (hasGoogleSheets) {
-        eventMetrics = results[resultIndex++] as EventMetrics;
+        const result = results[resultIndex++];
+        if (result.status === 'fulfilled') {
+          eventMetrics = result.value as EventMetrics;
+        } else {
+          debugLogger.warn('EventMetricsService', 'Event metrics failed:', result.reason);
+        }
       }
 
       // Calculate combined metrics
@@ -180,7 +232,7 @@ export class EventMetricsService {
         _totalRevenue
       );
 
-      return {
+      const result = {
         totalLeads,
         totalSpend,
         totalRevenue: _totalRevenue,
@@ -190,8 +242,18 @@ export class EventMetricsService {
         ghlMetrics,
         eventMetrics,
         leadMetrics,
+        clientAccounts,
         dateRange
       };
+
+      debugLogger.info('EventMetricsService', 'Final result:', {
+        totalLeads: result.totalLeads,
+        facebookLeads: result.facebookMetrics.leads,
+        facebookSpend: result.facebookMetrics.spend,
+        hasFacebookData: result.facebookMetrics.leads > 0 || result.facebookMetrics.spend > 0
+      });
+
+      return result;
     } catch (error) {
       debugLogger.error('EventMetricsService', 'Error fetching comprehensive metrics', error);
       throw error;
@@ -286,13 +348,13 @@ export class EventMetricsService {
         return this.getEmptyGHLMetrics();
       }
       
-      // Check if Go High Level is connected first
-      const { TokenManager } = await import('@/services/auth/TokenManager');
-      const isConnected = await TokenManager.isConnected('goHighLevel');
+      // ✅ FIX: Check GoHighLevel connection using the correct method
+      const { GoHighLevelApiService } = await import('@/services/ghl/goHighLevelApiService');
+      const token = await GoHighLevelApiService.getValidToken(locationId);
       
-      if (!isConnected) {
-        debugLogger.warn('EventMetricsService', 'Go High Level not connected, returning empty metrics');
-        return this.getEmptyGHLMetrics();
+      if (!token) {
+        debugLogger.warn('EventMetricsService', 'GoHighLevel not connected for this location - returning null', { locationId });
+        return null; // ✅ FIX: Return null to indicate no OAuth connection
       }
       
       const result = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
@@ -303,12 +365,12 @@ export class EventMetricsService {
       
       // Check if it's an authentication error
       if (error instanceof Error && (error.message.includes('token') || error.message.includes('unauthorized'))) {
-        debugLogger.warn('EventMetricsService', 'Go High Level authentication error - returning empty metrics');
+        debugLogger.warn('EventMetricsService', 'Go High Level authentication error - returning null', { locationId });
+        return null; // ✅ FIX: Return null for authentication errors
       } else {
-        debugLogger.warn('EventMetricsService', 'Go High Level metrics not available', error);
+        debugLogger.warn('EventMetricsService', 'Go High Level metrics not available - returning empty metrics', error);
+        return this.getEmptyGHLMetrics(); // Return empty metrics for other errors
       }
-      
-      return this.getEmptyGHLMetrics();
     }
   }
 

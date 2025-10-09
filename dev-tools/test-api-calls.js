@@ -9,7 +9,7 @@ async function testGoogleAdsAPI() {
   
   try {
     // Test 1: Check if Google Ads is connected
-    const { TokenManager } = await import('./src/services/auth/TokenManager.ts');
+    const { TokenManager } = await import('../src/services/auth/TokenManager.ts');
     const isConnected = await TokenManager.isConnected('googleAds');
     console.log('🔍 Google Ads connected:', isConnected);
     
@@ -28,7 +28,7 @@ async function testGoogleAdsAPI() {
     }
     
     // Test 3: Test Google Ads service
-    const { GoogleAdsService } = await import('./src/services/api/googleAdsService.ts');
+    const { GoogleAdsService } = await import('../src/services/api/googleAdsService.ts');
     
     console.log('🔍 Testing Google Ads getAdAccounts...');
     const accounts = await GoogleAdsService.getAdAccounts();
@@ -59,7 +59,7 @@ async function testGoHighLevelAPI() {
   
   try {
     // Test 1: Check if Go High Level is connected
-    const { TokenManager } = await import('./src/services/auth/TokenManager.ts');
+    const { TokenManager } = await import('../src/services/auth/TokenManager.ts');
     const isConnected = await TokenManager.isConnected('goHighLevel');
     console.log('🔍 Go High Level connected:', isConnected);
     
@@ -78,7 +78,7 @@ async function testGoHighLevelAPI() {
     }
     
     // Test 3: Test Go High Level service
-    const { GoHighLevelService } = await import('./src/services/api/goHighLevelService.ts');
+    const { GoHighLevelService } = await import('../src/services/ghl/goHighLevelService.ts');
     
     console.log('🔍 Testing Go High Level connection...');
     // Since we're using location-level OAuth, we don't need to test getAllLocations
@@ -102,7 +102,7 @@ async function testEventMetricsService() {
   console.log('🔍 Testing EventMetricsService...');
   
   try {
-    const { EventMetricsService } = await import('./src/services/data/eventMetricsService.ts');
+    const { EventMetricsService } = await import('../src/services/data/eventMetricsService.ts');
     
     const metrics = await EventMetricsService.getComprehensiveMetrics(
       'test-client',
@@ -131,7 +131,7 @@ async function testDatabaseConnections() {
   console.log('🔍 Testing database connections...');
   
   try {
-    const { DatabaseService } = await import('./src/services/data/databaseService.ts');
+    const { DatabaseService } = await import('../src/services/data/databaseService.ts');
     
     console.log('🔍 Testing getAllClients...');
     const clients = await DatabaseService.getAllClients();

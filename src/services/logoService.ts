@@ -66,7 +66,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -86,7 +86,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -106,7 +106,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -126,7 +126,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -146,7 +146,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
   }
@@ -250,7 +250,7 @@ class LogoService {
     if (!logo?.brandGuidelines) return 24;
 
     const contextSizes: Record<string, number> = {
-      'admin-panel': 20,
+      'agency-panel': 20,
       'dashboard': 24,
       'integration-cards': 32,
       'client-form': 20,

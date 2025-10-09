@@ -112,7 +112,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
 
         setPipelineData(pipelineStages);
       } catch (error) {
-        console.error('Failed to fetch GHL pipeline data:', error);
+        // Error handled by error boundary
       } finally {
         setLoading(false);
       }

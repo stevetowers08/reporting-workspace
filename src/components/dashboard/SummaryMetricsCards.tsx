@@ -7,6 +7,10 @@ interface SummaryMetricsCardsProps {
 }
 
 export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashboardData }) => {
+  console.log('🔍 SummaryMetricsCards: Received dashboardData:', dashboardData);
+  console.log('🔍 SummaryMetricsCards: Facebook metrics:', dashboardData?.facebookMetrics);
+  console.log('🔍 SummaryMetricsCards: Total leads:', dashboardData?.totalLeads);
+  
   return (
     <div className="mb-6">
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5 mb-4">

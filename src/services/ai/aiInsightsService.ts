@@ -196,7 +196,7 @@ export class AIInsightsService {
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error creating/updating client AI config', error);
       // Don't throw error - just log it so form submission can continue
-      console.warn('AI Insights config update failed, but continuing with form submission:', error);
+      debugLogger.warn('AIInsightsService', 'AI Insights config update failed, but continuing with form submission', error);
       return {
         id: '',
         clientId,

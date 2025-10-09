@@ -1,0 +1,73 @@
+{
+  "name": "API Endpoint Test Configuration",
+  "description": "Configuration for testing API endpoints",
+  "baseUrl": "http://localhost:3000",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN_HERE",
+    "X-Test-Mode": "true"
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "endpoint": "/api/venues",
+      "description": "Get all venues"
+    },
+    {
+      "method": "GET", 
+      "endpoint": "/api/facebook/campaigns",
+      "description": "Get Facebook campaigns"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/api/google/ads/campaigns", 
+      "description": "Get Google Ads campaigns"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/api/ghl/contacts",
+      "description": "Get GoHighLevel contacts"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/api/test",
+      "body": {
+        "test": true,
+        "message": "Test request"
+      },
+      "description": "Test POST endpoint"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/api/health",
+      "description": "Health check"
+    }
+  ],
+  "testSuites": [
+    {
+      "name": "Authentication Tests",
+      "endpoints": [
+        {
+          "method": "GET",
+          "endpoint": "/api/auth/status",
+          "description": "Check auth status"
+        },
+        {
+          "method": "POST", 
+          "endpoint": "/api/auth/refresh",
+          "description": "Refresh tokens"
+        }
+      ]
+    },
+    {
+      "name": "Rate Limiting Tests",
+      "endpoints": [
+        {
+          "method": "GET",
+          "endpoint": "/api/venues",
+          "description": "Test rate limiting",
+          "repeat": 10
+        }
+      ]
+    }
+  ]
+}

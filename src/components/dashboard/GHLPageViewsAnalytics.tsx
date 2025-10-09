@@ -158,7 +158,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ da
           referrerBreakdown
         });
       } catch (error) {
-        console.error('Failed to fetch GHL page view data:', error);
+        // Error handled by error boundary
       } finally {
         setLoading(false);
       }

@@ -16,13 +16,9 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
     queryFn: async (): Promise<EventDashboardData> => {
       if (!clientId) throw new Error('Client ID is required');
       
-      console.log('🔍 useDashboardData: Starting data fetch for client:', clientId);
-      
       // Get client data first to extract account information
       const clientData = await DatabaseService.getClientById(clientId);
       if (!clientData) throw new Error('Client not found');
-      
-      console.log('🔍 useDashboardData: Client data:', clientData);
       
       // Extract account information from client data
       const clientAccounts = {
@@ -31,8 +27,6 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         goHighLevel: clientData.accounts?.goHighLevel,
         googleSheets: clientData.accounts?.googleSheets
       };
-      
-      console.log('🔍 useDashboardData: Client accounts:', clientAccounts);
       
       // Use provided date range or default to last 30 days
       const finalDateRange = dateRange || (() => {
@@ -54,7 +48,6 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         clientAccounts
       );
       
-      console.log('🔍 useDashboardData: Final result:', result);
       return result;
     },
     enabled: !!clientId,

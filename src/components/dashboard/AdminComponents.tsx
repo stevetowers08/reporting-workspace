@@ -20,11 +20,11 @@ import {
 } from 'lucide-react';
 import React from 'react';
 
-interface AdminHeaderProps {
+interface AgencyHeaderProps {
   onBackToDashboard: () => void;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ onBackToDashboard }) => {
+export const AgencyHeader: React.FC<AgencyHeaderProps> = ({ onBackToDashboard }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -44,7 +44,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onBackToDashboard }) =
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Admin Panel</h1>
+                <h1 className="text-xl font-bold text-slate-900">Agency Panel</h1>
                 <p className="text-sm text-slate-600">Manage clients and integrations</p>
               </div>
             </div>
@@ -53,7 +53,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onBackToDashboard }) =
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
               <Shield className="h-3 w-3 mr-1" />
-              Admin Access
+              Agency Access
             </Badge>
           </div>
         </div>

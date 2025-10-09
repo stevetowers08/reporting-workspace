@@ -1,0 +1,117 @@
+{
+  "summary": {
+    "total": 7,
+    "passed": 0,
+    "failed": 7,
+    "successRate": "0.0"
+  },
+  "results": [
+    {
+      "name": "API Testing Dashboard",
+      "url": "http://localhost:3000/api-testing",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.802Z"
+    },
+    {
+      "name": "OAuth Callback (No Params)",
+      "url": "http://localhost:3000/oauth/callback",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.804Z"
+    },
+    {
+      "name": "Get All Venues",
+      "url": "http://localhost:3000/api/venues",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.807Z"
+    },
+    {
+      "name": "Get Google Ads Accounts",
+      "url": "http://localhost:3000/api/google-ads/accounts",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.809Z"
+    },
+    {
+      "name": "Get Google Sheets",
+      "url": "http://localhost:3000/api/google-sheets/spreadsheets",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.810Z"
+    },
+    {
+      "name": "Get Facebook Ads Accounts",
+      "url": "http://localhost:3000/api/facebook-ads/accounts",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.812Z"
+    },
+    {
+      "name": "Get GoHighLevel Locations",
+      "url": "http://localhost:3000/api/ghl/locations",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.814Z"
+    }
+  ],
+  "errors": [
+    {
+      "name": "API Testing Dashboard",
+      "url": "http://localhost:3000/api-testing",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.801Z"
+    },
+    {
+      "name": "OAuth Callback (No Params)",
+      "url": "http://localhost:3000/oauth/callback",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.804Z"
+    },
+    {
+      "name": "Get All Venues",
+      "url": "http://localhost:3000/api/venues",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.807Z"
+    },
+    {
+      "name": "Get Google Ads Accounts",
+      "url": "http://localhost:3000/api/google-ads/accounts",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.809Z"
+    },
+    {
+      "name": "Get Google Sheets",
+      "url": "http://localhost:3000/api/google-sheets/spreadsheets",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.810Z"
+    },
+    {
+      "name": "Get Facebook Ads Accounts",
+      "url": "http://localhost:3000/api/facebook-ads/accounts",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.812Z"
+    },
+    {
+      "name": "Get GoHighLevel Locations",
+      "url": "http://localhost:3000/api/ghl/locations",
+      "error": "",
+      "timestamp": "2025-10-09T22:53:36.814Z"
+    }
+  ],
+  "timestamp": "2025-10-09T22:53:36.815Z",
+  "config": {
+    "baseUrl": "http://localhost:3000",
+    "supabaseUrl": "http://localhost:54321",
+    "timeout": 10000,
+    "retries": 3
+  }
+}

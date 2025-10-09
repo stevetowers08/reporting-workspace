@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useErrorHandler } from '@/contexts/ErrorContext';
 import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
-import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
+import { GoHighLevelApiService } from '@/services/ghl/goHighLevelApiService';
+import { GoHighLevelAuthService } from '@/services/ghl/goHighLevelAuthService';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
 import { OAuthTokens } from '@/types/integration';
 import { AlertCircle, CheckCircle } from 'lucide-react';
@@ -77,10 +78,10 @@ const OAuthCallback = () => {
             config: integration?.config
           });
           
-          if (!integration?.config?.connected || !integration?.config?.tokens?.accessToken) {
-            console.error('🔍 Database verification failed:', {
-              integration,
-              connected: integration?.config?.connected,
+        if (!integration?.config?.connected || !integration?.config?.tokens?.accessToken) {
+          debugLogger.error('OAuthCallback', 'Database verification failed', {
+            integration,
+            connected: integration?.config?.connected,
               hasTokens: !!integration?.config?.tokens?.accessToken
             });
             throw new Error('Failed to save Google Sheets tokens to database');
@@ -181,6 +182,36 @@ const OAuthCallback = () => {
 
           setStatus('success');
           setMessage('Successfully connected to Google Ads!');
+        } else if (platform === 'goHighLevel') {
+          // Handle GoHighLevel OAuth
+          debugLogger.debug('🔍 Processing GoHighLevel OAuth');
+          
+          const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+          const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+          const redirectUri = `${window.location.origin}/oauth/callback`;
+          
+          if (!clientId || !clientSecret) {
+            throw new Error('Missing GoHighLevel OAuth credentials');
+          }
+          
+          // Exchange code for token
+          const tokenData = await GoHighLevelAuthService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
+          
+          // ✅ Save complete token data including refresh token
+          const success = await GoHighLevelApiService.saveLocationToken(
+            tokenData.locationId,
+            tokenData.access_token,
+            tokenData.refresh_token, // ✅ Include refresh token
+            tokenData.scope.split(' '),
+            tokenData.expires_in // ✅ Include expiration time
+          );
+          
+          if (!success) {
+            throw new Error('Failed to save GoHighLevel token to database');
+          }
+          
+          setStatus('success');
+          setMessage('Successfully connected to GoHighLevel!');
         } else {
           // Handle other platforms using OAuthService
           debugLogger.debug('🔍 Processing generic OAuth for platform:', platform);
@@ -192,13 +223,12 @@ const OAuthCallback = () => {
           setMessage(`Successfully connected to ${platform}!`);
         }
 
-        // Redirect to admin panel after 2 seconds
+        // Redirect to agency panel after 2 seconds
         setTimeout(() => {
-          navigate('/admin');
+          navigate('/agency');
         }, 2000);
 
       } catch (error) {
-        console.error('🔍 OAuth callback error:', error);
         debugLogger.error('OAuthCallback', 'OAuth callback failed', error);
         
         setStatus('error');
@@ -206,7 +236,7 @@ const OAuthCallback = () => {
         
         // Add more detailed error information
         if (error instanceof Error) {
-          console.error('🔍 Error details:', {
+          debugLogger.error('OAuthCallback', 'Error details', {
             message: error.message,
             stack: error.stack,
             name: error.name
@@ -236,14 +266,14 @@ const OAuthCallback = () => {
               <p className="text-sm text-gray-500">Processing authentication...</p>
             )}
             {status === 'success' && (
-              <p className="text-sm text-green-600">Redirecting to admin panel...</p>
+              <p className="text-sm text-green-600">Redirecting to agency panel...</p>
             )}
             {status === 'error' && (
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate('/agency')}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Go to Admin Panel
+                Go to Agency Panel
               </button>
             )}
           </CardContent>

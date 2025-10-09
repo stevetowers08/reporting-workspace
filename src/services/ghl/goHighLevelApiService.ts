@@ -4,61 +4,82 @@ import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { GoHighLevelAuthService } from './goHighLevelAuthService';
 import type {
-    GHLCalendarEvent,
     GHLCampaign,
     GHLContact,
     GHLFunnel,
     GHLFunnelPage,
     GHLOpportunity
 } from './goHighLevelTypes';
-import { GHLQueryBuilder, GHLRateLimiter } from './goHighLevelUtils';
+import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelApiService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28';
+  private static readonly API_VERSION = '2021-07-28'; // Keep V1 for now, but structure requests for V2
 
   // Campaigns
   static async getCampaigns(locationId: string): Promise<GHLCampaign[]> {
     await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
     
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
+    // Use client-specific OAuth token instead of agency token
+    const token = await this.getValidToken(locationId);
+    if (!token) {
+      throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
-    const response = await this.makeApiRequest(`/campaigns/?locationId=${locationId}`) as { campaigns: GHLCampaign[] };
-    return response.campaigns || [];
+    // Campaigns endpoint doesn't exist in current API version
+    debugLogger.info('GoHighLevelApiService', 'Campaigns endpoint not available in current API version - returning empty array');
+    return []; // Return empty array since endpoint doesn't exist
   }
 
   // Contacts
   static async getContacts(locationId: string, limit = 100, offset = 0): Promise<GHLContact[]> {
     await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
     
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
+    // Use client-specific OAuth token instead of agency token
+    const token = await this.getValidToken(locationId);
+    if (!token) {
+      throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
     debugLogger.info('GoHighLevelApiService', 'Fetching contacts', { locationId, limit, offset });
 
-    // Get valid location token (with auto-refresh)
-    const locationToken = await this.getValidToken(locationId);
-    if (!locationToken) {
-      throw new Error(`No location token found for location ${locationId}. Please connect the location via OAuth flow.`);
-    }
-
-    // Fetch contacts using the location token
-    const query = GHLQueryBuilder.buildPaginationQuery(limit, offset);
-    const response = await fetch(`${this.API_BASE_URL}/contacts${query}`, {
+    // ✅ Use POST /contacts/search endpoint (verified online)
+    const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${locationToken}`,
+        'Authorization': `Bearer ${token}`,
         'Version': this.API_VERSION,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        locationId: locationId,
+        pageLimit: limit, // ✅ Fixed: use 'pageLimit' instead of 'limit'
+        skip: offset, // ✅ Fixed: use 'skip' instead of 'offset'
+        query: {}
+      })
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch contacts: ${response.statusText}`);
+      // ✅ Enhanced error handling with retry
+      await GHLRateLimiter.handleRateLimitError(response);
+      
+      let errorData: any = {};
+      try {
+        errorData = await response.json();
+      } catch {
+        // Handle empty response bodies
+      }
+      
+      const errorMessage = errorData.error || errorData.message || 
+        `API call failed: ${response.status} ${response.statusText}`;
+      
+      debugLogger.error('GoHighLevelApiService', 'API call failed', {
+        status: response.status,
+        locationId,
+        error: errorMessage
+      });
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -70,35 +91,34 @@ export class GoHighLevelApiService {
   static async getContactCount(locationId: string, dateParams?: { startDate?: string; endDate?: string }): Promise<number> {
     try {
       await GHLRateLimiter.enforceRateLimit();
-      await GoHighLevelAuthService.ensureAgencyToken();
       
-      if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set');
+      const token = await this.getValidToken(locationId);
+      if (!token) {
+        throw new Error(`No valid OAuth token found for location ${locationId}`);
       }
 
       debugLogger.info('GoHighLevelApiService', 'Getting contact count', { locationId, dateParams });
 
-      // Get valid location token
-      const locationToken = await this.getValidToken(locationId);
-      if (!locationToken) {
-        throw new Error(`No location token found for location ${locationId}. Please configure location-level token.`);
-      }
+      // ✅ FIX: Remove unsupported date_added filters
+      // GoHighLevel doesn't support 'gte' operator for date_added field
+      // Instead, fetch contacts and filter in memory if needed
       
-      // Use the recommended Search Contacts endpoint with date filtering
-      const query = GHLQueryBuilder.buildContactQuery(dateParams);
-      const response = await fetch(`${this.API_BASE_URL}/contacts/search${query}`, {
+      const requestBody: any = {
+        locationId,
+        pageLimit: dateParams ? 100 : 1 // Use pageLimit instead of limit
+      };
+
+      // Log the request body for debugging
+      debugLogger.info('GoHighLevelApiService', 'Contacts search request body', requestBody);
+
+      const response = await fetch(`${this.API_BASE_URL}/contacts/search`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${locationToken}`,
+          'Authorization': `Bearer ${token}`,
           'Version': this.API_VERSION,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          locationId,
-          query: {},
-          ...(dateParams?.startDate && { startDate: dateParams.startDate }),
-          ...(dateParams?.endDate && { endDate: dateParams.endDate })
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -108,10 +128,30 @@ export class GoHighLevelApiService {
       }
 
       const data: any = await response.json();
-      const count = data.contacts?.length || 0;
+      const contacts = data.contacts || [];
       
-      debugLogger.info('GoHighLevelApiService', `Retrieved contact count: ${count}`);
-      return count;
+      // If no date filtering needed, return total count
+      if (!dateParams?.startDate && !dateParams?.endDate) {
+        const count = data.meta?.total || contacts.length;
+        debugLogger.info('GoHighLevelApiService', `Retrieved total contact count: ${count}`);
+        return count;
+      }
+      
+      // Filter contacts by date in memory (necessary due to API limitations)
+      const startDate = dateParams.startDate ? new Date(dateParams.startDate) : null;
+      const endDate = dateParams.endDate ? new Date(dateParams.endDate) : null;
+      
+      const filteredCount = contacts.filter((contact: any) => {
+        const contactDate = new Date(contact.dateAdded || contact.createdAt || 0);
+        
+        if (startDate && contactDate < startDate) return false;
+        if (endDate && contactDate > endDate) return false;
+        
+        return true;
+      }).length;
+      
+      debugLogger.info('GoHighLevelApiService', `Retrieved filtered contact count: ${filteredCount}`);
+      return filteredCount;
 
     } catch (error) {
       debugLogger.error('GoHighLevelApiService', 'Failed to get contact count', error);
@@ -122,62 +162,71 @@ export class GoHighLevelApiService {
   // Funnels
   static async getFunnels(locationId: string): Promise<GHLFunnel[]> {
     await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
     
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
+    // Use client-specific OAuth token instead of agency token
+    const token = await this.getValidToken(locationId);
+    if (!token) {
+      throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
-    const response = await this.makeApiRequest(`/funnels?locationId=${locationId}`) as GHLFunnel[];
+    // Use the correct funnels endpoint path as per documentation
+    const response = await this.makeApiRequest(`/funnels/funnel/list?locationId=${locationId}`, { 
+      token,
+      method: 'GET'
+    }) as GHLFunnel[];
     return Array.isArray(response) ? response : [];
   }
 
   static async getFunnelPages(funnelId: string, locationId: string): Promise<GHLFunnelPage[]> {
     await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
     
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
+    // Use client-specific OAuth token instead of agency token
+    const token = await this.getValidToken(locationId);
+    if (!token) {
+      throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
-    const response = await this.makeApiRequest(`/funnels/${funnelId}/pages?locationId=${locationId}`) as GHLFunnelPage[];
+    // Use the correct funnel pages endpoint as per documentation
+    const response = await this.makeApiRequest(`/funnels/page`, { 
+      token,
+      method: 'POST',
+      body: JSON.stringify({ 
+        funnelId,
+        locationId 
+      })
+    }) as GHLFunnelPage[];
     return Array.isArray(response) ? response : [];
   }
 
   // Opportunities
   static async getOpportunities(locationId: string): Promise<GHLOpportunity[]> {
     await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
     
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
+    // Use client-specific OAuth token instead of agency token
+    const token = await this.getValidToken(locationId);
+    if (!token) {
+      throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
-    const response = await this.makeApiRequest(`/opportunities?locationId=${locationId}`) as GHLOpportunity[];
-    return Array.isArray(response) ? response : [];
+    // Opportunities endpoint doesn't exist in current API version
+    debugLogger.info('GoHighLevelApiService', 'Opportunities endpoint not available in current API version - returning empty array');
+    return []; // Return empty array since endpoint doesn't exist
   }
 
-  // Calendar Events
-  static async getCalendarEvents(locationId: string): Promise<GHLCalendarEvent[]> {
-    await GHLRateLimiter.enforceRateLimit();
-    await GoHighLevelAuthService.ensureAgencyToken();
-    
-    if (!GoHighLevelAuthService.getAgencyToken()) {
-      throw new Error('Private integration token not set');
-    }
-
-    const response = await this.makeApiRequest(`/calendars/events?locationId=${locationId}`) as GHLCalendarEvent[];
-    return Array.isArray(response) ? response : [];
-  }
 
   // Token Management
   static async generateLocationToken(locationId: string): Promise<string | null> {
+    // This method is deprecated - we now use OAuth tokens instead of generating location tokens
+    debugLogger.warn('GoHighLevelApiService', 'generateLocationToken is deprecated - use OAuth tokens instead');
+    return null;
+    
+    /* DEPRECATED CODE - keeping for reference
     try {
       await GHLRateLimiter.enforceRateLimit();
       await GoHighLevelAuthService.ensureAgencyToken();
       
       if (!GoHighLevelAuthService.getAgencyToken()) {
-        throw new Error('Private integration token not set. Please configure in admin settings.');
+        throw new Error('Private integration token not set. Please configure in agency settings.');
       }
 
       debugLogger.info('GoHighLevelApiService', 'Generating location token', { locationId });
@@ -198,6 +247,7 @@ export class GoHighLevelApiService {
       debugLogger.error('GoHighLevelApiService', 'Failed to generate location token', error);
       return null;
     }
+    */
   }
 
   private static async loadLocationToken(locationId: string): Promise<string | null> {
@@ -212,7 +262,7 @@ export class GoHighLevelApiService {
         .single();
 
       if (clientError || !clientData) {
-        debugLogger.warn('GoHighLevelApiService', 'Client not found for location:', locationId, clientError);
+        debugLogger.warn('GoHighLevelApiService', 'Client not found for location:', { locationId, clientError });
         return null;
       }
 
@@ -225,7 +275,7 @@ export class GoHighLevelApiService {
         .single();
 
       if (integrationError || !integrationData) {
-        debugLogger.warn('GoHighLevelApiService', 'Integration not found for location:', locationId, integrationError);
+        debugLogger.warn('GoHighLevelApiService', 'Integration not found for location:', { locationId, integrationError });
         return null;
       }
 
@@ -243,9 +293,24 @@ export class GoHighLevelApiService {
     }
   }
 
-  static async saveLocationToken(locationId: string, token: string, scopes: string[]): Promise<boolean> {
+  static async saveLocationToken(locationId: string, token: string, refreshToken?: string, scopes?: string[], expiresIn?: number): Promise<boolean> {
     try {
-      debugLogger.info('GoHighLevelApiService', 'Saving location token', { locationId, scopes });
+      debugLogger.info('GoHighLevelApiService', 'Saving location token', { 
+        locationId, 
+        scopes,
+        hasRefreshToken: !!refreshToken,
+        expiresIn 
+      });
+
+      // ✅ Store complete token data with refresh capability
+      const tokenData = {
+        accessToken: token,
+        refreshToken: refreshToken || null,
+        expiresIn: expiresIn || 3600, // Default 1 hour
+        expiresAt: new Date(Date.now() + (expiresIn || 3600) * 1000).toISOString(),
+        tokenType: 'Bearer',
+        scope: scopes?.join(' ') || ''
+      };
 
       const { error } = await supabase
         .from('integrations')
@@ -254,11 +319,7 @@ export class GoHighLevelApiService {
           account_id: locationId,
           connected: true,
           config: {
-            tokens: {
-              accessToken: token,
-              tokenType: 'Bearer',
-              scope: scopes.join(' ')
-            },
+            tokens: tokenData,
             accountInfo: {
               id: locationId,
               name: 'GoHighLevel Location'
@@ -268,7 +329,8 @@ export class GoHighLevelApiService {
             syncStatus: 'idle',
             connectedAt: new Date().toISOString()
           },
-          last_sync: new Date().toISOString()
+          last_sync: new Date().toISOString(),
+          updated_at: new Date().toISOString() // ✅ Manual timestamp update
         }, {
           onConflict: 'platform,account_id'
         });
@@ -287,35 +349,145 @@ export class GoHighLevelApiService {
   }
 
   static async getValidToken(locationId: string): Promise<string | null> {
-    // Check if we already have a token in memory
-    let token = GoHighLevelAuthService.getLocationToken(locationId);
-    if (token) {
-      return token;
+    // ✅ FIX: Always check database first for accurate expiration data
+    const tokenData = await this.loadTokenDataFromDb(locationId);
+    if (!tokenData) {
+      debugLogger.warn('GoHighLevelApiService', 'No token found for location', { locationId });
+      return null;
     }
 
-    // Try to load from database
-    token = await this.loadLocationToken(locationId);
-    if (token) {
-      return token;
+    // ✅ FIX: Check if token needs refresh (5 minute buffer)
+    const buffer = 5 * 60 * 1000; // 5 minutes
+    if (tokenData.expiresAt && new Date(tokenData.expiresAt) <= new Date(Date.now() + buffer)) {
+      debugLogger.info('GoHighLevelApiService', 'Token expired, attempting refresh', { locationId });
+      
+      if (tokenData.refreshToken) {
+        const refreshed = await this.refreshToken(locationId, tokenData.refreshToken);
+        if (refreshed) {
+          // Load the new token and check its expiration
+          const newTokenData = await this.loadTokenDataFromDb(locationId);
+          if (newTokenData?.accessToken) {
+            // ✅ FIX: Check if the new token is also expired
+            if (newTokenData.expiresAt && new Date(newTokenData.expiresAt) <= new Date(Date.now() + buffer)) {
+              debugLogger.warn('GoHighLevelApiService', 'Refreshed token is also expired', { locationId });
+              return null;
+            }
+            GoHighLevelAuthService.setCredentials(newTokenData.accessToken, locationId);
+            return newTokenData.accessToken;
+          }
+        }
+      }
+      
+      debugLogger.warn('GoHighLevelApiService', 'Token refresh failed', { locationId });
+      return null;
     }
 
-    // Try to generate a new token
-    token = await this.generateLocationToken(locationId);
-    return token;
+    // Token is still valid - decrypt and cache it
+    GoHighLevelAuthService.setCredentials(tokenData.accessToken, locationId);
+    return tokenData.accessToken;
+  }
+
+  // ✅ New method to load complete token data from database
+  private static async loadTokenDataFromDb(locationId: string): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: string } | null> {
+    try {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'goHighLevel')
+        .eq('account_id', locationId)
+        .eq('connected', true)
+        .single();
+        
+      if (error || !data?.config?.tokens?.accessToken) {
+        debugLogger.warn('GoHighLevelApiService', 'No token found for location', { locationId });
+        return null;
+      }
+      
+      // ✅ FIX: Return tokens directly (no encryption needed for internal dev app)
+      return {
+        accessToken: data.config.tokens.accessToken,
+        refreshToken: data.config.tokens.refreshToken,
+        expiresAt: data.config.tokens.expiresAt
+      };
+    } catch (error) {
+      debugLogger.error('GoHighLevelApiService', 'Error loading token data', error);
+      return null;
+    }
+  }
+
+  // ✅ New method to refresh expired tokens
+  static async refreshToken(locationId: string, refreshToken: string): Promise<boolean> {
+    try {
+      debugLogger.info('GoHighLevelApiService', 'Refreshing token', { locationId });
+
+      const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: import.meta.env.VITE_GHL_CLIENT_ID,
+          client_secret: import.meta.env.VITE_GHL_CLIENT_SECRET,
+          user_type: 'Location'
+        })
+      });
+      
+      if (!response.ok) {
+        debugLogger.error('GoHighLevelApiService', 'Token refresh failed', { 
+          status: response.status, 
+          statusText: response.statusText 
+        });
+        return false;
+      }
+      
+      const newTokenData = await response.json();
+      
+      // Save the new tokens
+      const success = await this.saveLocationToken(
+        locationId, 
+        newTokenData.access_token, 
+        newTokenData.refresh_token,
+        newTokenData.scope?.split(' '),
+        newTokenData.expires_in
+      );
+      
+      if (success) {
+        debugLogger.info('GoHighLevelApiService', 'Token refreshed successfully', { locationId });
+      }
+      
+      return success;
+    } catch (error) {
+      debugLogger.error('GoHighLevelApiService', 'Error refreshing token', error);
+      return false;
+    }
   }
 
   // Core API Request Method
-  private static async makeApiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private static async makeApiRequest<T>(endpoint: string, options: RequestInit & { token?: string; queryParams?: Record<string, any> } = {}): Promise<T> {
     await GHLRateLimiter.enforceRateLimit();
     
-    const agencyToken = await GoHighLevelAuthService.getAgencyToken();
-    if (!agencyToken) {
-      throw new Error('Private integration token not set');
+    // Require a token to be provided - no more agency token fallback
+    const token = options.token;
+    if (!token) {
+      throw new Error('No valid token provided for API request. Location-specific token required.');
     }
 
-    const url = `${this.API_BASE_URL}${endpoint}`;
+    // Build URL with query parameters
+    let url = `${this.API_BASE_URL}${endpoint}`;
+    if (options.queryParams) {
+      const searchParams = new URLSearchParams();
+      Object.entries(options.queryParams).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      if (searchParams.toString()) {
+        url += `?${searchParams.toString()}`;
+      }
+    }
+
     const headers = {
-      'Authorization': `Bearer ${agencyToken}`,
+      'Authorization': `Bearer ${token}`,
       'Version': this.API_VERSION,
       'Content-Type': 'application/json',
       ...options.headers
@@ -338,17 +510,31 @@ export class GoHighLevelApiService {
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API request failed: ${response.statusText}`;
+      let errorDetails: any = {};
       
       try {
         const errorData = JSON.parse(errorText);
         if (errorData.error) {
           errorMessage = errorData.error;
         }
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        errorDetails = errorData;
       } catch {
         // Use default error message if JSON parsing fails
+        errorDetails = { rawError: errorText };
       }
       
-      throw new Error(errorMessage);
+      debugLogger.error('GoHighLevelApiService', 'API request failed', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage,
+        errorDetails
+      });
+      
+      throw new Error(`${errorMessage} (Status: ${response.status})`);
     }
 
     return response.json();

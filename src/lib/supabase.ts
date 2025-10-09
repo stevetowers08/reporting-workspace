@@ -175,6 +175,46 @@ export interface Database {
           metrics?: Record<string, any>;
         };
       };
+      oauth_credentials: {
+        Row: {
+          id: string;
+          platform: 'facebookAds' | 'googleAds' | 'googleSheets' | 'google-ai' | 'goHighLevel';
+          client_id: string;
+          client_secret: string;
+          redirect_uri: string;
+          scopes: string[];
+          auth_url: string;
+          token_url: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          platform: 'facebookAds' | 'googleAds' | 'googleSheets' | 'google-ai' | 'goHighLevel';
+          client_id: string;
+          client_secret: string;
+          redirect_uri: string;
+          scopes: string[];
+          auth_url: string;
+          token_url: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          platform?: 'facebookAds' | 'googleAds' | 'googleSheets' | 'google-ai' | 'goHighLevel';
+          client_id?: string;
+          client_secret?: string;
+          redirect_uri?: string;
+          scopes?: string[];
+          auth_url?: string;
+          token_url?: string;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -322,6 +362,39 @@ export const supabaseHelpers = {
 
     if (error) throw error;
     return data;
+  },
+
+  // OAuth credentials operations
+  async getOAuthCredentials(platform: string) {
+    const { data, error } = await supabase
+      .from('oauth_credentials')
+      .select('*')
+      .eq('platform', platform)
+      .eq('is_active', true)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  async upsertOAuthCredentials(credentials: Database['public']['Tables']['oauth_credentials']['Insert']) {
+    const { data, error } = await supabase
+      .from('oauth_credentials')
+      .upsert({ ...credentials, updated_at: new Date().toISOString() }, { onConflict: 'platform' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteOAuthCredentials(platform: string) {
+    const { error } = await supabase
+      .from('oauth_credentials')
+      .delete()
+      .eq('platform', platform);
+
+    if (error) throw error;
   },
 
   // Utility functions

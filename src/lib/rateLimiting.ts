@@ -356,8 +356,8 @@ export const RateLimitConfigs = {
     skipFailedRequests: false,
   },
   
-  // Admin operations
-  admin: {
+  // Agency operations
+  agency: {
     windowMs: 60000, // 1 minute
     maxRequests: 20,
     skipSuccessfulRequests: false,

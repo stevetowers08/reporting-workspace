@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { useGHLContactCount } from '@/hooks/useGHLHooks';
 import { Calendar, TrendingUp, UserPlus, Users } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 interface GHLContactQualityCardsProps {
   locationId: string;
@@ -18,23 +18,7 @@ interface GHLMetrics {
 }
 
 export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ locationId, dateRange }) => {
-  const [metrics, setMetrics] = useState<GHLMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const data = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
-        setMetrics(data);
-      } catch (error) {
-        console.error('Failed to fetch GHL metrics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetrics();
-  }, [dateRange]);
+  const { data: metrics, loading, error } = useGHLContactCount(locationId, dateRange);
 
   if (loading) {
     return (
@@ -51,11 +35,13 @@ export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ 
     );
   }
 
-  if (!metrics) {
+  if (error || !metrics) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
         <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-          <div className="text-center text-slate-500">Failed to load GHL data</div>
+          <div className="text-center text-slate-500">
+            GoHighLevel Not Connected
+          </div>
         </Card>
       </div>
     );

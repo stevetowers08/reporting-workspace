@@ -24,11 +24,17 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
   useEffect(() => {
     const fetchFunnelData = async () => {
       try {
-        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
+        // Convert date range format for API
+        const apiDateRange = dateRange ? {
+          startDate: dateRange.start,
+          endDate: dateRange.end
+        } : undefined;
+        
+        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
         
         // Calculate funnel stages from actual funnel data
-        const totalPageViews = funnelData.totalPageViews || 0;
-        const totalContacts = await GoHighLevelService.getContactCount(locationId, dateRange ? { startDate: dateRange.start, endDate: dateRange.end } : undefined);
+        const totalPageViews = funnelData.reduce((sum, funnel) => sum + funnel.views, 0);
+        const totalContacts = await GoHighLevelService.getContactCount(locationId, apiDateRange);
         
         // Only show real data - no estimated calculations
         const funnelStages: FunnelData[] = [
@@ -48,14 +54,14 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
 
         setFunnelData(funnelStages);
       } catch (error) {
-        console.error('Failed to fetch GHL funnel data:', error);
+        // Error handled by error boundary
       } finally {
         setLoading(false);
       }
     };
 
     fetchFunnelData();
-  }, [dateRange]);
+  }, [locationId, dateRange]);
 
   if (loading) {
     return (

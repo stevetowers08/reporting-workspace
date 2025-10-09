@@ -33,33 +33,61 @@ export class OAuthCredentialsService {
     try {
       debugLogger.info('OAuthCredentialsService', `Getting credentials for ${platform}`);
       
-      const { data, error } = await supabase
+      // Get OAuth config from oauth_credentials table
+      const { data: oauthData, error: oauthError } = await supabase
         .from('oauth_credentials')
         .select('*')
         .eq('platform', platform)
         .eq('is_active', true)
         .single();
       
-      if (error) {
-        if (error.code === 'PGRST116') {
-          debugLogger.info('OAuthCredentialsService', `No credentials found for ${platform}`);
+      if (oauthError) {
+        if (oauthError.code === 'PGRST116') {
+          debugLogger.info('OAuthCredentialsService', `No OAuth config found for ${platform}`);
           return null;
         }
-        throw error;
+        throw oauthError;
       }
       
+      // Get integration status and tokens from integrations table
+      const { data: integrationData, error: integrationError } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('platform', platform)
+        .eq('connected', true)
+        .single();
+      
+      if (integrationError) {
+        if (integrationError.code === 'PGRST116') {
+          debugLogger.info('OAuthCredentialsService', `No integration found for ${platform}`);
+          return null;
+        }
+        throw integrationError;
+      }
+      
+      // Extract tokens from integration config
+      const config = integrationData.config || {};
+      const tokens = config.tokens || {};
+      
+      // Return null if no tokens found
+      if (!tokens.accessToken) {
+        debugLogger.info('OAuthCredentialsService', `No access token found for ${platform}`);
+        return null;
+      }
+      
+      // Combine OAuth config with integration data
       const credentials: OAuthCredentials = {
-        id: data.id,
-        platform: data.platform,
-        clientId: data.client_id,
-        clientSecret: data.client_secret,
-        redirectUri: data.redirect_uri,
-        scopes: data.scopes,
-        authUrl: data.auth_url,
-        tokenUrl: data.token_url,
-        isActive: data.is_active,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: oauthData.id,
+        platform: oauthData.platform,
+        clientId: oauthData.client_id,
+        clientSecret: oauthData.client_secret,
+        redirectUri: oauthData.redirect_uri,
+        scopes: oauthData.scopes,
+        authUrl: oauthData.auth_url,
+        tokenUrl: oauthData.token_url,
+        isActive: oauthData.is_active && integrationData.connected,
+        createdAt: oauthData.created_at,
+        updatedAt: oauthData.updated_at
       };
       
       debugLogger.info('OAuthCredentialsService', `Found credentials for ${platform}`);
@@ -67,6 +95,30 @@ export class OAuthCredentialsService {
     } catch (error) {
       debugLogger.error('OAuthCredentialsService', `Failed to get credentials for ${platform}`, error);
       throw error;
+    }
+  }
+
+  private static getAuthUrl(platform: string): string {
+    switch (platform) {
+      case 'googleAds':
+      case 'googleSheets':
+        return 'https://accounts.google.com/o/oauth2/v2/auth';
+      case 'goHighLevel':
+        return 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
+      default:
+        return '';
+    }
+  }
+
+  private static getTokenUrl(platform: string): string {
+    switch (platform) {
+      case 'googleAds':
+      case 'googleSheets':
+        return 'https://oauth2.googleapis.com/token';
+      case 'goHighLevel':
+        return 'https://services.leadconnectorhq.com/oauth/token';
+      default:
+        return '';
     }
   }
 

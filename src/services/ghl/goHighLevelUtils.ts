@@ -30,7 +30,7 @@ export class GHLRateLimiter {
         debugLogger.warn('GHLRateLimiter', `Rate limit reached, waiting ${waitTime}ms`);
         await this.sleep(waitTime);
         this.requestCount = 0;
-        this.lastRequestTime = now;
+        this.lastRequestAt = now;
       }
     }
     
@@ -71,7 +71,7 @@ export class GHLQueryBuilder {
   static buildPaginationQuery(limit = 100, offset = 0): string {
     const params = new URLSearchParams();
     params.set('limit', limit.toString());
-    params.set('offset', offset.toString());
+    params.set('skip', offset.toString()); // ✅ Fixed: use 'skip' instead of 'offset'
     return `?${params.toString()}`;
   }
 }

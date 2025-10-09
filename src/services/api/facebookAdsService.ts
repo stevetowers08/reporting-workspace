@@ -69,10 +69,36 @@ export class FacebookAdsService {
     this.requestCache.set(key, { data, timestamp: Date.now() });
   }
 
-  // Get access token from database directly
-  static async getAccessToken(): Promise<string> {
+  // Get developer token from facebook_ads_configs table
+  static async getDeveloperToken(): Promise<string> {
     try {
-      // Get token directly from integrations table
+      const { supabase } = await import('@/lib/supabase');
+      const { data, error } = await supabase
+        .from('facebook_ads_configs')
+        .select('developer_token')
+        .eq('is_active', true)
+        .single();
+
+      if (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching Facebook developer token from database', error);
+        throw new Error('No Facebook developer token found in database');
+      }
+
+      if (!data?.developer_token) {
+        throw new Error('No Facebook developer token found in database');
+      }
+
+      debugLogger.debug('FacebookAdsService', 'Using Facebook developer token from database');
+      return data.developer_token;
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error getting developer token from database', error);
+      throw error;
+    }
+  }
+
+  // Get user access token from integrations table
+  static async getUserAccessToken(): Promise<string> {
+    try {
       const { supabase } = await import('@/lib/supabase');
       const { data, error } = await supabase
         .from('integrations')
@@ -91,12 +117,17 @@ export class FacebookAdsService {
         throw new Error('No Facebook access token found in database');
       }
 
-      debugLogger.debug('FacebookAdsService', 'Using Facebook token from database');
+      debugLogger.debug('FacebookAdsService', 'Using Facebook user access token from database');
       return config.accessToken;
     } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Error getting access token from database', error);
+      debugLogger.error('FacebookAdsService', 'Error getting user access token from database', error);
       throw error;
     }
+  }
+
+  // Legacy method for backward compatibility
+  static async getAccessToken(): Promise<string> {
+    return this.getUserAccessToken();
   }
 
   // Rate limiting state
@@ -105,7 +136,25 @@ export class FacebookAdsService {
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
-  // Rate-limited fetch with retry logic
+  // Request deduplication
+  private static pendingRequests = new Map<string, Promise<any>>();
+
+  // Deduplicate requests to prevent multiple identical API calls
+  private static async deduplicateRequest<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+    if (this.pendingRequests.has(key)) {
+      debugLogger.debug('FacebookAdsService', `Deduplicating request: ${key}`);
+      return await this.pendingRequests.get(key)!;
+    }
+
+    const promise = requestFn().finally(() => {
+      this.pendingRequests.delete(key);
+    });
+
+    this.pendingRequests.set(key, promise);
+    return await promise;
+  }
+
+  // Rate-limited fetch with retry logic - now includes developer token
   static async rateLimitedFetch(url: string, options: RequestInit = {}): Promise<Response> {
     // Rate limiting: ensure minimum interval between requests
     const now = Date.now();
@@ -209,12 +258,41 @@ export class FacebookAdsService {
     throw new Error('Maximum retry attempts exceeded');
   }
 
+  // Helper method to build Facebook API URL with both tokens
+  private static async buildApiUrl(endpoint: string, params: Record<string, string> = {}, userToken?: string): Promise<string> {
+    const token = userToken || await this.getUserAccessToken();
+    
+    const urlParams = new URLSearchParams({
+      ...params,
+      access_token: token,
+      // Note: Developer token is typically passed in headers, not URL params
+    });
+    
+    return `${this.BASE_URL}/${endpoint}?${urlParams}`;
+  }
+
+  // Helper method to build Facebook API headers with developer token
+  private static async buildApiHeaders(): Promise<Record<string, string>> {
+    const developerToken = await this.getDeveloperToken();
+    
+    return {
+      'Authorization': `Bearer ${developerToken}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'Marketing-Analytics-Dashboard/1.0'
+    };
+  }
+
   static async authenticate(accessToken?: string, _adAccountId?: string): Promise<boolean> {
     try {
-      const token = accessToken || await this.getAccessToken();
+      const userToken = accessToken || await this.getUserAccessToken();
+      const developerToken = await this.getDeveloperToken();
 
-      // Validate token with Facebook Graph API using rate-limited fetch
-      const response = await FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me?access_token=${token}`);
+      // Validate both tokens with Facebook Graph API
+      const headers = await this.buildApiHeaders();
+      const response = await FacebookAdsService.rateLimitedFetch(
+        `${this.BASE_URL}/me?access_token=${userToken}`,
+        { headers }
+      );
 
       if (response.ok) {
         const userData = await response.json();
@@ -233,13 +311,19 @@ export class FacebookAdsService {
 
   static async validateTokenScopes(): Promise<{ hasBusinessManagement: boolean; scopes: string[] }> {
     try {
-      const token = await this.getAccessToken();
-      if (!token) {
+      const userToken = await this.getUserAccessToken();
+      const developerToken = await this.getDeveloperToken();
+      
+      if (!userToken || !developerToken) {
         return { hasBusinessManagement: false, scopes: [] };
       }
 
       // Try to access business management endpoint to check if permission is available
-      const businessResponse = await FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id&access_token=${token}`);
+      const headers = await this.buildApiHeaders();
+      const businessResponse = await FacebookAdsService.rateLimitedFetch(
+        `${this.BASE_URL}/me/businesses?fields=id&access_token=${userToken}`,
+        { headers }
+      );
       const hasBusinessManagement = businessResponse.ok;
 
       return { 
@@ -274,7 +358,6 @@ export class FacebookAdsService {
           debugLogger.debug('FacebookAdsService', 'Using cached ad accounts from Supabase', { 
             count: integration.settings.adAccounts.length 
           });
-          console.log('🔍 FacebookAdsService: Returning cached accounts:', integration.settings.adAccounts.length);
           return integration.settings.adAccounts;
         }
       } catch (error) {
@@ -284,21 +367,23 @@ export class FacebookAdsService {
       // Fallback to API call if no cached data
       debugLogger.debug('FacebookAdsService', 'No cached accounts found, fetching from Facebook API');
       
-      const token = await this.getAccessToken();
-      if (!token) {
-        throw new Error('Facebook access token not found. Please authenticate first.');
+      const userToken = await this.getUserAccessToken();
+      const developerToken = await this.getDeveloperToken();
+      
+      if (!userToken || !developerToken) {
+        throw new Error('Facebook tokens not found. Please authenticate first.');
       }
 
-      // Debug token info (without exposing the token)
-      debugLogger.debug('FacebookAdsService', 'Facebook token length', token.length);
-      debugLogger.debug('FacebookAdsService', 'Facebook token starts with', token.substring(0, 10) + '...');
+      // Debug token info (without exposing the tokens)
+      debugLogger.debug('FacebookAdsService', 'Facebook user token length', userToken.length);
+      debugLogger.debug('FacebookAdsService', 'Facebook developer token length', developerToken.length);
 
       const allAccounts: any[] = [];
 
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`)
           .then(response => response.ok ? response.json() : { data: [] })
           .then(data => {
             debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
@@ -310,7 +395,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`)
           .then(response => {
             if (!response.ok) {
               if (response.status === 403) {
@@ -334,14 +419,14 @@ export class FacebookAdsService {
                 
                 // Fetch owned ad accounts with pagination support
                 const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...ownedAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
                 // Fetch client ad accounts (accounts managed by this business) with pagination support
                 const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...clientAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
@@ -365,7 +450,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts via system users (additional method to ensure comprehensive coverage)
-        FacebookAdsService.fetchSystemUserAccounts(token)
+        FacebookAdsService.fetchSystemUserAccounts(userToken)
           .catch(error => {
             debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
             return [];
@@ -411,13 +496,14 @@ export class FacebookAdsService {
   }
 
   // Fetch paginated accounts to handle large numbers of ad accounts
-  private static async fetchPaginatedAccounts(url: string): Promise<any[]> {
+  private static async fetchPaginatedAccounts(url: string, userToken?: string): Promise<any[]> {
     const allAccounts: any[] = [];
     let nextUrl: string | null = url;
 
     while (nextUrl) {
       try {
-        const response = await FacebookAdsService.rateLimitedFetch(nextUrl);
+        const headers = await this.buildApiHeaders();
+        const response = await FacebookAdsService.rateLimitedFetch(nextUrl, { headers });
         
         if (!response.ok) {
           debugLogger.warn('FacebookAdsService', 'Failed to fetch paginated accounts', {
@@ -450,13 +536,13 @@ export class FacebookAdsService {
   }
 
   // Fetch ad accounts via system users for comprehensive coverage
-  private static async fetchSystemUserAccounts(token: string): Promise<any[]> {
+  private static async fetchSystemUserAccounts(userToken: string): Promise<any[]> {
     try {
       debugLogger.debug('FacebookAdsService', 'Fetching ad accounts via system users');
       
       // Get all businesses first
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
       );
       
       if (!businessesResponse.ok) {
@@ -481,7 +567,7 @@ export class FacebookAdsService {
         try {
           // Get system users for this business
           const systemUsersResponse = await FacebookAdsService.rateLimitedFetch(
-            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${token}`
+            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${userToken}`
           );
 
           if (!systemUsersResponse.ok) {
@@ -498,7 +584,7 @@ export class FacebookAdsService {
           for (const systemUser of systemUsers) {
             try {
               const systemUserAccountsResponse = await FacebookAdsService.rateLimitedFetch(
-                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
               );
 
               if (systemUserAccountsResponse.ok) {
@@ -540,7 +626,7 @@ export class FacebookAdsService {
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`)
           .then(response => response.ok ? response.json() : { data: [] })
           .then(data => {
             debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
@@ -552,7 +638,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`)
           .then(response => {
             if (!response.ok) {
               if (response.status === 403) {
@@ -576,14 +662,14 @@ export class FacebookAdsService {
                 
                 // Fetch owned ad accounts with pagination support
                 const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...ownedAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
                 // Fetch client ad accounts (accounts managed by this business) with pagination support
                 const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...clientAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
@@ -607,7 +693,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts via system users (additional method to ensure comprehensive coverage)
-        FacebookAdsService.fetchSystemUserAccounts(token)
+        FacebookAdsService.fetchSystemUserAccounts(userToken)
           .catch(error => {
             debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
             return [];
@@ -670,7 +756,7 @@ export class FacebookAdsService {
 
       // Get all businesses
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
       );
       
       if (!businessesResponse.ok) {
@@ -682,11 +768,11 @@ export class FacebookAdsService {
       
       debugLogger.info('FacebookAdsService', 'All accessible businesses', {
         count: businesses.length,
-        businesses: businesses.map(b => ({ id: b.id, name: b.name }))
+        businesses: businesses.map((b: any) => ({ id: b.id, name: b.name }))
       });
 
       // Find Tulen Agency business manager
-      const tulenAgency = businesses.find(b => 
+      const tulenAgency = businesses.find((b: any) => 
         b.name?.toLowerCase().includes('tulen') || 
         b.name?.toLowerCase().includes('agency')
       );
@@ -708,7 +794,7 @@ export class FacebookAdsService {
       let ownedAccounts: any[] = [];
       try {
         ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-          `${this.BASE_URL}/${tulenAgency.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+          `${this.BASE_URL}/${tulenAgency.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
         );
         debugLogger.info('FacebookAdsService', 'Tulen Agency owned accounts', {
           count: ownedAccounts.length,
@@ -722,7 +808,7 @@ export class FacebookAdsService {
       let clientAccounts: any[] = [];
       try {
         clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-          `${this.BASE_URL}/${tulenAgency.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+          `${this.BASE_URL}/${tulenAgency.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
         );
         debugLogger.info('FacebookAdsService', 'Tulen Agency client accounts', {
           count: clientAccounts.length,
@@ -778,7 +864,7 @@ export class FacebookAdsService {
       // 1. Search in user accounts
       try {
         const userResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
         );
         
         if (userResponse.ok) {
@@ -800,7 +886,7 @@ export class FacebookAdsService {
       // 2. Search in business manager accounts
       try {
         const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
         );
         
         if (businessesResponse.ok) {
@@ -811,7 +897,7 @@ export class FacebookAdsService {
             try {
               // Search owned accounts
               const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
               );
               
               for (const account of ownedAccounts) {
@@ -824,7 +910,7 @@ export class FacebookAdsService {
               
               // Search client accounts
               const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
               );
               
               for (const account of clientAccounts) {
@@ -845,7 +931,7 @@ export class FacebookAdsService {
 
       // 3. Search in system user accounts
       try {
-        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(userToken);
         
         for (const account of sysUserAccounts) {
           const accountNameLower = account.name?.toLowerCase() || '';
@@ -894,7 +980,7 @@ export class FacebookAdsService {
       // 1. Get user accounts
       try {
         const userResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
         );
         
         if (userResponse.ok) {
@@ -913,7 +999,7 @@ export class FacebookAdsService {
       // 2. Get business managers and their accounts
       try {
         const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
         );
         
         if (businessesResponse.ok) {
@@ -922,20 +1008,20 @@ export class FacebookAdsService {
           
           debugLogger.info('FacebookAdsService', 'Business managers found', {
             count: businesses.length,
-            businesses: businesses.map(b => ({ id: b.id, name: b.name }))
+            businesses: businesses.map((b: any) => ({ id: b.id, name: b.name }))
           });
 
           for (const business of businesses) {
             try {
               // Get owned accounts
               const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
               );
               businessAccounts.push(...ownedAccounts);
               
               // Get client accounts
               const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${token}`
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
               );
               businessAccounts.push(...clientAccounts);
               
@@ -958,7 +1044,7 @@ export class FacebookAdsService {
 
       // 3. Get system user accounts
       try {
-        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(userToken);
         systemUserAccounts.push(...sysUserAccounts);
         allAccounts.push(...systemUserAccounts);
         
@@ -1280,7 +1366,7 @@ export class FacebookAdsService {
       const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
 
       const response = await fetch(
-        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status&access_token=${token}`
+        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status&access_token=${userToken}`
       );
 
       if (!response.ok) {

@@ -1,4 +1,4 @@
-import { ClientForm } from "@/components/admin/ClientForm";
+import { ClientForm } from "@/components/agency/ClientForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";

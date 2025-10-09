@@ -295,7 +295,7 @@ const AdAccountsOverview = () => {
                                     <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">No Ad Accounts Found</h3>
                                     <p className="text-gray-500 mb-4">No clients have ad accounts connected yet.</p>
-                                    <Link to="/admin">
+                                    <Link to="/agency">
                                         <Button>
                                             <BarChart3 className="h-4 w-4 mr-2" />
                                             Manage Clients

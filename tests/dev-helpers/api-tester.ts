@@ -159,7 +159,7 @@ export class DevAPITester {
       results.push(this.createResult('Go High Level', 'Access Token', !!accessToken, !accessToken ? 'No token found' : undefined));
 
       // Test 3: Test service
-      const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
+      const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
       
       // Test account info
       const accountInfo = await GoHighLevelService.getAccountInfo();
@@ -280,7 +280,7 @@ export class DevAPITester {
       console.log(`🧪 Testing error handling for ${serviceName}...`);
       
       // Test with invalid parameters
-      const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
+      const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
       
       try {
         await GoHighLevelService.getContacts('invalid-location-id', 10);

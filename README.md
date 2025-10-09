@@ -91,18 +91,18 @@ npm run dev
 
 ### GoHighLevel API Endpoints
 
-The server interacts with the following GoHighLevel API endpoints:
+The server interacts with the following GoHighLevel API 2.0 endpoints:
 
-- **Contacts**: `/contacts/location/{locationId}`
-- **Campaigns**: `/campaigns/location/{locationId}`
-- **Opportunities**: `/opportunities/location/{locationId}`
-- **Pipelines**: `/pipelines/location/{locationId}`
-- **Webhooks**: `/webhooks/location/{locationId}`
-- **Locations**: `/locations`
+- **Contacts**: `POST /contacts/search` (primary method) or `GET /contacts?locationId={locationId}`
+- **Calendars**: `GET /calendars/?locationId={locationId}`
+- **Funnels**: `GET /funnels/funnel/list?locationId={locationId}`
+- **Funnel Pages**: `GET /funnels/page?locationId={locationId}&funnelId={funnelId}`
+- **Opportunities**: `POST /opportunities/search`
+- **Locations**: `GET /locations` (via agency token)
 
 ### Authentication
 
-All API requests use Bearer token authentication with your GoHighLevel API key.
+All API requests use Bearer token authentication with `Version: 2021-07-28` header. Supports both agency-level private integration tokens and location-level OAuth tokens.
 
 ## Error Handling
 

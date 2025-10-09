@@ -24,7 +24,7 @@ export class GHLWebhookHandler {
       });
 
       // Verify webhook signature
-      const isValid = await GoHighLevelService.verifyWebhookSignature(payload, signature);
+      const isValid = GoHighLevelService.verifyWebhookSignature();
       
       if (!isValid) {
         debugLogger.error('GHLWebhookHandler', 'Invalid webhook signature');
@@ -154,7 +154,7 @@ export class GHLWebhookHandler {
         'CampaignUpdated'
       ];
 
-      await GoHighLevelService.setupWebhook(webhookUrl, events);
+      await GoHighLevelService.setupWebhook(locationId, webhookUrl, events);
       
       debugLogger.info('GHLWebhookHandler', 'Webhook setup completed', {
         locationId,

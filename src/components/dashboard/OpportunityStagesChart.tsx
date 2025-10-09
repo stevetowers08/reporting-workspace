@@ -10,12 +10,53 @@ interface OpportunityStagesChartProps {
         value: number;
       }>;
     };
-  };
+  } | null;
   dateRange?: { start: string; end: string };
 }
 
 export const OpportunityStagesChart: React.FC<OpportunityStagesChartProps> = ({ data, dateRange }) => {
-  const opportunities = data.ghlMetrics?.opportunities || [];
+  // ✅ FIX: Check if data exists first, then check if GHL is connected
+  if (!data) {
+    return (
+      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+        <div className="pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Opportunity Stages</h3>
+          <p className="text-sm text-slate-600">Loading pipeline data...</p>
+        </div>
+        <div className="h-80 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-slate-500 mb-2">Loading...</div>
+            <div className="text-sm text-slate-400">Please wait while we load the opportunity data</div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const isGHLConnected = data.ghlMetrics !== null && data.ghlMetrics !== undefined;
+  const opportunities = isGHLConnected ? (data.ghlMetrics?.opportunities || []) : [];
+
+  if (!isGHLConnected) {
+    return (
+      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+        <div className="pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Opportunity Stages</h3>
+          <p className="text-sm text-slate-600">
+            {dateRange ? 
+              `Pipeline breakdown for ${new Date(dateRange.start).toLocaleDateString()} - ${new Date(dateRange.end).toLocaleDateString()}` :
+              'Current pipeline breakdown'
+            }
+          </p>
+        </div>
+        <div className="h-80 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-slate-500 mb-2">GoHighLevel Not Connected</div>
+            <div className="text-sm text-slate-400">Connect GoHighLevel to view opportunity stages</div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   if (opportunities.length === 0) {
     return (

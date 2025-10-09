@@ -5,13 +5,13 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
 import { ArrowLeft, BarChart3, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React from 'react';
 
-interface InternalAdminHeaderProps {
+interface InternalAgencyHeaderProps {
   clientData?: {
     name: string;
     logo_url?: string;
   };
   onBackToDashboard: () => void;
-  onGoToAdmin: () => void;
+  onGoToAgency: () => void;
   onExportPDF: () => void;
   onShare: () => void;
   onSettings: () => void;
@@ -19,10 +19,10 @@ interface InternalAdminHeaderProps {
   isShared?: boolean;
 }
 
-export const InternalAdminHeader: React.FC<InternalAdminHeaderProps> = ({
+export const InternalAgencyHeader: React.FC<InternalAgencyHeaderProps> = ({
   clientData,
   onBackToDashboard,
-  onGoToAdmin,
+  onGoToAgency,
   onExportPDF,
   onShare,
   exportingPDF,
@@ -52,7 +52,7 @@ export const InternalAdminHeader: React.FC<InternalAdminHeaderProps> = ({
               </div>
               <div>
                 <h1 className="text-sm font-semibold text-white">Internal Dashboard</h1>
-                <p className="text-xs text-slate-400">Admin View</p>
+                <p className="text-xs text-slate-400">Agency View</p>
               </div>
             </div>
           </div>
@@ -78,7 +78,7 @@ export const InternalAdminHeader: React.FC<InternalAdminHeaderProps> = ({
             </div>
           </div>
 
-          {/* Right: Admin Actions */}
+          {/* Right: Agency Actions */}
           <div className="flex items-center gap-2">
                    <Button
                      variant="outline"
@@ -104,11 +104,11 @@ export const InternalAdminHeader: React.FC<InternalAdminHeaderProps> = ({
                    <Button 
                      variant="outline" 
                      size="sm"
-                     onClick={onGoToAdmin}
+                     onClick={onGoToAgency}
                      className="border-blue-400 text-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-400 bg-blue-500/20"
                    >
                      <Settings className="h-4 w-4 mr-2" />
-                     Admin
+                     Agency
                    </Button>
           </div>
         </div>

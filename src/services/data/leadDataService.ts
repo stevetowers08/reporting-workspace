@@ -220,7 +220,6 @@ export class LeadDataService {
 
     } catch (error) {
       debugLogger.error('LeadDataService', 'Failed to fetch lead data', error);
-      console.error('LeadDataService: Failed to fetch data via direct Google Sheets API:', error);
       return null;
     }
   }

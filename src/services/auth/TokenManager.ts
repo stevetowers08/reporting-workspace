@@ -1,5 +1,6 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 import { DevLogger } from '@/lib/logger';
+import { SecureLogger } from '@/lib/secureLogger';
 import { supabase } from '@/lib/supabase';
 import {
     ApiKeyConfig,
@@ -7,6 +8,7 @@ import {
     IntegrationPlatform,
     OAuthTokens
 } from '@/types/integration';
+import { TokenEncryptionService } from './TokenEncryptionService';
 
 /**
  * TokenManager - Database-only token management service
@@ -28,13 +30,15 @@ export class TokenManager {
   }>();
   private static readonly CACHE_DURATION = 30 * 1000; // 30 seconds cache
   
-  // Prevent infinite token refresh loops
+  // Prevent infinite token refresh loops with proper mutex
   private static refreshInProgress = new Set<IntegrationPlatform>();
+  private static refreshPromises = new Map<IntegrationPlatform, Promise<string | null>>();
   
   // Clear refresh in progress after timeout to prevent stuck states
-  private static clearRefreshInProgress(platform: IntegrationPlatform, timeoutMs = 30000) {
+  private static clearRefreshInProgress(platform: IntegrationPlatform, timeoutMs = 60000) {
     setTimeout(() => {
       this.refreshInProgress.delete(platform);
+      this.refreshPromises.delete(platform);
       DevLogger.debug('TokenManager', `Cleared refresh in progress flag for ${platform} after timeout`);
     }, timeoutMs);
   }
@@ -144,28 +148,36 @@ export class TokenManager {
         hasAccessToken: !!config.tokens?.accessToken
       });
 
-      // For internal app - store tokens directly without encryption
+      // For production - encrypt tokens before storing
       const tokensForStorage = {
-        accessToken: tokens.accessToken, // Store directly without encryption
-        refreshToken: tokens.refreshToken, // Store directly without encryption
+        accessToken: await TokenEncryptionService.safeEncryptToken(tokens.accessToken),
+        refreshToken: tokens.refreshToken ? await TokenEncryptionService.safeEncryptToken(tokens.refreshToken) : undefined,
         expiresAt: config.tokens?.expiresAt,
         tokenType: tokens.tokenType,
         scope: tokens.scope
       };
 
-      DevLogger.debug('TokenManager', 'About to store tokens safely', {
+      SecureLogger.logTokenOperation('TokenManager', 'Encrypting tokens for storage', {
         platform,
-        accountInfo,
-        hasTokens: !!tokensForStorage.accessToken,
+        hasAccessToken: !!tokensForStorage.accessToken,
         hasRefreshToken: !!tokensForStorage.refreshToken
       });
 
-      // Use the safe database function for atomic updates
-      const { error } = await supabase.rpc('store_oauth_tokens_safely', {
-        p_platform: platform,
-        p_tokens: tokensForStorage,
-        p_account_info: accountInfo
-      });
+      // Use direct table operations instead of RPC function
+      const { error } = await supabase
+        .from('integrations')
+        .upsert({
+          platform: platform,
+          connected: true,
+          account_name: accountInfo?.name || 'Unknown',
+          account_id: accountInfo?.id || 'unknown',
+          config: {
+            tokens: tokensForStorage,
+            account_info: accountInfo
+          },
+          last_sync: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'integrations_platform_account_id_unique' });
 
       if (error) {
         DevLogger.error('TokenManager', 'Failed to store tokens safely', error);
@@ -304,6 +316,7 @@ export class TokenManager {
         .select('config')
         .eq('platform', platform)
         .eq('connected', true)
+        .limit(1)
         .single();
 
       if (error) {
@@ -321,9 +334,12 @@ export class TokenManager {
       if (encryptedAccessToken) {
         DevLogger.info('TokenManager', `Found access token for ${platform}`);
         
-        // For internal app - use tokens directly without encryption
-        const accessToken = encryptedAccessToken;
-        DevLogger.info('TokenManager', `Using access token for ${platform} (internal app - no encryption)`);
+        // Decrypt token for use
+        const accessToken = await TokenEncryptionService.safeDecryptToken(encryptedAccessToken);
+        SecureLogger.logTokenOperation('TokenManager', 'Decrypted access token', {
+          platform,
+          tokenLength: accessToken.length
+        });
         
         // Check if token is expired or needs refresh
         const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
@@ -333,9 +349,25 @@ export class TokenManager {
           const timeUntilExpiry = expiresAtDate.getTime() - now.getTime();
           
           if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD && !skipRefresh) {
-            // Prevent infinite refresh loops
+            // Prevent infinite refresh loops with proper mutex
             if (this.refreshInProgress.has(platform)) {
-              DevLogger.warn('TokenManager', `Token refresh already in progress for ${platform}, returning existing token`);
+              DevLogger.info('TokenManager', `Token refresh already in progress for ${platform}, waiting for completion`);
+              
+              // Wait for the existing refresh promise to complete
+              const existingPromise = this.refreshPromises.get(platform);
+              if (existingPromise) {
+                try {
+                  const refreshedToken = await existingPromise;
+                  if (refreshedToken) {
+                    DevLogger.info('TokenManager', `Received refreshed token for ${platform} from concurrent request`);
+                    return refreshedToken;
+                  }
+                } catch (error) {
+                  DevLogger.warn('TokenManager', `Concurrent refresh failed for ${platform}, proceeding with existing token`);
+                }
+              }
+              
+              // Fallback to existing token if concurrent refresh failed
               return accessToken;
             }
             
@@ -344,27 +376,38 @@ export class TokenManager {
             // Attempt token refresh for all platforms
             DevLogger.info('TokenManager', `Attempting token refresh for ${platform}`);
             
-            // Attempt automatic refresh
+            // Attempt automatic refresh with proper mutex
             const encryptedRefreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
-            if (encryptedRefreshToken) {
-              try {
-                this.refreshInProgress.add(platform);
-                this.clearRefreshInProgress(platform); // Set timeout to clear flag
-                await this.refreshTokens(platform);
-                this.refreshInProgress.delete(platform);
-                // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop
-                return await this.getAccessToken(platform, true);
-              } catch (refreshError) {
-                this.refreshInProgress.delete(platform);
-                DevLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
-                // Return the current token even if refresh failed, to prevent infinite loops
-                DevLogger.warn('TokenManager', `Using existing token for ${platform} despite refresh failure`);
-                return accessToken;
-              }
-            } else {
+            
+            if (!encryptedRefreshToken) {
               DevLogger.warn('TokenManager', `No refresh token available for ${platform}`);
-              return accessToken; // Return existing token even without refresh capability
+              return accessToken; // Return existing token if no refresh token
             }
+            
+            // Mark refresh as in progress and create promise
+            this.refreshInProgress.add(platform);
+            this.clearRefreshInProgress(platform);
+            
+            const refreshPromise = this.refreshTokens(platform)
+              .then(async () => {
+                DevLogger.info('TokenManager', `Token refreshed successfully for ${platform}`);
+                // Return the refreshed token by calling getAccessToken again with skipRefresh=true
+                return await this.getAccessToken(platform, true);
+              })
+              .catch(refreshError => {
+                DevLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
+                DevLogger.warn('TokenManager', `Using existing token for ${platform} despite refresh failure`);
+                return accessToken; // Return existing token if refresh fails
+              })
+              .finally(() => {
+                this.refreshInProgress.delete(platform);
+                this.refreshPromises.delete(platform);
+              });
+            
+            // Store the promise for concurrent requests
+            this.refreshPromises.set(platform, refreshPromise);
+            
+            return await refreshPromise;
           }
         }
         return accessToken;
@@ -405,6 +448,7 @@ export class TokenManager {
         .select('config')
         .eq('platform', platform)
         .eq('connected', true)
+        .limit(1)
         .single();
 
       if (error) {
@@ -432,6 +476,7 @@ export class TokenManager {
         .select('config')
         .eq('platform', platform)
         .eq('connected', true)
+        .limit(1)
         .single();
 
       if (error || !data) {
@@ -486,6 +531,7 @@ export class TokenManager {
         .from('integrations')
         .select('config')
         .eq('platform', platform)
+        .limit(1)
         .single();
 
       if (fetchError) {
@@ -637,6 +683,7 @@ export class TokenManager {
         .select('config')
         .eq('platform', platform)
         .eq('connected', true)
+        .limit(1)
         .single();
 
       if (error || !data) {

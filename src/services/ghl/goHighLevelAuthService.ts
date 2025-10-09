@@ -42,7 +42,7 @@ export class GoHighLevelAuthService {
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-        user_type: 'Company'
+        user_type: 'Location'
       })
     });
 
@@ -71,16 +71,40 @@ export class GoHighLevelAuthService {
       hasRefreshToken: !!tokenData.refresh_token
     });
 
+    // Log OAuth scopes if available
+    if (tokenData.scope) {
+      const scopes = tokenData.scope.split(' ');
+      debugLogger.info('GoHighLevelAuthService', 'OAuth token scopes', { scopes });
+    }
+
     return tokenData;
   }
 
-  // Token Management
+  // Utility method to decode and log OAuth token scopes
+  static logTokenScopes(token: string): void {
+    try {
+      // Decode JWT token to get scopes (if it's a JWT)
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.scope) {
+          const scopes = payload.scope.split(' ');
+          debugLogger.info('GoHighLevelAuthService', 'Token scopes decoded', { scopes });
+        }
+      }
+    } catch (error) {
+      debugLogger.warn('GoHighLevelAuthService', 'Could not decode token scopes', error);
+    }
+  }
+
+  // Agency Token Management (DEPRECATED - Use client OAuth tokens instead)
   static setAgencyToken(token: string): void {
+    // setAgencyToken is deprecated. Use client-specific OAuth tokens instead.
     if (!GHLValidator.validateToken(token)) {
       throw new Error('Invalid agency token format');
     }
     this.agencyToken = token;
-    debugLogger.info('GoHighLevelAuthService', 'Agency token set');
+    debugLogger.info('GoHighLevelAuthService', 'Agency token set (deprecated)');
   }
 
   static setCredentials(accessToken: string, locationId: string): void {
@@ -99,6 +123,39 @@ export class GoHighLevelAuthService {
     return this.locationTokens.get(locationId) || null;
   }
 
+  static async getAllLocationTokens(): Promise<Array<{ locationId: string; token: string }>> {
+    try {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('account_id, config')
+        .eq('platform', 'goHighLevel')
+        .eq('connected', true);
+
+      if (error) {
+        debugLogger.error('GoHighLevelAuthService', 'Error loading location tokens', error);
+        return [];
+      }
+
+      const tokens: Array<{ locationId: string; token: string }> = [];
+      
+      for (const integration of data || []) {
+        const accessToken = integration.config?.tokens?.accessToken;
+        if (accessToken && integration.account_id) {
+          tokens.push({
+            locationId: integration.account_id,
+            token: accessToken
+          });
+        }
+      }
+
+      debugLogger.info('GoHighLevelAuthService', `Loaded ${tokens.length} location tokens`);
+      return tokens;
+    } catch (error) {
+      debugLogger.error('GoHighLevelAuthService', 'Error loading location tokens', error);
+      return [];
+    }
+  }
+
   // Agency Token Management
   static async ensureAgencyToken(): Promise<void> {
     if (!this.agencyToken) {
@@ -107,31 +164,24 @@ export class GoHighLevelAuthService {
   }
 
   static async getAgencyToken(): Promise<string> {
-    await this.ensureAgencyToken();
-    if (!this.agencyToken) {
-      throw new Error('Agency token not available');
+    // Get the first available location token instead of agency token
+    const locationTokens = await this.getAllLocationTokens();
+    if (locationTokens.length === 0) {
+      throw new Error('No GoHighLevel location tokens available');
     }
-    return this.agencyToken;
+    
+    // Return the first available token
+    const firstToken = locationTokens[0];
+    debugLogger.info('GoHighLevelAuthService', 'Using location token as agency token', { 
+      locationId: firstToken.locationId 
+    });
+    return firstToken.token;
   }
 
   private static async loadAgencyTokenFromDb(): Promise<void> {
-    try {
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('config')
-        .eq('platform', 'goHighLevel')
-        .single();
-
-      if (error || !data?.config?.apiKey?.apiKey) {
-        debugLogger.warn('GoHighLevelAuthService', 'No agency token found in database');
-        return;
-      }
-
-      this.agencyToken = data.config.apiKey.apiKey;
-      debugLogger.info('GoHighLevelAuthService', 'Agency token loaded from database');
-    } catch (error) {
-      debugLogger.error('GoHighLevelAuthService', 'Error loading agency token', error);
-    }
+    // This method is deprecated - we now use location tokens instead
+    // Keeping for backward compatibility but it will not load anything
+    debugLogger.warn('GoHighLevelAuthService', 'loadAgencyTokenFromDb is deprecated - use location tokens instead');
   }
 
   // Token Testing
@@ -151,7 +201,7 @@ export class GoHighLevelAuthService {
 
       try {
         // Test basic API access
-        const accountResponse = await this.makeApiRequest('/accounts/me');
+        const accountResponse = await this.makeApiRequest('/accounts/me') as any;
         const account = accountResponse.account;
 
         // Test location access
@@ -176,7 +226,7 @@ export class GoHighLevelAuthService {
         if (locations.length > 0) {
           try {
             const testLocationId = locations[0]?.id || '';
-            const contactsResponse = await this.makeApiRequest(`/contacts?locationId=${testLocationId}`);
+            const contactsResponse = await this.makeApiRequest(`/contacts?locationId=${testLocationId}`) as any;
             capabilities.canAccessContacts = contactsResponse.ok;
             debugLogger.info('GoHighLevelAuthService', 'Contacts access test', { success: contactsResponse.ok });
           } catch (error) {

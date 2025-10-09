@@ -1,4 +1,4 @@
-import { AdminHeader } from "@/components/dashboard/AdminHeader";
+import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,8 +8,11 @@ import { PDFExportService } from "@/services/export/pdfExportService";
 
 
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
-import { useAvailableClients, useClientData, useDashboardData } from '@/hooks/useDashboardQueries';
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
+import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
+import { Client } from '@/services/data/databaseService';
+import { EventDashboardData } from '@/services/data/eventMetricsService';
+import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 // Lazy load chart components to avoid circular dependencies
@@ -106,16 +109,101 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Use React Query hooks for data fetching
   const dateRange = getDateRange(selectedPeriod);
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError, refetch: refetchDashboardData } = useDashboardData(actualClientId, dateRange);
+  
+  // Load tab-specific data based on active tab
+  const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummaryTabData(
+    actualClientId, 
+    activeTab === 'summary' ? dateRange : undefined
+  );
+  
+  const { data: metaData, isLoading: metaLoading, error: metaError } = useMetaTabData(
+    actualClientId, 
+    activeTab === 'meta' ? dateRange : undefined
+  );
+  
+  const { data: googleData, isLoading: googleLoading, error: googleError } = useGoogleTabData(
+    actualClientId, 
+    activeTab === 'google' ? dateRange : undefined
+  );
+  
+  const { data: leadsData, isLoading: leadsLoading, error: leadsError } = useLeadsTabData(
+    actualClientId, 
+    activeTab === 'leads' ? dateRange : undefined
+  );
+  
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
   const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
 
-  // Refetch data when selectedPeriod changes
-  useEffect(() => {
-    if (actualClientId) {
-      refetchDashboardData();
+  // Get current tab data based on active tab
+  const getCurrentTabData = () => {
+    switch (activeTab) {
+      case 'summary':
+        return summaryData;
+      case 'meta':
+        return metaData;
+      case 'google':
+        return googleData;
+      case 'leads':
+        return leadsData;
+      default:
+        return summaryData;
     }
-  }, [selectedPeriod, actualClientId, refetchDashboardData]);
+  };
+
+  const getCurrentTabLoading = () => {
+    switch (activeTab) {
+      case 'summary':
+        return summaryLoading;
+      case 'meta':
+        return metaLoading;
+      case 'google':
+        return googleLoading;
+      case 'leads':
+        return leadsLoading;
+      default:
+        return summaryLoading;
+    }
+  };
+
+  const getCurrentTabError = () => {
+    switch (activeTab) {
+      case 'summary':
+        return summaryError;
+      case 'meta':
+        return metaError;
+      case 'google':
+        return googleError;
+      case 'leads':
+        return leadsError;
+      default:
+        return summaryError;
+    }
+  };
+
+  // Helper function to ensure we have valid dashboard data
+  const getValidDashboardData = (data: any): EventDashboardData | undefined => {
+    if (!data || typeof data !== 'object') {
+      return undefined;
+    }
+    // Check if we have the required structure, even if values are 0
+    if (data.hasOwnProperty('totalLeads') && 
+        data.hasOwnProperty('facebookMetrics') && 
+        data.hasOwnProperty('googleMetrics')) {
+      return data as EventDashboardData;
+    }
+    return undefined;
+  };
+
+  const dashboardData = getValidDashboardData(getCurrentTabData());
+  const dashboardLoading = getCurrentTabLoading();
+  const dashboardError = getCurrentTabError();
+  
+  // Debug logging
+  console.log('🔍 EventDashboard: Active tab:', activeTab);
+  console.log('🔍 EventDashboard: Current tab data:', getCurrentTabData());
+  console.log('🔍 EventDashboard: Valid dashboard data:', dashboardData);
+  console.log('🔍 EventDashboard: Dashboard loading:', dashboardLoading);
+  console.log('🔍 EventDashboard: Dashboard error:', dashboardError);
   
   // Transform clients for the dropdown
   const clients = (availableClients || []).map(client => ({
@@ -125,7 +213,9 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }));
 
   const handleExportPDF = useCallback(async () => {
-    if (!dashboardData || !clientData) {return;}
+    if (!dashboardData || !clientData) {
+      return;
+    }
     
     setExportingPDF(true);
     try {
@@ -154,7 +244,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   const handleSettings = useCallback(() => {
     if (typeof window !== 'undefined') {
-      window.location.href = '/admin';
+      window.location.href = '/agency';
     }
   }, []);
 
@@ -163,8 +253,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     window.location.href = `/dashboard/${clientId}`;
   };
 
-  // Show loading state
-  if (dashboardLoading || clientLoading) {
+  // Show loading state - only require client data, allow dashboard to show with partial data
+  if (clientLoading) {
     return <LoadingState message="Loading dashboard..." fullScreen />;
   }
 
@@ -225,14 +315,14 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   return (
     <div className="bg-slate-100 min-h-screen">
-      {/* Internal Admin Header with Venue Dropdown - Only for internal users */}
+      {/* Internal Agency Header with Venue Dropdown - Only for internal users */}
       {!isShared && (
-        <AdminHeader
+        <AgencyHeader
           clients={clients}
           selectedClientId={actualClientId}
           onClientSelect={handleClientSelect}
           onBackToDashboard={() => {}}
-          onGoToAdmin={handleSettings}
+          onGoToAgency={handleSettings}
           onExportPDF={handleExportPDF}
           onShare={handleShare}
           exportingPDF={exportingPDF}
@@ -326,7 +416,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             <Suspense fallback={<ComponentLoader />}>
               <LeadInfoMetricsCards 
                 data={dashboardData} 
-                clientData={clientData}
+                clientData={clientData as Client | null}
                 dateRange={getDateRange(selectedPeriod)}
               />
             </Suspense>
