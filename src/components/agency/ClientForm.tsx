@@ -103,8 +103,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-  const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
-  const [integrationStatusLoading, setIntegrationStatusLoading] = useState(false);
   
   // Edit states for each integration
   const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});

@@ -13,12 +13,28 @@ interface LeadByDayChartProps {
 }
 
 export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data }) => {
+  // eslint-disable-next-line no-console
+  console.log('🔍 LeadByDayChart: Received data:', data);
+  // eslint-disable-next-line no-console
+  console.log('🔍 LeadByDayChart: Facebook leads:', data?.facebookMetrics?.leads);
+  // eslint-disable-next-line no-console
+  console.log('🔍 LeadByDayChart: Google leads:', data?.googleMetrics?.leads);
+  
   // Generate daily data for the last 30 days using real data
   const generateDailyData = () => {
     const leadsData = [];
 
     // Get total leads from all sources
     const totalLeads = (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0);
+    // eslint-disable-next-line no-console
+    console.log('🔍 LeadByDayChart: Total leads for distribution:', totalLeads);
+
+    // If no leads, return empty data
+    if (totalLeads === 0) {
+      // eslint-disable-next-line no-console
+      console.log('🔍 LeadByDayChart: No leads data, returning empty chart');
+      return new Array(30).fill(0);
+    }
 
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
@@ -37,11 +53,14 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
       leadsData.push(dailyLeads);
     }
 
+    // eslint-disable-next-line no-console
+    console.log('🔍 LeadByDayChart: Generated daily data:', leadsData.slice(0, 5), '... (showing first 5 days)');
     return leadsData;
   };
 
   const leadsData = generateDailyData();
   const days = generateDateLabels(30);
+  const totalLeads = (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0);
 
   const chartData = {
     labels: days,
@@ -52,11 +71,26 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
 
   const options = getDefaultChartOptions();
 
+  // Show message if no data
+  if (totalLeads === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <p className="text-sm">No leads data available</p>
+          <p className="text-xs mt-1">Connect Facebook or Google Ads to see daily lead trends</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Chart */}
       <div className="h-64">
         <Line data={chartData} options={options} />
+      </div>
+      <div className="mt-2 text-xs text-gray-500 text-center">
+        * Chart shows estimated daily distribution based on total leads
       </div>
     </div>
   );

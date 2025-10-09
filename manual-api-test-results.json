@@ -1,115 +1,192 @@
 {
   "summary": {
-    "total": 7,
-    "passed": 0,
+    "total": 18,
+    "passed": 11,
     "failed": 7,
-    "successRate": "0.0"
+    "successRate": "61.1"
   },
   "results": [
     {
       "name": "API Testing Dashboard",
-      "url": "http://localhost:3000/api-testing",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.802Z"
+      "url": "http://localhost:5173/api-testing",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:00.971Z"
     },
     {
       "name": "OAuth Callback (No Params)",
-      "url": "http://localhost:3000/oauth/callback",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.804Z"
+      "url": "http://localhost:5173/oauth/callback",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:00.980Z"
     },
     {
       "name": "Get All Venues",
-      "url": "http://localhost:3000/api/venues",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.807Z"
+      "url": "http://localhost:5173/api/venues",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:00.988Z"
     },
     {
       "name": "Get Google Ads Accounts",
-      "url": "http://localhost:3000/api/google-ads/accounts",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.809Z"
+      "url": "http://localhost:5173/api/google-ads/accounts",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:00.996Z"
     },
     {
       "name": "Get Google Sheets",
-      "url": "http://localhost:3000/api/google-sheets/spreadsheets",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.810Z"
+      "url": "http://localhost:5173/api/google-sheets/spreadsheets",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:01.003Z"
     },
     {
       "name": "Get Facebook Ads Accounts",
-      "url": "http://localhost:3000/api/facebook-ads/accounts",
-      "status": 0,
-      "success": false,
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.812Z"
+      "url": "http://localhost:5173/api/facebook-ads/accounts",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:01.011Z"
     },
     {
       "name": "Get GoHighLevel Locations",
-      "url": "http://localhost:3000/api/ghl/locations",
+      "url": "http://localhost:5173/api/ghl/locations",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:01.019Z"
+    },
+    {
+      "name": "Google Ads Config",
+      "url": "http://localhost:54321/functions/v1/google-ads-config",
       "status": 0,
       "success": false,
       "error": "",
-      "timestamp": "2025-10-09T22:53:36.814Z"
+      "timestamp": "2025-10-09T23:11:01.023Z"
+    },
+    {
+      "name": "Token Refresh (No Body)",
+      "url": "http://localhost:54321/functions/v1/token-refresh",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T23:11:01.026Z"
+    },
+    {
+      "name": "Google Ads OAuth (No Params)",
+      "url": "http://localhost:54321/functions/v1/google-ads-oauth",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T23:11:01.029Z"
+    },
+    {
+      "name": "Facebook Graph API (No Token)",
+      "url": "https://graph.facebook.com/v18.0/me",
+      "status": 400,
+      "success": false,
+      "response": {
+        "error": {
+          "message": "An active access token must be used to query information about the current user.",
+          "type": "OAuthException",
+          "code": 2500,
+          "fbtrace_id": "AeJOH5ytr2h3brGfvGynnKt"
+        }
+      },
+      "timestamp": "2025-10-09T23:11:01.541Z"
+    },
+    {
+      "name": "Google Ads API (No Token)",
+      "url": "https://googleads.googleapis.com/v14/customers:listAccessibleCustomers",
+      "status": 404,
+      "success": false,
+      "response": "<!DOCTYPE html>\n<html lang=en>\n  <meta charset=utf-8>\n  <meta name=viewport content=\"initial-scale=1, minimum-scale=1, width=device-width\">\n  <title>Error 404 (Not Found)!!1</title>\n  <style>\n    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}\n  </style>\n  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>\n  <p><b>404.</b> <ins>That’s an error.</ins>\n  <p>The requested URL <code>/v14/customers:listAccessibleCustomers</code> was not found on this server.  <ins>That’s all we know.</ins>\n",
+      "timestamp": "2025-10-09T23:11:01.780Z"
+    },
+    {
+      "name": "GoHighLevel API (No Token)",
+      "url": "https://services.leadconnectorhq.com/locations",
+      "status": 404,
+      "success": false,
+      "response": {},
+      "timestamp": "2025-10-09T23:11:02.055Z"
+    },
+    {
+      "name": "Non-existent Endpoint",
+      "url": "http://localhost:5173/api/non-existent",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:02.066Z"
+    },
+    {
+      "name": "Invalid Venue ID",
+      "url": "http://localhost:5173/api/venues/invalid-id",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:02.079Z"
+    },
+    {
+      "name": "Malformed JSON Request",
+      "url": "http://localhost:54321/functions/v1/token-refresh",
+      "status": 0,
+      "success": false,
+      "error": "",
+      "timestamp": "2025-10-09T23:11:02.082Z"
+    },
+    {
+      "name": "CORS Preflight Request",
+      "url": "http://localhost:5173/api/venues",
+      "status": 204,
+      "success": true,
+      "response": {},
+      "timestamp": "2025-10-09T23:11:02.085Z"
+    },
+    {
+      "name": "CORS Different Origin",
+      "url": "http://localhost:5173/api/venues",
+      "status": 200,
+      "success": true,
+      "response": "<!doctype html>\r\n<html lang=\"en\">\r\n  <head>\n          <meta name=\"development-mode\" content=\"true\">\n          <meta name=\"vite-dev-server\" content=\"true\">\n          <meta name=\"hot-reload\" content=\"true\">\n        \n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\r\n    <meta charset=\"UTF-8\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-32x32.png\" sizes=\"32x32\" />\r\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon-192x192.png\" sizes=\"192x192\" />\r\n    <link rel=\"apple-touch-icon\" href=\"/favicon-192x192.png\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta name=\"theme-color\" content=\"#d8c289\" />\r\n    <meta name=\"description\" content=\"Tulen Reporting Dashboard\" />\r\n    <title>Tulen Reporting</title>\r\n    \r\n    <!-- Preconnect to external domains for better performance -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    \r\n    <!-- Load Inter font for consistent typography -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Load JetBrains Mono for data/code display -->\r\n    <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">\r\n    \r\n    <!-- Prevent flash of unstyled content -->\r\n    <style>\n      html {\n        font-family: 'Inter', system-ui, -apple-system, sans-serif;\n      }\n      body {\n        margin: 0;\n        background-color: #f9fafb;\n      }\n      #root {\n        min-height: 100vh;\n      }\n      /* Loading state */\n      .loading-container {\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        min-height: 100vh;\n        background-color: #f9fafb;\n      }\n      .loading-spinner {\n        width: 48px;\n        height: 48px;\n        border: 2px solid #dbeafe;\n        border-top: 2px solid #2563eb;\n        border-radius: 50%;\n        animation: spin 1s linear infinite;\n        margin: 0 auto 16px;\n      }\n      @keyframes spin {\n        0% { transform: rotate(0deg); }\n        100% { transform: rotate(360deg); }\n      }\n    </style>\r\n  </head>\r\n  <body>\r\n    <div id=\"root\">\r\n      <!-- Fallback loading state -->\r\n      <div class=\"loading-container\">\r\n        <div>\r\n          <div class=\"loading-spinner\"></div>\r\n          <p style=\"margin-top: 16px; color: #6b7280; text-align: center;\">Loading Tulen Reporting...</p>\r\n        </div>\r\n      </div>\r\n    </div>\r\n    <script type=\"module\" src=\"/src/main.tsx?t=1760051441571\"></script>\r\n  </body>\r\n</html>\r\n",
+      "timestamp": "2025-10-09T23:11:02.094Z"
     }
   ],
   "errors": [
     {
-      "name": "API Testing Dashboard",
-      "url": "http://localhost:3000/api-testing",
+      "name": "Google Ads Config",
+      "url": "http://localhost:54321/functions/v1/google-ads-config",
       "error": "",
-      "timestamp": "2025-10-09T22:53:36.801Z"
+      "timestamp": "2025-10-09T23:11:01.023Z"
     },
     {
-      "name": "OAuth Callback (No Params)",
-      "url": "http://localhost:3000/oauth/callback",
+      "name": "Token Refresh (No Body)",
+      "url": "http://localhost:54321/functions/v1/token-refresh",
       "error": "",
-      "timestamp": "2025-10-09T22:53:36.804Z"
+      "timestamp": "2025-10-09T23:11:01.026Z"
     },
     {
-      "name": "Get All Venues",
-      "url": "http://localhost:3000/api/venues",
+      "name": "Google Ads OAuth (No Params)",
+      "url": "http://localhost:54321/functions/v1/google-ads-oauth",
       "error": "",
-      "timestamp": "2025-10-09T22:53:36.807Z"
+      "timestamp": "2025-10-09T23:11:01.029Z"
     },
     {
-      "name": "Get Google Ads Accounts",
-      "url": "http://localhost:3000/api/google-ads/accounts",
+      "name": "Malformed JSON Request",
+      "url": "http://localhost:54321/functions/v1/token-refresh",
       "error": "",
-      "timestamp": "2025-10-09T22:53:36.809Z"
-    },
-    {
-      "name": "Get Google Sheets",
-      "url": "http://localhost:3000/api/google-sheets/spreadsheets",
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.810Z"
-    },
-    {
-      "name": "Get Facebook Ads Accounts",
-      "url": "http://localhost:3000/api/facebook-ads/accounts",
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.812Z"
-    },
-    {
-      "name": "Get GoHighLevel Locations",
-      "url": "http://localhost:3000/api/ghl/locations",
-      "error": "",
-      "timestamp": "2025-10-09T22:53:36.814Z"
+      "timestamp": "2025-10-09T23:11:02.082Z"
     }
   ],
-  "timestamp": "2025-10-09T22:53:36.815Z",
+  "timestamp": "2025-10-09T23:11:02.122Z",
   "config": {
-    "baseUrl": "http://localhost:3000",
+    "baseUrl": "http://localhost:5173",
     "supabaseUrl": "http://localhost:54321",
     "timeout": 10000,
     "retries": 3

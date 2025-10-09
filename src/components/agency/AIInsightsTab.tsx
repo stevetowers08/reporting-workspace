@@ -28,7 +28,7 @@ export const AIInsightsTab: React.FC<AIInsightsTabProps> = () => {
         setSystemPrompt(prompts[0].promptText);
       }
     } catch (error) {
-      console.error('Error loading system prompt:', error);
+      // Error loading system prompt
       setMessage({ type: 'error', text: 'Failed to load system prompt' });
     } finally {
       setLoading(false);
@@ -55,7 +55,7 @@ export const AIInsightsTab: React.FC<AIInsightsTabProps> = () => {
       await AIInsightsService.createSystemPrompt(promptData);
       setMessage({ type: 'success', text: 'System prompt saved successfully' });
     } catch (error) {
-      console.error('Error saving system prompt:', error);
+      // Error saving system prompt
       setMessage({ type: 'error', text: 'Failed to save system prompt' });
     } finally {
       setSaving(false);
@@ -74,7 +74,7 @@ export const AIInsightsTab: React.FC<AIInsightsTabProps> = () => {
         setMessage({ type: 'error', text: 'AI connection test failed' });
       }
     } catch (error) {
-      console.error('Error testing AI connection:', error);
+      // Error testing AI connection
       setMessage({ type: 'error', text: 'AI connection test failed' });
     } finally {
       setTesting(false);

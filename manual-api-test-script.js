@@ -14,7 +14,7 @@ import { URL } from 'url';
 
 // Configuration
 const CONFIG = {
-  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+  baseUrl: process.env.BASE_URL || 'http://localhost:5173',
   supabaseUrl: process.env.SUPABASE_URL || 'http://localhost:54321',
   timeout: 10000,
   retries: 3

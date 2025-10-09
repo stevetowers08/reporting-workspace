@@ -2,8 +2,7 @@ import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { GHLReconnectPrompt } from './GHLReconnectPrompt';
 
 interface LeadInfoMetricsCardsProps {
@@ -13,8 +12,6 @@ interface LeadInfoMetricsCardsProps {
 }
 
 export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data, clientData, dateRange }) => {
-  const [leadData, setLeadData] = useState<LeadData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [ghlNeedsReconnect, setGhlNeedsReconnect] = useState(false);
 
   const handleGHLReconnect = () => {
@@ -22,85 +19,21 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
     window.location.href = '/agency/integrations';
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        debugLogger.info('LeadInfoMetricsCards', 'Starting to fetch lead data', { clientData });
-        
-        // Use client-specific Google Sheets configuration if available
-        let leadDataResult;
-        if (clientData?.accounts?.googleSheetsConfig) {
-          debugLogger.info('LeadInfoMetricsCards', 'Using client-specific Google Sheets config', clientData.accounts.googleSheetsConfig);
-          leadDataResult = await LeadDataService.fetchLeadData(
-            clientData.accounts.googleSheetsConfig.spreadsheetId,
-            clientData.accounts.googleSheetsConfig.sheetName
-          );
-        } else {
-          debugLogger.info('LeadInfoMetricsCards', 'Using default Google Sheets config');
-          leadDataResult = await LeadDataService.fetchLeadData();
-        }
-        
-        debugLogger.info('LeadInfoMetricsCards', 'Received lead data', leadDataResult);
-        setLeadData(leadDataResult);
-      } catch (error) {
-        debugLogger.error('LeadInfoMetricsCards', 'Failed to fetch lead data', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [clientData]);
-
+  // Extract lead data from the dashboard data (already fetched by useLeadsTabData)
+  const leadData = (data as any)?.leadData || null;
+  
   // Use dashboard data if available, otherwise show loading
-  const isLoading = loading || !data;
-
-  const handleTestAPI = async () => {
-    debugLogger.info('LeadInfoMetricsCards', 'Testing Google Sheets API');
-    try {
-      let result;
-      if (clientData?.accounts?.googleSheetsConfig) {
-        debugLogger.info('LeadInfoMetricsCards', 'Testing with client-specific config', clientData.accounts.googleSheetsConfig);
-        result = await LeadDataService.fetchLeadData(
-          clientData.accounts.googleSheetsConfig.spreadsheetId,
-          clientData.accounts.googleSheetsConfig.sheetName
-        );
-      } else {
-        debugLogger.info('LeadInfoMetricsCards', 'Testing with default config');
-        result = await LeadDataService.fetchLeadData();
-      }
-      
-      debugLogger.info('LeadInfoMetricsCards', 'API Test Result', result);
-      if (result) {
-        alert(`API Test Success! Found ${result.totalLeads} leads via Supabase Edge Function`);
-      } else {
-        alert('API Test Failed: No data returned');
-      }
-    } catch (error) {
-      debugLogger.error('LeadInfoMetricsCards', 'API Test Error', error);
-      alert(`API Test Error: ${error}`);
-    }
-  };
+  const isLoading = !data;
 
   if (isLoading) {
     return (
-      <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-            <div className="animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-slate-200 rounded w-1/2"></div>
-            </div>
-          </Card>
-        ))}
-        <div className="col-span-4 flex justify-center mt-4">
-          <button 
-            onClick={handleTestAPI}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Test Supabase Edge Function
-          </button>
-        </div>
+      <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
+        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+          <div className="animate-pulse">
+            <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
+            <div className="h-8 bg-slate-200 rounded w-1/2"></div>
+          </div>
+        </Card>
       </div>
     );
   }

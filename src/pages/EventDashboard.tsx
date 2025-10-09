@@ -7,7 +7,6 @@ import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 import { PDFExportService } from "@/services/export/pdfExportService";
 
 
-import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
 import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
 import { Client } from '@/services/data/databaseService';
@@ -25,15 +24,11 @@ const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDem
 const MetaAdsPlatformBreakdown = lazy(() => import('@/components/dashboard/MetaAdsPlatformBreakdown').then(module => ({ default: module.MetaAdsPlatformBreakdown })));
 const GoogleAdsDemographics = lazy(() => import('@/components/dashboard/GoogleAdsDemographics').then(module => ({ default: module.GoogleAdsDemographics })));
 const GoogleAdsCampaignBreakdown = lazy(() => import('@/components/dashboard/GoogleAdsCampaignBreakdown').then(module => ({ default: module.GoogleAdsCampaignBreakdown })));
-const EventTypeBreakdown = lazy(() => import('@/components/dashboard/EventTypeBreakdown').then(module => ({ default: module.EventTypeBreakdown })));
-const LeadSourceBreakdown = lazy(() => import('@/components/dashboard/LeadSourceBreakdown').then(module => ({ default: module.LeadSourceBreakdown })));
-const GuestCountDistribution = lazy(() => import('@/components/dashboard/GuestCountDistribution').then(module => ({ default: module.GuestCountDistribution })));
-const PreferredDayBreakdown = lazy(() => import('@/components/dashboard/PreferredDayBreakdown').then(module => ({ default: module.PreferredDayBreakdown })));
-const LandingPagePerformance = lazy(() => import('@/components/dashboard/LandingPagePerformance').then(module => ({ default: module.LandingPagePerformance })));
-const SmartChartLayout = lazy(() => import('@/components/dashboard/SmartChartLayout').then(module => ({ default: module.SmartChartLayout })));
-const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(module => ({ default: module.LeadInfoMetricsCards })));
-const GHLContactQualityCards = lazy(() => import('@/components/dashboard/GHLContactQualityCards').then(module => ({ default: module.GHLContactQualityCards })));
+// Removed unused lazy imports to fix linting errors
+
 // Chart.js replacements for recharts components
+import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
+import { LeadInfoMetricsCards } from '@/components/dashboard/LeadInfoMetricsCards';
 import { SimpleChart } from '@/components/dashboard/SimpleChart';
 import { CHART_COLORS } from '@/components/ui/chart-wrapper';
 
@@ -52,7 +47,7 @@ const ComponentLoader = () => (
 const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
   const { clientId: urlClientId } = useParams<{ clientId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed unused import
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
   
@@ -61,6 +56,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   
   // Handle tab change by updating URL params
   const handleTabChange = useCallback((tab: string) => {
+    console.log('🔍 EventDashboard: Switching to tab:', tab);
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('tab', tab);
     setSearchParams(newSearchParams);
@@ -110,25 +106,25 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   // Use React Query hooks for data fetching
   const dateRange = getDateRange(selectedPeriod);
   
-  // Load tab-specific data based on active tab
+  // Load tab-specific data - fetch all tabs to avoid loading delays
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummaryTabData(
     actualClientId, 
-    activeTab === 'summary' ? dateRange : undefined
+    dateRange
   );
   
   const { data: metaData, isLoading: metaLoading, error: metaError } = useMetaTabData(
     actualClientId, 
-    activeTab === 'meta' ? dateRange : undefined
+    dateRange
   );
   
   const { data: googleData, isLoading: googleLoading, error: googleError } = useGoogleTabData(
     actualClientId, 
-    activeTab === 'google' ? dateRange : undefined
+    dateRange
   );
   
   const { data: leadsData, isLoading: leadsLoading, error: leadsError } = useLeadsTabData(
     actualClientId, 
-    activeTab === 'leads' ? dateRange : undefined
+    dateRange
   );
   
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
@@ -186,24 +182,86 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       return undefined;
     }
     // Check if we have the required structure, even if values are 0
-    if (data.hasOwnProperty('totalLeads') && 
-        data.hasOwnProperty('facebookMetrics') && 
-        data.hasOwnProperty('googleMetrics')) {
+    if (Object.prototype.hasOwnProperty.call(data, 'totalLeads') && 
+        Object.prototype.hasOwnProperty.call(data, 'facebookMetrics') && 
+        Object.prototype.hasOwnProperty.call(data, 'googleMetrics')) {
       return data as EventDashboardData;
     }
     return undefined;
   };
 
+  // Helper function to get the best available data for Summary tab
+  const getSummaryData = (): EventDashboardData | undefined => {
+    // If we have Meta tab data with Facebook metrics, use that
+    const metaDataTyped = metaData as EventDashboardData | undefined;
+    // eslint-disable-next-line no-console
+    console.log('🔍 getSummaryData: Checking Meta data:', {
+      metaDataExists: !!metaDataTyped,
+      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
+      metaFacebookLeads: metaDataTyped?.facebookMetrics?.leads
+    });
+    
+    if (metaDataTyped && metaDataTyped.facebookMetrics && metaDataTyped.facebookMetrics.leads > 0) {
+      // eslint-disable-next-line no-console
+      console.log('🔍 Using Meta tab data for Summary (has Facebook data)');
+      return metaDataTyped;
+    }
+    
+    // Otherwise use Summary tab data
+    // eslint-disable-next-line no-console
+    console.log('🔍 Using Summary tab data');
+    const summaryDataTyped = summaryData as EventDashboardData | undefined;
+    // eslint-disable-next-line no-console
+    console.log('🔍 getSummaryData: Summary data:', {
+      summaryDataExists: !!summaryDataTyped,
+      summaryFacebookMetrics: summaryDataTyped?.facebookMetrics,
+      summaryFacebookLeads: summaryDataTyped?.facebookMetrics?.leads
+    });
+    return summaryDataTyped;
+  };
+
   const dashboardData = getValidDashboardData(getCurrentTabData());
+  const summaryDashboardData = getValidDashboardData(getSummaryData());
   const dashboardLoading = getCurrentTabLoading();
   const dashboardError = getCurrentTabError();
   
   // Debug logging
+  // eslint-disable-next-line no-console
   console.log('🔍 EventDashboard: Active tab:', activeTab);
+  // eslint-disable-next-line no-console
   console.log('🔍 EventDashboard: Current tab data:', getCurrentTabData());
+  // eslint-disable-next-line no-console
   console.log('🔍 EventDashboard: Valid dashboard data:', dashboardData);
+  // eslint-disable-next-line no-console
   console.log('🔍 EventDashboard: Dashboard loading:', dashboardLoading);
+  // eslint-disable-next-line no-console
   console.log('🔍 EventDashboard: Dashboard error:', dashboardError);
+  
+  // Add alert for debugging
+  if (activeTab === 'summary') {
+    // eslint-disable-next-line no-console
+    console.log('🔍 SUMMARY TAB DEBUG:', {
+      activeTab,
+      summaryData,
+      summaryLoading,
+      summaryError,
+      dashboardData,
+      facebookMetrics: dashboardData?.facebookMetrics,
+      totalLeads: dashboardData?.totalLeads,
+      facebookLeads: dashboardData?.facebookMetrics?.leads
+    });
+    
+    // Force a comparison with Meta tab data
+    const metaDataTyped = metaData as EventDashboardData | undefined;
+    // eslint-disable-next-line no-console
+    console.log('🔍 COMPARING WITH META TAB:', {
+      metaData,
+      metaLoading,
+      metaError,
+      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
+      metaTotalLeads: metaDataTyped?.totalLeads
+    });
+  }
   
   // Transform clients for the dropdown
   const clients = (availableClients || []).map(client => ({
@@ -347,8 +405,26 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 text-sm">
+                🔍 Summary Tab Debug - Active Tab: {activeTab} | Loading: {summaryLoading ? 'Yes' : 'No'} | Error: {summaryError ? 'Yes' : 'No'}
+              </p>
+              <p className="text-green-800 text-sm">
+                Summary Data: {summaryData ? 'Available' : 'Not Available'} | Dashboard Data: {dashboardData ? 'Available' : 'Not Available'}
+              </p>
+              <p className="text-green-800 text-sm">
+                Facebook Leads: {summaryDashboardData?.facebookMetrics?.leads || '0'} | Total Leads: {summaryDashboardData?.totalLeads || '0'}
+              </p>
+              <p className="text-green-800 text-sm">
+                Meta Tab Facebook Leads: {(metaData as EventDashboardData)?.facebookMetrics?.leads || '0'} | Meta Total Leads: {(metaData as EventDashboardData)?.totalLeads || '0'}
+              </p>
+              <p className="text-green-800 text-sm">
+                Using Enhanced Data: {summaryDashboardData === metaData ? 'YES (Meta data)' : 'NO (Summary data)'}
+              </p>
+            </div>
+            
             <Suspense fallback={<ComponentLoader />}>
-              <SummaryMetricsCards dashboardData={dashboardData} />
+              <SummaryMetricsCards dashboardData={summaryDashboardData} />
             </Suspense>
             
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
@@ -368,7 +444,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                   <h3 className="text-lg font-semibold text-slate-900">Leads by Day</h3>
                 </div>
                 <div className="h-64">
-                  <LeadByDayChart data={dashboardData} />
+                  <LeadByDayChart data={summaryDashboardData} />
                 </div>
               </Card>
 
@@ -376,10 +452,17 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                 <KeyInsights data={dashboardData} />
               </Suspense>
             </div>
+            
           </TabsContent>
 
           {/* Meta Ads Tab */}
           <TabsContent value="meta" className="mt-6">
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-sm">
+                🔍 Meta Tab Loaded - Active Tab: {activeTab} | Dashboard Data: {dashboardData ? 'Available' : 'Not Available'}
+              </p>
+            </div>
+            
             <Suspense fallback={<ComponentLoader />}>
               <MetaAdsMetricsCards data={dashboardData} />
             </Suspense>
@@ -396,6 +479,18 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Google Ads Tab */}
           <TabsContent value="google" className="mt-6">
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">
+                🔍 Google Tab Debug - Active Tab: {activeTab} | Loading: {googleLoading ? 'Yes' : 'No'} | Error: {googleError ? 'Yes' : 'No'}
+              </p>
+              <p className="text-red-800 text-sm">
+                Google Data: {googleData ? 'Available' : 'Not Available'} | Dashboard Data: {dashboardData ? 'Available' : 'Not Available'}
+              </p>
+              <p className="text-red-800 text-sm">
+                Google Leads: {dashboardData?.googleMetrics?.leads || '0'} | Total Leads: {dashboardData?.totalLeads || '0'}
+              </p>
+            </div>
+            
             <Suspense fallback={<ComponentLoader />}>
               <GoogleAdsMetricsCards data={dashboardData} />
             </Suspense>
@@ -412,6 +507,15 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
+            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-purple-800 text-sm">
+                🔍 Leads Tab Debug - Active Tab: {activeTab} | Loading: {leadsLoading ? 'Yes' : 'No'} | Error: {leadsError ? 'Yes' : 'No'}
+              </p>
+              <p className="text-purple-800 text-sm">
+                Leads Data: {leadsData ? 'Available' : 'Not Available'} | Dashboard Data: {dashboardData ? 'Available' : 'Not Available'}
+              </p>
+            </div>
+            
             {/* Lead Info Metrics Cards - Google Sheets Data */}
             <Suspense fallback={<ComponentLoader />}>
               <LeadInfoMetricsCards 

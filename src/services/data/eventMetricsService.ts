@@ -118,6 +118,12 @@ export class EventMetricsService {
       });
 
       const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
+      console.log('🔍 EventMetricsService: Facebook Ads check:', {
+        facebookAdsValue: clientAccounts?.facebookAds,
+        hasFacebookAds,
+        willCallFacebookAPI: hasFacebookAds && clientAccounts?.facebookAds
+      });
+      
       debugLogger.info('EventMetricsService', 'Facebook Ads check:', {
         facebookAdsValue: clientAccounts?.facebookAds,
         hasFacebookAds,
@@ -167,19 +173,33 @@ export class EventMetricsService {
       let resultIndex = 0;
       if (hasFacebookAds) {
         const result = results[resultIndex++];
+        console.log('🔍 EventMetricsService: Facebook API result:', {
+          status: result.status,
+          hasData: result.status === 'fulfilled' ? !!result.value : false,
+          error: result.status === 'rejected' ? result.reason : null
+        });
+        
         debugLogger.info('EventMetricsService', 'Facebook API result:', {
           status: result.status,
           hasData: result.status === 'fulfilled' ? !!result.value : false,
           error: result.status === 'rejected' ? result.reason : null
         });
+        
         if (result.status === 'fulfilled') {
           facebookMetrics = result.value as FacebookAdsMetrics;
+          console.log('🔍 EventMetricsService: Facebook metrics loaded:', {
+            leads: facebookMetrics.leads,
+            spend: facebookMetrics.spend,
+            impressions: facebookMetrics.impressions
+          });
+          
           debugLogger.info('EventMetricsService', 'Facebook metrics loaded:', {
             leads: facebookMetrics.leads,
             spend: facebookMetrics.spend,
             impressions: facebookMetrics.impressions
           });
         } else {
+          console.log('❌ EventMetricsService: Facebook metrics failed:', result.reason);
           debugLogger.warn('EventMetricsService', 'Facebook metrics failed:', result.reason);
         }
       }

@@ -13,7 +13,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 interface AgencyPanelProps {
   onBackToDashboard: () => void;
   onAddClient?: () => void;
-  onEditClient?: (_client: unknown) => void;
+  onEditClient?: (client: unknown) => void;
 }
 
 export const AgencyPanel: React.FC<AgencyPanelProps> = ({
@@ -86,7 +86,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     }
   };
 
-  const handleEditClient = (client: any) => {
+  const handleEditClient = (client: unknown) => {
     if (onEditClient) {
       onEditClient(client);
     } else {
@@ -103,7 +103,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       setDeleting(clientId, true);
       await deleteClient(clientId);
     } catch (error) {
-      debugLogger.error('AgencyPanel', 'Failed to delete client', error);
+      console.error('AgencyPanel', 'Failed to delete client', error);
       window.alert('Failed to delete client. Please try again.');
     } finally {
       setDeleting(clientId, false);
@@ -114,7 +114,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     try {
       await connectIntegration(platform);
     } catch (error) {
-      debugLogger.error('AgencyPanel', `Failed to connect ${platform}`, error);
+      console.error('AgencyPanel', `Failed to connect ${platform}`, error);
       window.alert(`Failed to connect ${platform}. Please try again.`);
     }
   };
@@ -127,7 +127,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     try {
       await disconnectIntegration(platform);
     } catch (error) {
-      debugLogger.error('AgencyPanel', `Failed to disconnect ${platform}`, error);
+      console.error('AgencyPanel', `Failed to disconnect ${platform}`, error);
       window.alert(`Failed to disconnect ${platform}. Please try again.`);
     }
   };
@@ -138,7 +138,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       const result = await testConnection(platform);
       return result;
     } catch (error) {
-      debugLogger.error('AgencyPanel', `Failed to test ${platform}`, error);
+      console.error('AgencyPanel', `Failed to test ${platform}`, error);
       return { success: false, message: `Test failed: ${error}` };
     } finally {
       setTesting(platform, false);
