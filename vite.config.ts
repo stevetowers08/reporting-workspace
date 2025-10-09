@@ -13,6 +13,7 @@ declare global {
 }
 
 // Define process for Vite config
+// eslint-disable-next-line no-undef
 declare const process: NodeJS.Process;
 
 // https://vitejs.dev/config/
@@ -26,7 +27,8 @@ export default defineConfig({
   },
   plugins: [
     react({
-      jsxRuntime: 'automatic'
+      jsxRuntime: 'automatic',
+      jsxImportSource: 'react'
     }),
     // Bundle analyzer - only in analyze mode
     process.env.ANALYZE && visualizer({
@@ -50,6 +52,7 @@ export default defineConfig({
       'tailwind-merge',
       'class-variance-authority',
       'lucide-react',
+      '@radix-ui/react-slot',
     ],
     exclude: ['@vite/client', '@vite/env'],
     force: false,
