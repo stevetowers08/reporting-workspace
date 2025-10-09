@@ -228,6 +228,17 @@ export class DatabaseService {
     }
   }
 
+  static async getClient(id: string): Promise<Client | null> {
+    try {
+      const client = await supabaseHelpers.getClient(id);
+      debugLogger.info('DatabaseService', 'Client fetched successfully from database', { id });
+      return client;
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error fetching client from database', error);
+      throw error;
+    }
+  }
+
   static async getClientById(id: string): Promise<Client | null> {
     try {
       const client = await supabaseHelpers.getClient(id);
