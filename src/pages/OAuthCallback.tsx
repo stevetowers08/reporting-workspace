@@ -105,7 +105,10 @@ const OAuthCallback = () => {
             codeVerifierValue: codeVerifier ? codeVerifier.substring(0, 20) + '...' : 'MISSING'
           });
           
-          const result = await OAuthService.handleGoogleAdsCallback(code, state);
+          // Google Ads uses backend OAuth flow - tokens are already stored by backend
+          debugLogger.debug('🔍 Google Ads backend OAuth - tokens already stored');
+          navigate('/agency/integrations?googleAds=connected');
+          return;
           debugLogger.debug('🔍 Google Ads auth completed:', { 
             hasAccessToken: !!result.tokens.accessToken,
             hasRefreshToken: !!result.tokens.refreshToken,
