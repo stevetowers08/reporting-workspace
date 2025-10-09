@@ -27,7 +27,7 @@ export default defineConfig({
   },
   plugins: [
     react({
-      jsxRuntime: 'classic'
+      jsxRuntime: 'automatic'
     }),
     // Bundle analyzer - only in analyze mode
     process.env.ANALYZE && visualizer({
@@ -52,6 +52,7 @@ export default defineConfig({
       'class-variance-authority',
       'lucide-react',
       '@radix-ui/react-slot',
+      '@radix-ui/react-primitive',
     ],
     exclude: ['@vite/client', '@vite/env'],
     force: false,
@@ -68,7 +69,6 @@ export default defineConfig({
     global: 'globalThis',
     'process.env': JSON.stringify(process.env),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-    'window.React': 'React',
   },
   build: {
     target: 'es2020',
