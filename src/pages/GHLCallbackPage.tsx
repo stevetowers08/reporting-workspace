@@ -66,7 +66,16 @@ export const GHLCallbackPage: React.FC = () => {
           locationId,
           fullUrl: window.location.href
         });
-        const tokenData = await GoHighLevelService.exchangeCodeForToken(code, locationId || undefined);
+        // Get OAuth credentials from environment
+        const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+        const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+        const redirectUri = `${window.location.origin}/api/leadconnector/oath`;
+        
+        if (!clientId || !clientSecret) {
+          throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');
+        }
+        
+        const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
         
         // Set credentials for future API calls
         GoHighLevelService.setCredentials(tokenData.accessToken, tokenData.locationId);
@@ -98,19 +107,19 @@ export const GHLCallbackPage: React.FC = () => {
 
       } catch (error) {
         console.error('GHL Callback - Error details:', error);
+        console.error('GHL Callback - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+        
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        setError(errorMessage);
         setStatus('error');
         
-        // Close the popup window and notify parent
+        // Don't auto-close on error - let user see the error message
+        console.log('GHL Callback - Error displayed, window will not auto-close');
+        
+        // Notify parent window but don't close immediately
         if (window.opener) {
-          window.opener.postMessage({ type: 'GHL_CONNECTED', success: false, error: error instanceof Error ? error.message : 'Unknown error' }, '*');
-          window.close();
-        } else {
-          // Fallback: redirect to integrations page
-          window.setTimeout(() => {
-            navigate('/integrations');
-          }, 3000);
+          window.opener.postMessage({ type: 'GHL_CONNECTED', success: false, error: errorMessage }, '*');
         }
       }
     };
@@ -152,12 +161,23 @@ export const GHLCallbackPage: React.FC = () => {
             <p className="text-gray-600 mb-4">
               {error || 'An error occurred while connecting to Go High Level.'}
             </p>
-            <button
-              onClick={() => window.close()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Close Window
-            </button>
+            <div className="space-x-3">
+              <button
+                onClick={() => window.close()}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+              >
+                Close Window
+              </button>
+              <button
+                onClick={() => {
+                  // Retry by reloading the page
+                  window.location.reload();
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </div>
       </div>
