@@ -134,6 +134,45 @@ export default async function handler(req, res) {
 
     console.log('✅ Token saved to database successfully');
 
+    // Update client's GoHighLevel account if we have a clientId in state
+    if (state && !state.startsWith('new_')) {
+      console.log('🔍 Updating client GoHighLevel account with locationId:', tokenData.locationId);
+      
+      // First get the current client data to merge accounts properly
+      const { data: currentClient, error: fetchError } = await supabase
+        .from('clients')
+        .select('accounts')
+        .eq('id', state)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Error fetching current client data:', fetchError);
+      } else {
+        // Merge the GoHighLevel account data with existing accounts
+        const updatedAccounts = {
+          ...currentClient.accounts,
+          goHighLevel: {
+            locationId: tokenData.locationId,
+            locationName: tokenData.locationName || 'GoHighLevel Location'
+          }
+        };
+
+        const { error: clientUpdateError } = await supabase
+          .from('clients')
+          .update({
+            accounts: updatedAccounts
+          })
+          .eq('id', state);
+
+        if (clientUpdateError) {
+          console.error('❌ Error updating client GoHighLevel account:', clientUpdateError);
+          // Don't throw error here - token is saved, just client update failed
+        } else {
+          console.log('✅ Client GoHighLevel account updated successfully');
+        }
+      }
+    }
+
     console.log('✅ OAuth flow completed successfully');
     
     // Redirect back to the appropriate page based on state parameter
