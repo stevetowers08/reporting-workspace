@@ -20,6 +20,24 @@ import {
  */
 export class TokenManager {
   private static readonly TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
+  
+  // Cache for connection status to prevent repeated database calls
+  private static connectionCache = new Map<IntegrationPlatform, { 
+    isConnected: boolean; 
+    timestamp: number; 
+  }>();
+  private static readonly CACHE_DURATION = 30 * 1000; // 30 seconds cache
+  
+  // Prevent infinite token refresh loops
+  private static refreshInProgress = new Set<IntegrationPlatform>();
+  
+  // Clear refresh in progress after timeout to prevent stuck states
+  private static clearRefreshInProgress(platform: IntegrationPlatform, timeoutMs = 30000) {
+    setTimeout(() => {
+      this.refreshInProgress.delete(platform);
+      DevLogger.debug('TokenManager', `Cleared refresh in progress flag for ${platform} after timeout`);
+    }, timeoutMs);
+  }
 
   /**
    * Store OAuth tokens for a platform
@@ -155,6 +173,9 @@ export class TokenManager {
       }
 
       DevLogger.info('TokenManager', `OAuth tokens stored successfully for ${platform}`);
+      
+      // Clear connection cache since tokens were updated
+      this.clearConnectionCache(platform);
     } catch (error) {
       // Enhanced error logging with full context
       const errorDetails = {
@@ -212,6 +233,9 @@ export class TokenManager {
       }
 
       DevLogger.info('TokenManager', `Successfully cleared OAuth tokens for ${platform}`);
+      
+      // Clear connection cache since tokens were removed
+      this.clearConnectionCache(platform);
     } catch (error) {
       DevLogger.error('TokenManager', `Failed to clear tokens for ${platform}`, error);
       throw new Error(`Failed to clear tokens for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
@@ -259,6 +283,9 @@ export class TokenManager {
       }
 
       DevLogger.info('TokenManager', `API key stored successfully for ${platform}`);
+      
+      // Clear connection cache since API key was updated
+      this.clearConnectionCache(platform);
     } catch (error) {
       DevLogger.error('TokenManager', `Failed to store API key for ${platform}`, error);
       throw new Error(`Failed to store API key for ${platform}: ${error instanceof Error ? error.message : String(error)}`);
@@ -306,6 +333,12 @@ export class TokenManager {
           const timeUntilExpiry = expiresAtDate.getTime() - now.getTime();
           
           if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD && !skipRefresh) {
+            // Prevent infinite refresh loops
+            if (this.refreshInProgress.has(platform)) {
+              DevLogger.warn('TokenManager', `Token refresh already in progress for ${platform}, returning existing token`);
+              return accessToken;
+            }
+            
             DevLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
             
             // Attempt token refresh for all platforms
@@ -315,17 +348,22 @@ export class TokenManager {
             const encryptedRefreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
             if (encryptedRefreshToken) {
               try {
+                this.refreshInProgress.add(platform);
+                this.clearRefreshInProgress(platform); // Set timeout to clear flag
                 await this.refreshTokens(platform);
+                this.refreshInProgress.delete(platform);
                 // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop
                 return await this.getAccessToken(platform, true);
               } catch (refreshError) {
+                this.refreshInProgress.delete(platform);
                 DevLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
-                // Return null instead of continuing with expired token
-                return null;
+                // Return the current token even if refresh failed, to prevent infinite loops
+                DevLogger.warn('TokenManager', `Using existing token for ${platform} despite refresh failure`);
+                return accessToken;
               }
             } else {
               DevLogger.warn('TokenManager', `No refresh token available for ${platform}`);
-              return null;
+              return accessToken; // Return existing token even without refresh capability
             }
           }
         }
@@ -497,14 +535,52 @@ export class TokenManager {
   static async isConnected(platform: IntegrationPlatform): Promise<boolean> {
     try {
       DevLogger.debug('TokenManager', `isConnected(${platform}) called`);
+      
+      // Check cache first
+      const cached = this.connectionCache.get(platform);
+      const now = Date.now();
+      
+      if (cached && (now - cached.timestamp) < this.CACHE_DURATION) {
+        DevLogger.debug('TokenManager', `isConnected(${platform}) = ${cached.isConnected} (cached)`);
+        return cached.isConnected;
+      }
+      
+      // Cache miss or expired - check database
       const token = await this.getAccessToken(platform);
       const isConnected = !!token;
-      DevLogger.debug('TokenManager', `isConnected(${platform}) = ${isConnected}`);
+      
+      // Update cache
+      this.connectionCache.set(platform, {
+        isConnected,
+        timestamp: now
+      });
+      
+      DevLogger.debug('TokenManager', `isConnected(${platform}) = ${isConnected} (fresh)`);
       return isConnected;
     } catch (error) {
       DevLogger.error('TokenManager', `isConnected(${platform}) error:`, error);
       DevLogger.error('TokenManager', `Failed to check connection status for ${platform}`, error);
+      
+      // Cache the error result to prevent repeated failed calls
+      this.connectionCache.set(platform, {
+        isConnected: false,
+        timestamp: Date.now()
+      });
+      
       return false;
+    }
+  }
+
+  /**
+   * Clear connection cache for a platform (call when tokens are updated)
+   */
+  static clearConnectionCache(platform?: IntegrationPlatform): void {
+    if (platform) {
+      this.connectionCache.delete(platform);
+      DevLogger.debug('TokenManager', `Cleared connection cache for ${platform}`);
+    } else {
+      this.connectionCache.clear();
+      DevLogger.debug('TokenManager', 'Cleared all connection cache');
     }
   }
 

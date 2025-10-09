@@ -160,7 +160,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = ({ data
               </div>
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              Source: GoHighLevel API | Endpoint: POST /contacts/search
+              API: POST /contacts/search | Sheets: GET /spreadsheets/values
             </div>
           </div>
         </div>

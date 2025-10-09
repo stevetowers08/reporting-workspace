@@ -62,7 +62,7 @@ export const OpportunityStagesChart: React.FC<OpportunityStagesChartProps> = ({ 
           }
         </p>
         <div className="text-xs text-slate-400 mt-1">
-          Source: GoHighLevel API | Endpoint: POST /opportunities/search | Status: ✅ Connected
+          API: POST /opportunities/search | Pipeline breakdown
         </div>
       </div>
       

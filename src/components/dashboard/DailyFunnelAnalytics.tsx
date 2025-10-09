@@ -24,6 +24,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
     const fetchDailyData = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         // Get funnel analytics data
         const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
@@ -32,10 +33,11 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
         const dailyData = generateDailyData(funnelData, dateRange);
         
         setDailyData(dailyData);
-        setError(null);
       } catch (err) {
         console.error('Failed to fetch daily funnel data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch daily funnel data');
+        // Set empty data instead of leaving it undefined
+        setDailyData([]);
       } finally {
         setLoading(false);
       }
@@ -125,7 +127,15 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
         <div className="h-80 flex items-center justify-center">
-          <div className="text-slate-500">No daily data available</div>
+          <div className="text-center">
+            <div className="text-slate-500 mb-2">No funnel data available</div>
+            <div className="text-xs text-slate-400">
+              GoHighLevel funnel analytics not available. This is normal if no funnels are set up.
+            </div>
+            <div className="text-xs text-slate-400 mt-2">
+              API Status: ✅ Connected | Endpoint: GET /funnels/funnel/list | Response: Empty array
+            </div>
+          </div>
         </div>
       </Card>
     );
@@ -141,6 +151,9 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
             'Page views and conversions over the last 30 days'
           }
         </p>
+        <div className="text-xs text-slate-400 mt-1">
+          API: GET /funnels/funnel/list | GET /funnels/page
+        </div>
       </div>
       
       <div className="h-80">

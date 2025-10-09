@@ -30,7 +30,20 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = ({ data, 
     const fetchData = async () => {
       try {
         console.log('EventTypesBreakdown: Starting to fetch lead data...');
-        const leadDataResult = await LeadDataService.fetchLeadData();
+        
+        // Use client-specific Google Sheets configuration if available
+        let leadDataResult;
+        if (data?.clientAccounts?.googleSheetsConfig) {
+          console.log('EventTypesBreakdown: Using client-specific Google Sheets config:', data.clientAccounts.googleSheetsConfig);
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheetsConfig.spreadsheetId,
+            data.clientAccounts.googleSheetsConfig.sheetName
+          );
+        } else {
+          console.log('EventTypesBreakdown: Using default Google Sheets config');
+          leadDataResult = await LeadDataService.fetchLeadData();
+        }
+        
         console.log('EventTypesBreakdown: Received lead data:', leadDataResult);
         
         if (leadDataResult) {
@@ -47,7 +60,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = ({ data, 
     };
 
     fetchData();
-  }, []);
+  }, [data]);
 
   if (loading) {
     return (
@@ -134,7 +147,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = ({ data, 
           }
         </p>
         <div className="text-xs text-slate-400 mt-1">
-          {leadData ? 'Smart detection: Event type column, guest count estimation, or text analysis' : 'Loading...'}
+          API: GET /spreadsheets/{id}/values | Smart detection: Event type column
         </div>
       </div>
       

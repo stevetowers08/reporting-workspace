@@ -40,14 +40,14 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
         component: EventTypesBreakdown,
         props: { data: dashboardData, dateRange },
         priority: 2,
-        hasData: !!dashboardData?.eventMetrics?.eventTypeBreakdown?.length
+        hasData: true // Always show - component handles empty data gracefully
       },
       {
         id: 'guest-count',
         component: GuestCountDistribution,
         props: { data: dashboardData },
         priority: 3,
-        hasData: !!dashboardData?.eventMetrics?.eventTypeBreakdown?.length
+        hasData: true // Always show - component handles empty data gracefully
       },
       {
         id: 'opportunity-stages',
@@ -58,12 +58,10 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
       }
     ];
 
-    // Filter out charts without data and sort by priority
-    const filteredCharts = charts
-      .filter(chart => chart.hasData)
-      .sort((a, b) => a.priority - b.priority);
+    // Sort by priority - show all charts, let components handle empty data
+    const sortedCharts = charts.sort((a, b) => a.priority - b.priority);
 
-    setAvailableCharts(filteredCharts);
+    setAvailableCharts(sortedCharts);
   }, [dashboardData, dateRange, locationId]);
 
   // Create pairs for 2-column layout

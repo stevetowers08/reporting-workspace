@@ -17,7 +17,7 @@ import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
 import { IntegrationPlatform } from "@/types/integration";
 import { AlertCircle, Bot, CheckCircle, ImageIcon, X } from "lucide-react";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 
 interface ConnectedAccount {
@@ -105,10 +105,45 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
+  const [integrationStatusLoading, setIntegrationStatusLoading] = useState(false);
   
   // Edit states for each integration
   const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
+
+  // Method to refresh integration status (call after connecting/disconnecting)
+  const refreshIntegrationStatus = useCallback(async () => {
+    console.log('🔍 ClientForm: Refreshing integration status');
+    setIntegrationStatus({}); // Clear current status
+    setIntegrationStatusLoading(false); // Reset loading state
+    
+    // Trigger a new check
+    const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
+    const statusPromises = platforms.map(async (platform) => {
+      try {
+        if (platform === 'googleSheets') {
+          const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+          return { platform, isConnected };
+        } else {
+          const { TokenManager } = await import('@/services/auth/TokenManager');
+          const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
+          return { platform, isConnected };
+        }
+      } catch (error) {
+        console.error(`Error checking ${platform} status:`, error);
+        return { platform, isConnected: false };
+      }
+    });
+    
+    const results = await Promise.all(statusPromises);
+    const statusMap = results.reduce((acc, { platform, isConnected }) => {
+      acc[platform] = isConnected;
+      return acc;
+    }, {} as Record<string, boolean>);
+    
+    setIntegrationStatus(statusMap);
+    console.log('🔍 ClientForm: Integration status refreshed', statusMap);
+  }, []);
 
   // Load connected accounts when component mounts
   useEffect(() => {
@@ -126,32 +161,48 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     
     // Check integration status for all platforms
     const checkIntegrationStatus = async () => {
-      const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
-      const statusPromises = platforms.map(async (platform) => {
-        try {
-          if (platform === 'googleSheets') {
-            // Use the new Google Sheets OAuth service
-            const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-            return { platform, isConnected };
-          } else {
-            // Use TokenManager for reliable token checking
-            const { TokenManager } = await import('@/services/auth/TokenManager');
-            const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
-            return { platform, isConnected };
+      // Prevent multiple simultaneous checks
+      if (integrationStatusLoading) {
+        console.log('🔍 ClientForm: Integration status check already in progress, skipping');
+        return;
+      }
+      
+      setIntegrationStatusLoading(true);
+      console.log('🔍 ClientForm: Starting integration status check');
+      
+      try {
+        const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
+        const statusPromises = platforms.map(async (platform) => {
+          try {
+            if (platform === 'googleSheets') {
+              // Use the new Google Sheets OAuth service
+              const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+              return { platform, isConnected };
+            } else {
+              // Use TokenManager for reliable token checking
+              const { TokenManager } = await import('@/services/auth/TokenManager');
+              const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
+              return { platform, isConnected };
+            }
+          } catch (error) {
+            console.error(`Error checking ${platform} status:`, error);
+            return { platform, isConnected: false };
           }
-        } catch (error) {
-          console.error(`Error checking ${platform} status:`, error);
-          return { platform, isConnected: false };
-        }
-      });
-      
-      const results = await Promise.all(statusPromises);
-      const statusMap = results.reduce((acc, { platform, isConnected }) => {
-        acc[platform] = isConnected;
-        return acc;
-      }, {} as Record<string, boolean>);
-      
-      setIntegrationStatus(statusMap);
+        });
+        
+        const results = await Promise.all(statusPromises);
+        const statusMap = results.reduce((acc, { platform, isConnected }) => {
+          acc[platform] = isConnected;
+          return acc;
+        }, {} as Record<string, boolean>);
+        
+        setIntegrationStatus(statusMap);
+        console.log('🔍 ClientForm: Integration status check completed', statusMap);
+      } catch (error) {
+        console.error('🔍 ClientForm: Error during integration status check:', error);
+      } finally {
+        setIntegrationStatusLoading(false);
+      }
     };
     
     checkIntegrationStatus();

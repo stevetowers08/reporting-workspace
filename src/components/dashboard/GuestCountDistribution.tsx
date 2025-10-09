@@ -16,7 +16,20 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ 
     const fetchData = async () => {
       try {
         console.log('GuestCountDistribution: Starting to fetch lead data...');
-        const leadDataResult = await LeadDataService.fetchLeadData();
+        
+        // Use client-specific Google Sheets configuration if available
+        let leadDataResult;
+        if (data?.clientAccounts?.googleSheetsConfig) {
+          console.log('GuestCountDistribution: Using client-specific Google Sheets config:', data.clientAccounts.googleSheetsConfig);
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheetsConfig.spreadsheetId,
+            data.clientAccounts.googleSheetsConfig.sheetName
+          );
+        } else {
+          console.log('GuestCountDistribution: Using default Google Sheets config');
+          leadDataResult = await LeadDataService.fetchLeadData();
+        }
+        
         console.log('GuestCountDistribution: Received lead data:', leadDataResult);
         
         if (leadDataResult) {
@@ -33,7 +46,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ 
     };
 
     fetchData();
-  }, []);
+  }, [data]);
 
   if (loading) {
     return (
@@ -85,6 +98,9 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ 
       <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
         <p className="text-sm text-slate-500">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
+        <div className="text-xs text-slate-400 mt-1">
+          API: GET /spreadsheets/{id}/values | Guest count analysis
+        </div>
       </div>
       
       <div className="h-64">
