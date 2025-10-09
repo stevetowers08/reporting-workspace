@@ -1,7 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { GoHighLevelService } from '@/services/api/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
-import { CheckCircle, AlertCircle } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 

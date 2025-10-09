@@ -56,7 +56,7 @@ export class GoHighLevelService {
   private static locationTokens: Map<string, string> = new Map();
   
   // Add caching to prevent excessive API calls
-  private static cache = new Map<string, { data: any; timestamp: number }>();
+  private static cache = new Map<string, { data: unknown; timestamp: number }>();
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private static lastRequestTime = 0;
   private static readonly MIN_REQUEST_INTERVAL = 100; // 100ms between requests (API 2.0 allows 100 req/10sec)
@@ -81,7 +81,7 @@ export class GoHighLevelService {
       const waitTime = this.BURST_WINDOW - (now - this.lastRequestTime);
       if (waitTime > 0) {
         debugLogger.warn('GoHighLevelService', `Rate limit reached, waiting ${waitTime}ms`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise(resolve => globalThis.setTimeout(resolve, waitTime));
         this.requestCount = 0;
         this.lastRequestTime = Date.now();
       }
@@ -90,7 +90,7 @@ export class GoHighLevelService {
     // Enforce minimum interval between requests
     const timeSinceLastRequest = now - this.lastRequestTime;
     if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      await new Promise(resolve => setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+      await new Promise(resolve => globalThis.setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest));
     }
     
     this.requestCount++;
@@ -228,7 +228,7 @@ export class GoHighLevelService {
   /**
    * Verify webhook signature
    */
-  static verifyWebhookSignature(_payload: string, _signature: string, _secret: string): boolean {
+  static verifyWebhookSignature(): boolean {
     // Implementation depends on GHL webhook verification method
     // This is a placeholder - implement based on GHL documentation
     return true;
@@ -407,7 +407,7 @@ export class GoHighLevelService {
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000; // Default 10 seconds
         
         debugLogger.warn('GoHighLevelService', `Rate limit exceeded, waiting ${waitTime}ms`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise(resolve => globalThis.setTimeout(resolve, waitTime));
         
         // Retry the request
         const retryResponse = await fetch(url, {
@@ -478,7 +478,7 @@ export class GoHighLevelService {
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000; // Default 10 seconds
         
         debugLogger.warn('GoHighLevelService', `Rate limit exceeded, waiting ${waitTime}ms`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise(resolve => globalThis.setTimeout(resolve, waitTime));
         
         // Retry the request
         const retryResponse = await fetch(url, {
