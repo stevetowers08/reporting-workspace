@@ -670,7 +670,8 @@ export class OAuthService {
             // Map platform names to IntegrationPlatform
             const platformMap: Record<string, IntegrationPlatform> = {
                 'facebook': 'facebookAds',
-                'google': 'googleAds',
+                'googleAds': 'googleAds',
+                'googleSheets': 'googleSheets',
                 'gohighlevel': 'goHighLevel'
             };
 
