@@ -23,7 +23,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
   const handleConnect = () => {
     setIsConnecting(true);
     
-    const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
+    const authUrl = new URL('https://marketplace.leadconnectorhq.com/oauth/chooselocation');
     
     authUrl.searchParams.append('response_type', 'code');
     authUrl.searchParams.append('redirect_uri', `${window.location.origin}/api/leadconnector/oath`);
