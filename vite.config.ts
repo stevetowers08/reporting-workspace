@@ -74,12 +74,8 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: true,
     rollupOptions: {
-      external: ['react', 'react-dom'],
+      external: [],
       output: {
-        globals: {
-          'react': 'React',
-          'react-dom': 'ReactDOM'
-        },
         manualChunks: (id) => {
           // Core React libraries
           if (id.includes('react') || id.includes('react-dom')) {
