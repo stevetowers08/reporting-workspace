@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
-import { OAuthService, OAuthTokens } from '@/services/auth/oauthService';
+import { OAuthService } from '@/services/auth/oauthService';
 import { TokenManager } from '@/services/auth/TokenManager';
 
-export const OAuthCallback: React.FC = () => {
+const OAuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -60,7 +60,6 @@ export const OAuthCallback: React.FC = () => {
           
           const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
           const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-          const redirectUri = `${window.location.origin}/oauth/callback`;
           
           if (!clientId || !clientSecret) {
             throw new Error('Missing GoHighLevel OAuth credentials');
@@ -80,7 +79,7 @@ export const OAuthCallback: React.FC = () => {
         }
 
         // Redirect after successful connection
-        setTimeout(() => {
+        globalThis.setTimeout(() => {
           navigate('/agency/integrations');
         }, 2000);
 
@@ -90,7 +89,7 @@ export const OAuthCallback: React.FC = () => {
         setMessage(error instanceof Error ? error.message : 'OAuth callback failed');
         
         // Redirect to integrations page after error
-        setTimeout(() => {
+        globalThis.setTimeout(() => {
           navigate('/agency/integrations');
         }, 3000);
       }
@@ -133,3 +132,5 @@ export const OAuthCallback: React.FC = () => {
     </div>
   );
 };
+
+export default OAuthCallback;
