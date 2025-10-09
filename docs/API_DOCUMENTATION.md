@@ -1135,5 +1135,32 @@ useEffect(() => {
 - ✅ Automatic token refresh working for all platforms
 - ✅ Proper filtering of manager vs individual accounts
 - ✅ Environment configuration properly set up
+- ✅ Fixed OAuth scopes for Google Ads and Google Sheets (resolves 401 authentication errors)
+- ✅ Updated admin panel loading and integration status display
+
+## Recent Fixes (Latest Update)
+
+### OAuth Scope Corrections
+**Issue**: 401 authentication errors for Google Ads and Google Sheets integrations
+**Root Cause**: Incorrect OAuth scopes in the `oauth_credentials` table
+**Solution**: Updated OAuth scopes to match official Google API documentation
+
+**Google Ads OAuth Scopes**:
+- `https://www.googleapis.com/auth/adwords` - Full access to Google Ads API
+- `https://www.googleapis.com/auth/userinfo.email` - Access to user email
+- `https://www.googleapis.com/auth/userinfo.profile` - Access to user profile
+
+**Google Sheets OAuth Scopes**:
+- `https://www.googleapis.com/auth/spreadsheets` - Read/write access to spreadsheets
+- `https://www.googleapis.com/auth/drive.readonly` - Read-only access to Drive files
+- `https://www.googleapis.com/auth/userinfo.email` - Access to user email
+- `https://www.googleapis.com/auth/userinfo.profile` - Access to user profile
+
+### Admin Panel Improvements
+- Fixed HTTP 406 errors on `oauth_credentials` table queries
+- Resolved platform name mismatch between `integrations` and `oauth_credentials` tables
+- Fixed infinite loop in admin panel loading caused by repeated API calls
+- Updated integration status display logic to show correct connection states
+- Implemented automatic token refresh service to prevent manual token management
 
 For additional support or questions, refer to the troubleshooting guides in the `docs/ai/` directory or check the project status in `docs/ai/PROJECT_STATUS.md`.

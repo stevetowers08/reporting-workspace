@@ -19,6 +19,7 @@ export interface OAuthTokens {
     accessToken: string;
     refreshToken?: string;
     expiresIn?: number;
+    expiresAt?: string;
     tokenType: string;
     scope?: string;
 }
@@ -485,11 +486,20 @@ export class OAuthService {
 
             const newTokens = await response.json();
 
+            // Calculate expiration timestamp
+            const expiresAt = newTokens.expires_in 
+                ? new Date(Date.now() + (newTokens.expires_in * 1000)).toISOString()
+                : undefined;
+
             // Update stored tokens
             this.storeTokens(platform, {
                 ...tokens,
-                ...newTokens,
-                refresh_token: tokens.refreshToken // Keep existing refresh token if not provided
+                accessToken: newTokens.access_token,
+                refreshToken: newTokens.refresh_token || tokens.refreshToken, // Keep existing refresh token if not provided
+                expiresIn: newTokens.expires_in,
+                tokenType: newTokens.token_type || tokens.tokenType,
+                scope: newTokens.scope || tokens.scope,
+                expiresAt: expiresAt
             });
 
             return newTokens;

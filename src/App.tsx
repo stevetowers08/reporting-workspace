@@ -3,7 +3,7 @@ import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
-// import { debugLogger } from "@/lib/debug";
+import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 import { initSentry } from "@/lib/sentry";
 import APITestingPage from "@/pages/APITestingPage";
@@ -19,13 +19,19 @@ import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
 import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
+import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 // Health Check Page Component
 const HealthCheckPage = () => {
-  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [healthStatus, setHealthStatus] = useState<{
+    status: string;
+    error?: string;
+    timestamp: string;
+    services: Record<string, unknown>;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +46,7 @@ const HealthCheckPage = () => {
         const status = await Promise.race([statusPromise, timeoutPromise]);
         setHealthStatus(status);
       } catch (error) {
-        console.error('Health check failed:', error);
+        debugLogger.error('App', 'Health check failed', error);
         setHealthStatus({ 
           status: 'degraded', 
           error: 'Health check failed',
@@ -163,7 +169,10 @@ const App = () => {
     // Initialize production monitoring
     initSentry();
     
-    console.log('Application started');
+    // Start automatic token refresh service
+    TokenRefreshService.start();
+    
+    debugLogger.info('App', 'Application started');
 
     // Add keyboard shortcut for debug panel (Ctrl+Shift+D)
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -174,7 +183,12 @@ const App = () => {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    
+    // Cleanup function
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      TokenRefreshService.stop();
+    };
   }, []);
 
   return (
