@@ -9,6 +9,7 @@ import { initSentry } from "@/lib/sentry";
 import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AdminPanel from "@/pages/AdminPanel";
+import ClientEditPage from "@/pages/ClientEditPage";
 import EventDashboard from "@/pages/EventDashboard";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
@@ -204,7 +205,7 @@ const App = () => {
                 <Route path="/admin/clients" element={<AdminPanel />} />
                 <Route path="/admin/integrations" element={<AdminPanel />} />
                 <Route path="/admin/ai-insights" element={<AdminPanel />} />
-                <Route path="/admin/clients/:clientId/edit" element={<AdminPanel />} />
+                <Route path="/admin/clients/:clientId/edit" element={<ClientEditPage />} />
                 <Route path="/admin/google-ads-config" element={<GoogleAdsConfigPage />} />
                 <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />

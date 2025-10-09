@@ -42,22 +42,51 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       authUrl.searchParams.append('state', 'new_client');
     }
     
-    console.log('🔍 Redirecting to GHL OAuth:', authUrl.toString());
+    console.log('🔍 Opening GHL OAuth in popup:', authUrl.toString());
     
-    // Redirect to GHL OAuth
-    window.location.href = authUrl.toString();
+    // Open OAuth in popup window instead of redirecting
+    const popup = window.open(
+      authUrl.toString(),
+      'ghl-oauth',
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
+    
+    // Listen for popup completion
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkClosed);
+        setIsConnecting(false);
+        
+        // Check if OAuth was successful by looking for success message in localStorage
+        const oauthResult = localStorage.getItem('ghl-oauth-result');
+        if (oauthResult) {
+          try {
+            const result = JSON.parse(oauthResult);
+            if (result.success && result.locationId) {
+              console.log('🔍 OAuth successful, updating form with locationId:', result.locationId);
+              onConnected?.(result.locationId);
+            }
+          } catch (error) {
+            console.error('Error parsing OAuth result:', error);
+          }
+          localStorage.removeItem('ghl-oauth-result');
+        }
+      }
+    }, 1000);
   };
 
   return (
-    <div className="text-center py-4">
+    <div className="text-center">
       <Button 
         onClick={handleConnect}
         disabled={isConnecting}
+        variant="outline"
+        size="sm"
         className="w-full"
       >
         {isConnecting ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2" />
             Connecting...
           </>
         ) : (

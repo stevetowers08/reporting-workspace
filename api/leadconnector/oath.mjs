@@ -185,7 +185,7 @@ export default async function handler(req, res) {
         res.redirect(302, `${baseUrl}/admin?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
       } else {
         // If we have an existing clientId in state, redirect back to client edit page
-        res.redirect(302, `${baseUrl}/admin/clients/${state}/edit?connected=true&location=${tokenData.locationId}`);
+        res.redirect(302, `${baseUrl}/admin/clients/${state}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
       }
     } else {
       // Fallback to admin panel
