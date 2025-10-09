@@ -1,5 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { Request, Response } from 'express';
 
 export interface GHLWebhookEvent {

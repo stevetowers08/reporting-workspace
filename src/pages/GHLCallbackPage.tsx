@@ -1,6 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
-import { DatabaseService } from '@/services/data/databaseService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 

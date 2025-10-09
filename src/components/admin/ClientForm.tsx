@@ -68,7 +68,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   onCancel,
   cancelLabel = "Cancel"
 }) => {
-  console.log('🔍 ClientForm: Component loaded', { isEdit, clientId, initialData });
+  debugLogger.info('ClientForm', 'Component loaded', { isEdit, clientId, hasInitialData: !!initialData });
   
   const [formData, setFormData] = useState<ClientFormData>(initialData || {
     name: "",
@@ -94,9 +94,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [ghlAccountsLoaded, setGhlAccountsLoaded] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logo_url || null);
   const [conversionActions, setConversionActions] = useState<Record<string, unknown[]>>({});
-  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<globalThis.File | null>(null);
   const [aiConfig, setAiConfig] = useState<AIInsightsConfig | null>(null);
-  const [aiConfigLoading, setAiConfigLoading] = useState(false);
   const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
     spreadsheetId: string;
     sheetName: string;
@@ -109,242 +108,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   
   // Edit states for each integration
   const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});
-  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
-
-  // Method to refresh integration status (call after connecting/disconnecting)
-  const refreshIntegrationStatus = useCallback(async () => {
-    console.log('🔍 ClientForm: Refreshing integration status');
-    setIntegrationStatus({}); // Clear current status
-    setIntegrationStatusLoading(false); // Reset loading state
-    
-    // Trigger a new check
-    const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
-    const statusPromises = platforms.map(async (platform) => {
-      try {
-        if (platform === 'googleSheets') {
-          const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-          return { platform, isConnected };
-        } else {
-          const { TokenManager } = await import('@/services/auth/TokenManager');
-          const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
-          return { platform, isConnected };
-        }
-      } catch (error) {
-        console.error(`Error checking ${platform} status:`, error);
-        return { platform, isConnected: false };
-      }
-    });
-    
-    const results = await Promise.all(statusPromises);
-    const statusMap = results.reduce((acc, { platform, isConnected }) => {
-      acc[platform] = isConnected;
-      return acc;
-    }, {} as Record<string, boolean>);
-    
-    setIntegrationStatus(statusMap);
-    console.log('🔍 ClientForm: Integration status refreshed', statusMap);
-  }, []);
-
-  // Load connected accounts when component mounts
-  useEffect(() => {
-    console.log('🔍 ClientForm: useEffect called - NOT loading accounts automatically');
-    
-    // DEBUG: Check environment variables
-    console.log('🔍 ClientForm: Environment variables check:');
-    console.log('🔍 ClientForm: VITE_GOOGLE_ADS_DEVELOPER_TOKEN:', import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN);
-    console.log('🔍 ClientForm: All VITE_ env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
-    
-    // Don't load accounts automatically - only when user clicks dropdowns
-    if (isEdit && clientId) {
-      loadAIConfig();
-    }
-    
-    // Check integration status for all platforms
-    const checkIntegrationStatus = async () => {
-      // Prevent multiple simultaneous checks
-      if (integrationStatusLoading) {
-        console.log('🔍 ClientForm: Integration status check already in progress, skipping');
-        return;
-      }
-      
-      setIntegrationStatusLoading(true);
-      console.log('🔍 ClientForm: Starting integration status check');
-      
-      try {
-        const platforms = ['facebookAds', 'googleAds', 'goHighLevel', 'googleSheets'];
-        const statusPromises = platforms.map(async (platform) => {
-          try {
-            if (platform === 'googleSheets') {
-              // Use the new Google Sheets OAuth service
-              const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-              return { platform, isConnected };
-            } else {
-              // Use TokenManager for reliable token checking
-              const { TokenManager } = await import('@/services/auth/TokenManager');
-              const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
-              return { platform, isConnected };
-            }
-          } catch (error) {
-            console.error(`Error checking ${platform} status:`, error);
-            return { platform, isConnected: false };
-          }
-        });
-        
-        const results = await Promise.all(statusPromises);
-        const statusMap = results.reduce((acc, { platform, isConnected }) => {
-          acc[platform] = isConnected;
-          return acc;
-        }, {} as Record<string, boolean>);
-        
-        setIntegrationStatus(statusMap);
-        console.log('🔍 ClientForm: Integration status check completed', statusMap);
-      } catch (error) {
-        console.error('🔍 ClientForm: Error during integration status check:', error);
-      } finally {
-        setIntegrationStatusLoading(false);
-      }
-    };
-    
-    checkIntegrationStatus();
-  }, [isEdit, clientId]);
-
-  // Load accounts for platforms that have account IDs in initial data
-  useEffect(() => {
-    if (initialData?.accounts) {
-      console.log('🔍 ClientForm: Initial data received, checking for account IDs to load', initialData.accounts);
-      
-      // Load Facebook accounts if we have a Facebook account ID
-      if (initialData.accounts.facebookAds && initialData.accounts.facebookAds !== 'none') {
-        console.log('🔍 ClientForm: Loading Facebook accounts for existing account ID:', initialData.accounts.facebookAds);
-        loadFacebookAccounts();
-      }
-      
-      // Load Google Ads accounts if we have a Google Ads account ID
-      if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
-        console.log('🔍 ClientForm: Loading Google Ads accounts for existing account ID:', initialData.accounts.googleAds);
-        loadGoogleAccounts();
-      } else {
-        // Check if Google Ads is connected and load accounts if needed
-        isIntegrationConnected('googleAds').then(isGoogleAdsConnected => {
-          if (isGoogleAdsConnected) {
-            console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
-            loadGoogleAccounts();
-          }
-        });
-      }
-      
-      // Load GHL accounts if we have a GHL account ID
-      if (initialData.accounts.goHighLevel && initialData.accounts.goHighLevel !== 'none') {
-        console.log('🔍 ClientForm: Loading GHL accounts for existing account ID:', initialData.accounts.goHighLevel);
-        
-        // If it's a string (location ID), convert it to object format
-        if (typeof initialData.accounts.goHighLevel === 'string') {
-          console.log('🔍 ClientForm: Converting string GoHighLevel ID to object format');
-          setFormData(prev => ({
-            ...prev,
-            accounts: {
-              ...prev.accounts,
-              goHighLevel: {
-                locationId: initialData.accounts.goHighLevel as string,
-                locationName: `Location ${initialData.accounts.goHighLevel}`,
-                locationToken: undefined
-              }
-            }
-          }));
-        }
-        
-        loadGHLAccounts();
-      }
-    }
-  }, [initialData]);
-
-  // Load accounts for platforms that have account IDs in initial data
-  useEffect(() => {
-    if (initialData?.accounts) {
-      console.log('🔍 ClientForm: Initial data received, checking for account IDs to load', initialData.accounts);
-      
-      // Load Facebook accounts if we have a Facebook account ID
-      if (initialData.accounts.facebookAds && initialData.accounts.facebookAds !== 'none') {
-        console.log('🔍 ClientForm: Loading Facebook accounts for existing account ID:', initialData.accounts.facebookAds);
-        loadFacebookAccounts();
-      }
-      
-      // Load Google Ads accounts if we have a Google Ads account ID
-      if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
-        console.log('🔍 ClientForm: Loading Google Ads accounts for existing account ID:', initialData.accounts.googleAds);
-        loadGoogleAccounts();
-      } else {
-        // Check if Google Ads is connected and load accounts if needed
-        isIntegrationConnected('googleAds').then(isGoogleAdsConnected => {
-          if (isGoogleAdsConnected) {
-            console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
-            loadGoogleAccounts();
-          }
-        });
-      }
-      
-      // Load GHL accounts if we have a GHL account ID
-      if (initialData.accounts.goHighLevel && initialData.accounts.goHighLevel !== 'none') {
-        console.log('🔍 ClientForm: Loading GHL accounts for existing account ID:', initialData.accounts.goHighLevel);
-        
-        // If it's a string (location ID), convert it to object format
-        if (typeof initialData.accounts.goHighLevel === 'string') {
-          console.log('🔍 ClientForm: Converting string GoHighLevel ID to object format');
-          setFormData(prev => ({
-            ...prev,
-            accounts: {
-              ...prev.accounts,
-              goHighLevel: {
-                locationId: initialData.accounts.goHighLevel as string,
-                locationName: `Location ${initialData.accounts.goHighLevel}`,
-                platform: 'goHighLevel'
-              }
-            }
-          }));
-        }
-        
-        loadGHLAccounts();
-      }
-    }
-  }, [initialData]);
-
-  // Initialize Google Sheets configuration from initial data
-  useEffect(() => {
-    if (initialData?.googleSheetsConfig) {
-      setGoogleSheetsConfig(initialData.googleSheetsConfig);
-      debugLogger.info('ClientForm', 'Initialized Google Sheets config from initial data', initialData.googleSheetsConfig);
-    }
-  }, [initialData]);
-
-  // Load conversion actions when Facebook Ads account changes
-  useEffect(() => {
-    if (formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none') {
-      loadFacebookConversionActions(formData.accounts.facebookAds);
-    }
-  }, [formData.accounts.facebookAds]);
-
-  // Load conversion actions when Google Ads account changes
-  useEffect(() => {
-    if (formData.accounts.googleAds && formData.accounts.googleAds !== 'none') {
-      loadGoogleConversionActions(formData.accounts.googleAds);
-    }
-  }, [formData.accounts.googleAds]);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, string | { spreadsheetId: string; sheetName: string }>>({});
 
   // Load Facebook Ads accounts when needed
-  const loadFacebookAccounts = async (forceRefresh = false) => {
+  const loadFacebookAccounts = useCallback(async (forceRefresh = false) => {
     if (facebookAccountsLoaded && !forceRefresh || facebookAccountsLoading) {
       return;
     }
     
-    console.log('🔍 ClientForm: Loading Facebook accounts on demand...', { forceRefresh });
+    debugLogger.info('ClientForm', 'Loading Facebook accounts on demand', { forceRefresh });
     setFacebookAccountsLoading(true);
     
     try {
-      console.log('🔍 ClientForm: Calling FacebookAdsService.getAdAccounts()...');
+      debugLogger.info('ClientForm', 'Calling FacebookAdsService.getAdAccounts');
       const adAccounts = forceRefresh 
         ? await FacebookAdsService.refreshAdAccounts()
         : await FacebookAdsService.getAdAccounts();
-      console.log('🔍 ClientForm: Facebook API response:', adAccounts);
+      debugLogger.info('ClientForm', 'Facebook API response received', { accountCount: adAccounts.length });
       
       const facebookAccounts = adAccounts.map(account => ({
         id: account.id,
@@ -355,19 +135,21 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       // Check specifically for Savanna Rooftop in the raw API response
       const savannaInRaw = adAccounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
       if (savannaInRaw) {
-        console.log('🎯 FOUND Savanna Rooftop in raw API response:', savannaInRaw);
+        debugLogger.info('ClientForm', 'Found Savanna Rooftop in raw API response', savannaInRaw);
       } else {
-        console.log('❌ Savanna Rooftop NOT found in raw API response');
-        console.log('🔍 All raw account names:', adAccounts.map(acc => acc.name));
+        debugLogger.debug('ClientForm', 'Savanna Rooftop not found in raw API response', { 
+          accountNames: adAccounts.map(acc => acc.name) 
+        });
       }
       
       // Check specifically for Savanna Rooftop in the mapped accounts
       const savannaInMapped = facebookAccounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
       if (savannaInMapped) {
-        console.log('🎯 FOUND Savanna Rooftop in mapped accounts:', savannaInMapped);
+        debugLogger.info('ClientForm', 'Found Savanna Rooftop in mapped accounts', savannaInMapped);
       } else {
-        console.log('❌ Savanna Rooftop NOT found in mapped accounts');
-        console.log('🔍 All mapped account names:', facebookAccounts.map(acc => acc.name));
+        debugLogger.debug('ClientForm', 'Savanna Rooftop not found in mapped accounts', { 
+          mappedAccountNames: facebookAccounts.map(acc => acc.name) 
+        });
       }
       
       setConnectedAccounts(prev => [
@@ -376,15 +158,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       ]);
       
       setFacebookAccountsLoaded(true);
-      console.log('🔍 ClientForm: Facebook accounts loaded successfully:', facebookAccounts.length);
-      console.log('🔍 ClientForm: Available Facebook accounts:', facebookAccounts);
+      debugLogger.info('ClientForm', 'Facebook accounts loaded successfully', { 
+        accountCount: facebookAccounts.length,
+        accounts: facebookAccounts 
+      });
     } catch (error) {
-      console.error('🔍 ClientForm: Failed to load Facebook accounts:', error);
       debugLogger.error('ClientForm', 'Failed to load Facebook accounts', error);
       
       // Show user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to load Facebook accounts';
-      console.warn('🔍 ClientForm: Facebook accounts loading failed:', errorMessage);
+      debugLogger.warn('ClientForm', 'Facebook accounts loading failed', { errorMessage });
       
       // Add error indicator to connected accounts so user knows there was an issue
       setConnectedAccounts(prev => [
@@ -401,23 +184,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     } finally {
       setFacebookAccountsLoading(false);
     }
-  };
+  }, [facebookAccountsLoaded, facebookAccountsLoading]);
 
   // Load Google Ads accounts when needed
-  const loadGoogleAccounts = async () => {
-    console.log('🔍 ClientForm: loadGoogleAccounts function called');
+  const loadGoogleAccounts = useCallback(async (forceReload = false) => {
+    debugLogger.info('ClientForm', 'loadGoogleAccounts function called', { forceReload, googleAccountsLoaded });
     
-    if (googleAccountsLoaded) {
-      console.log('🔍 ClientForm: Google accounts already loaded, skipping');
+    if (googleAccountsLoaded && !forceReload) {
+      debugLogger.debug('ClientForm', 'Google accounts already loaded, skipping');
       return;
     }
     
-    console.log('🔍 ClientForm: Loading Google Ads accounts on demand...');
+    debugLogger.info('ClientForm', 'Loading Google Ads accounts on demand');
     
     try {
-      console.log('🔍 ClientForm: Calling GoogleAdsService.getAdAccounts()...');
+      debugLogger.info('ClientForm', 'Calling GoogleAdsService.getAdAccounts');
       const googleAccounts = await GoogleAdsService.getAdAccounts();
-      console.log('🔍 ClientForm: Google Ads API response:', googleAccounts);
+      debugLogger.info('ClientForm', 'Google Ads API response received', { accountCount: googleAccounts.length });
       
       const accounts = googleAccounts.map(account => ({
         id: account.id,
@@ -427,9 +210,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       
       setConnectedAccounts(prev => [...prev, ...accounts]);
       setGoogleAccountsLoaded(true);
-      console.log('🔍 ClientForm: Google Ads accounts loaded', accounts.length);
+      debugLogger.info('ClientForm', 'Google Ads accounts loaded successfully', { accountCount: accounts.length });
     } catch (error) {
-      console.error('🔍 ClientForm: Google Ads error', error);
+      debugLogger.error('ClientForm', 'Google Ads error', error);
       // Add error to connected accounts so user knows there was an issue
       setConnectedAccounts(prev => [...prev, {
         id: 'google_error',
@@ -438,39 +221,39 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }]);
       setGoogleAccountsLoaded(true);
     }
-  };
+  }, [googleAccountsLoaded]);
 
   // Load GoHighLevel accounts when needed (simplified for location-level OAuth)
-  const loadGHLAccounts = async () => {
+  const loadGHLAccounts = useCallback(async () => {
     if (ghlAccountsLoaded) {
       return;
     }
     
-    console.log('🔍 ClientForm: Loading GoHighLevel accounts on demand...');
+    debugLogger.info('ClientForm', 'Loading GoHighLevel accounts on demand');
     
     try {
-      console.log('🔍 ClientForm: Getting integrations from database...');
+      debugLogger.info('ClientForm', 'Getting integrations from database');
       const integrations = await DatabaseService.getIntegrations();
-      console.log('🔍 ClientForm: Integrations from database:', integrations);
+      debugLogger.info('ClientForm', 'Integrations from database', { integrationCount: integrations.length });
       
       const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
-      console.log('🔍 ClientForm: GoHighLevel integration:', ghlIntegration);
+      debugLogger.info('ClientForm', 'GoHighLevel integration found', ghlIntegration);
       
       // Check if there's an OAuth connection (not just API key)
       const hasOAuthConnection = ghlIntegration?.config?.apiKey?.keyType === 'bearer' && 
                                  ghlIntegration?.config?.refreshToken;
       
       if (hasOAuthConnection) {
-        console.log('🔍 ClientForm: GoHighLevel OAuth connection found');
+        debugLogger.info('ClientForm', 'GoHighLevel OAuth connection found');
         setConnectedAccounts(prev => [...prev, {
           id: 'ghl_connected',
           name: 'GoHighLevel Connected',
           platform: 'goHighLevel' as const
         }]);
         setGhlAccountsLoaded(true);
-        console.log('🔍 ClientForm: GoHighLevel connection confirmed');
+        debugLogger.info('ClientForm', 'GoHighLevel connection confirmed');
       } else {
-        console.log('🔍 ClientForm: GoHighLevel not connected, adding not connected option');
+        debugLogger.info('ClientForm', 'GoHighLevel not connected, adding not connected option');
         setConnectedAccounts(prev => [...prev, {
           id: 'ghl_not_connected',
           name: 'GoHighLevel not connected',
@@ -479,7 +262,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         setGhlAccountsLoaded(true);
       }
     } catch (error) {
-      console.error('🔍 ClientForm: GoHighLevel error', error);
+      debugLogger.error('ClientForm', 'GoHighLevel error', error);
       // Add error to connected accounts so user knows there was an issue
       setConnectedAccounts(prev => [...prev, {
         id: 'ghl_error',
@@ -488,9 +271,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }]);
       setGhlAccountsLoaded(true);
     }
-  };
+  }, [ghlAccountsLoaded]);
 
-  const loadAIConfig = async () => {
+  const loadAIConfig = useCallback(async () => {
     if (!clientId) {
       return;
     }
@@ -501,9 +284,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     } catch (error) {
       debugLogger.error('ClientForm', 'Error loading AI config', error);
     }
-  };
+  }, [clientId]);
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<globalThis.HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
@@ -532,7 +315,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
         debugLogger.info('ClientForm', 'Logo uploaded successfully', { logoUrl });
       } catch (error) {
-        console.error('Error uploading logo:', error);
+        debugLogger.error('ClientForm', 'Error uploading logo', error);
         setErrors({ logo: 'Failed to upload logo. Please try again.' });
       }
     }
@@ -583,7 +366,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           debugLogger.info('ClientForm', 'AI config updated successfully');
         } catch (error) {
           debugLogger.error('ClientForm', 'Error updating AI config', error);
-          console.error('Error updating AI config:', error);
         }
       }
 
@@ -611,7 +393,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       setSubmitSuccess(`${isEdit ? 'Client updated' : 'Client created'} successfully!`);
       
       // Clear success message after 2 seconds and close modal
-      window.setTimeout(() => {
+      globalThis.setTimeout(() => {
         setSubmitSuccess(null);
         if (isEdit) {
           onCancel(); // Close the modal
@@ -680,7 +462,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     if (pendingValue !== undefined) {
       setFormData(prev => {
         if (platform === 'goHighLevel') {
-          if (pendingValue === "none") {
+          if (typeof pendingValue === 'string' && pendingValue === "none") {
             return {
               ...prev,
               accounts: {
@@ -690,34 +472,40 @@ export const ClientForm: React.FC<ClientFormProps> = ({
             };
           }
           
-          // Find the selected location details
-          const selectedLocation = connectedAccounts.find(account => 
-            account.platform === 'goHighLevel' && account.id === pendingValue
-          );
-          
-          if (selectedLocation) {
-            return {
-              ...prev,
-              accounts: {
-                ...prev.accounts,
-                goHighLevel: {
-                  locationId: pendingValue,
-                  locationName: selectedLocation.name,
-                  locationToken: undefined
+          if (typeof pendingValue === 'string') {
+            // Find the selected location details
+            const selectedLocation = connectedAccounts.find(account => 
+              account.platform === 'goHighLevel' && account.id === pendingValue
+            );
+            
+            if (selectedLocation) {
+              return {
+                ...prev,
+                accounts: {
+                  ...prev.accounts,
+                  goHighLevel: {
+                    locationId: pendingValue,
+                    locationName: selectedLocation.name,
+                    locationToken: undefined
+                  },
                 },
-              },
-            };
+              };
+            }
           }
         }
         
         // Default handling for other platforms
-        return {
-          ...prev,
-          accounts: {
-            ...prev.accounts,
-            [platform]: pendingValue === "none" ? "" : pendingValue,
-          },
-        };
+        if (typeof pendingValue === 'string') {
+          return {
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              [platform]: pendingValue === "none" ? "" : pendingValue,
+            },
+          };
+        }
+        
+        return prev;
       });
     }
 
@@ -735,7 +523,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   const handleDisconnectGHL = async () => {
     try {
-      console.log('🔍 ClientForm: Disconnecting GoHighLevel...');
+      debugLogger.info('ClientForm', 'Disconnecting GoHighLevel');
       
       // Clear the form data
       setFormData(prev => ({
@@ -749,7 +537,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       // Disconnect from database
       await DatabaseService.disconnectIntegration('goHighLevel');
       
-      console.log('🔍 ClientForm: GoHighLevel disconnected successfully');
+      debugLogger.info('ClientForm', 'GoHighLevel disconnected successfully');
       
       // Refresh integration status
       window.location.reload();
@@ -777,7 +565,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         facebookAds: actions
       }));
     } catch (error) {
-      console.error('Failed to load Facebook conversion actions:', error);
+      debugLogger.error('ClientForm', 'Failed to load Facebook conversion actions', error);
     }
   };
 
@@ -789,22 +577,24 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         googleAds: actions
       }));
     } catch (error) {
-      console.error('Failed to load Google Ads conversion actions:', error);
+      debugLogger.error('ClientForm', 'Failed to load Google Ads conversion actions', error);
     }
   };
 
   const getAvailableAccounts = (platform: string) => {
     const accounts = connectedAccounts.filter(account => account.platform === platform);
-    console.log(`🔍 ClientForm: getAvailableAccounts(${platform}):`, accounts);
-    console.log(`🔍 ClientForm: Total connectedAccounts:`, connectedAccounts.length);
-    console.log(`🔍 ClientForm: All connectedAccounts:`, connectedAccounts);
+    debugLogger.debug('ClientForm', `getAvailableAccounts(${platform})`, { 
+      accountCount: accounts.length,
+      totalConnectedAccounts: connectedAccounts.length,
+      accounts 
+    });
     
     // Check specifically for Savanna Rooftop
     const savannaAccount = accounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
     if (savannaAccount) {
-      console.log('🎯 FOUND Savanna Rooftop in getAvailableAccounts:', savannaAccount);
+      debugLogger.info('ClientForm', 'Found Savanna Rooftop in getAvailableAccounts', savannaAccount);
     } else {
-      console.log('❌ Savanna Rooftop NOT found in getAvailableAccounts');
+      debugLogger.debug('ClientForm', 'Savanna Rooftop not found in getAvailableAccounts');
     }
     
     return accounts;
@@ -812,7 +602,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Synchronous version for UI rendering
   const isIntegrationConnectedSync = (platform: string): boolean => {
-    console.log(`🔍 ClientForm: Checking if ${platform} is connected (sync)`);
+    debugLogger.debug('ClientForm', `Checking if ${platform} is connected (sync)`);
     
     // For GoHighLevel, it's always client-level only - check if client has location configured
     if (platform === 'goHighLevel') {
@@ -820,7 +610,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         ? formData.accounts.goHighLevel && formData.accounts.goHighLevel !== 'none'
         : formData.accounts.goHighLevel?.locationId && formData.accounts.goHighLevel?.locationId !== 'none';
       
-      console.log(`🔍 ClientForm: GoHighLevel client-level check:`, {
+      debugLogger.debug('ClientForm', 'GoHighLevel client-level check', {
         hasLocationId,
         formData: formData.accounts.goHighLevel
       });
@@ -829,13 +619,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     
     // For other platforms, check admin integration status
     const isConnected = integrationStatus[platform] || false;
-    console.log(`🔍 ClientForm: isIntegrationConnectedSync(${platform}) = ${isConnected}`);
+    debugLogger.debug('ClientForm', `isIntegrationConnectedSync(${platform}) = ${isConnected}`);
     return isConnected;
   };
 
   // Async version for account loading
-  const isIntegrationConnected = async (platform: string): Promise<boolean> => {
-    console.log(`🔍 ClientForm: Checking if ${platform} is connected (async)`);
+  const isIntegrationConnected = useCallback(async (platform: string): Promise<boolean> => {
+    debugLogger.debug('ClientForm', `Checking if ${platform} is connected (async)`);
     
     // For GoHighLevel, it's always client-level only - check if client has location configured
     if (platform === 'goHighLevel') {
@@ -843,7 +633,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         ? formData.accounts.goHighLevel && formData.accounts.goHighLevel !== 'none'
         : formData.accounts.goHighLevel?.locationId && formData.accounts.goHighLevel?.locationId !== 'none';
       
-      console.log(`🔍 ClientForm: GoHighLevel client-level check:`, {
+      debugLogger.debug('ClientForm', 'GoHighLevel client-level check', {
         hasLocationId,
         formData: formData.accounts.goHighLevel
       });
@@ -856,24 +646,78 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       try {
         if (platform === 'googleSheets') {
           const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-          console.log(`🔍 ClientForm: Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
+          debugLogger.debug('ClientForm', `Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
           return isConnected;
         } else {
           const { TokenManager } = await import('@/services/auth/TokenManager');
           const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
-          console.log(`🔍 ClientForm: Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
+          debugLogger.debug('ClientForm', `Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
           return isConnected;
         }
       } catch (error) {
-        console.error(`Error checking ${platform} status directly:`, error);
+        debugLogger.error('ClientForm', `Error checking ${platform} status directly`, error);
         return false;
       }
     }
     
     const isConnected = integrationStatus[platform] || false;
-    console.log(`🔍 ClientForm: isIntegrationConnected(${platform}) = ${isConnected}`);
+    debugLogger.debug('ClientForm', `isIntegrationConnected(${platform}) = ${isConnected}`);
     return isConnected;
-  };
+  }, [formData.accounts.goHighLevel, integrationStatus]);
+
+  // Load AI config when component mounts (for edit mode)
+  useEffect(() => {
+    if (isEdit && clientId) {
+      loadAIConfig();
+    }
+  }, [isEdit, clientId, integrationStatusLoading, loadAIConfig]);
+
+  // Load accounts for platforms that have account IDs in initial data
+  useEffect(() => {
+    if (initialData?.accounts) {
+      debugLogger.info('ClientForm', 'Initial data received, checking for account IDs to load', initialData.accounts);
+      
+      // Load Facebook accounts if we have a Facebook account ID
+      if (initialData.accounts.facebookAds && initialData.accounts.facebookAds !== 'none') {
+        debugLogger.info('ClientForm', 'Loading Facebook accounts for existing account ID', initialData.accounts.facebookAds);
+        loadFacebookAccounts();
+      }
+      
+      // Load Google Ads accounts if we have a Google Ads account ID
+      if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
+        debugLogger.info('ClientForm', 'Loading Google Ads accounts for existing account ID', initialData.accounts.googleAds);
+        loadGoogleAccounts();
+      }
+      
+      // Load GoHighLevel accounts if we have a GoHighLevel account ID
+      if (initialData.accounts.goHighLevel && initialData.accounts.goHighLevel !== 'none') {
+        debugLogger.info('ClientForm', 'Loading GoHighLevel accounts for existing account ID', initialData.accounts.goHighLevel);
+        loadGHLAccounts();
+      }
+    }
+  }, [initialData, isIntegrationConnected, loadFacebookAccounts, loadGHLAccounts, loadGoogleAccounts]);
+
+  // Load conversion actions when Facebook Ads account changes
+  useEffect(() => {
+    if (formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none') {
+      loadFacebookConversionActions(formData.accounts.facebookAds);
+    }
+  }, [formData.accounts.facebookAds]);
+
+  // Load conversion actions when Google Ads account changes
+  useEffect(() => {
+    if (formData.accounts.googleAds && formData.accounts.googleAds !== 'none') {
+      loadGoogleConversionActions(formData.accounts.googleAds);
+    }
+  }, [formData.accounts.googleAds]);
+
+  // Initialize Google Sheets configuration from initial data
+  useEffect(() => {
+    if (initialData?.googleSheetsConfig) {
+      setGoogleSheetsConfig(initialData.googleSheetsConfig);
+      debugLogger.info('ClientForm', 'Initialized Google Sheets config from initial data', initialData.googleSheetsConfig);
+    }
+  }, [initialData]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -894,9 +738,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           <Label className="text-sm font-medium">Status</Label>
           <Select
             value={formData.status}
-            onValueChange={(value: 'active' | 'paused' | 'inactive') => 
-              setFormData(prev => ({ ...prev, status: value }))
-            }
+            onValueChange={(value: string) => {
+              if (value === 'active' || value === 'paused' || value === 'inactive') {
+                setFormData(prev => ({ ...prev, status: value }));
+              }
+            }}
           >
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select status" />
@@ -1003,7 +849,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             label: account.name
                           }))
                         ]}
-                        value={(pendingChanges.facebookAds ?? formData.accounts.facebookAds) || "none"}
+                        value={(() => {
+                          const pendingValue = pendingChanges.facebookAds ?? formData.accounts.facebookAds;
+                          return typeof pendingValue === 'string' ? pendingValue : "none";
+                        })()}
                         onValueChange={(value) => handleAccountSelect("facebookAds", value)}
                         placeholder="Select account"
                         searchPlaceholder="Search accounts..."
@@ -1028,7 +877,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             <SelectValue placeholder="Select action" />
                           </SelectTrigger>
                           <SelectContent>
-                            {conversionActions.facebookAds?.map((action: any) => (
+                            {(conversionActions.facebookAds as Array<{ id: string; name: string }>)?.map((action) => (
                               <SelectItem key={action.id} value={action.id}>
                                 {action.name}
                               </SelectItem>
@@ -1135,14 +984,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                             label: account.name
                           }))
                         ]}
-                        value={(pendingChanges.googleAds ?? formData.accounts.googleAds) || "none"}
+                        value={(() => {
+                          const pendingValue = pendingChanges.googleAds ?? formData.accounts.googleAds;
+                          return typeof pendingValue === 'string' ? pendingValue : "none";
+                        })()}
                         onValueChange={(value) => handleAccountSelect("googleAds", value)}
                         placeholder="Select account"
                         searchPlaceholder="Search accounts..."
                         className="mt-1"
                         onOpenChange={(open) => {
                           if (open && !googleAccountsLoaded) {
-                            loadGoogleAccounts();
+                            loadGoogleAccounts(true); // Force reload to get latest accounts
                           }
                         }}
                       />
@@ -1155,7 +1007,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         <SearchableSelect
                           options={[
                             { value: "conversions", label: "Conversions" },
-                            ...(conversionActions.googleAds || []).map((action: any) => ({
+                            ...(conversionActions.googleAds as Array<{ id: string; name: string }> || []).map((action) => ({
                               value: action.id,
                               label: action.name
                             }))
@@ -1275,7 +1127,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <div className="text-center py-4">
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
-                  onConnected={(_locationId) => {
+                  onConnected={() => {
                     window.location.reload();
                   }}
                 />
@@ -1334,7 +1186,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         size="sm"
                         onClick={() => {
                           const pending = pendingChanges.googleSheets;
-                          if (pending) {
+                          if (pending && typeof pending === 'object' && 'spreadsheetId' in pending) {
                             setGoogleSheetsConfig(pending);
                             setFormData(prev => ({
                               ...prev,
@@ -1436,7 +1288,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   <Label className="text-xs font-medium text-gray-600">Frequency</Label>
                   <Select
                     value={aiConfig?.frequency || 'weekly'}
-                    onValueChange={handleAIFrequencyChange}
+                    onValueChange={(value: string) => {
+                      if (value === 'daily' || value === 'weekly' || value === 'monthly') {
+                        handleAIFrequencyChange(value);
+                      }
+                    }}
                     data-testid="ai-frequency"
                   >
                     <SelectTrigger className="mt-1">

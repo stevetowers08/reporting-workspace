@@ -6,7 +6,7 @@
 
 import { Card } from '@/components/ui/card';
 // Old import (still works)
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 // New modular imports (when ready to migrate)
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -179,7 +179,7 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
 /**
  * Migration Notes:
  * 
- * 1. Keep the old import working: `import { GoHighLevelService } from '@/services/api/goHighLevelService';`
+ * 1. Keep the old import working: `import { GoHighLevelService } from '@/services/ghl/goHighLevelService';`
  * 2. Add new import when ready: `import { GHLAnalytics } from '@/services/ghl';`
  * 3. Gradually replace method calls:
  *    - Old: `GoHighLevelService.getFunnelAnalytics()`

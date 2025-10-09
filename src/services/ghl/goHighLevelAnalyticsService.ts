@@ -1,17 +1,16 @@
 // GoHighLevel Analytics Service
 
 import { debugLogger } from '@/lib/debug';
-import { supabase } from '@/lib/supabase';
-import { GHLRateLimiter, GHLValidator } from './goHighLevelUtils';
-import { GoHighLevelAuthService } from './goHighLevelAuthService';
 import { GoHighLevelApiService } from './goHighLevelApiService';
-import type { 
-  GHLMetrics,
-  GHLFunnelAnalytics,
-  GHLPageAnalytics,
-  GHLOpportunityAnalytics,
-  GHLCalendarAnalytics
+import { GoHighLevelAuthService } from './goHighLevelAuthService';
+import type {
+    GHLCalendarAnalytics,
+    GHLFunnelAnalytics,
+    GHLMetrics,
+    GHLOpportunityAnalytics,
+    GHLPageAnalytics
 } from './goHighLevelTypes';
+import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelAnalyticsService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';

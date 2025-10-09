@@ -1,6 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';

@@ -4,21 +4,17 @@
 export * from './goHighLevelTypes';
 
 // Re-export all services
-export { GoHighLevelAuthService } from './goHighLevelAuthService';
-export { GoHighLevelApiService } from './goHighLevelApiService';
 export { GoHighLevelAnalyticsService } from './goHighLevelAnalyticsService';
-export { 
-  GHLRateLimiter, 
-  GHLQueryBuilder, 
-  GHLCache, 
-  GHLValidator, 
-  GHLFormatter 
+export { GoHighLevelApiService } from './goHighLevelApiService';
+export { GoHighLevelAuthService } from './goHighLevelAuthService';
+export {
+  GHLCache, GHLFormatter, GHLQueryBuilder, GHLRateLimiter, GHLValidator
 } from './goHighLevelUtils';
 
 // Main service class for backward compatibility
-import { GoHighLevelAuthService } from './goHighLevelAuthService';
-import { GoHighLevelApiService } from './goHighLevelApiService';
 import { GoHighLevelAnalyticsService } from './goHighLevelAnalyticsService';
+import { GoHighLevelApiService } from './goHighLevelApiService';
+import { GoHighLevelAuthService } from './goHighLevelAuthService';
 // Types are re-exported above, no need to import here
 
 export class GoHighLevelService {

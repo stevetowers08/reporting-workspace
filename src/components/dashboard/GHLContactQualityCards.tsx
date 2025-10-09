@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { Calendar, TrendingUp, UserPlus, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 

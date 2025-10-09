@@ -2,17 +2,16 @@
 
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
-import { GHLRateLimiter, GHLQueryBuilder, GHLValidator } from './goHighLevelUtils';
 import { GoHighLevelAuthService } from './goHighLevelAuthService';
-import type { 
-  GHLContact, 
-  GHLCampaign, 
-  GHLAccount,
-  GHLFunnel,
-  GHLFunnelPage,
-  GHLOpportunity,
-  GHLCalendarEvent
+import type {
+    GHLCalendarEvent,
+    GHLCampaign,
+    GHLContact,
+    GHLFunnel,
+    GHLFunnelPage,
+    GHLOpportunity
 } from './goHighLevelTypes';
+import { GHLQueryBuilder, GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelApiService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';

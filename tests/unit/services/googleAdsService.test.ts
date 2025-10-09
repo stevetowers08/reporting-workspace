@@ -24,6 +24,14 @@ vi.mock('@/lib/debug', () => ({
   },
 }));
 
+// Mock TokenManager
+vi.mock('@/services/auth/TokenManager', () => ({
+  TokenManager: {
+    getAccessToken: vi.fn(),
+    isConnected: vi.fn(),
+  },
+}));
+
 // Mock fetch for testing
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -57,18 +65,20 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
       const result = await GoogleAdsService.getAdAccounts();
       
       expect(result).toBeDefined();
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        id: 1234567890,
+        id: '1234567890',
         name: 'Test Ad Account',
-        currencyCode: 'USD',
-        timeZone: 'America/New_York',
+        currency: 'USD',
+        timezone: 'America/New_York',
         status: 'ACTIVE'
       });
     });
@@ -88,24 +98,24 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set invalid token
-      // GoogleAdsService.setAccessToken('invalid-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('invalid-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getAdAccounts()).rejects.toThrow();
     });
 
     it('should handle network errors', async () => {
       // Mock network error
       mockFetch.mockRejectedValue(new Error('Network error'));
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow('Network error');
+      await expect(GoogleAdsService.getAdAccounts()).rejects.toThrow('Network error');
     });
 
     it('should handle empty response', async () => {
@@ -115,8 +125,10 @@ describe('GoogleAdsService', () => {
         json: () => Promise.resolve({ results: [] })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
       const result = await GoogleAdsService.getAdAccounts();
       
@@ -124,13 +136,15 @@ describe('GoogleAdsService', () => {
       expect(result).toHaveLength(0);
     });
 
-    it('should throw error when no token is set', async () => {
-      // Don't set token
-      // GoogleAdsService.setAccessToken('');
+    it('should return empty array when not connected', async () => {
+      // Mock TokenManager - not connected
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.isConnected as any).mockResolvedValue(false);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow('Google Ads access token not set');
+      const result = await GoogleAdsService.getAdAccounts();
+      
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(0);
     });
   });
 
@@ -162,8 +176,10 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
       const result = await GoogleAdsService.getAccountMetrics('1234567890', {
         start: '2024-01-01',
@@ -174,14 +190,11 @@ describe('GoogleAdsService', () => {
       expect(result).toMatchObject({
         impressions: 10000,
         clicks: 500,
-        spend: 25.00, // Converted from micros
+        cost: 25.00, // Converted from micros
         conversions: 25,
         ctr: 5.0,
-        cpc: 0.50, // Converted from micros
-        cpm: 2.50, // Converted from micros
-        roas: 2.5,
-        reach: 8000,
-        frequency: 1.25
+        averageCpc: 0.50, // Converted from micros
+        leads: 25 // Same as conversions
       });
     });
 
@@ -200,59 +213,72 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAccountMetrics('1234567890', {
-          start: 'invalid-date',
-          end: 'invalid-date'
-        })
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getAccountMetrics('1234567890', {
+        start: 'invalid-date',
+        end: 'invalid-date'
+      })).rejects.toThrow();
+    });
+
+    it('should return empty metrics when not connected', async () => {
+      // Mock TokenManager - not connected
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.isConnected as any).mockResolvedValue(false);
+
+      const result = await GoogleAdsService.getAccountMetrics('1234567890', {
+        start: '2024-01-01',
+        end: '2024-01-31'
+      });
+      
+      expect(result).toBeDefined();
+      expect(result.impressions).toBe(0);
+      expect(result.clicks).toBe(0);
+      expect(result.cost).toBe(0);
     });
   });
 
-  describe('getCampaigns', () => {
-    it('should return campaigns successfully', async () => {
+  describe('getConversionActions', () => {
+    it('should return conversion actions successfully', async () => {
       // Mock successful response
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ 
           results: [
             {
-              resourceName: 'customers/1234567890/campaigns/1111111111',
+              resourceName: 'customers/1234567890/conversionActions/1111111111',
               id: 1111111111,
-              name: 'Test Campaign',
-              status: 'ACTIVE',
-              advertisingChannelType: 'SEARCH',
-              startDate: '2024-01-01',
-              endDate: '2024-12-31',
-              budget: {
-                resourceName: 'customers/1234567890/campaignBudgets/2222222222',
-                amountMicros: 100000000 // $100.00 in micros
-              }
+              name: 'Lead Form Submission',
+              status: 'ENABLED',
+              type: 'WEBSITE',
+              category: 'LEAD'
             }
           ]
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      const result = await GoogleAdsService.getCampaigns('1234567890');
+      const result = await GoogleAdsService.getConversionActions('1234567890');
       
       expect(result).toBeDefined();
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        id: 1111111111,
-        name: 'Test Campaign',
-        status: 'ACTIVE',
-        advertisingChannelType: 'SEARCH',
-        budget: 100.00 // Converted from micros
+        id: '1111111111',
+        name: 'Lead Form Submission',
+        status: 'ENABLED',
+        type: 'WEBSITE',
+        category: 'LEAD'
       });
     });
 
-    it('should handle campaigns API errors', async () => {
+    it('should handle conversion actions API errors', async () => {
       // Mock error response
       mockFetch.mockResolvedValue({
         ok: false,
@@ -267,256 +293,91 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getCampaigns('1234567890')
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getConversionActions('1234567890')).rejects.toThrow();
     });
   });
 
-  describe('getCampaignMetrics', () => {
-    it('should return campaign metrics successfully', async () => {
+  describe('testConnection', () => {
+    it('should test connection successfully', async () => {
       // Mock successful response
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ 
           results: [
             {
-              metrics: {
-                impressions: 5000,
-                clicks: 250,
-                costMicros: 12500000, // $12.50 in micros
-                conversions: 12,
-                conversionsByConversionAction: {
-                  'conversions': 12
-                },
-                ctr: 5.0,
-                averageCpc: 50000, // $0.50 in micros
-                averageCpm: 2500000, // $2.50 in micros
-                roas: 2.0,
-                reach: 4000,
-                frequency: 1.25
-              }
+              resourceName: 'customers/1234567890',
+              id: 1234567890,
+              name: 'Test Account',
+              status: 'ACTIVE'
             }
           ]
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      const result = await GoogleAdsService.getCampaignMetrics('1111111111', {
-        start: '2024-01-01',
-        end: '2024-01-31'
-      });
+      const result = await GoogleAdsService.testConnection();
       
-      expect(result).toBeDefined();
-      expect(result).toMatchObject({
-        impressions: 5000,
-        clicks: 250,
-        spend: 12.50, // Converted from micros
-        conversions: 12,
-        ctr: 5.0,
-        cpc: 0.50, // Converted from micros
-        cpm: 2.50, // Converted from micros
-        roas: 2.0,
-        reach: 4000,
-        frequency: 1.25
-      });
+      expect(result.success).toBe(true);
+      expect(result.accountInfo).toBeDefined();
     });
 
-    it('should handle campaign metrics API errors', async () => {
+    it('should handle connection test errors', async () => {
       // Mock error response
       mockFetch.mockResolvedValue({
         ok: false,
-        status: 404,
-        statusText: 'Not Found',
+        status: 401,
+        statusText: 'Unauthorized',
         json: () => Promise.resolve({ 
           error: {
-            message: 'Campaign not found',
-            code: 404,
-            status: 'NOT_FOUND'
+            message: 'Invalid access token',
+            code: 401,
+            status: 'UNAUTHENTICATED'
           }
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('invalid-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getCampaignMetrics('invalid-campaign', {
-          start: '2024-01-01',
-          end: '2024-01-31'
-        })
-      ).rejects.toThrow();
+      const result = await GoogleAdsService.testConnection();
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 
-  describe('getKeywords', () => {
-    it('should return keywords successfully', async () => {
-      // Mock successful response
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ 
-          results: [
-            {
-              resourceName: 'customers/1234567890/keywordPlanAdGroupKeywords/3333333333',
-              keywordPlanAdGroup: 'customers/1234567890/keywordPlanAdGroups/4444444444',
-              text: 'test keyword',
-              matchType: 'EXACT',
-              cpcBidMicros: 1000000 // $1.00 in micros
-            }
-          ]
-        })
-      });
+  describe('authenticate', () => {
+    it('should authenticate successfully', async () => {
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
-
-      const result = await GoogleAdsService.getKeywords('1111111111');
+      const result = await GoogleAdsService.authenticate('test-token');
       
-      expect(result).toBeDefined();
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        text: 'test keyword',
-        matchType: 'EXACT',
-        cpcBid: 1.00 // Converted from micros
-      });
+      expect(result).toBe(true);
     });
 
-    it('should handle keywords API errors', async () => {
-      // Mock error response
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-        json: () => Promise.resolve({ 
-          error: {
-            message: 'Invalid campaign ID',
-            code: 400,
-            status: 'INVALID_ARGUMENT'
-          }
-        })
-      });
+    it('should fail authentication when no token', async () => {
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue(null);
+      (TokenManager.isConnected as any).mockResolvedValue(false);
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
-
-      await expect(
-        GoogleAdsService.getKeywords('invalid-campaign')
-      ).rejects.toThrow();
-    });
-  });
-
-  describe('getAdGroups', () => {
-    it('should return ad groups successfully', async () => {
-      // Mock successful response
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ 
-          results: [
-            {
-              resourceName: 'customers/1234567890/adGroups/5555555555',
-              id: 5555555555,
-              name: 'Test Ad Group',
-              status: 'ACTIVE',
-              campaign: 'customers/1234567890/campaigns/1111111111',
-              cpcBidMicros: 2000000 // $2.00 in micros
-            }
-          ]
-        })
-      });
-
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
-
-      const result = await GoogleAdsService.getAdGroups('1111111111');
+      const result = await GoogleAdsService.authenticate();
       
-      expect(result).toBeDefined();
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        id: 5555555555,
-        name: 'Test Ad Group',
-        status: 'ACTIVE',
-        cpcBid: 2.00 // Converted from micros
-      });
-    });
-
-    it('should handle ad groups API errors', async () => {
-      // Mock error response
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-        json: () => Promise.resolve({ 
-          error: {
-            message: 'Invalid campaign ID',
-            code: 400,
-            status: 'INVALID_ARGUMENT'
-          }
-        })
-      });
-
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
-
-      await expect(
-        GoogleAdsService.getAdGroups('invalid-campaign')
-      ).rejects.toThrow();
-    });
-  });
-
-  describe('token management', () => {
-    it('should set and get access token', () => {
-      const token = 'test-access-token';
-      GoogleAdsService.setAccessToken(token);
-      
-      // Note: The service doesn't have a getter, but we can test by making a request
-      // and checking if the token is used in the request
-      expect(() => GoogleAdsService.setAccessToken(token)).not.toThrow();
-    });
-
-    it('should handle token refresh', async () => {
-      // Mock token refresh response
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          access_token: 'new-access-token',
-          token_type: 'Bearer',
-          expires_in: 3600,
-          refresh_token: 'new-refresh-token'
-        })
-      });
-
-      const result = await GoogleAdsService.refreshAccessToken('refresh-token');
-      
-      expect(result).toMatchObject({
-        access_token: 'new-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        refresh_token: 'new-refresh-token'
-      });
-    });
-
-    it('should handle token refresh errors', async () => {
-      // Mock error response
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-        json: () => Promise.resolve({ 
-          error: {
-            error: 'invalid_grant',
-            error_description: 'Invalid refresh token'
-          }
-        })
-      });
-
-      await expect(
-        GoogleAdsService.refreshAccessToken('invalid-refresh-token')
-      ).rejects.toThrow();
+      expect(result).toBe(false);
     });
   });
 
@@ -539,12 +400,12 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getAdAccounts()).rejects.toThrow();
     });
 
     it('should handle server errors', async () => {
@@ -562,12 +423,12 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getAdAccounts()).rejects.toThrow();
     });
 
     it('should handle quota exceeded errors', async () => {
@@ -593,12 +454,12 @@ describe('GoogleAdsService', () => {
         })
       });
 
-      // Set access token
-      // GoogleAdsService.setAccessToken('test-token');
+      // Mock TokenManager
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      (TokenManager.getAccessToken as any).mockResolvedValue('test-token');
+      (TokenManager.isConnected as any).mockResolvedValue(true);
 
-      await expect(
-        GoogleAdsService.getAdAccounts()
-      ).rejects.toThrow();
+      await expect(GoogleAdsService.getAdAccounts()).rejects.toThrow();
     });
   });
 

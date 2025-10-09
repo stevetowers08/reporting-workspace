@@ -1,6 +1,6 @@
 import { LazyChartWrapper } from '@/components/charts/LazyChartWrapper';
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 
 interface DailyFunnelAnalyticsProps {

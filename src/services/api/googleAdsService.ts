@@ -176,6 +176,12 @@ export class GoogleAdsService {
             continue;
           }
           
+          // Skip manager accounts - only show individual ad accounts
+          if (cc.manager) {
+            debugLogger.debug('GoogleAdsService', `⏭️ Skipping manager account: ${cc.descriptiveName ?? `Ad Account ${cc.id}`} (${cc.id})`);
+            continue;
+          }
+          
           const id = this.normalizeCid(cc.id);
           if (seenAccountIds.has(id)) {
             continue;
@@ -191,7 +197,7 @@ export class GoogleAdsService {
             timezone: 'UTC' // TODO: Replace with real values from customer query
           });
 
-          debugLogger.debug('GoogleAdsService', `✅ Added account: ${cc.descriptiveName ?? `Ad Account ${id}`} (${id}) - Manager: ${!!cc.manager}`);
+          debugLogger.debug('GoogleAdsService', `✅ Added individual account: ${cc.descriptiveName ?? `Ad Account ${id}`} (${id}) - Manager: ${!!cc.manager}`);
         }
       }
 

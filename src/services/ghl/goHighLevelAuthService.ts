@@ -2,8 +2,8 @@
 
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
+import type { GHLAccount, GHLTokenData } from './goHighLevelTypes';
 import { GHLRateLimiter, GHLValidator } from './goHighLevelUtils';
-import type { GHLTokenData, GHLAccount } from './goHighLevelTypes';
 
 export class GoHighLevelAuthService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';

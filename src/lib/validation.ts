@@ -115,23 +115,32 @@ export const ClientUpdateSchema = z.object({
   
   accounts: z.object({
     facebookAds: z.string()
-      .regex(/^(act_)?\d+$/, 'Facebook Ads account ID must be numeric or start with act_')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none'))
+      .refine((val) => {
+        if (!val || val === '' || val === 'none') return true;
+        return /^(act_)?\d+$/.test(val);
+      }, 'Facebook Ads account ID must be numeric or start with act_'),
     
     googleAds: z.string()
-      .regex(/^\d+-\d+-\d+$/, 'Google Ads customer ID must be in format XXX-XXX-XXXX')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none'))
+      .refine((val) => {
+        if (!val || val === '' || val === 'none') return true;
+        return /^\d+-\d+-\d+$/.test(val);
+      }, 'Google Ads customer ID must be in format XXX-XXX-XXXX'),
     
     goHighLevel: z.string()
-      .min(1, 'GoHighLevel location ID is required if CRM service is enabled')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none')),
     
     googleSheets: z.string()
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none')),
     
     googleSheetsConfig: z.object({
       spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),

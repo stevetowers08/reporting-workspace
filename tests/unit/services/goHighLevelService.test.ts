@@ -116,9 +116,7 @@ describe('GoHighLevelService', () => {
         })
       });
 
-      await expect(
-        GoHighLevelService.getContacts('test-location', 10)
-      ).rejects.toThrow();
+      await expect(GoHighLevelService.getContacts('test-location', 10)).rejects.toThrow();
     });
 
     it('should handle network errors', async () => {
@@ -142,9 +140,7 @@ describe('GoHighLevelService', () => {
         })
       });
 
-      await expect(
-        GoHighLevelService.getContacts('test-location', 10)
-      ).rejects.toThrow('Network error');
+      await expect(GoHighLevelService.getContacts('test-location', 10)).rejects.toThrow('Network error');
     });
 
     it('should handle empty response', async () => {
@@ -219,9 +215,7 @@ describe('GoHighLevelService', () => {
       // Don't set token
       GoHighLevelService.setAgencyToken('');
 
-      await expect(
-        GoHighLevelService.getAccountInfo()
-      ).rejects.toThrow('Private integration token not set');
+      await expect(GoHighLevelService.getAccountInfo()).rejects.toThrow('Private integration token not set');
     });
   });
 
@@ -348,27 +342,59 @@ describe('GoHighLevelService', () => {
         statusText: 'Bad Request'
       });
 
-      await expect(
-        GoHighLevelService.exchangeCodeForToken(
-          'invalid-code',
-          'client-id',
-          'client-secret',
-          'redirect-uri'
-        )
-      ).rejects.toThrow('Token exchange failed: Bad Request');
+      await expect(GoHighLevelService.exchangeCodeForToken(
+        'invalid-code',
+        'client-id',
+        'client-secret',
+        'redirect-uri'
+      )).rejects.toThrow('Token exchange failed: Bad Request');
     });
   });
 
-  describe('verifyWebhookSignature', () => {
-    it('should verify webhook signature (placeholder implementation)', () => {
-      const payload = 'test-payload';
-      const signature = 'test-signature';
-      const secret = 'test-secret';
+  describe('getGHLMetrics', () => {
+    it('should return GHL metrics successfully', async () => {
+      // Mock successful response
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ 
+          contacts: [
+            { id: 'contact-1', firstName: 'John', lastName: 'Doe', email: 'john@example.com' }
+          ],
+          opportunities: [
+            { id: 'opp-1', name: 'Test Opportunity', value: 1000, status: 'open' }
+          ],
+          funnels: [
+            { id: 'funnel-1', name: 'Test Funnel', conversions: 5 }
+          ]
+        })
+      });
 
-      const result = GoHighLevelService.verifyWebhookSignature(payload, signature, secret);
+      // Mock Supabase response for token
+      const { supabase } = await import('@/lib/supabase');
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({
+          data: {
+            config: {
+              apiKey: {
+                apiKey: 'test-token'
+              }
+            }
+          },
+          error: null
+        })
+      });
+
+      const result = await GoHighLevelService.getGHLMetrics('test-location', {
+        start: '2024-01-01',
+        end: '2024-01-31'
+      });
       
-      // Current implementation always returns true
-      expect(result).toBe(true);
+      expect(result).toBeDefined();
+      expect(result.totalContacts).toBe(1);
+      expect(result.totalOpportunities).toBe(1);
+      expect(result.totalRevenue).toBe(1000);
     });
   });
 

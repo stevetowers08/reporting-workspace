@@ -94,7 +94,7 @@ export class AdminService {
           break;
         }
         case 'goHighLevel': {
-          const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
+          const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
           try {
             // Test by checking if we have a valid token (location-level OAuth)
             const integrations = await DatabaseService.getIntegrations();

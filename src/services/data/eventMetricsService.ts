@@ -1,6 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
-import { GoHighLevelService } from '../api/goHighLevelService';
+import { GoHighLevelService } from '../ghl/goHighLevelService';
 import { GoogleAdsMetrics } from '../api/googleAdsService';
 import { LeadDataService } from './leadDataService';
 
