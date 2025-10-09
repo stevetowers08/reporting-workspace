@@ -74,72 +74,11 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        manualChunks: (id) => {
-          // Don't separate React - keep it with main bundle to ensure proper loading order
-          
-          // UI Components - keep together for better caching
-          if (id.includes('@radix-ui')) {
-            return 'ui-vendor';
-          }
-          
-          // Chart libraries - separate for lazy loading
-          if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
-            return 'chart-vendor';
-          }
-          
-          // PDF export - only load when needed
-          if (id.includes('jspdf') || id.includes('html2canvas')) {
-            return 'pdf-vendor';
-          }
-          
-          // API and data libraries
-          if (id.includes('@supabase') || id.includes('@tanstack/react-query')) {
-            return 'api-vendor';
-          }
-          
-          // Router
-          if (id.includes('react-router')) {
-            return 'router-vendor';
-          }
-          
-          // Utility libraries
-          if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
-            return 'utils-vendor';
-          }
-          
-          // Icons
-          if (id.includes('lucide-react')) {
-            return 'icons-vendor';
-          }
-          
-          // Sentry monitoring
-          if (id.includes('@sentry')) {
-            return 'sentry-vendor';
-          }
-          
-          // Large vendor libraries
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
-    },
-    chunkSizeWarningLimit: 1000,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove console logs in production
+        // Bundle everything together to ensure proper loading order
+        manualChunks: undefined,
       },
     },
-    // Enable gzip compression
-    reportCompressedSize: true,
-    // Optimize for production
-    cssCodeSplit: true,
-    assetsInlineLimit: 4096, // Inline assets smaller than 4kb
+    // Increase chunk size warning limit since we're bundling everything together
+    chunkSizeWarningLimit: 2000,
   },
 });
