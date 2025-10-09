@@ -4,6 +4,13 @@ import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
 
+// Declare sessionStorage for browser environment
+declare const sessionStorage: {
+  getItem(_key: string): string | null;
+  setItem(_key: string, _value: string): void;
+  removeItem(_key: string): void;
+};
+
 // Production-ready OAuth 2.0 service for all integrations
 export interface OAuthConfig {
     clientId: string;
@@ -63,7 +70,7 @@ export class OAuthService {
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: '', // NEVER expose client secret in frontend
+                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Use client secret from env
                         redirectUri: redirectUri,
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -78,7 +85,7 @@ export class OAuthService {
 
             return {
                 clientId: credentials.clientId,
-                clientSecret: '', // NEVER expose client secret in frontend
+                clientSecret: credentials.client_secret, // Use client secret from database
                 redirectUri: redirectUri,
                 scopes: credentials.scopes,
                 authUrl: credentials.authUrl,
@@ -236,15 +243,24 @@ export class OAuthService {
             redirect_uri: config.redirectUri
         };
 
-        // Add client secret for non-Google platforms only
-        if (config.clientSecret && platform !== 'googleAds' && platform !== 'googleSheets') {
+        // Add client secret for Google OAuth platforms
+        if (config.clientSecret && (platform === 'googleAds' || platform === 'googleSheets')) {
             tokenParams.client_secret = config.clientSecret;
             DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
                 hasClientSecret: !!config.clientSecret,
                 clientSecretLength: config.clientSecret.length
             });
+        } else if (platform !== 'googleAds' && platform !== 'googleSheets') {
+            // For non-Google platforms, use client secret if available
+            if (config.clientSecret) {
+                tokenParams.client_secret = config.clientSecret;
+                DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
+                    hasClientSecret: !!config.clientSecret,
+                    clientSecretLength: config.clientSecret.length
+                });
+            }
         } else {
-            DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
+            DevLogger.debug('OAuthService', `No client secret available for ${platform}`);
         }
 
         // Add PKCE code verifier for Google OAuth (both Google Ads and Google Sheets)
