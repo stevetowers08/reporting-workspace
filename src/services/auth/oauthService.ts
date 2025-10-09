@@ -63,14 +63,16 @@ export class OAuthService {
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ];
                     
-                    // Use frontend OAuth callback for both Google Ads and Google Sheets
-                    const redirectUri = window.location.hostname === 'localhost' 
-                        ? `${window.location.origin}/oauth/callback`
-                        : 'https://tulenreporting.vercel.app/oauth/callback';
+                    // Use backend OAuth for Google Ads (secure), frontend for Google Sheets
+                    const redirectUri = platform === 'googleAds' 
+                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                        : (window.location.hostname === 'localhost' 
+                            ? `${window.location.origin}/oauth/callback`
+                            : 'https://tulenreporting.vercel.app/oauth/callback');
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Use client secret from env
+                        clientSecret: '', // NEVER expose client secret in frontend
                         redirectUri: redirectUri,
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -80,12 +82,14 @@ export class OAuthService {
                 throw new Error(`No OAuth credentials found for platform: ${platform}`);
             }
 
-            // Use current origin for redirect URI
-            const redirectUri = credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
+            // Use backend OAuth for Google Ads (secure), frontend for others
+            const redirectUri = platform === 'googleAds' 
+                ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
+                : credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
 
             return {
                 clientId: credentials.clientId,
-                clientSecret: credentials.client_secret, // Use client secret from database
+                clientSecret: '', // NEVER expose client secret in frontend
                 redirectUri: redirectUri,
                 scopes: credentials.scopes,
                 authUrl: credentials.authUrl,
@@ -220,7 +224,10 @@ export class OAuthService {
         code: string,
         state: string
     ): Promise<OAuthTokens> {
-        // Use standard frontend OAuth flow for all platforms
+        // For Google Ads, use backend OAuth endpoint
+        if (platform === 'googleAds') {
+            return this.exchangeCodeForTokensBackend(platform, code, state);
+        }
 
         const config = await this.getOAuthConfig(platform);
 
@@ -243,24 +250,15 @@ export class OAuthService {
             redirect_uri: config.redirectUri
         };
 
-        // Add client secret for Google OAuth platforms
-        if (config.clientSecret && (platform === 'googleAds' || platform === 'googleSheets')) {
+        // Add client secret for non-Google platforms only (Google Ads uses backend)
+        if (config.clientSecret && platform !== 'googleAds' && platform !== 'googleSheets') {
             tokenParams.client_secret = config.clientSecret;
             DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
                 hasClientSecret: !!config.clientSecret,
                 clientSecretLength: config.clientSecret.length
             });
-        } else if (platform !== 'googleAds' && platform !== 'googleSheets') {
-            // For non-Google platforms, use client secret if available
-            if (config.clientSecret) {
-                tokenParams.client_secret = config.clientSecret;
-                DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
-                    hasClientSecret: !!config.clientSecret,
-                    clientSecretLength: config.clientSecret.length
-                });
-            }
         } else {
-            DevLogger.debug('OAuthService', `No client secret available for ${platform}`);
+            DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
         }
 
         // Add PKCE code verifier for Google OAuth (both Google Ads and Google Sheets)

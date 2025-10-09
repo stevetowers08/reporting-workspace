@@ -1,24 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface OAuthTokens {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  token_type: string;
-  scope?: string;
-}
-
-interface GoogleUserInfo {
-  id: string;
-  email: string;
-  name: string;
-  verified_email: boolean;
 }
 
 serve(async (req) => {
@@ -28,30 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
+    const { code, state, platform = 'googleAds' } = await req.json()
 
-    const url = new URL(req.url)
-    const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state')
-    const error = url.searchParams.get('error')
-
-    // Handle OAuth errors
-    if (error) {
-      console.error('OAuth error:', error)
+    if (!code) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `OAuth error: ${error}`,
-          redirectUrl: `${Deno.env.get('FRONTEND_URL')}/integrations?error=${encodeURIComponent(error)}`
-        }),
+        JSON.stringify({ error: 'Authorization code is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -59,56 +25,15 @@ serve(async (req) => {
       )
     }
 
-    if (!code || !state) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Missing authorization code or state parameter' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Parse and validate state
-    let stateData: { platform: string; timestamp: number; nonce: string; integrationPlatform?: string }
-    try {
-      stateData = JSON.parse(atob(state))
-      
-      // Validate state timestamp (prevent replay attacks)
-      const now = Date.now()
-      const stateAge = now - stateData.timestamp
-      if (stateAge > 10 * 60 * 1000) { // 10 minutes max
-        throw new Error('OAuth state expired')
-      }
-    } catch (error) {
-      console.error('Invalid OAuth state:', error)
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Invalid OAuth state - possible CSRF attack' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Get OAuth configuration from environment (server-side only)
+    // Get OAuth credentials from environment variables
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
-    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-ads-oauth`
+    const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI') || 'https://tulenreporting.vercel.app/oauth/callback'
 
     if (!clientId || !clientSecret) {
-      console.error('Missing OAuth credentials')
+      console.error('Missing Google OAuth credentials')
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'OAuth configuration missing' 
-        }),
+        JSON.stringify({ error: 'OAuth credentials not configured' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -121,24 +46,23 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
       },
       body: new URLSearchParams({
+        code: code,
         client_id: clientId,
         client_secret: clientSecret,
-        code: code,
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-        redirect_uri: redirectUri
-      })
+      }),
     })
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({}))
-      console.error('Token exchange failed:', errorData)
+      const errorText = await tokenResponse.text()
+      console.error('Token exchange failed:', errorText)
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: `Token exchange failed: ${tokenResponse.status} ${JSON.stringify(errorData)}` 
+          error: 'Token exchange failed', 
+          details: errorText 
         }),
         { 
           status: 400, 
@@ -147,23 +71,19 @@ serve(async (req) => {
       )
     }
 
-    const tokens: OAuthTokens = await tokenResponse.json()
+    const tokens = await tokenResponse.json()
 
     // Get user info from Google
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
         'Authorization': `Bearer ${tokens.access_token}`,
-        'Accept': 'application/json'
-      }
+      },
     })
 
     if (!userInfoResponse.ok) {
-      console.error('Failed to get user info:', userInfoResponse.status)
+      console.error('Failed to get user info')
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Failed to get user information from Google' 
-        }),
+        JSON.stringify({ error: 'Failed to get user information' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -171,46 +91,40 @@ serve(async (req) => {
       )
     }
 
-    const userInfo: GoogleUserInfo = await userInfoResponse.json()
+    const userInfo = await userInfoResponse.json()
 
-    // Calculate token expiration
-    const expiresAt = tokens.expires_in 
-      ? new Date(Date.now() + (tokens.expires_in * 1000)).toISOString()
-      : new Date(Date.now() + 3600000).toISOString() // Default 1 hour
+    // Store tokens securely in Supabase database
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    // Store tokens securely in database
-    const { error: storeError } = await supabaseClient
-      .from('integrations')
+    const { error: dbError } = await supabaseClient
+      .from('oauth_tokens')
       .upsert({
-        platform: 'googleAds',
-        connected: true,
-        account_name: userInfo.name,
-        account_id: userInfo.id,
-        config: {
-          tokens: {
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: expiresAt,
-            tokenType: tokens.token_type,
-            scope: tokens.scope
-          },
-          account_info: {
-            id: userInfo.id,
-            name: userInfo.name,
-            email: userInfo.email
-          }
+        platform: platform,
+        user_id: userInfo.id,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: tokens.expires_in 
+          ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+          : null,
+        token_type: tokens.token_type || 'Bearer',
+        scope: tokens.scope,
+        user_info: {
+          id: userInfo.id,
+          email: userInfo.email,
+          name: userInfo.name,
         },
-        last_sync: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'platform' })
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'platform,user_id'
+      })
 
-    if (storeError) {
-      console.error('Failed to store tokens:', storeError)
+    if (dbError) {
+      console.error('Database error:', dbError)
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Failed to store authentication tokens' 
-        }),
+        JSON.stringify({ error: 'Failed to store tokens' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -218,23 +132,20 @@ serve(async (req) => {
       )
     }
 
-    // Redirect to frontend with success
-    const redirectUrl = `${Deno.env.get('FRONTEND_URL')}/integrations?success=googleAds&user=${encodeURIComponent(userInfo.name)}`
-    
-    return new Response(null, {
-      status: 302,
-      headers: {
-        ...corsHeaders,
-        'Location': redirectUrl
-      }
-    })
+    // Redirect back to frontend with success
+    const frontendUrl = new URL('https://tulenreporting.vercel.app/oauth/callback')
+    frontendUrl.searchParams.set('platform', platform)
+    frontendUrl.searchParams.set('success', 'true')
+    frontendUrl.searchParams.set('user_id', userInfo.id)
+
+    return Response.redirect(frontendUrl.toString(), 302)
 
   } catch (error) {
-    console.error('OAuth callback error:', error)
+    console.error('OAuth error:', error)
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+        error: 'OAuth processing failed', 
+        details: error.message 
       }),
       { 
         status: 500, 
