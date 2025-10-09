@@ -1667,7 +1667,7 @@ export class GoHighLevelService {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id, name, accounts')
-        .eq('accounts->goHighLevel', locationId)
+        .eq('accounts->goHighLevel->locationId', locationId)
         .single();
 
       if (clientError || !clientData) {
@@ -1715,7 +1715,7 @@ export class GoHighLevelService {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id, name, accounts')
-        .eq('accounts->goHighLevel', locationId)
+        .eq('accounts->goHighLevel->locationId', locationId)
         .single();
 
       if (clientError || !clientData) {

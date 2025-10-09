@@ -569,9 +569,20 @@ export class DatabaseService {
           connected: true,
           account_id: connectionData.locationId,
           config: {
-            accessToken: connectionData.accessToken,
-            refreshToken: connectionData.refreshToken,
-            expiresIn: connectionData.expiresIn,
+            tokens: {
+              accessToken: connectionData.accessToken,
+              refreshToken: connectionData.refreshToken,
+              expiresIn: connectionData.expiresIn,
+              expiresAt: connectionData.expiresIn ? new Date(Date.now() + connectionData.expiresIn * 1000).toISOString() : null,
+              tokenType: 'Bearer'
+            },
+            accountInfo: {
+              id: connectionData.locationId,
+              name: 'GoHighLevel Location'
+            },
+            locationId: connectionData.locationId,
+            lastSync: new Date().toISOString(),
+            syncStatus: 'idle',
             connectedAt: new Date().toISOString()
           },
           last_sync: new Date().toISOString()

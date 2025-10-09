@@ -93,6 +93,12 @@ export default async function handler(req, res) {
       throw new Error('No location ID received from GoHighLevel');
     }
 
+    // Validate location ID format
+    if (typeof tokenData.locationId !== 'string' || tokenData.locationId.trim() === '') {
+      console.error('❌ Invalid location ID format:', tokenData.locationId);
+      throw new Error('Invalid location ID format received from GoHighLevel');
+    }
+
     console.log('🔍 Saving token to Supabase...');
     
     // Store per-client token in integrations table
