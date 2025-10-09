@@ -27,8 +27,7 @@ export default defineConfig({
   },
   plugins: [
     react({
-      jsxRuntime: 'automatic',
-      jsxImportSource: 'react'
+      jsxRuntime: 'classic'
     }),
     // Bundle analyzer - only in analyze mode
     process.env.ANALYZE && visualizer({
