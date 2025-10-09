@@ -19,7 +19,7 @@ export class GoogleAdsService {
   // Enhanced rate limiter with dynamic quota adaptation
   private static tokens = 10; // Start with higher limit - Google allows much more than 5 req/s
   private static lastRefill = Date.now();
-  private static readonly MAX_TOKENS = 50; // Increased from 5 to 50 based on Google's actual limits
+  private static MAX_TOKENS = 50; // Increased from 5 to 50 based on Google's actual limits
   private static readonly REFILL_RATE = 1000; // 1 second
   private static readonly MIN_TOKENS = 5; // Minimum tokens to maintain
   private static readonly QUOTA_CHECK_INTERVAL = 30000; // Check quota every 30 seconds
@@ -38,7 +38,7 @@ export class GoogleAdsService {
   }
 
   /**
-   * Parse Google Ads searchStream response - CORRECTED for NDJSON format
+   * Parse Google Ads searchStream response - CORRECTED for JSON array format
    */
   private static parseSearchStreamText(text: string): unknown[] {
     const trimmed = text?.trim();
@@ -46,20 +46,18 @@ export class GoogleAdsService {
       return [];
     }
 
-    // Google Ads API searchStream returns NDJSON format (newline-delimited JSON)
-    // Each line is a separate JSON object
-    return trimmed.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => {
-        try {
-          return JSON.parse(line);
-        } catch (error) {
-          debugLogger.warn('GoogleAdsService', 'Failed to parse NDJSON line', { line: line.substring(0, 100), error });
-          return null;
-        }
-      })
-      .filter(item => item !== null);
+    try {
+      // SearchStream returns a JSON array of result objects
+      const parsed = JSON.parse(trimmed);
+      // parsed is already an array like [{ results: [...] }]
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (error) {
+      debugLogger.warn('GoogleAdsService', 'Failed to parse searchStream response', { 
+        text: trimmed.substring(0, 100), 
+        error 
+      });
+      return [];
+    }
   }
 
   /**
@@ -198,11 +196,7 @@ export class GoogleAdsService {
               ? parseInt(retryAfter) * 1000 
               : this.calculateBackoffDelay(retryCount + 1);
             
-            SecureLogger.logRateLimit('GoogleAdsService', 'Rate limited - retrying', {
-              retryCount: retryCount + 1,
-              waitTime,
-              maxRetries: this.MAX_RETRIES
-            });
+            SecureLogger.logRateLimit('GoogleAdsService', 'Rate limited - retrying', waitTime);
             
             await new Promise(resolve => globalThis.setTimeout(resolve, waitTime));
             return this.makeApiRequest({ accessToken, developerToken, customerId, managerId, gaql }, retryCount + 1);
@@ -262,7 +256,7 @@ export class GoogleAdsService {
   /**
    * Extract quota information from response headers
    */
-  private static extractQuotaHeaders(response: Response): any {
+  private static extractQuotaHeaders(response: Response): Record<string, unknown> | null {
     try {
       const quotaInfoHeader = response.headers.get('x-googleads-response-headers-json');
       if (quotaInfoHeader) {
@@ -277,12 +271,12 @@ export class GoogleAdsService {
   /**
    * Adapt rate limiting based on quota headers from Google
    */
-  private static async adaptRateLimitFromHeaders(quotaHeaders: any): Promise<void> {
+  private static async adaptRateLimitFromHeaders(quotaHeaders: Record<string, unknown>): Promise<void> {
     try {
       // Google provides quota information in response headers
       // This allows us to dynamically adjust our rate limiting
       if (quotaHeaders.quotaInfo) {
-        const quotaInfo = quotaHeaders.quotaInfo;
+        const quotaInfo = quotaHeaders.quotaInfo as { quotaUsed?: number; quotaLimit?: number };
         SecureLogger.info('GoogleAdsService', 'Quota information received', {
           quotaInfo: quotaInfo
         });
