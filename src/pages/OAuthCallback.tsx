@@ -135,12 +135,25 @@ const OAuthCallback = () => {
           // Account info and metadata are now handled by TokenManager
 
           try {
+            // Get the actual Google Ads customer ID instead of using Google user ID
+            debugLogger.debug('🔍 Getting actual Google Ads customer ID from API...');
+            const { GoogleAdsAccountDiscovery } = await import('@/services/api/googleAdsAccountDiscovery');
+            const actualCustomerId = await GoogleAdsAccountDiscovery.discoverAndStoreManagerAccount();
+            
+            if (!actualCustomerId) {
+              throw new Error('Failed to get Google Ads customer ID from listAccessibleCustomers API');
+            }
+            
+            debugLogger.info('🔍 Google Ads OAuth - Google User ID:', result.userInfo.googleUserId);
+            debugLogger.info('🔍 Google Ads OAuth - Actual Customer ID:', actualCustomerId);
+            debugLogger.info('🔍 Using 10-digit customer ID instead of 18-digit user ID');
+            
             await TokenManager.storeOAuthTokens('googleAds', oauthTokens, {
-              id: result.userInfo.googleUserId,
+              id: actualCustomerId, // Use ONLY the actual 10-digit customer ID
               name: result.userInfo.googleUserName || 'Google Ads User',
               email: result.userInfo.googleUserEmail
             });
-            debugLogger.debug('🔍 Saved Google Ads tokens to integrations table');
+            debugLogger.debug('🔍 Saved Google Ads tokens with correct customer ID to integrations table');
           } catch (tokenError) {
             // Comprehensive error handling to prevent [object Object] in UI
             const errorMessage = tokenError instanceof Error 
