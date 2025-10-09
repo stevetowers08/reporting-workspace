@@ -1,6 +1,5 @@
 import { API_BASE_URLS } from '@/constants/apiVersions';
-/* eslint-disable no-console */
-import { debugLogger } from '@/lib/debug';
+import { DevLogger } from '@/lib/logger';
 import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
@@ -41,7 +40,7 @@ export class OAuthService {
             if (!credentials) {
                 // Fallback to environment variables for Google platforms
                 if (platform === 'googleAds' || platform === 'googleSheets') {
-                    debugLogger.info('OAuthService', `No OAuth credentials in database, using environment variables for ${platform}`);
+                    DevLogger.info('OAuthService', `No OAuth credentials in database, using environment variables for ${platform}`);
                     
                     // Different scopes for different Google services
                     const scopes = platform === 'googleAds' 
@@ -81,7 +80,7 @@ export class OAuthService {
                 tokenUrl: credentials.tokenUrl
             };
         } catch (error) {
-            debugLogger.error('OAuthService', `Failed to get OAuth config for ${platform}`, error);
+            DevLogger.error('OAuthService', `Failed to get OAuth config for ${platform}`, error);
             throw new Error(`Failed to get OAuth configuration for ${platform}: ${error}`);
         }
     }
@@ -94,7 +93,7 @@ export class OAuthService {
         const encoder = new TextEncoder();
         const data = encoder.encode(codeVerifier);
         
-        debugLogger.debug('OAuthService', 'Generating PKCE', {
+        DevLogger.debug('OAuthService', 'Generating PKCE', {
             codeVerifierLength: codeVerifier.length,
             hasCryptoSubtle: !!crypto.subtle
         });
@@ -105,14 +104,14 @@ export class OAuthService {
                 .replace(/\//g, '_')
                 .replace(/=/g, '');
             
-            debugLogger.debug('OAuthService', 'PKCE generated with crypto.subtle', {
+            DevLogger.debug('OAuthService', 'PKCE generated with crypto.subtle', {
                 codeVerifierLength: codeVerifier.length,
                 codeChallengeLength: codeChallenge.length
             });
             
             return { codeVerifier, codeChallenge };
         }).catch((error) => {
-            debugLogger.warn('OAuthService', 'crypto.subtle failed, using fallback', error);
+            DevLogger.warn('OAuthService', 'crypto.subtle failed, using fallback', error);
             // Fallback if crypto.subtle is not available
             const codeChallenge = btoa(codeVerifier)
                 .replace(/\+/g, '-')
@@ -141,12 +140,12 @@ export class OAuthService {
         const config = await this.getOAuthConfig(platform);
 
         // Debug: Log the redirect URI being used
-        debugLogger.debug('OAuthService', `OAuth redirect URI for ${platform}`, { redirectUri: config.redirectUri, origin: window.location.origin });
+        DevLogger.debug('OAuthService', `OAuth redirect URI for ${platform}`, { redirectUri: config.redirectUri, origin: window.location.origin });
 
         const state = this.generateState(platform, integrationPlatform);
         
         // Generate PKCE parameters for Google OAuth
-        let pkceParams = {};
+        let pkceParams: { code_challenge?: string; code_challenge_method?: string } = {};
         if (platform === 'googleAds' || platform === 'googleSheets') {
             try {
                 const pkce = await this.generatePKCE();
@@ -157,7 +156,7 @@ export class OAuthService {
                 // Store code verifier for later use
                 localStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
                 
-                debugLogger.debug('OAuthService', 'PKCE generated and stored', {
+                DevLogger.debug('OAuthService', 'PKCE generated and stored', {
                     platform,
                     codeVerifierLength: pkce.codeVerifier.length,
                     codeChallengeLength: pkce.codeChallenge.length,
@@ -166,7 +165,7 @@ export class OAuthService {
                     localStorageKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
                 });
             } catch (error) {
-                debugLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
+                DevLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
             }
         }
 
@@ -186,7 +185,7 @@ export class OAuthService {
         localStorage.setItem(`oauth_state_${platform}`, state);
 
         const authUrl = `${config.authUrl}?${params.toString()}`;
-        debugLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
+        DevLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
             platform, 
             authUrl, 
             hasPKCE: !!pkceParams.code_challenge,
@@ -212,7 +211,7 @@ export class OAuthService {
         // Validate state
         const storedState = localStorage.getItem(`oauth_state_${platform}`);
         if (!storedState || storedState !== state) {
-            debugLogger.error('OAuthService', 'State validation failed', {
+            DevLogger.error('OAuthService', 'State validation failed', {
                 platform,
                 storedState: storedState ? storedState.substring(0, 20) + '...' : 'none',
                 receivedState: state ? state.substring(0, 20) + '...' : 'none'
@@ -231,12 +230,12 @@ export class OAuthService {
         // Add client secret for all platforms
         if (config.clientSecret) {
             tokenParams.client_secret = config.clientSecret;
-            debugLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
+            DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
                 hasClientSecret: !!config.clientSecret,
                 clientSecretLength: config.clientSecret.length
             });
         } else {
-            debugLogger.error('OAuthService', `No client secret found for ${platform}`, {
+            DevLogger.error('OAuthService', `No client secret found for ${platform}`, {
                 platform,
                 hasClientSecret: !!config.clientSecret
             });
@@ -245,7 +244,7 @@ export class OAuthService {
         // Add PKCE code verifier for Google OAuth (in addition to client secret)
         if (platform === 'googleAds' || platform === 'googleSheets') {
             const codeVerifier = localStorage.getItem(`oauth_code_verifier_${platform}`);
-            debugLogger.debug('OAuthService', 'PKCE code verifier lookup', {
+            DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
                 platform,
                 storageKey: `oauth_code_verifier_${platform}`,
                 hasCodeVerifier: !!codeVerifier,
@@ -258,7 +257,7 @@ export class OAuthService {
             if (codeVerifier) {
                 // Validate code verifier format
                 if (codeVerifier.length < 43 || codeVerifier.length > 128) {
-                    debugLogger.error('OAuthService', 'Invalid code verifier length', {
+                    DevLogger.error('OAuthService', 'Invalid code verifier length', {
                         length: codeVerifier.length,
                         expectedRange: '43-128'
                     });
@@ -266,12 +265,12 @@ export class OAuthService {
                 }
                 
                 tokenParams.code_verifier = codeVerifier;
-                debugLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret', {
+                DevLogger.debug('OAuthService', 'Using PKCE code verifier in addition to client secret', {
                     codeVerifierLength: codeVerifier.length,
                     isValidLength: codeVerifier.length >= 43 && codeVerifier.length <= 128
                 });
             } else {
-                debugLogger.error('OAuthService', 'PKCE code verifier not found in localStorage', {
+                DevLogger.error('OAuthService', 'PKCE code verifier not found in localStorage', {
                     platform,
                     storageKey: `oauth_code_verifier_${platform}`,
                     availableKeys: Object.keys(localStorage).filter(key => key.includes('oauth'))
@@ -283,7 +282,7 @@ export class OAuthService {
         }
 
         try {
-            debugLogger.debug('OAuthService', 'Token exchange parameters', {
+            DevLogger.debug('OAuthService', 'Token exchange parameters', {
                 platform,
                 clientId: config.clientId,
                 hasClientSecret: !!config.clientSecret,
@@ -303,7 +302,7 @@ export class OAuthService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                debugLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, {
+                DevLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, {
                     status: response.status,
                     statusText: response.statusText,
                     errorData: errorData
@@ -330,7 +329,7 @@ export class OAuthService {
                 scope: tokens.scope
             };
 
-            debugLogger.debug('OAuthService', 'Token normalization', {
+            DevLogger.debug('OAuthService', 'Token normalization', {
                 platform,
                 originalTokens: {
                     hasAccessToken: !!tokens.access_token,
@@ -357,7 +356,7 @@ export class OAuthService {
 
             return normalizedTokens;
         } catch (error) {
-            debugLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, error);
+            DevLogger.error('OAuthService', `OAuth token exchange failed for ${platform}`, error);
             throw error;
         }
     }
@@ -374,13 +373,13 @@ export class OAuthService {
         };
     }> {
         try {
-            debugLogger.info('OAuthService', 'Handling Google Ads OAuth callback');
+            DevLogger.info('OAuthService', 'Handling Google Ads OAuth callback');
 
             // Exchange code for tokens using the unified method
             const tokens = await this.exchangeCodeForTokens('googleAds', code, state);
 
             // Get user info from Google
-            debugLogger.debug('OAuthService', 'Fetching user info from Google', {
+            DevLogger.debug('OAuthService', 'Fetching user info from Google', {
                 accessToken: tokens.accessToken ? tokens.accessToken.substring(0, 20) + '...' : 'MISSING',
                 tokenType: tokens.tokenType,
                 scope: tokens.scope,
@@ -393,7 +392,7 @@ export class OAuthService {
                     const tokenParts = tokens.accessToken.split('.');
                     if (tokenParts.length === 3) {
                         const payload = JSON.parse(atob(tokenParts[1]));
-                        debugLogger.debug('OAuthService', 'Token payload analysis', {
+                        DevLogger.debug('OAuthService', 'Token payload analysis', {
                             scopes: payload.scope,
                             audience: payload.aud,
                             issuer: payload.iss,
@@ -402,7 +401,7 @@ export class OAuthService {
                         });
                     }
                 } catch (error) {
-                    debugLogger.warn('OAuthService', 'Could not decode token payload', error);
+                    DevLogger.warn('OAuthService', 'Could not decode token payload', error);
                 }
             }
 
@@ -413,7 +412,7 @@ export class OAuthService {
                 }
             });
 
-            debugLogger.debug('OAuthService', 'User info response', {
+            DevLogger.debug('OAuthService', 'User info response', {
                 status: userInfoResponse.status,
                 statusText: userInfoResponse.statusText,
                 ok: userInfoResponse.ok,
@@ -422,7 +421,7 @@ export class OAuthService {
 
             if (!userInfoResponse.ok) {
                 const errorText = await userInfoResponse.text();
-                debugLogger.error('OAuthService', 'Failed to get Google user info', {
+                DevLogger.error('OAuthService', 'Failed to get Google user info', {
                     status: userInfoResponse.status,
                     statusText: userInfoResponse.statusText,
                     errorText: errorText,
@@ -433,7 +432,7 @@ export class OAuthService {
             }
 
             const userInfo = await userInfoResponse.json();
-            debugLogger.info('OAuthService', 'Google user info retrieved', {
+            DevLogger.info('OAuthService', 'Google user info retrieved', {
                 googleUserId: userInfo.id,
                 email: userInfo.email
             });
@@ -447,7 +446,7 @@ export class OAuthService {
                 }
             };
         } catch (error) {
-            debugLogger.error('OAuthService', 'Google Ads OAuth callback failed', error);
+            DevLogger.error('OAuthService', 'Google Ads OAuth callback failed', error);
             throw error;
         }
     }
@@ -504,7 +503,7 @@ export class OAuthService {
 
             return newTokens;
         } catch (error) {
-            console.error(`Token refresh failed for ${platform}:`, error);
+            DevLogger.error('OAuthService', `Token refresh failed for ${platform}:`, error);
             throw error;
         }
     }
@@ -542,8 +541,8 @@ export class OAuthService {
                 const googleAdsToken = await TokenManager.getAccessToken('googleAds');
                 if (googleAdsToken) {
                     const refreshToken = await TokenManager.getRefreshToken('googleAds');
-                    debugLogger.info('OAuthService', 'Using googleAds tokens for Google Sheets access');
-                    console.log('OAuthService: Using googleAds tokens for Google Sheets access');
+                    DevLogger.info('OAuthService', 'Using googleAds tokens for Google Sheets access');
+                    DevLogger.info('OAuthService', 'Using googleAds tokens for Google Sheets access');
                     return {
                         accessToken: googleAdsToken,
                         refreshToken: refreshToken || undefined,
@@ -553,8 +552,8 @@ export class OAuthService {
                     };
                 }
                 
-                debugLogger.error('OAuthService', 'No Google tokens found for either googleSheets or googleAds');
-                console.error('OAuthService: No Google tokens found for either googleSheets or googleAds');
+                DevLogger.error('OAuthService', 'No Google tokens found for either googleSheets or googleAds');
+                DevLogger.error('OAuthService', 'No Google tokens found for either googleSheets or googleAds');
             }
             
             const accessToken = await TokenManager.getAccessToken(integrationPlatform);
@@ -572,7 +571,7 @@ export class OAuthService {
                 scope: undefined
             };
         } catch (error) {
-            console.error(`Failed to get stored tokens for ${platform}:`, error);
+            DevLogger.error('OAuthService', `Failed to get stored tokens for ${platform}:`, error);
             return null;
         }
     }
@@ -599,7 +598,7 @@ export class OAuthService {
             
             return !needsRefresh;
         } catch (error) {
-            console.error(`Failed to validate tokens for ${platform}:`, error);
+            DevLogger.error('OAuthService', `Failed to validate tokens for ${platform}:`, error);
             return false;
         }
     }
@@ -624,7 +623,7 @@ export class OAuthService {
                     await fetch(revokeUrl, { method: 'DELETE' });
                 }
             } catch (error) {
-                console.error(`Failed to revoke tokens for ${platform}:`, error);
+                DevLogger.error('OAuthService', `Failed to revoke tokens for ${platform}:`, error);
             }
         }
 
@@ -660,7 +659,7 @@ export class OAuthService {
      */
     private static async storeTokens(platform: string, tokens: OAuthTokens): Promise<void> {
         try {
-            console.log(`OAuthService.storeTokens() - Storing tokens for ${platform}:`, {
+            DevLogger.info('OAuthService', `Storing tokens for ${platform}:`, {
                 hasAccessToken: !!tokens.accessToken,
                 hasRefreshToken: !!tokens.refreshToken,
                 tokenType: tokens.tokenType,
@@ -683,9 +682,9 @@ export class OAuthService {
                 name: `${platform} Account`
             });
             
-            console.log(`OAuthService.storeTokens() - Tokens stored successfully for ${platform}`);
+            DevLogger.success('OAuthService', `Tokens stored successfully for ${platform}`);
         } catch (error) {
-            console.error(`Failed to store tokens for ${platform}:`, error);
+            DevLogger.error('OAuthService', `Failed to store tokens for ${platform}:`, error);
             throw error;
         }
     }
@@ -743,7 +742,7 @@ export class OAuthService {
                     }
                 });
             } catch (refreshError) {
-                console.error(`Token refresh failed for ${platform}:`, refreshError);
+                DevLogger.error('OAuthService', `Token refresh failed for ${platform}:`, refreshError);
                 throw new Error('Authentication failed and token refresh unsuccessful');
             }
         }

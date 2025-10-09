@@ -172,10 +172,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
         console.log('🔍 ClientForm: Loading Google Ads accounts for existing account ID:', initialData.accounts.googleAds);
         loadGoogleAccounts();
-      } else if (isIntegrationConnected('googleAds')) {
-        // Also load Google Ads accounts if the integration is connected but no account is selected yet
-        console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
-        loadGoogleAccounts();
+      } else {
+        // Check if Google Ads is connected and load accounts if needed
+        isIntegrationConnected('googleAds').then(isGoogleAdsConnected => {
+          if (isGoogleAdsConnected) {
+            console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
+            loadGoogleAccounts();
+          }
+        });
       }
       
       // Load GHL accounts if we have a GHL account ID
@@ -207,23 +211,30 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   useEffect(() => {
     console.log('🔍 ClientForm: Checking for connected integrations to load accounts');
     
-    // Load Google Ads accounts if integration is connected
-    if (isIntegrationConnected('googleAds') && !googleAccountsLoaded) {
-      console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration');
-      loadGoogleAccounts();
-    }
+    const loadConnectedAccounts = async () => {
+      // Load Google Ads accounts if integration is connected
+      const isGoogleAdsConnected = await isIntegrationConnected('googleAds');
+      if (isGoogleAdsConnected && !googleAccountsLoaded) {
+        console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration');
+        loadGoogleAccounts();
+      }
+      
+      // Load Facebook accounts if integration is connected
+      const isFacebookConnected = await isIntegrationConnected('facebookAds');
+      if (isFacebookConnected && !facebookAccountsLoaded) {
+        console.log('🔍 ClientForm: Loading Facebook accounts for connected integration');
+        loadFacebookAccounts();
+      }
+      
+      // Load GHL accounts if integration is connected
+      const isGHLConnected = await isIntegrationConnected('goHighLevel');
+      if (isGHLConnected && !ghlAccountsLoaded) {
+        console.log('🔍 ClientForm: Loading GHL accounts for connected integration');
+        loadGHLAccounts();
+      }
+    };
     
-    // Load Facebook accounts if integration is connected
-    if (isIntegrationConnected('facebookAds') && !facebookAccountsLoaded) {
-      console.log('🔍 ClientForm: Loading Facebook accounts for connected integration');
-      loadFacebookAccounts();
-    }
-    
-    // Load GHL accounts if integration is connected
-    if (isIntegrationConnected('goHighLevel') && !ghlAccountsLoaded) {
-      console.log('🔍 ClientForm: Loading GHL accounts for connected integration');
-      loadGHLAccounts();
-    }
+    loadConnectedAccounts();
   }, []); // Run once on mount
 
   // Initialize Google Sheets configuration from initial data
@@ -725,8 +736,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     return accounts;
   };
 
-  const isIntegrationConnected = (platform: string): boolean => {
-    console.log(`🔍 ClientForm: Checking if ${platform} is connected`);
+  // Synchronous version for UI rendering
+  const isIntegrationConnectedSync = (platform: string): boolean => {
+    console.log(`🔍 ClientForm: Checking if ${platform} is connected (sync)`);
     
     // For GoHighLevel, it's always client-level only - check if client has location configured
     if (platform === 'goHighLevel') {
@@ -742,6 +754,48 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
     
     // For other platforms, check admin integration status
+    const isConnected = integrationStatus[platform] || false;
+    console.log(`🔍 ClientForm: isIntegrationConnectedSync(${platform}) = ${isConnected}`);
+    return isConnected;
+  };
+
+  // Async version for account loading
+  const isIntegrationConnected = async (platform: string): Promise<boolean> => {
+    console.log(`🔍 ClientForm: Checking if ${platform} is connected (async)`);
+    
+    // For GoHighLevel, it's always client-level only - check if client has location configured
+    if (platform === 'goHighLevel') {
+      const hasLocationId = typeof formData.accounts.goHighLevel === 'string' 
+        ? formData.accounts.goHighLevel && formData.accounts.goHighLevel !== 'none'
+        : formData.accounts.goHighLevel?.locationId && formData.accounts.goHighLevel?.locationId !== 'none';
+      
+      console.log(`🔍 ClientForm: GoHighLevel client-level check:`, {
+        hasLocationId,
+        formData: formData.accounts.goHighLevel
+      });
+      return Boolean(hasLocationId);
+    }
+    
+    // For other platforms, check admin integration status
+    // If integrationStatus is not yet loaded, check directly with TokenManager
+    if (integrationStatus[platform] === undefined) {
+      try {
+        if (platform === 'googleSheets') {
+          const isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
+          console.log(`🔍 ClientForm: Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
+          return isConnected;
+        } else {
+          const { TokenManager } = await import('@/services/auth/TokenManager');
+          const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
+          console.log(`🔍 ClientForm: Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
+          return isConnected;
+        }
+      } catch (error) {
+        console.error(`Error checking ${platform} status directly:`, error);
+        return false;
+      }
+    }
+    
     const isConnected = integrationStatus[platform] || false;
     console.log(`🔍 ClientForm: isIntegrationConnected(${platform}) = ${isConnected}`);
     return isConnected;
@@ -853,7 +907,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 />
                 <span className="text-sm font-medium">Facebook Ads</span>
               </div>
-              {isIntegrationConnected('facebookAds') && (
+              {isIntegrationConnectedSync('facebookAds') && (
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -861,7 +915,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnected('facebookAds') ? (
+            {isIntegrationConnectedSync('facebookAds') ? (
               <div className="space-y-3">
                 {editingIntegrations.facebookAds ? (
                   <div className="space-y-3">
@@ -985,7 +1039,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 />
                 <span className="text-sm font-medium">Google Ads</span>
               </div>
-              {isIntegrationConnected('googleAds') && (
+              {isIntegrationConnectedSync('googleAds') && (
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -993,7 +1047,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnected('googleAds') ? (
+            {isIntegrationConnectedSync('googleAds') ? (
               <div className="space-y-3">
                 {editingIntegrations.googleAds ? (
                   <div className="space-y-3">
@@ -1116,7 +1170,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 />
                 <span className="text-sm font-medium">GoHighLevel CRM</span>
               </div>
-              {isIntegrationConnected('goHighLevel') && (
+              {isIntegrationConnectedSync('goHighLevel') && (
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -1124,7 +1178,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnected('goHighLevel') ? (
+            {isIntegrationConnectedSync('goHighLevel') ? (
               <div className="space-y-3">
                 {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
                   <div className="bg-gray-50 p-2 rounded text-xs">
@@ -1172,7 +1226,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 />
                 <span className="text-sm font-medium">Google Sheets</span>
               </div>
-              {isIntegrationConnected('googleSheets') && (
+              {isIntegrationConnectedSync('googleSheets') && (
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -1180,7 +1234,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnected('googleSheets') ? (
+            {isIntegrationConnectedSync('googleSheets') ? (
               <div 
                 className="space-y-3"
                 onClick={(e) => e.stopPropagation()}

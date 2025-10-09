@@ -1,4 +1,6 @@
-// Comprehensive debugging utilities
+// Comprehensive debugging utilities - Updated to use DevLogger
+import { DevLogger } from './logger';
+
 export interface DebugLog {
     id: string;
     timestamp: string;
@@ -13,7 +15,6 @@ class DebugLogger {
     private logs: DebugLog[] = [];
     private maxLogs = 1000;
     private isEnabled = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
-    private enableConsoleOutput = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
     log(level: DebugLog['level'], category: string, message: string, data?: any) {
         if (!this.isEnabled) return;
@@ -33,14 +34,20 @@ class DebugLogger {
             this.logs = this.logs.slice(0, this.maxLogs);
         }
 
-        // Console output with styling (only in development)
-        if (this.enableConsoleOutput) {
-            const style = this.getConsoleStyle(level);
-            console.log(
-                `%c[${category}] ${message}`,
-                style,
-                data || ''
-            );
+        // Use DevLogger for console output
+        switch (level) {
+            case 'info':
+                DevLogger.info(category, message, data);
+                break;
+            case 'warn':
+                DevLogger.warn(category, message, data);
+                break;
+            case 'error':
+                DevLogger.error(category, message, data);
+                break;
+            case 'debug':
+                DevLogger.debug(category, message, data);
+                break;
         }
 
         // Store in localStorage for persistence across refreshes
@@ -82,23 +89,11 @@ class DebugLogger {
         return JSON.stringify(this.logs, null, 2);
     }
 
-    private getConsoleStyle(level: DebugLog['level']): string {
-        const styles = {
-            info: 'color: #0066cc; font-weight: bold;',
-            warn: 'color: #ff6600; font-weight: bold;',
-            error: 'color: #cc0000; font-weight: bold; background: #ffe6e6;',
-            debug: 'color: #666666; font-style: italic;'
-        };
-        return styles[level];
-    }
-
     private persistLogs() {
         try {
             localStorage.setItem('debug_logs', JSON.stringify(this.logs.slice(0, 100))); // Keep last 100 logs
         } catch (error) {
-            if (this.enableConsoleOutput) {
-                console.warn('Failed to persist debug logs:', error);
-            }
+            DevLogger.warn('DebugLogger', 'Failed to persist debug logs:', error);
         }
     }
 
@@ -110,9 +105,7 @@ class DebugLogger {
                 this.logs = parsed.concat(this.logs);
             }
         } catch (error) {
-            if (this.enableConsoleOutput) {
-                console.warn('Failed to load persisted debug logs:', error);
-            }
+            DevLogger.warn('DebugLogger', 'Failed to load persisted debug logs:', error);
         }
     }
 }

@@ -1,6 +1,4 @@
 import { debugLogger } from '@/lib/debug';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { EventDashboardData } from '../data/eventMetricsService';
 
 // Add type definitions for jsPDF
@@ -19,6 +17,17 @@ export interface PDFExportOptions {
 }
 
 export class PDFExportService {
+  /**
+   * Lazy load PDF libraries
+   */
+  private static async loadPDFLibraries() {
+    const [jsPDF, html2canvas] = await Promise.all([
+      import('jspdf'),
+      import('html2canvas')
+    ]);
+    return { jsPDF: jsPDF.default, html2canvas: html2canvas.default };
+  }
+
   /**
    * Validate dashboard data structure
    */
@@ -68,6 +77,8 @@ export class PDFExportService {
       // Validate required data properties
       this.validateDashboardData(dashboardData);
 
+      // Lazy load PDF libraries
+      const { jsPDF } = await this.loadPDFLibraries();
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -339,6 +350,9 @@ export class PDFExportService {
     options: PDFExportOptions
   ): Promise<void> {
     try {
+      // Lazy load PDF libraries
+      const { jsPDF, html2canvas } = await this.loadPDFLibraries();
+      
       const canvas = await html2canvas(sectionElement, {
         scale: 2,
         useCORS: true,

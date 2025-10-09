@@ -5,6 +5,7 @@ export interface GoogleAdsMetrics {
   impressions: number;
   clicks: number;
   cost: number;
+  leads: number;
   conversions: number;
   ctr: number;
   cpc: number;
@@ -555,44 +556,102 @@ export class GoogleAdsService {
    * Get Google Ads campaigns for a specific customer
    */
   static async getCampaigns(customerId: string, dateRange?: { start: string; end: string }): Promise<GoogleAdsCampaign[]> {
-    debugLogger.debug('GoogleAdsService', 'getCampaigns called - using Edge Function');
+    debugLogger.debug('GoogleAdsService', 'getCampaigns called - using direct API');
 
     try {
-      const { supabase } = await import('@/lib/supabase');
-      
-      debugLogger.debug('GoogleAdsService', 'Using Edge Function for Google Ads campaigns');
-      
-      const { data, error } = await supabase.functions.invoke(`google-ads-api/campaigns?customerId=${customerId}`);
+      const accessToken = await this.ensureValidToken();
+      const developerToken = this.getDeveloperToken();
 
-      if (error) {
-        debugLogger.error('GoogleAdsService', 'Edge Function error', error);
-        throw new Error(`Google Ads Edge Function error: ${error.message}`);
+      if (!accessToken || !developerToken) {
+        throw new Error('Google Ads not authenticated');
       }
 
-      if (!data?.success || !data?.data) {
-        throw new Error('Invalid response from Google Ads Edge Function');
-      }
-
-      debugLogger.debug('GoogleAdsService', 'Edge Function campaigns response', data);
+      // Format date range for Google Ads API
+      const startDate = dateRange?.start ? dateRange.start.replace(/-/g, '') : '';
+      const endDate = dateRange?.end ? dateRange.end.replace(/-/g, '') : '';
       
-      // Transform Edge Function response to match our interface
-      const campaigns: GoogleAdsCampaign[] = data.data.map((campaign: unknown) => {
-        const camp = campaign as Record<string, unknown>;
-        return {
-          id: camp.id as string,
-          name: camp.name as string,
-          status: camp.status as 'enabled' | 'paused' | 'removed',
-          type: camp.type as string,
-          metrics: camp.metrics as GoogleAdsMetrics,
-          dateRange: dateRange || { start: '', end: '' }
-        };
+      const dateFilter = dateRange 
+        ? `segments.date BETWEEN '${startDate}' AND '${endDate}'`
+        : 'segments.date DURING LAST_30_DAYS';
+
+      const query = `
+        SELECT 
+          campaign.id,
+          campaign.name,
+          campaign.status,
+          campaign.advertising_channel_type,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.ctr,
+          metrics.average_cpc,
+          metrics.conversions_from_interactions_rate,
+          metrics.cost_per_conversion,
+          segments.date
+        FROM campaign 
+        WHERE ${dateFilter}
+        ORDER BY campaign.name
+      `;
+
+      debugLogger.debug('GoogleAdsService', 'Making direct API call for campaigns', { customerId, query });
+
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'login-customer-id': customerId,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugLogger.error('GoogleAdsService', `Failed to get campaigns: ${response.status} - ${errorText}`);
+        throw new Error(`Google Ads API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      debugLogger.debug('GoogleAdsService', 'Direct API campaigns response', data);
+
+      // Transform API response to match our interface
+      const campaigns: GoogleAdsCampaign[] = [];
+      
+      if (data.length > 0 && data[0].results) {
+        for (const result of data[0].results) {
+          const campaign = result.campaign;
+          const metrics = result.metrics;
+          
+          campaigns.push({
+            id: campaign.id,
+            name: campaign.name,
+            status: campaign.status.toLowerCase() as 'enabled' | 'paused' | 'removed',
+            type: campaign.advertisingChannelType || 'UNKNOWN',
+            metrics: {
+              impressions: parseInt(metrics.impressions) || 0,
+              clicks: parseInt(metrics.clicks) || 0,
+              cost: parseInt(metrics.costMicros) / 1000000 || 0,
+              leads: parseInt(metrics.conversions) || 0,
+              conversions: parseInt(metrics.conversions) || 0,
+              ctr: parseFloat(metrics.ctr) || 0,
+              cpc: parseFloat(metrics.averageCpc) / 1000000 || 0,
+              conversionRate: parseFloat(metrics.conversionsFromInteractionsRate) || 0,
+              costPerConversion: parseFloat(metrics.costPerConversion) / 1000000 || 0,
+              searchImpressionShare: 0,
+              qualityScore: 0
+            },
+            dateRange: dateRange || { start: '', end: '' }
+          });
+        }
+      }
 
       debugLogger.debug('GoogleAdsService', 'Transformed campaigns', campaigns);
       return campaigns;
 
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads campaigns via Edge Function', error);
+      debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads campaigns via direct API', error);
       throw error;
     }
   }

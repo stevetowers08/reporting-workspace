@@ -74,6 +74,14 @@ export interface EventDashboardData {
   // Combined insights
   leadMetrics: EventLeadMetrics;
 
+  // Client accounts configuration
+  clientAccounts: {
+    facebookAds?: string;
+    googleAds?: string;
+    goHighLevel?: string;
+    googleSheets?: string;
+  };
+
   // Time period
   dateRange: {
     start: string;

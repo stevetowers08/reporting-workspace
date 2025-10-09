@@ -46,51 +46,30 @@ export class LeadDataService {
     const actualSheetName = sheetName || this.DEFAULT_SHEET_NAME;
     
     try {
-      debugLogger.info('LeadDataService', 'Fetching lead data via Supabase Edge Function', {
+      debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
         spreadsheetId: actualSpreadsheetId,
         sheetName: actualSheetName
       });
       
-      // Use Supabase Edge Function
-      // @ts-expect-error Vite injects import.meta.env at build
-      const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
-      const supabaseUrl = (viteEnv && viteEnv.VITE_SUPABASE_URL) || process.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        throw new Error('Missing VITE_SUPABASE_URL environment variable');
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/google-sheets-data`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(viteEnv && viteEnv.VITE_SUPABASE_ANON_KEY) || process.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          spreadsheetId: actualSpreadsheetId,
-          range: `${actualSheetName}!A:Z`
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Supabase Edge Function responded with status: ${response.status}`);
-      }
-
-      const apiResponse = await response.json();
+      // Use direct Google Sheets API (updated architecture)
+      const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
       
-      debugLogger.info('LeadDataService', 'Supabase Edge Function response', {
-        success: apiResponse.success,
-        hasData: !!apiResponse.data,
-        rowCount: apiResponse.data?.values?.length || 0
+      debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
+        spreadsheetId: actualSpreadsheetId,
+        sheetName: actualSheetName
       });
 
-      if (!apiResponse.success || !apiResponse.data) {
-        debugLogger.error('LeadDataService', 'Supabase Edge Function returned no data', apiResponse);
+      const data = await GoogleSheetsService.getSpreadsheetData(
+        actualSpreadsheetId, 
+        `${actualSheetName}!A:Z`
+      );
+
+      if (!data) {
+        debugLogger.error('LeadDataService', 'Failed to fetch data via direct Google Sheets API');
         return null;
       }
 
-      const data = apiResponse.data;
-
-      debugLogger.info('LeadDataService', 'Raw Google Sheets response', {
+      debugLogger.info('LeadDataService', 'Direct Google Sheets API response', {
         hasData: !!data,
         hasValues: !!(data && data.values),
         rowCount: data?.values?.length || 0
@@ -241,7 +220,7 @@ export class LeadDataService {
 
     } catch (error) {
       debugLogger.error('LeadDataService', 'Failed to fetch lead data', error);
-      console.error('LeadDataService: Failed to fetch data via Supabase Edge Function:', error);
+      console.error('LeadDataService: Failed to fetch data via direct Google Sheets API:', error);
       return null;
     }
   }

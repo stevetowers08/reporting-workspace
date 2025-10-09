@@ -1,158 +1,365 @@
-# Test Configuration Guide
+# Testing Guide for Marketing Analytics Dashboard
 
-## Test Structure
+This guide covers the comprehensive testing setup for the Marketing Analytics Dashboard, including development testing tools and unit tests.
 
-The project now uses a well-organized test structure:
+## Overview
 
-```
-tests/
-├── unit/           # Unit tests (Vitest)
-│   └── __tests__/  # Component unit tests
-├── integration/    # Integration tests (Vitest)
-│   └── ghlIntegrationTest.ts
-├── e2e/           # End-to-end tests (Playwright)
-│   ├── ai-insights.spec.ts
-│   ├── inputSanitization.spec.ts
-│   ├── rateLimiting.spec.ts
-│   ├── security.spec.ts
-│   └── validation.spec.ts
-├── manual/        # Manual test scripts
-│   ├── test-*.js  # Standalone test scripts
-│   └── test-*.html # Test HTML files
-└── setup.ts       # Playwright global setup
-```
+The testing infrastructure includes:
+- **Development Testing Tools**: Interactive API testing utilities
+- **Unit Tests**: Comprehensive test coverage for critical services
+- **Integration Tests**: End-to-end testing capabilities
+- **Manual Testing**: Browser-based testing tools
 
-## Running Tests
+## Quick Start
 
-### Unit Tests (Vitest)
+### Run All Tests
 ```bash
-# Run all unit tests
-npm run test:unit
+npm run test:run
+```
 
-# Run unit tests in watch mode
-npm run test:watch
+### Run Tests in Watch Mode
+```bash
+npm test
+```
 
-# Run unit tests with coverage
+### Run Tests with UI
+```bash
+npm run test:ui
+```
+
+### Generate Coverage Report
+```bash
 npm run test:coverage
 ```
 
-### Integration Tests (Vitest)
-```bash
-# Run integration tests
-npm run test:integration
+## Development Testing Tools
+
+### DevAPITester Class
+
+The `DevAPITester` class provides comprehensive API testing utilities for development and debugging.
+
+#### Location
+```
+tests/dev-helpers/api-tester.ts
 ```
 
-### End-to-End Tests (Playwright)
-```bash
-# Run E2E tests
-npm run test:e2e
+#### Usage Examples
 
-# Run E2E tests with UI
-npm run test:e2e:ui
+```typescript
+import { DevAPITester } from './tests/dev-helpers/api-tester';
 
-# Run E2E tests in headed mode
-npm run test:e2e:headed
+// Test all endpoints
+const results = await DevAPITester.testAllEndpoints();
+
+// Test specific service
+const facebookResults = await DevAPITester.testService('facebook');
+
+// Test rate limiting
+const rateLimitResults = await DevAPITester.testRateLimiting('GoHighLevel', 10);
+
+// Test error handling
+const errorResults = await DevAPITester.testErrorHandling('GoHighLevel');
+
+// Get test summary
+const summary = DevAPITester.getResultsSummary();
+
+// Export results
+const exportData = DevAPITester.exportResults();
 ```
 
-### All Tests
-```bash
-# Run all test types
-npm run test:all
+#### Available Test Methods
+
+- `testAllEndpoints()`: Tests all API services
+- `testService(serviceName)`: Tests specific service (facebook, google, ghl, database)
+- `testRateLimiting(serviceName, requests)`: Tests API rate limiting
+- `testErrorHandling(serviceName)`: Tests error handling scenarios
+- `getResultsSummary()`: Returns test summary statistics
+- `exportResults()`: Exports test results as JSON
+- `clearResults()`: Clears test results
+
+### Enhanced API Testing Page
+
+The API Testing Page (`src/pages/APITestingPage.tsx`) has been enhanced with:
+
+- **Test Summary Dashboard**: Visual summary with success rates and performance metrics
+- **Service-Specific Testing**: Individual test buttons for each service
+- **Advanced Testing**: Rate limiting and error handling tests
+- **Export Functionality**: Download test results as JSON
+- **Real-time Progress**: Live updates during test execution
+
+#### Features
+
+- Test summary with success rate visualization
+- Individual service testing buttons
+- Advanced testing options (rate limiting, error handling)
+- Export test results functionality
+- Real-time test progress updates
+- Duration tracking for each test
+
+## Unit Tests
+
+### Test Structure
+
+```
+tests/
+├── unit/
+│   └── services/
+│       ├── goHighLevelService.test.ts
+│       ├── facebookAdsService.test.ts
+│       └── googleAdsService.test.ts
+├── dev-helpers/
+│   └── api-tester.ts
+└── setup.ts
 ```
 
-## Test Types
+### Service Tests
 
-### Unit Tests
-- **Location**: `tests/unit/`
-- **Framework**: Vitest + React Testing Library
-- **Purpose**: Test individual components and functions
-- **Setup**: `src/test/setup.ts`
+#### GoHighLevelService Tests
+- **Location**: `tests/unit/services/goHighLevelService.test.ts`
+- **Coverage**: Contact retrieval, account info, token validation, error handling
+- **Key Tests**:
+  - Successful API responses
+  - Error handling (401, network errors)
+  - Rate limiting enforcement
+  - Token validation
+  - Empty response handling
 
-### Integration Tests
-- **Location**: `tests/integration/`
-- **Framework**: Vitest
-- **Purpose**: Test service integrations and API calls
-- **Setup**: `src/test/setup.ts`
+#### FacebookAdsService Tests
+- **Location**: `tests/unit/services/facebookAdsService.test.ts`
+- **Coverage**: Campaigns, metrics, demographics, platform breakdown
+- **Key Tests**:
+  - Campaign retrieval and metrics
+  - Ad account management
+  - Demographics data
+  - Platform breakdown
+  - Token management and refresh
+  - Error handling scenarios
 
-### End-to-End Tests
-- **Location**: `tests/e2e/`
-- **Framework**: Playwright
-- **Purpose**: Test complete user workflows
-- **Setup**: `tests/setup.ts`
+#### GoogleAdsService Tests
+- **Location**: `tests/unit/services/googleAdsService.test.ts`
+- **Coverage**: Ad accounts, campaigns, keywords, ad groups
+- **Key Tests**:
+  - Account and campaign metrics
+  - Keyword and ad group management
+  - Currency conversion (micros to dollars)
+  - Token management
+  - Quota and rate limiting errors
 
-### Manual Tests
-- **Location**: `tests/manual/`
-- **Purpose**: Standalone test scripts for debugging
-- **Usage**: Run manually for specific testing needs
+### Test Configuration
 
-## Configuration Files
+#### Vitest Configuration
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: true,
+    include: ['tests/unit/**/*.{test,spec}.{js,ts,tsx}', 'src/**/*.{test,spec}.{js,ts,tsx}'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/tests/manual/**', '**/tests/integration/**'],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+})
+```
 
-### Vitest Configuration (`vitest.config.ts`)
-- Unit and integration test configuration
-- Excludes E2E and manual tests
-- Uses jsdom environment
-- Includes React plugin
+#### Test Setup
+```typescript
+// src/test/setup.ts
+import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
-### Playwright Configuration (`playwright.config.ts`)
-- E2E test configuration
-- Points to `tests/e2e` directory
-- Includes global setup
-- Configured for multiple browsers
+// Mock environment variables
+Object.defineProperty(import.meta, 'env', {
+  value: {
+    VITE_SUPABASE_URL: 'https://test.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'test-key',
+    DEV: true
+  },
+  writable: true
+})
 
-### Test Setup Files
-- **`src/test/setup.ts`**: Vitest setup (mocks, environment)
-- **`tests/setup.ts`**: Playwright global setup
+// Mock Supabase
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
+    auth: { getUser: vi.fn(), signInWithPassword: vi.fn(), signOut: vi.fn() },
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn(),
+    })),
+  })),
+}))
 
-## Best Practices
+// Mock React Query
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: vi.fn(),
+  useMutation: vi.fn(),
+  QueryClient: vi.fn(),
+  QueryClientProvider: vi.fn(),
+}))
+```
 
-### Writing Tests
-1. **Unit Tests**: Test components in isolation
-2. **Integration Tests**: Test service interactions
-3. **E2E Tests**: Test user workflows
-4. **Manual Tests**: Use for debugging specific issues
+## Testing Best Practices
 
-### Test Organization
-1. **Group related tests** using `describe` blocks
-2. **Use descriptive test names**
-3. **Follow AAA pattern**: Arrange, Act, Assert
-4. **Mock external dependencies**
+### Writing Unit Tests
 
-### Running Tests
-1. **Development**: Use `npm run test:watch` for unit tests
-2. **CI/CD**: Use `npm run test:all` for complete test suite
-3. **Debugging**: Use `npm run test:e2e:headed` for E2E debugging
-4. **Coverage**: Use `npm run test:coverage` for coverage reports
+1. **Mock External Dependencies**: Always mock API calls, database operations, and external services
+2. **Test Error Scenarios**: Include tests for network errors, API errors, and edge cases
+3. **Test Data Conversion**: Verify proper handling of currency conversions and data transformations
+4. **Test Rate Limiting**: Ensure rate limiting logic works correctly
+5. **Test Token Management**: Verify token refresh and error handling
 
-## Troubleshooting
+### Example Test Structure
 
-### Common Issues
-1. **Test failures**: Check console output and error messages
-2. **Setup issues**: Verify environment variables and mocks
-3. **E2E failures**: Check browser setup and selectors
-4. **Coverage issues**: Ensure all code paths are tested
+```typescript
+describe('ServiceName', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset static state
+  });
 
-### Debug Commands
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('methodName', () => {
+    it('should handle successful responses', async () => {
+      // Mock successful response
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: 'test' })
+      });
+
+      const result = await Service.method();
+      expect(result).toBeDefined();
+    });
+
+    it('should handle API errors gracefully', async () => {
+      // Mock error response
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized'
+      });
+
+      await expect(Service.method()).rejects.toThrow();
+    });
+  });
+});
+```
+
+### Development Testing
+
+1. **Use DevAPITester**: Leverage the development testing tools for quick API validation
+2. **Test Real APIs**: Use the enhanced API Testing Page for integration testing
+3. **Monitor Performance**: Track test durations and identify performance issues
+4. **Export Results**: Save test results for debugging and documentation
+
+## Running Tests
+
+### Available Scripts
+
 ```bash
-# Debug unit tests
+# Run tests in watch mode
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run tests with UI
 npm run test:ui
 
-# Debug E2E tests
-npm run test:e2e:headed
+# Generate coverage report
+npm run test:coverage
 
-# Check test configuration
-npm run test:run --reporter=verbose
+# Run specific test file
+npx vitest tests/unit/services/goHighLevelService.test.ts
+
+# Run tests matching pattern
+npx vitest --grep "FacebookAdsService"
 ```
 
-## AI-Assisted Testing
+### Test Runner Script
 
-### Using Cursor AI for Tests
-- **Generate tests**: "Create unit tests for the MetricsCard component"
-- **Fix tests**: "Fix this failing test" (paste error)
-- **Debug tests**: "Debug this E2E test failure"
-- **Optimize tests**: "Optimize this test for better performance"
+A custom test runner script is available at `scripts/test-runner.mjs`:
 
-### Common AI Prompts
-- "Generate integration tests for the FacebookAdsService"
-- "Create E2E tests for the dashboard workflow"
-- "Fix this Playwright test selector issue"
-- "Add accessibility tests for this component"
+```bash
+node scripts/test-runner.mjs
+```
+
+This script runs both unit tests and development API tests, providing a comprehensive test report.
+
+## Debugging Tests
+
+### Common Issues
+
+1. **Mock Not Working**: Ensure mocks are set up before the service is imported
+2. **Async Issues**: Use `await` for async operations and `vi.waitFor()` for DOM updates
+3. **Token Issues**: Mock token management properly in tests
+4. **Network Errors**: Test both success and error scenarios
+
+### Debugging Tips
+
+1. **Use `console.log`**: Add logging in tests to debug issues
+2. **Check Mock Calls**: Use `vi.mocked()` to verify mock calls
+3. **Test Isolation**: Ensure tests don't interfere with each other
+4. **Error Messages**: Check error messages for debugging clues
+
+## Integration with CI/CD
+
+### GitHub Actions Example
+
+```yaml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npm run test:run
+      - run: npm run test:coverage
+```
+
+## Performance Testing
+
+### Rate Limiting Tests
+
+The development testing tools include rate limiting tests to ensure APIs handle high request volumes correctly:
+
+```typescript
+// Test rate limiting with 10 requests
+const results = await DevAPITester.testRateLimiting('GoHighLevel', 10);
+```
+
+### Performance Monitoring
+
+- Test duration tracking
+- Success rate monitoring
+- Error rate analysis
+- Performance regression detection
+
+## Conclusion
+
+This comprehensive testing setup provides:
+
+- **Development Tools**: Interactive API testing for debugging
+- **Unit Tests**: Comprehensive coverage of critical services
+- **Integration Tests**: End-to-end testing capabilities
+- **Performance Testing**: Rate limiting and performance monitoring
+- **CI/CD Integration**: Automated testing in deployment pipelines
+
+The testing infrastructure ensures the reliability and performance of the Marketing Analytics Dashboard across all integrated services.

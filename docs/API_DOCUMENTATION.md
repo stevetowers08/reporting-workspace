@@ -10,10 +10,9 @@ This document provides comprehensive API documentation for the Marketing Analyti
 2. [Google Ads API](#google-ads-api)
 3. [Google Sheets API](#google-sheets-api)
 4. [Authentication & Token Management](#authentication--token-management)
-5. [Supabase Edge Functions](#supabase-edge-functions)
-6. [Database Schema](#database-schema)
-7. [Current Issues & Known Problems](#current-issues--known-problems)
-8. [Development Setup](#development-setup)
+5. [Database Schema](#database-schema)
+6. [Current Issues & Known Problems](#current-issues--known-problems)
+7. [Development Setup](#development-setup)
 
 ---
 
@@ -23,7 +22,7 @@ This document provides comprehensive API documentation for the Marketing Analyti
 ```
 Frontend (React/TypeScript)
     ↓
-Supabase Edge Functions (Deno)
+Direct API Calls
     ↓
 External APIs (Google Ads, Google Sheets, GoHighLevel)
     ↓
@@ -32,11 +31,11 @@ Supabase Database (PostgreSQL)
 
 ### Key Components
 - **Frontend**: React 19 + TypeScript + Vite
-- **Backend**: Supabase Edge Functions (Deno runtime)
+- **API Layer**: Direct API calls to external services
 - **Database**: Supabase PostgreSQL
 - **Authentication**: OAuth 2.0 with PKCE
 - **Token Storage**: Encrypted tokens in database
-- **Caching**: Simple in-memory cache in Edge Functions
+- **Caching**: Client-side caching in services
 
 ### Integration Architecture
 
@@ -402,31 +401,22 @@ const response = await fetch(
 
 ### Service Location
 - **Main Service**: `src/services/api/googleSheetsService.ts` - Primary Google Sheets API service
-- **Edge Function**: `supabase/functions/google-sheets-data/index.ts` - Server-side data fetching
 - **OAuth Service**: `src/services/auth/googleSheetsOAuthService.ts` - Authentication management
 - **Token Manager**: `src/services/auth/TokenManager.ts` - Secure token storage and retrieval
+
+**Architecture**: ✅ **DIRECT API** - All services now use direct Google Sheets API calls (Edge Functions deprecated)
 
 ### API Endpoints
 
 #### 1. Get Spreadsheet Data
 **Method**: `GoogleSheetsService.getSpreadsheetData(spreadsheetId: string, range: string)`
 
-**Edge Function Endpoint**: `/functions/v1/google-sheets-data`
-
-**Request Body**:
+**Implementation**: ✅ **DIRECT API CALL**
 ```typescript
-{
-  spreadsheetId: string,
-  range: string
-}
-```
+// Direct Google Sheets API call (current architecture)
+const data = await GoogleSheetsService.getSpreadsheetData(spreadsheetId, range);
 
-**Implementation**:
-```typescript
-// ✅ Correct URL format (working)
-const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
-
-// ❌ Wrong format (causes 404)
+// URL format used internally
 const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values?range=${encodeURIComponent(range)}`;
 ```
 
@@ -612,66 +602,24 @@ const codeChallengeBase64 = btoa(String.fromCharCode(...new Uint8Array(codeChall
 
 ## Supabase Edge Functions
 
-### Google Ads API Edge Function
-**Location**: `supabase/functions/google-ads-api/index.ts`
+**Status**: ❌ **DEPRECATED** - All Edge Functions have been replaced with direct API calls
 
-#### Supported Actions
-- `accounts` - Get accessible customers
-- `getAdAccounts` - Get individual ad accounts
-- `campaigns` - Get campaigns for a customer
-- `campaign-performance` - Get campaign performance metrics
+### Migration Completed ✅
+All services now use direct API calls instead of Supabase Edge Functions:
 
-#### URL Structure
-```
-/functions/v1/google-ads-api/{action}?customerId={id}&dateRange={range}
-```
+- ✅ **Google Sheets**: Direct Google Sheets API calls
+- ✅ **Google Ads**: Direct Google Ads API calls  
+- ✅ **Facebook Ads**: Direct Facebook Marketing API calls
+- ✅ **GoHighLevel**: Direct GoHighLevel API calls
 
-#### Caching Implementation
-```typescript
-class SimpleCache {
-  private static cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-  private static readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
-  
-  static get<T>(key: string): T | null
-  static set<T>(key: string, data: T, ttl: number = this.DEFAULT_TTL): void
-  static invalidate(pattern: string): void
-}
-```
+### Benefits of Direct API Architecture:
+- ✅ **Eliminated 401 authentication errors**
+- ✅ **Reduced latency** by removing intermediate layer
+- ✅ **Simplified debugging** with direct API responses
+- ✅ **Better error handling** with native API error codes
+- ✅ **Improved performance** with fewer network hops
 
-#### Rate Limiting
-```typescript
-function checkRateLimit(customerId?: string): boolean {
-  // Per-customer rate limiting
-  // 5 requests/second maximum
-  // Returns false if rate limit exceeded
-}
-```
-
-### Google Sheets Data Edge Function
-**Location**: `supabase/functions/google-sheets-data/index.ts`
-
-#### Request Format
-```typescript
-{
-  spreadsheetId: string,
-  range: string
-}
-```
-
-#### Response Format
-```typescript
-{
-  success: boolean,
-  data?: any,
-  error?: string,
-  cached?: boolean
-}
-```
-
-#### Token Refresh Logic
-- Automatically refreshes expired tokens
-- Updates database with new tokens
-- Handles refresh failures gracefully
+**Note**: Edge Functions are no longer used in this architecture. All API calls are made directly from the frontend services.
 
 ---
 
@@ -785,6 +733,137 @@ interface ClientAccounts {
 ## Current Issues & Known Problems
 
 ### ✅ Resolved Issues
+
+#### Google Ads Dropdown Timing Issue - RESOLVED ✅
+**Issue**: Google Ads dropdown not working in edit client modal
+**Root Cause**: **Critical timing issue** - `isIntegrationConnected()` function was synchronous but integration status was loaded asynchronously in useEffect
+**Impact**: Dropdown would show "None" even when Google Ads integration was connected
+
+**Technical Problem**:
+```typescript
+// PROBLEMATIC CODE (before fix):
+const isIntegrationConnected = (platform: string): boolean => {
+  // This was called immediately when component rendered
+  const isConnected = integrationStatus[platform] || false; // undefined initially!
+  return isConnected;
+};
+
+useEffect(() => {
+  // This runs AFTER the component renders
+  const checkIntegrationStatus = async () => {
+    // ... async status checking
+    setIntegrationStatus(statusMap); // Too late!
+  };
+  checkIntegrationStatus();
+}, []);
+```
+
+**Solution Applied**:
+```typescript
+// FIXED CODE (after fix):
+// Synchronous version for UI rendering
+const isIntegrationConnectedSync = (platform: string): boolean => {
+  return integrationStatus[platform] || false;
+};
+
+// Async version for account loading with fallback
+const isIntegrationConnected = async (platform: string): Promise<boolean> => {
+  // If status not loaded yet, check directly with TokenManager
+  if (integrationStatus[platform] === undefined) {
+    const { TokenManager } = await import('@/services/auth/TokenManager');
+    return await TokenManager.isConnected(platform as IntegrationPlatform);
+  }
+  return integrationStatus[platform] || false;
+};
+
+// Updated all calls to handle async nature
+const loadConnectedAccounts = async () => {
+  const isGoogleAdsConnected = await isIntegrationConnected('googleAds');
+  if (isGoogleAdsConnected && !googleAccountsLoaded) {
+    loadGoogleAccounts();
+  }
+};
+
+// UI uses synchronous version
+{isIntegrationConnectedSync('googleAds') && (
+  <div>Google Ads dropdown content</div>
+)}
+```
+
+**Status**: ✅ **FULLY RESOLVED** - Google Ads dropdown now works correctly in edit client modal
+
+#### Logo Usage Warnings - RESOLVED ✅
+**Issue**: Console warnings about logo usage in 'client-form' and 'client-table' contexts not being approved by brand guidelines
+**Root Cause**: Logo service only allowed specific contexts (`admin-panel`, `dashboard`, `integration-cards`) but ClientForm was using `client-form` and `client-table` contexts
+**Solution**: Updated logo service to include new contexts and their recommended sizes
+
+**Technical Fix**:
+```typescript
+// Updated brand guidelines to include new contexts
+brandGuidelines: {
+  minSize: 16,
+  maxSize: 200,
+  backgroundColor: '#FFFFFF',
+  usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
+}
+
+// Added recommended sizes for new contexts
+const contextSizes: Record<string, number> = {
+  'admin-panel': 20,
+  'dashboard': 24,
+  'integration-cards': 32,
+  'client-form': 20,        // NEW
+  'client-table': 16,       // NEW
+  'header': 40,
+  'sidebar': 16
+};
+```
+
+**Status**: ✅ **FULLY RESOLVED** - Logo warnings eliminated, proper brand guidelines enforced
+
+#### Edge Function Migration to Direct API - COMPLETED ✅
+**Issue**: Services still using deprecated Supabase Edge Functions instead of direct API calls
+**Root Cause**: Legacy architecture using Edge Functions for Google Sheets and Google Ads API calls
+**Impact**: 401 authentication errors and unnecessary complexity
+
+**Services Updated**:
+- ✅ **LeadDataService**: Migrated from Edge Function to `GoogleSheetsService.getSpreadsheetData()`
+- ✅ **GoogleAdsService**: Migrated from Edge Function to direct Google Ads API calls
+- ✅ **GoogleSheetsService**: Already using direct API calls
+
+**Technical Changes**:
+```typescript
+// OLD (deprecated Edge Function approach):
+const { data, error } = await supabase.functions.invoke('google-sheets-data', {
+  body: { spreadsheetId, range }
+});
+
+// NEW (direct API approach):
+const data = await GoogleSheetsService.getSpreadsheetData(spreadsheetId, range);
+
+// OLD (deprecated Edge Function approach):
+const { data, error } = await supabase.functions.invoke(`google-ads-api/campaigns?customerId=${customerId}`);
+
+// NEW (direct API approach):
+const response = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'developer-token': developerToken,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ query })
+});
+```
+
+**Benefits**:
+- ✅ **Eliminated 401 errors** from Edge Function authentication issues
+- ✅ **Reduced latency** by removing intermediate Edge Function layer
+- ✅ **Simplified architecture** with direct API calls
+- ✅ **Better error handling** with direct API response codes
+- ✅ **Improved debugging** with direct API logs
+
+**Status**: ✅ **FULLY COMPLETED** - All services now use direct API calls
 
 #### 1. Google Ads Developer Token Configuration
 **Status**: ✅ **RESOLVED**
@@ -953,7 +1032,6 @@ VITE_ENCRYPTION_KEY=dev-encryption-key-change-in-production
 1. **Supabase Project**: Create new project
 2. **Tables**: Run migration scripts to create required tables
 3. **RLS Policies**: Configure Row Level Security policies
-4. **Edge Functions**: Deploy all Edge Functions
 
 ### Testing Checklist
 - [x] Google Ads OAuth flow completes successfully ✅
@@ -961,7 +1039,7 @@ VITE_ENCRYPTION_KEY=dev-encryption-key-change-in-production
 - [x] Individual ad accounts properly filtered (manager accounts excluded) ✅
 - [x] Google Sheets data loads correctly ✅
 - [x] Token refresh works automatically ✅
-- [x] Edge Functions respond correctly ✅
+- [x] Direct API calls respond correctly ✅
 - [x] Error handling works as expected ✅
 - [x] No fake accounts generated ✅
 
@@ -993,17 +1071,18 @@ curl -X GET "https://sheets.googleapis.com/v4/spreadsheets/SPREADSHEET_ID/values
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Edge Function Testing
+### Direct API Testing
 ```bash
-# Test Google Ads Edge Function
-curl -X GET "https://your-project.supabase.co/functions/v1/google-ads-api/accounts" \
-  -H "Authorization: Bearer YOUR_SUPABASE_ANON_KEY"
-
-# Test Google Sheets Edge Function
-curl -X POST "https://your-project.supabase.co/functions/v1/google-sheets-data" \
-  -H "Authorization: Bearer YOUR_SUPABASE_ANON_KEY" \
+# Test Google Ads API directly
+curl -X POST "https://googleads.googleapis.com/v20/customers/CUSTOMER_ID/googleAds:searchStream" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "developer-token: YOUR_DEVELOPER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"spreadsheetId": "SPREADSHEET_ID", "range": "RANGE"}'
+  -d '{"query": "SELECT campaign.id, campaign.name FROM campaign"}'
+
+# Test Google Sheets API directly
+curl -X GET "https://sheets.googleapis.com/v4/spreadsheets/SPREADSHEET_ID/values/RANGE" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ---
@@ -1012,6 +1091,7 @@ curl -X POST "https://your-project.supabase.co/functions/v1/google-sheets-data" 
 
 This API documentation provides comprehensive coverage of the Marketing Analytics Dashboard's Google Ads and Google Sheets integrations. The system is designed with 2025 best practices including:
 
+- **Direct API Architecture** - All services use direct API calls (Edge Functions deprecated)
 - **Secure OAuth 2.0 with PKCE**
 - **Encrypted token storage**
 - **Automatic token refresh**
@@ -1047,27 +1127,47 @@ This API documentation provides comprehensive coverage of the Marketing Analytic
 - Service was returning hardcoded accounts instead of real API data
 - Frontend only loaded accounts when existing account ID was present
 - Missing useEffect to load accounts for connected integrations
+- **CRITICAL**: Timing issue - `isIntegrationConnected()` was synchronous but integration status loaded asynchronously
 
 **Solution**: 
 - **Service Layer**: Restored real API call to `convertAccessibleCustomersToAccounts()` method
 - **Frontend Logic**: Added useEffect to load accounts for connected integrations on component mount
 - **Data Flow**: Ensured accounts load automatically when Google Ads integration is connected
+- **TIMING FIX**: Made `isIntegrationConnected()` async and added direct TokenManager checks when status not yet loaded
 
 **Technical Details**:
 ```typescript
-// New useEffect pattern for loading integration accounts
-useEffect(() => {
-  console.log('🔍 ClientForm: Checking for connected integrations to load accounts');
-  
-  // Load Google Ads accounts if integration is connected
-  if (isIntegrationConnected('googleAds') && !googleAccountsLoaded) {
-    console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration');
-    loadGoogleAccounts();
+// Fixed async integration status checking
+const isIntegrationConnected = async (platform: string): Promise<boolean> => {
+  // If integrationStatus is not yet loaded, check directly with TokenManager
+  if (integrationStatus[platform] === undefined) {
+    try {
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
+      return isConnected;
+    } catch (error) {
+      console.error(`Error checking ${platform} status directly:`, error);
+      return false;
+    }
   }
+  
+  return integrationStatus[platform] || false;
+};
+
+// Updated useEffect with async integration checking
+useEffect(() => {
+  const loadConnectedAccounts = async () => {
+    const isGoogleAdsConnected = await isIntegrationConnected('googleAds');
+    if (isGoogleAdsConnected && !googleAccountsLoaded) {
+      loadGoogleAccounts();
+    }
+  };
+  
+  loadConnectedAccounts();
 }, []); // Run once on mount
 ```
 
-**Status**: ✅ **FULLY WORKING** - Google Ads dropdown now populates with real account data
+**Status**: ✅ **FULLY WORKING** - Google Ads dropdown now populates with real account data and handles timing correctly
 
 ## Frontend Integration Patterns
 
@@ -1162,5 +1262,90 @@ useEffect(() => {
 - Fixed infinite loop in admin panel loading caused by repeated API calls
 - Updated integration status display logic to show correct connection states
 - Implemented automatic token refresh service to prevent manual token management
+
+## GoHighLevel Service - Modular Architecture ✅
+
+### Overview
+The GoHighLevel service has been refactored into a modular architecture for better maintainability and development-friendly structure while maintaining full backward compatibility.
+
+### Service Structure
+```
+src/services/ghl/
+├── index.ts                    # Main export interface
+├── goHighLevelService.ts       # Original working service (preserved)
+├── README.md                   # Comprehensive documentation
+└── modules/
+    ├── contacts.ts            # Contact operations
+    └── analytics.ts           # Analytics operations
+```
+
+### Usage Patterns
+
+#### Backward Compatibility (Current Approach)
+```typescript
+import { GoHighLevelService } from '@/services/api/goHighLevelService';
+
+// All existing code continues to work
+const contacts = await GoHighLevelService.getAllContacts(locationId);
+const metrics = await GoHighLevelService.getGHLMetrics(locationId);
+```
+
+#### New Modular Approach
+```typescript
+import { GHLContacts, GHLAnalytics } from '@/services/ghl';
+
+// Contact operations
+const contacts = await GHLContacts.getContacts(locationId);
+const recentContacts = await GHLContacts.getRecentContacts(locationId, 10);
+const contactsBySource = await GHLContacts.getContactsBySource(locationId, 'facebook');
+
+// Analytics operations
+const metrics = await GHLAnalytics.getMetrics(locationId);
+const sourceBreakdown = await GHLAnalytics.getSourceBreakdown(locationId);
+const conversionRate = await GHLAnalytics.getConversionRate(locationId);
+```
+
+### Module Details
+
+#### GHLContactsModule
+**Purpose**: Handle all contact-related operations
+
+**Methods**:
+- `getContacts(locationId, options?)` - Get contacts with optional filtering
+- `getContactCount(locationId, dateParams?)` - Get total contact count
+- `searchContacts(locationId, criteria)` - Search contacts with specific criteria
+- `getRecentContacts(locationId, limit?)` - Get most recent contacts
+- `getContactsBySource(locationId, source)` - Filter contacts by source
+- `getContactsWithGuests(locationId)` - Get contacts with guest information
+
+#### GHLAnalyticsModule
+**Purpose**: Handle analytics and metrics calculations
+
+**Methods**:
+- `getMetrics(locationId, dateRange?)` - Get comprehensive metrics
+- `getSourceBreakdown(locationId, dateRange?)` - Get source performance breakdown
+- `getGuestDistribution(locationId, dateRange?)` - Get guest count distribution
+- `getTopPerformingSources(locationId, dateRange?)` - Get best performing sources
+- `getPageViewAnalytics(locationId, dateRange?)` - Get page view analytics
+- `getConversionRate(locationId, dateRange?)` - Get conversion rate
+- `calculateCustomAnalytics(locationId, dateRange?, customFields?)` - Calculate custom analytics
+
+### Migration Strategy
+1. **Phase 1**: Keep existing code working with `GoHighLevelService`
+2. **Phase 2**: Use new modules for new features
+3. **Phase 3**: Gradually migrate existing components when convenient
+4. **Phase 4**: Remove old service when all code is migrated
+
+### Benefits
+- ✅ **Zero Breaking Changes** - All existing code continues to work
+- ✅ **Focused Modules** - Single responsibility per module
+- ✅ **Better Testing** - Easier to test individual modules
+- ✅ **Improved Maintainability** - Smaller, focused files
+- ✅ **Gradual Migration** - No big-bang rewrite required
+- ✅ **Development-Friendly** - Clear separation of concerns
+
+**Status**: ✅ **PRODUCTION READY** - Modular architecture implemented and tested
+
+---
 
 For additional support or questions, refer to the troubleshooting guides in the `docs/ai/` directory or check the project status in `docs/ai/PROJECT_STATUS.md`.

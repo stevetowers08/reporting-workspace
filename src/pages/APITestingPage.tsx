@@ -1,154 +1,83 @@
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import React, { useState } from 'react';
+import { Progress } from '@/components/ui/progress';
+import React, { useEffect, useState } from 'react';
+import { DevAPITester, ServiceTestResults, TestResult } from '../../tests/dev-helpers/api-tester';
 
-interface TestResult {
-  service: string;
-  test: string;
-  success: boolean;
-  error?: string;
-  data?: any;
-  timestamp: string;
+interface TestSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  successRate: number;
+  avgDuration: number;
 }
 
 export const APITestingPage: React.FC = () => {
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [testSummary, setTestSummary] = useState<TestSummary | null>(null);
+  const [serviceResults, setServiceResults] = useState<ServiceTestResults | null>(null);
 
-  const addTestResult = (service: string, test: string, success: boolean, error?: string, data?: any) => {
-    const result: TestResult = {
-      service,
-      test,
-      success,
-      error,
-      data,
-      timestamp: new Date().toISOString()
-    };
-    setTestResults(prev => [...prev, result]);
-  };
-
-  const testGoogleAdsAPI = async () => {
-    addTestResult('Google Ads', 'Starting tests...', true);
-    
-    try {
-      // Test 1: Check connection
-      const { TokenManager } = await import('@/services/auth/TokenManager');
-      const isConnected = await TokenManager.isConnected('googleAds');
-      addTestResult('Google Ads', 'Connection Check', isConnected, !isConnected ? 'Not connected' : undefined);
-      
-      if (!isConnected) {
-        addTestResult('Google Ads', 'Skipping API tests', false, 'Not connected');
-        return;
-      }
-
-      // Test 2: Get access token
-      const accessToken = await TokenManager.getAccessToken('googleAds');
-      addTestResult('Google Ads', 'Access Token', !!accessToken, !accessToken ? 'No token found' : undefined);
-
-      // Test 3: Test service
-      const { GoogleAdsService } = await import('@/services/api/googleAdsService');
-      
-      const accounts = await GoogleAdsService.getAdAccounts();
-      addTestResult('Google Ads', 'Get Accounts', true, undefined, { count: accounts.length, accounts });
-      
-      if (accounts.length > 0) {
-        const metrics = await GoogleAdsService.getAccountMetrics(accounts[0].id, {
-          start: '2024-01-01',
-          end: '2024-01-31'
-        });
-        addTestResult('Google Ads', 'Get Metrics', true, undefined, metrics);
-      }
-      
-    } catch (error) {
-      addTestResult('Google Ads', 'API Test Failed', false, error instanceof Error ? error.message : String(error));
+  // Update test summary when results change
+  useEffect(() => {
+    if (testResults.length > 0) {
+      const summary = DevAPITester.getResultsSummary();
+      setTestSummary(summary);
     }
-  };
-
-  const testGoHighLevelAPI = async () => {
-    addTestResult('Go High Level', 'Starting tests...', true);
-    
-    try {
-      // Test 1: Check connection
-      const { TokenManager } = await import('@/services/auth/TokenManager');
-      const isConnected = await TokenManager.isConnected('goHighLevel');
-      addTestResult('Go High Level', 'Connection Check', isConnected, !isConnected ? 'Not connected' : undefined);
-      
-      if (!isConnected) {
-        addTestResult('Go High Level', 'Skipping API tests', false, 'Not connected');
-        return;
-      }
-
-      // Test 2: Get access token
-      const accessToken = await TokenManager.getAccessToken('goHighLevel');
-      addTestResult('Go High Level', 'Access Token', !!accessToken, !accessToken ? 'No token found' : undefined);
-
-      // Test 3: Test service (simplified for location-level OAuth)
-      const { GoHighLevelService } = await import('@/services/api/goHighLevelService');
-      
-      // Since we're using location-level OAuth, we don't need to test getAllLocations
-      addTestResult('Go High Level', 'Get Locations', true, 'Skipped (location-level OAuth)', { 
-        message: 'Using location-level OAuth, no need to fetch all locations' 
-      });
-      
-      // Skip metrics test since we don't have location data
-      addTestResult('Go High Level', 'Get Metrics', true, 'Skipped (location-level OAuth)', { 
-        message: 'Using location-level OAuth, metrics will be fetched per location' 
-      });
-      
-    } catch (error) {
-      addTestResult('Go High Level', 'API Test Failed', false, error instanceof Error ? error.message : String(error));
-    }
-  };
-
-  const testEventMetricsService = async () => {
-    addTestResult('EventMetricsService', 'Starting tests...', true);
-    
-    try {
-      const { EventMetricsService } = await import('@/services/data/eventMetricsService');
-      
-      const metrics = await EventMetricsService.getComprehensiveMetrics(
-        'test-client',
-        { start: '2024-01-01', end: '2024-01-31' },
-        {
-          facebookAds: 'test-facebook-account',
-          googleAds: 'test-google-account',
-          goHighLevel: 'test-ghl-location'
-        }
-      );
-      
-      addTestResult('EventMetricsService', 'Get Comprehensive Metrics', true, undefined, metrics);
-      
-    } catch (error) {
-      addTestResult('EventMetricsService', 'API Test Failed', false, error instanceof Error ? error.message : String(error));
-    }
-  };
-
-  const testDatabaseConnections = async () => {
-    addTestResult('Database', 'Starting tests...', true);
-    
-    try {
-      const { DatabaseService } = await import('@/services/data/databaseService');
-      
-      const clients = await DatabaseService.getAllClients();
-      addTestResult('Database', 'Get All Clients', true, undefined, { count: clients.length });
-      
-      const integrations = await DatabaseService.getIntegrations();
-      addTestResult('Database', 'Get Integrations', true, undefined, { count: integrations.length });
-      
-    } catch (error) {
-      addTestResult('Database', 'API Test Failed', false, error instanceof Error ? error.message : String(error));
-    }
-  };
+  }, [testResults]);
 
   const runAllTests = async () => {
     setIsRunning(true);
     setTestResults([]);
+    setServiceResults(null);
+    setTestSummary(null);
     
     try {
-      await testDatabaseConnections();
-      await testGoogleAdsAPI();
-      await testGoHighLevelAPI();
-      await testEventMetricsService();
+      const results = await DevAPITester.testAllEndpoints();
+      setServiceResults(results);
+      
+      // Flatten all results for display
+      const allResults = [
+        ...results.facebook,
+        ...results.google,
+        ...results.ghl,
+        ...results.database
+      ];
+      setTestResults(allResults);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const testSpecificService = async (service: 'facebook' | 'google' | 'ghl' | 'database') => {
+    setIsRunning(true);
+    
+    try {
+      const results = await DevAPITester.testService(service);
+      setTestResults(results);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const testRateLimiting = async (service: string) => {
+    setIsRunning(true);
+    
+    try {
+      const results = await DevAPITester.testRateLimiting(service, 5);
+      setTestResults(results);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const testErrorHandling = async (service: string) => {
+    setIsRunning(true);
+    
+    try {
+      const results = await DevAPITester.testErrorHandling(service);
+      setTestResults(results);
     } finally {
       setIsRunning(false);
     }
@@ -156,6 +85,22 @@ export const APITestingPage: React.FC = () => {
 
   const clearResults = () => {
     setTestResults([]);
+    setServiceResults(null);
+    setTestSummary(null);
+    DevAPITester.clearResults();
+  };
+
+  const exportResults = () => {
+    const exportData = DevAPITester.exportResults();
+    const blob = new Blob([exportData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `api-test-results-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -166,25 +111,87 @@ export const APITestingPage: React.FC = () => {
           Test all API connections and identify issues with Google Ads and Go High Level integrations.
         </p>
         
-        <div className="flex gap-4 mb-6">
-          <Button onClick={runAllTests} disabled={isRunning}>
-            {isRunning ? 'Running Tests...' : 'Run All Tests'}
-          </Button>
-          <Button onClick={testGoogleAdsAPI} variant="outline" disabled={isRunning}>
-            Test Google Ads Only
-          </Button>
-          <Button onClick={testGoHighLevelAPI} variant="outline" disabled={isRunning}>
-            Test Go High Level Only
-          </Button>
-          <Button onClick={testEventMetricsService} variant="outline" disabled={isRunning}>
-            Test EventMetricsService
-          </Button>
-          <Button onClick={testDatabaseConnections} variant="outline" disabled={isRunning}>
-            Test Database
-          </Button>
-          <Button onClick={clearResults} variant="ghost" disabled={isRunning}>
-            Clear Results
-          </Button>
+        {/* Test Summary */}
+        {testSummary && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Test Summary</span>
+                <Badge variant={testSummary.successRate >= 80 ? 'default' : testSummary.successRate >= 60 ? 'secondary' : 'destructive'}>
+                  {testSummary.successRate}% Success Rate
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{testSummary.passed}</div>
+                  <div className="text-sm text-gray-600">Passed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{testSummary.failed}</div>
+                  <div className="text-sm text-gray-600">Failed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{testSummary.total}</div>
+                  <div className="text-sm text-gray-600">Total</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">{testSummary.avgDuration}ms</div>
+                  <div className="text-sm text-gray-600">Avg Duration</div>
+                </div>
+              </div>
+              <Progress value={testSummary.successRate} className="w-full" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Test Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-sm text-gray-700">Main Tests</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={runAllTests} disabled={isRunning} size="sm">
+                {isRunning ? 'Running...' : 'Run All Tests'}
+              </Button>
+              <Button onClick={clearResults} variant="outline" disabled={isRunning} size="sm">
+                Clear Results
+              </Button>
+              <Button onClick={exportResults} variant="outline" disabled={isRunning || testResults.length === 0} size="sm">
+                Export Results
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold text-sm text-gray-700">Service Tests</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => testSpecificService('facebook')} variant="outline" disabled={isRunning} size="sm">
+                Facebook Ads
+              </Button>
+              <Button onClick={() => testSpecificService('google')} variant="outline" disabled={isRunning} size="sm">
+                Google Ads
+              </Button>
+              <Button onClick={() => testSpecificService('ghl')} variant="outline" disabled={isRunning} size="sm">
+                Go High Level
+              </Button>
+              <Button onClick={() => testSpecificService('database')} variant="outline" disabled={isRunning} size="sm">
+                Database
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold text-sm text-gray-700">Advanced Tests</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => testRateLimiting('GoHighLevel')} variant="outline" disabled={isRunning} size="sm">
+                Rate Limiting
+              </Button>
+              <Button onClick={() => testErrorHandling('GoHighLevel')} variant="outline" disabled={isRunning} size="sm">
+                Error Handling
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -196,9 +203,14 @@ export const APITestingPage: React.FC = () => {
                 <span className={result.success ? 'text-green-800' : 'text-red-800'}>
                   {result.success ? '✅' : '❌'} {result.service} - {result.test}
                 </span>
-                <span className="text-xs text-gray-500">
-                  {new Date(result.timestamp).toLocaleTimeString()}
-                </span>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  {result.duration && (
+                    <Badge variant="outline" className="text-xs">
+                      {result.duration}ms
+                    </Badge>
+                  )}
+                  <span>{new Date(result.timestamp).toLocaleTimeString()}</span>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">

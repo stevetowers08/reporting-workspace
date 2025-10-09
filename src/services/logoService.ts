@@ -66,7 +66,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards']
+        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -86,7 +86,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards']
+        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -106,7 +106,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards']
+        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -126,7 +126,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards']
+        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
 
@@ -146,7 +146,7 @@ class LogoService {
         minSize: 16,
         maxSize: 200,
         backgroundColor: '#FFFFFF',
-        usage: ['admin-panel', 'dashboard', 'integration-cards']
+        usage: ['admin-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
   }
@@ -253,6 +253,8 @@ class LogoService {
       'admin-panel': 20,
       'dashboard': 24,
       'integration-cards': 32,
+      'client-form': 20,
+      'client-table': 16,
       'header': 40,
       'sidebar': 16
     };
