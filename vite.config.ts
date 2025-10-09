@@ -76,6 +76,10 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
+        globals: {
+          'react': 'React',
+          'react-dom': 'ReactDOM'
+        },
         manualChunks: (id) => {
           // Core React libraries
           if (id.includes('react') || id.includes('react-dom')) {
