@@ -38,6 +38,7 @@ const ClientEditPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successLocationName, setSuccessLocationName] = useState<string | null>(null);
 
   // Handle OAuth success redirect
   useEffect(() => {
@@ -48,6 +49,7 @@ const ClientEditPage: React.FC = () => {
 
     if ((connected === 'true' || ghlConnected === 'true') && location) {
       setShowSuccessMessage(true);
+      setSuccessLocationName(locationName);
       
       // Clear the URL parameters after showing the message
       const newSearchParams = new URLSearchParams(searchParams);
@@ -62,6 +64,7 @@ const ClientEditPage: React.FC = () => {
       // Hide success message after 5 seconds
       setTimeout(() => {
         setShowSuccessMessage(false);
+        setSuccessLocationName(null);
       }, 5000);
     }
   }, [searchParams, navigate, clientId]);
@@ -178,7 +181,7 @@ const ClientEditPage: React.FC = () => {
           </svg>
           <span className="font-medium">
             GoHighLevel connected successfully!
-            {searchParams.get('location_name') && ` (${searchParams.get('location_name')})`}
+            {successLocationName && ` (${successLocationName})`}
           </span>
         </div>
       )}
