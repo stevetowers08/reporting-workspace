@@ -1,4 +1,4 @@
-/* eslint-disable no-undef, no-unused-vars, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-unused-vars */
 import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
@@ -204,23 +204,16 @@ export class GoogleSheetsOAuthService {
    */
   static async getSheetsAccessToken(): Promise<string | null> {
     try {
-      const integration = await UnifiedIntegrationService.getIntegration('googleSheets');
-      if (!integration?.config?.tokens?.accessToken) {
-        return null;
+      // Use TokenManager to get the decrypted access token
+      const accessToken = await TokenManager.getAccessToken('googleSheets');
+      
+      if (accessToken) {
+        debugLogger.debug('GoogleSheetsOAuthService', 'Successfully retrieved Google Sheets access token');
+        return accessToken;
       }
-
-      // Check if token is expired and refresh if needed
-      const expiresAt = integration.config.tokens.expiresAt;
-      if (expiresAt && new Date(expiresAt) <= new Date()) {
-        debugLogger.info('GoogleSheetsOAuthService', 'Google Sheets token expired, refreshing...');
-        await this.refreshSheetsToken();
-        
-        // Get the refreshed integration
-        const refreshedIntegration = await UnifiedIntegrationService.getIntegration('googleSheets');
-        return refreshedIntegration?.config?.tokens?.accessToken || null;
-      }
-
-      return integration.config.tokens.accessToken;
+      
+      debugLogger.warn('GoogleSheetsOAuthService', 'No Google Sheets access token available');
+      return null;
     } catch (error) {
       debugLogger.error('GoogleSheetsOAuthService', 'Error getting Google Sheets access token', error);
       return null;

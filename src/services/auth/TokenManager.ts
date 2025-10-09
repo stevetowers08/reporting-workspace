@@ -1,4 +1,4 @@
-/* eslint-disable no-console, no-undef, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import {
@@ -7,127 +7,6 @@ import {
     IntegrationPlatform,
     OAuthTokens
 } from '@/types/integration';
-
-/**
- * Secure AES-GCM encryption/decryption for tokens using Web Crypto API
- * Uses AES-256-GCM encryption with proper initialization vectors
- */
-class TokenEncryption {
-  private static readonly ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'dev-encryption-key-change-in-production';
-  
-  /**
-   * Encrypt a token using AES-GCM
-   */
-  static async encrypt(text: string): Promise<string> {
-    try {
-      // Ensure we have a 32-character key for AES-256
-      const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
-      
-      // Import the key material
-      const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(keyString),
-        { name: "AES-GCM" },
-        false,
-        ["encrypt"]
-      );
-
-      // Generate a random 12-byte IV
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      
-      // Encrypt the data
-      const encryptedData = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv },
-        keyMaterial,
-        new TextEncoder().encode(text)
-      );
-
-      // Combine IV and encrypted data for storage, encoded in Base64
-      const ivString = this.arrayBufferToBase64(iv);
-      const encryptedString = this.arrayBufferToBase64(new Uint8Array(encryptedData));
-
-      return `${ivString}:${encryptedString}`;
-    } catch (error) {
-      debugLogger.error('TokenEncryption', 'Failed to encrypt token', error);
-      throw new Error('Failed to encrypt token');
-    }
-  }
-  
-  /**
-   * Decrypt a token using AES-GCM with backward compatibility for old crypto-js tokens
-   */
-  static async decrypt(encryptedToken: string): Promise<string> {
-    try {
-      // Check if this is a new format token (contains ':')
-      if (encryptedToken.includes(':')) {
-        // New AES-GCM format
-        const [ivString, encryptedString] = encryptedToken.split(":");
-        if (!ivString || !encryptedString) {
-          throw new Error("Invalid encrypted token format.");
-        }
-
-        // Ensure we have a 32-character key for AES-256
-        const keyString = this.ENCRYPTION_KEY.padEnd(32, '0').substring(0, 32);
-        
-        // Import the key material
-        const keyMaterial = await crypto.subtle.importKey(
-          "raw",
-          new TextEncoder().encode(keyString),
-          { name: "AES-GCM" },
-          false,
-          ["decrypt"]
-        );
-        
-        // Decode IV and encrypted data
-        const iv = this.base64ToArrayBuffer(ivString);
-        const data = this.base64ToArrayBuffer(encryptedString);
-
-        // Decrypt the data
-        const decrypted = await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: iv },
-          keyMaterial,
-          data
-        );
-
-        return new TextDecoder().decode(decrypted);
-      } else {
-        // Old crypto-js format - try to decrypt with fallback method
-        debugLogger.warn('TokenEncryption', 'Attempting to decrypt old crypto-js token format');
-        
-        // For old tokens, we'll need to re-encrypt them with the new method
-        // For now, we'll return a placeholder that indicates the token needs to be refreshed
-        throw new Error('Old token format detected - needs re-authentication');
-      }
-    } catch (error) {
-      debugLogger.error('TokenEncryption', 'Failed to decrypt token', error);
-      throw new Error('Failed to decrypt token');
-    }
-  }
-  
-  /**
-   * Convert ArrayBuffer to Base64 string
-   */
-  private static arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
-    const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-  }
-  
-  /**
-   * Convert Base64 string to Uint8Array
-   */
-  private static base64ToArrayBuffer(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  }
-}
 
 /**
  * TokenManager - Database-only token management service
@@ -217,8 +96,8 @@ export class TokenManager {
         connected: true,
         tokens: {
           ...tokens,
-        accessToken: await TokenEncryption.encrypt(tokens.accessToken),
-        refreshToken: tokens.refreshToken ? await TokenEncryption.encrypt(tokens.refreshToken) : undefined,
+          accessToken: tokens.accessToken, // Store directly without encryption
+          refreshToken: tokens.refreshToken, // Store directly without encryption
           expiresAt
         },
         accountInfo,
@@ -247,10 +126,10 @@ export class TokenManager {
         hasAccessToken: !!config.tokens?.accessToken
       });
 
-      // Prepare tokens for safe storage
+      // For internal app - store tokens directly without encryption
       const tokensForStorage = {
-        accessToken: config.tokens?.accessToken,
-        refreshToken: config.tokens?.refreshToken,
+        accessToken: tokens.accessToken, // Store directly without encryption
+        refreshToken: tokens.refreshToken, // Store directly without encryption
         expiresAt: config.tokens?.expiresAt,
         tokenType: tokens.tokenType,
         scope: tokens.scope
@@ -418,36 +297,9 @@ export class TokenManager {
         console.log(`TokenManager: Found access token for ${platform}`);
         debugLogger.info('TokenManager', `Found access token for ${platform}`);
         
-        // Check if token is encrypted (contains ':') or plain text
-        let accessToken: string;
-        if (encryptedAccessToken.includes(':')) {
-          // Encrypted token - decrypt it
-          try {
-            accessToken = await TokenEncryption.decrypt(encryptedAccessToken);
-          } catch (error) {
-            debugLogger.error('TokenManager', `Failed to decrypt access token for ${platform}`, error);
-            
-            // If decryption fails, try to refresh the token using the refresh token
-            const encryptedRefreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
-            if (encryptedRefreshToken && !skipRefresh) {
-              debugLogger.info('TokenManager', `Decryption failed, attempting token refresh for ${platform}`);
-              try {
-                await this.refreshTokens(platform);
-                // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop
-                return await this.getAccessToken(platform, true);
-              } catch (refreshError) {
-                debugLogger.error('TokenManager', `Token refresh failed for ${platform}`, refreshError);
-                return null;
-              }
-            }
-            
-            return null;
-          }
-        } else {
-          // Plain text token - use directly
-          debugLogger.info('TokenManager', `Using plain text access token for ${platform}`);
-          accessToken = encryptedAccessToken;
-        }
+        // For internal app - use tokens directly without encryption
+        const accessToken = encryptedAccessToken;
+        debugLogger.info('TokenManager', `Using access token for ${platform} (internal app - no encryption)`);
         
         // Check if token is expired or needs refresh
         const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;

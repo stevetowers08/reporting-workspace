@@ -18,6 +18,17 @@ out/
 .env.test.local
 .env.production.local
 
+# Production and staging environment files
+.env.production
+.env.staging
+
+# Temporary files
+temp_*
+core.*
+
+# Keep .env.development for development (commented out)
+# .env.development
+
 # IDE and editor files
 .vscode/
 .idea/
