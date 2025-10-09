@@ -54,6 +54,7 @@ export class GoogleAdsService {
    */
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
     debugLogger.debug('GoogleAdsService', 'getAdAccounts called - fetching individual ad accounts using 2025 best practices');
+    debugLogger.debug('GoogleAdsService', `Timestamp: ${new Date().toISOString()}`);
 
     try {
       // Check if Google Ads is connected first
@@ -63,22 +64,25 @@ export class GoogleAdsService {
         return [];
       }
 
+      debugLogger.debug('GoogleAdsService', 'Making REAL API calls to Google Ads - no cached data');
+      
       // Try multiple approaches following 2025 best practices
       const accounts = await this.fetchIndividualAdAccounts();
       
       if (accounts.length > 0) {
-        debugLogger.debug('GoogleAdsService', `Successfully fetched ${accounts.length} individual ad accounts`);
+        debugLogger.debug('GoogleAdsService', `Successfully fetched ${accounts.length} individual ad accounts from REAL API`);
+        debugLogger.debug('GoogleAdsService', 'Account names:', accounts.map(a => a.name));
         return accounts;
       }
 
-      // Fallback to stored data if API calls fail
-      debugLogger.warn('GoogleAdsService', 'API calls failed, using stored account data as fallback');
-      return await this.getStoredAccountData();
+      // No fallback - only return real accounts from API
+      debugLogger.warn('GoogleAdsService', 'API calls failed, returning empty accounts (no fake accounts)');
+      return [];
 
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch Google Ads accounts', error);
-      // Always provide fallback data to ensure UI functionality
-      return await this.getStoredAccountData();
+      // No fallback - only return real accounts from API
+      return [];
     }
   }
 
@@ -87,7 +91,7 @@ export class GoogleAdsService {
    * This method implements proper manager account to individual ad account access patterns
    */
   private static async fetchIndividualAdAccounts(): Promise<GoogleAdsAccount[]> {
-    debugLogger.debug('GoogleAdsService', 'fetchIndividualAdAccounts called - implementing 2025 best practices with correct API endpoint');
+    debugLogger.debug('GoogleAdsService', 'fetchIndividualAdAccounts called - using simple listAccessibleCustomers approach');
 
     try {
       // Step 1: Ensure we have a fresh, valid token
@@ -103,24 +107,156 @@ export class GoogleAdsService {
         return [];
       }
 
-      // Step 2: Get manager account ID from stored integration data
-      const managerAccountId = await this.getManagerAccountId();
-      if (!managerAccountId) {
-        debugLogger.warn('GoogleAdsService', 'No manager account ID found');
+      debugLogger.debug('GoogleAdsService', 'Step 2: Getting accessible customers using listAccessibleCustomers');
+      
+      // Step 2: Get accessible customers using the simple, working approach
+      const accessibleCustomers = await this.getAccessibleCustomers(accessToken, developerToken);
+      
+      if (accessibleCustomers.length === 0) {
+        debugLogger.warn('GoogleAdsService', 'No accessible customers found');
         return [];
       }
 
-      debugLogger.debug('GoogleAdsService', `Step 3: Using correct customer_client endpoint for manager account: ${managerAccountId}`);
+      debugLogger.debug('GoogleAdsService', `Step 3: Found ${accessibleCustomers.length} accessible customers, converting to individual ad accounts`);
       
-      // Step 3: Use the correct Google Ads API endpoint to get individual ad accounts
-      const individualAccounts = await this.getIndividualAdAccountsFromAPI(accessToken, developerToken, managerAccountId);
-
-      debugLogger.debug('GoogleAdsService', `Step 4: Found ${individualAccounts.length} individual ad accounts using correct endpoint`);
+      // Step 3: Convert accessible customers to individual ad accounts with details
+      const individualAccounts = await this.convertAccessibleCustomersToAccounts(accessibleCustomers, accessToken, developerToken);
+      
+      debugLogger.debug('GoogleAdsService', `Step 4: Successfully created ${individualAccounts.length} individual ad accounts`);
       
       return individualAccounts;
 
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch individual ad accounts', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get accessible customers using listAccessibleCustomers endpoint
+   */
+  private static async getAccessibleCustomers(accessToken: string, developerToken: string): Promise<string[]> {
+    try {
+      debugLogger.debug('GoogleAdsService', 'Getting accessible customers from Google Ads API');
+
+      const response = await globalThis.fetch('https://googleads.googleapis.com/v20/customers:listAccessibleCustomers', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugLogger.error('GoogleAdsService', `Failed to get accessible customers: ${response.status} - ${errorText}`);
+        return [];
+      }
+
+      const data = await response.json();
+      const customerIds = data.resourceNames?.map((name: string) => name.replace('customers/', '')) || [];
+      
+      debugLogger.debug('GoogleAdsService', `Found ${customerIds.length} accessible customers`);
+      return customerIds;
+
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Error getting accessible customers', error);
+      return [];
+    }
+  }
+
+  /**
+   * Convert accessible customers to individual ad accounts with details
+   */
+  private static async convertAccessibleCustomersToAccounts(
+    customerIds: string[], 
+    accessToken: string, 
+    developerToken: string
+  ): Promise<GoogleAdsAccount[]> {
+    try {
+      debugLogger.debug('GoogleAdsService', `Converting ${customerIds.length} accessible customers to individual ad accounts`);
+
+      const individualAccounts: GoogleAdsAccount[] = [];
+      
+      // Limit to first 50 customers to avoid overwhelming the API
+      const customersToProcess = customerIds.slice(0, 50);
+      
+      for (const customerId of customersToProcess) {
+        debugLogger.debug('GoogleAdsService', `Processing customer: ${customerId}`);
+        try {
+          // Get customer details using the query from the Python example
+          const query = `
+            SELECT
+              customer.id,
+              customer.descriptive_name,
+              customer.currency_code,
+              customer.time_zone,
+              customer.manager
+            FROM customer
+            WHERE customer.status = 'ENABLED'
+          `;
+
+          debugLogger.debug('GoogleAdsService', `Making API call for customer: ${customerId}`);
+          const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'developer-token': developerToken,
+              'login-customer-id': customerId,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ query })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            
+            debugLogger.debug('GoogleAdsService', `Raw response for customer ${customerId}:`, data);
+            
+            // The response is an array with results property
+            if (data.length > 0 && data[0].results && data[0].results.length > 0) {
+              const customer = data[0].results[0].customer;
+              
+              debugLogger.debug('GoogleAdsService', `Customer data for ${customerId}:`, {
+                id: customer.id,
+                name: customer.descriptiveName,
+                manager: customer.manager,
+                currency: customer.currencyCode,
+                timezone: customer.timeZone
+              });
+              
+              // Include all accounts for now (both manager and individual)
+              // TODO: Re-enable manager filtering if needed
+              individualAccounts.push({
+                id: customer.id,
+                name: customer.descriptiveName || `Ad Account ${customer.id}`,
+                status: 'active',
+                currency: customer.currencyCode || 'USD',
+                timezone: customer.timeZone || 'UTC'
+              });
+              
+              debugLogger.debug('GoogleAdsService', `Added account: ${customer.descriptiveName} (${customer.id}) - Manager: ${customer.manager}`);
+            } else {
+              debugLogger.debug('GoogleAdsService', `No customer data found for customer ${customerId}`, {
+                dataLength: data.length,
+                hasResults: data.length > 0 ? !!data[0].results : false,
+                resultsLength: data.length > 0 && data[0].results ? data[0].results.length : 0
+              });
+            }
+          } else {
+            debugLogger.debug('GoogleAdsService', `Failed to get details for customer ${customerId}: ${response.status}`);
+          }
+        } catch (error) {
+          debugLogger.warn('GoogleAdsService', `Error getting details for customer ${customerId}`, error);
+        }
+      }
+
+      debugLogger.debug('GoogleAdsService', `Successfully converted ${individualAccounts.length} accessible customers to individual ad accounts`);
+      return individualAccounts;
+
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Error converting accessible customers to accounts', error);
       return [];
     }
   }
@@ -414,210 +550,6 @@ export class GoogleAdsService {
     return indicators.some(indicator => indicator === true);
   }
 
-  /**
-   * Fallback method to get account data from stored integration data
-   * Following 2025 best practices for graceful degradation with intelligent individual account simulation
-   */
-  private static async getStoredAccountData(): Promise<GoogleAdsAccount[]> {
-    try {
-      debugLogger.debug('GoogleAdsService', 'Getting stored account data as fallback - implementing intelligent individual account simulation');
-
-      // Get integration data from database
-      const { supabase } = await import('@/lib/supabase');
-      
-      const { data: integration, error } = await supabase
-        .from('integrations')
-        .select('account_id, account_name, config')
-        .eq('platform', 'googleAds')
-        .eq('connected', true)
-        .single();
-
-      if (error || !integration) {
-        debugLogger.warn('GoogleAdsService', 'No stored integration data found');
-        return [];
-      }
-
-      debugLogger.debug('GoogleAdsService', 'Found stored integration data', integration);
-
-      // Create intelligent individual ad accounts based on stored data
-      const accounts: GoogleAdsAccount[] = [];
-      
-      if (integration.account_id && integration.account_name) {
-        // Determine if this is likely a manager account or individual account
-        const isLikelyManagerAccount = this.isLikelyManagerAccount(integration.account_name);
-        
-        if (isLikelyManagerAccount) {
-          // For manager accounts, create realistic individual ad accounts
-          // This follows 2025 best practices for intelligent fallback
-          const individualAccounts = this.generateIndividualAdAccounts(integration.account_name, integration.account_id);
-          accounts.push(...individualAccounts);
-          
-          debugLogger.debug('GoogleAdsService', `Generated ${individualAccounts.length} individual ad accounts from manager: ${integration.account_name}`);
-        } else {
-          // Treat as individual account
-          accounts.push({
-            id: integration.account_id,
-            name: integration.account_name,
-            status: 'active',
-            currency: 'USD',
-            timezone: 'UTC'
-          });
-          
-          debugLogger.debug('GoogleAdsService', `Added individual account: ${integration.account_name} (${integration.account_id})`);
-        }
-      }
-
-      // Also check if there are accounts in the config metadata
-      if (integration.config?.accountInfo) {
-        const accountInfo = integration.config.accountInfo;
-        if (accountInfo.id && accountInfo.name) {
-          // Check if this account is already in the list
-          const existingAccount = accounts.find(acc => acc.id === accountInfo.id);
-          if (!existingAccount) {
-            accounts.push({
-              id: accountInfo.id,
-              name: accountInfo.name,
-              status: 'active',
-              currency: 'USD',
-              timezone: 'UTC'
-            });
-            
-            debugLogger.debug('GoogleAdsService', `Added config account: ${accountInfo.name} (${accountInfo.id})`);
-          }
-        }
-      }
-
-      // If no accounts found, create realistic default accounts
-      if (accounts.length === 0) {
-        debugLogger.warn('GoogleAdsService', 'No accounts found in stored data, creating realistic default accounts');
-        accounts.push(
-          {
-            id: 'default-1',
-            name: 'Primary Ad Account',
-            status: 'active',
-            currency: 'USD',
-            timezone: 'UTC'
-          },
-          {
-            id: 'default-2',
-            name: 'Secondary Ad Account',
-            status: 'active',
-            currency: 'USD',
-            timezone: 'UTC'
-          }
-        );
-      }
-
-      debugLogger.debug('GoogleAdsService', `Returning ${accounts.length} individual ad accounts`, accounts);
-      return accounts;
-
-    } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to get stored account data', error);
-      
-      // Ultimate fallback - ensure UI always has realistic individual accounts
-      debugLogger.warn('GoogleAdsService', 'Using ultimate fallback - creating realistic individual accounts');
-      return [
-        {
-          id: 'fallback-1',
-          name: 'Main Ad Account',
-          status: 'active',
-          currency: 'USD',
-          timezone: 'UTC'
-        },
-        {
-          id: 'fallback-2',
-          name: 'Campaign Account',
-          status: 'active',
-          currency: 'USD',
-          timezone: 'UTC'
-        }
-      ];
-    }
-  }
-
-  /**
-   * Generate realistic individual ad accounts from manager account data
-   * Following 2025 best practices for intelligent fallback simulation
-   */
-  private static generateIndividualAdAccounts(managerName: string, managerId: string): GoogleAdsAccount[] {
-    const accounts: GoogleAdsAccount[] = [];
-    
-    // Extract the base name (remove common manager indicators)
-    const baseName = managerName
-      .replace(/\b(manager|mcc|my client center|client center|agency|towers)\b/gi, '')
-      .trim();
-    
-    // Generate realistic individual ad account names
-    const accountNames = [
-      `${baseName} - Main Account`,
-      `${baseName} - Campaign Account`,
-      `${baseName} - Brand Account`
-    ].filter(name => name !== ' - Main Account' && name !== ' - Campaign Account' && name !== ' - Brand Account');
-    
-    // If base name is empty or too generic, use more specific names
-    if (accountNames.length === 0 || accountNames[0].includes(' - ')) {
-      accountNames.length = 0;
-      accountNames.push(
-        'Primary Ad Account',
-        'Campaign Management',
-        'Brand Advertising'
-      );
-    }
-    
-    // Create individual accounts with realistic IDs
-    accountNames.forEach((name, index) => {
-      // Generate a realistic-looking account ID based on the manager ID
-      const individualId = this.generateIndividualAccountId(managerId, index);
-      
-      accounts.push({
-        id: individualId,
-        name: name,
-        status: 'active',
-        currency: 'USD',
-        timezone: 'UTC'
-      });
-    });
-    
-    return accounts;
-  }
-
-  /**
-   * Generate a realistic individual account ID based on manager account ID
-   * Following 2025 best practices for ID generation
-   */
-  private static generateIndividualAccountId(managerId: string, index: number): string {
-    // Extract the numeric part of the manager ID
-    const numericPart = managerId.replace(/\D/g, '');
-    
-    if (numericPart.length >= 10) {
-      // Generate a realistic individual account ID by modifying the last few digits
-      const baseId = numericPart.substring(0, numericPart.length - 3);
-      const suffix = String(100 + index).padStart(3, '0');
-      return baseId + suffix;
-    }
-    
-    // Fallback: generate a realistic-looking account ID
-    const timestamp = Date.now().toString().slice(-6);
-    return `${timestamp}${String(100 + index).padStart(3, '0')}`;
-  }
-
-  /**
-   * Determine if an account name suggests it's a manager account
-   * Following 2025 best practices for account type identification
-   */
-  private static isLikelyManagerAccount(accountName: string): boolean {
-    const managerIndicators = [
-      'manager',
-      'mcc',
-      'my client center',
-      'client center',
-      'towers', // Based on the "Steve Towers" account we saw
-      'agency'
-    ];
-
-    const lowerName = accountName.toLowerCase();
-    return managerIndicators.some(indicator => lowerName.includes(indicator));
-  }
 
   /**
    * Get Google Ads campaigns for a specific customer
@@ -775,6 +707,10 @@ export class GoogleAdsService {
           metrics.clicks,
           metrics.cost_micros,
           metrics.conversions,
+          metrics.conversions_by_conversion_date,
+          metrics.all_conversions_by_conversion_date,
+          metrics.conversions_value_by_conversion_date,
+          metrics.value_per_conversions_by_conversion_date,
           metrics.ctr,
           metrics.average_cpc,
           metrics.conversions_from_interactions_rate,
@@ -868,7 +804,6 @@ export class GoogleAdsService {
       impressions: 0,
       clicks: 0,
       cost: 0,
-      leads: 0,
       conversions: 0,
       ctr: 0,
       cpc: 0,
@@ -877,5 +812,169 @@ export class GoogleAdsService {
       searchImpressionShare: 0,
       qualityScore: 0
     };
+  }
+
+  /**
+   * Get geographic performance data (NEW v20/v21 feature)
+   */
+  static async getGeographicPerformance(customerId: string, dateRange?: { start: string; end: string }): Promise<any[]> {
+    const accessToken = await this.getAccessToken();
+    const developerToken = this.getDeveloperToken();
+
+    if (!accessToken || !developerToken) {
+      throw new Error('Google Ads not authenticated');
+    }
+
+    try {
+      const startDate = dateRange?.start ? dateRange.start.replace(/-/g, '') : '';
+      const endDate = dateRange?.end ? dateRange.end.replace(/-/g, '') : '';
+      
+      const dateFilter = dateRange 
+        ? `segments.date BETWEEN '${startDate}' AND '${endDate}'`
+        : 'segments.date DURING LAST_30_DAYS';
+
+      const query = `
+        SELECT
+          campaign.name,
+          campaign_destination_segments.destination_name,
+          campaign_destination_segments.country_code,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          segments.date
+        FROM campaign_destination_segments
+        WHERE ${dateFilter}
+      `;
+
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Google Ads API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.results || [];
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Failed to fetch geographic performance', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get content targeting performance (NEW v20/v21 feature)
+   */
+  static async getContentTargetingPerformance(customerId: string, dateRange?: { start: string; end: string }): Promise<any[]> {
+    const accessToken = await this.getAccessToken();
+    const developerToken = this.getDeveloperToken();
+
+    if (!accessToken || !developerToken) {
+      throw new Error('Google Ads not authenticated');
+    }
+
+    try {
+      const startDate = dateRange?.start ? dateRange.start.replace(/-/g, '') : '';
+      const endDate = dateRange?.end ? dateRange.end.replace(/-/g, '') : '';
+      
+      const dateFilter = dateRange 
+        ? `segments.date BETWEEN '${startDate}' AND '${endDate}'`
+        : 'segments.date DURING LAST_30_DAYS';
+
+      const query = `
+        SELECT
+          campaign.name,
+          ad_group.name,
+          content_criterion_view.criterion_id,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          segments.date
+        FROM content_criterion_view
+        WHERE ${dateFilter}
+      `;
+
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Google Ads API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.results || [];
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Failed to fetch content targeting performance', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get platform-comparable conversions for Demand Gen campaigns (NEW v20/v21 feature)
+   */
+  static async getDemandGenPerformance(customerId: string, dateRange?: { start: string; end: string }): Promise<any[]> {
+    const accessToken = await this.getAccessToken();
+    const developerToken = this.getDeveloperToken();
+
+    if (!accessToken || !developerToken) {
+      throw new Error('Google Ads not authenticated');
+    }
+
+    try {
+      const startDate = dateRange?.start ? dateRange.start.replace(/-/g, '') : '';
+      const endDate = dateRange?.end ? dateRange.end.replace(/-/g, '') : '';
+      
+      const dateFilter = dateRange 
+        ? `segments.date BETWEEN '${startDate}' AND '${endDate}'`
+        : 'segments.date DURING LAST_30_DAYS';
+
+      const query = `
+        SELECT 
+          campaign.name,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.platform_comparable_conversions,
+          metrics.platform_comparable_conversions_value,
+          metrics.cost_per_platform_comparable_conversion,
+          segments.date
+        FROM campaign 
+        WHERE campaign.advertising_channel_type = 'DISPLAY'
+          AND ${dateFilter}
+      `;
+
+      const response = await globalThis.fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Google Ads API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.results || [];
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Failed to fetch Demand Gen performance', error);
+      throw error;
+    }
   }
 }

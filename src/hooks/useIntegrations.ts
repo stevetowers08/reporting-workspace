@@ -30,7 +30,10 @@ export const useIntegrations = (): UseIntegrationsReturn => {
       setIntegrations(integrationsData);
     } catch (error) {
       debugLogger.error('useIntegrations', 'Failed to load integrations', error);
+      // Set empty integrations array to prevent infinite loading
       setIntegrations([]);
+      // Log the error but don't throw it to prevent the admin panel from getting stuck
+      console.warn('Integrations loading failed, but continuing with empty state:', error);
     } finally {
       setLoading(false);
     }

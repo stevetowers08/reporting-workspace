@@ -415,16 +415,38 @@ export class TokenManager {
       // Check OAuth tokens first (handle both camelCase and snake_case)
       const encryptedAccessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token;
       if (encryptedAccessToken) {
-        console.log(`TokenManager: Found encrypted access token for ${platform}`);
-        debugLogger.info('TokenManager', `Found encrypted access token for ${platform}`);
+        console.log(`TokenManager: Found access token for ${platform}`);
+        debugLogger.info('TokenManager', `Found access token for ${platform}`);
         
-        // Decrypt the access token
+        // Check if token is encrypted (contains ':') or plain text
         let accessToken: string;
-        try {
-          accessToken = await TokenEncryption.decrypt(encryptedAccessToken);
-        } catch (error) {
-          debugLogger.error('TokenManager', `Failed to decrypt access token for ${platform}`, error);
-          return null;
+        if (encryptedAccessToken.includes(':')) {
+          // Encrypted token - decrypt it
+          try {
+            accessToken = await TokenEncryption.decrypt(encryptedAccessToken);
+          } catch (error) {
+            debugLogger.error('TokenManager', `Failed to decrypt access token for ${platform}`, error);
+            
+            // If decryption fails, try to refresh the token using the refresh token
+            const encryptedRefreshToken = config.tokens?.refreshToken || (config.tokens as any)?.refresh_token;
+            if (encryptedRefreshToken && !skipRefresh) {
+              debugLogger.info('TokenManager', `Decryption failed, attempting token refresh for ${platform}`);
+              try {
+                await this.refreshTokens(platform);
+                // Return the refreshed token by calling getAccessToken again with skipRefresh=true to prevent infinite loop
+                return await this.getAccessToken(platform, true);
+              } catch (refreshError) {
+                debugLogger.error('TokenManager', `Token refresh failed for ${platform}`, refreshError);
+                return null;
+              }
+            }
+            
+            return null;
+          }
+        } else {
+          // Plain text token - use directly
+          debugLogger.info('TokenManager', `Using plain text access token for ${platform}`);
+          accessToken = encryptedAccessToken;
         }
         
         // Check if token is expired or needs refresh

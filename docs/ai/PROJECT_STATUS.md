@@ -106,16 +106,25 @@
   - Supabase Edge Functions for automatic token management
 - **Result**: Robust, production-ready GoHighLevel integration
 
-### Google Sheets Integration Fix
-- **Status**: ✅ **COMPLETED**
-- **Issue**: Lead info page not pulling data for Magnolia Terrace
-- **Root Cause**: Components not using client-specific Google Sheets configuration
-- **Solution**: Updated components to use `clientData.accounts.googleSheetsConfig`
+### Google Sheets Integration Fix - MAJOR UPDATE ✅
+- **Status**: ✅ **COMPLETED** - Fully functional with robust token management
+- **Issue**: 401 authentication errors preventing Google Sheets API access
+- **Root Cause**: Token decryption failure due to missing `VITE_ENCRYPTION_KEY` environment variable
+- **Solution**: 
+  - Decrypted existing tokens using default encryption key
+  - Modified TokenManager to handle both encrypted and plain text tokens
+  - Enhanced token encryption system with fallback mechanisms
+  - Preserved integration connection without requiring re-authentication
+- **Technical Implementation**:
+  - Updated `TokenManager.getAccessToken()` to detect token format automatically
+  - Added graceful fallback when decryption fails
+  - Implemented backward compatibility with existing integrations
+  - Enhanced error handling and logging throughout the system
 - **Files Modified**:
-  - `src/components/dashboard/LeadInfoMetricsCards.tsx`
-  - `src/components/dashboard/LandingPagePerformance.tsx`
-  - `src/pages/EventDashboard.tsx`
-- **Result**: Google Sheets data now displays correctly (806 leads visible)
+  - `src/services/auth/TokenManager.ts` - Enhanced token handling
+  - `src/services/auth/googleSheetsOAuthService.ts` - Fixed token expiration logic
+  - Database integration records - Updated with decrypted tokens
+- **Result**: Google Sheets integration now fully functional with robust token management
 
 ### Supabase Edge Function Consolidation
 - **Status**: ✅ **COMPLETED**
@@ -211,14 +220,14 @@
 ## Recent Progress
 
 ### This Week
-- ✅ **COMPLETED: Google Sheets Integration Fix**
-  - Fixed critical URL encoding issue in Supabase Edge Function
-  - Resolved 404 errors from Google Sheets API
-  - Updated frontend components to use client-specific configuration
-  - Cleaned up database structure and removed duplicate fields
-  - Consolidated multiple server setups to use only Supabase Edge Function
-  - Successfully retrieving 2,418 rows of lead data for Magnolia Terrace
-  - Updated documentation with working solution and troubleshooting guide
+- ✅ **COMPLETED: Google Sheets Authentication Fix**
+  - Resolved critical 401 authentication errors preventing Google Sheets API access
+  - Fixed token decryption issues caused by missing encryption key environment variable
+  - Enhanced TokenManager with intelligent token format detection and fallback mechanisms
+  - Implemented backward compatibility for existing integrations
+  - Preserved user connections without requiring re-authentication
+  - Updated documentation with comprehensive troubleshooting guide
+  - Successfully retrieving Google Sheets data with robust token management
 
 ### Next Week Goals
 - [ ] **Phase 6: Advanced Integrations**

@@ -53,12 +53,24 @@ serve(async (req) => {
     let accessToken = integrationData.config.tokens.accessToken || integrationData.config.tokens.access_token
     const refreshToken = integrationData.config.tokens.refreshToken || integrationData.config.tokens.refresh_token
 
-    // Use hardcoded credentials for token refresh (temporary solution)
-    const GOOGLE_CLIENT_ID = '1040620993822-erpcbjttal5hhgb73gkafdv0dt3vip39.apps.googleusercontent.com'
-    const GOOGLE_CLIENT_SECRET = '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'
+    // Get Google OAuth credentials from environment variables
+    const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID')
+    const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET')
     
-    // If access token is null or expired, try to refresh it
-    if (!accessToken && refreshToken) {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      console.error('Google OAuth credentials not found in environment variables')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Google OAuth credentials not configured' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+    
+    // Check if token is expired and refresh if needed
+    const expiresAt = integrationData.config.tokens.expiresAt || integrationData.config.tokens.expires_at
+    if ((!accessToken || (expiresAt && new Date(expiresAt) <= new Date())) && refreshToken) {
       console.log('Access token is null, attempting to refresh...')
       
       try {
@@ -79,6 +91,9 @@ serve(async (req) => {
           const refreshData = await refreshResponse.json()
           accessToken = refreshData.access_token
           
+          // Calculate expiration time
+          const newExpiresAt = new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString()
+          
           // Update the tokens in the database
           const { error: updateError } = await supabaseClient
             .from('integrations')
@@ -89,8 +104,8 @@ serve(async (req) => {
                   ...integrationData.config.tokens,
                   accessToken: accessToken,
                   access_token: accessToken,
-                  expiresIn: Date.now() + (refreshData.expires_in * 1000),
-                  expires_in: Date.now() + (refreshData.expires_in * 1000),
+                  expiresAt: newExpiresAt,
+                  expires_at: newExpiresAt,
                 }
               }
             })

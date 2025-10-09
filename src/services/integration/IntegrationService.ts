@@ -150,19 +150,39 @@ export class UnifiedIntegrationService {
         platformConfigs.map(async config => {
           const integration = integrations.find(i => i.platform === config.platform);
           
-          // Use TokenManager to check actual connection status
+          // Use integration config to determine connection status instead of making API calls
           let isConnected = false;
+          let status: IntegrationStatus = 'not connected';
           try {
-            if (config.platform === 'googleSheets') {
-              // Special handling for Google Sheets
-              const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
-              isConnected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-            } else {
-              isConnected = await TokenManager.isConnected(config.platform);
+            if (integration && integration.connected) {
+              // Check if tokens exist and are not expired
+              if (integration.config.tokens?.accessToken) {
+                if (integration.config.tokens.expiresAt) {
+                  const expiresAt = new Date(integration.config.tokens.expiresAt);
+                  if (expiresAt > new Date()) {
+                    isConnected = true;
+                    status = 'connected';
+                  } else {
+                    isConnected = true; // Still connected but expired
+                    status = 'expired';
+                  }
+                } else {
+                  isConnected = true; // No expiration means it's still valid
+                  status = 'connected';
+                }
+              } else if (integration.config.apiKey) {
+                isConnected = true; // API key based connection
+                status = 'connected';
+              } else {
+                // Connected but no tokens - might be API key based
+                isConnected = true;
+                status = 'connected';
+              }
             }
           } catch (error) {
             debugLogger.error('UnifiedIntegrationService', `Error checking connection for ${config.platform}`, error);
             isConnected = false;
+            status = 'not connected';
           }
           
           if (!integration || !isConnected) {
@@ -176,14 +196,13 @@ export class UnifiedIntegrationService {
             };
           }
           
-          const status = this.determineStatus(integration);
           const lastSync = this.formatLastSync(integration.config.lastSync);
           
           return {
             id: config.key,
             name: config.name,
             platform: config.platform,
-            status: isConnected ? status : 'not connected',
+            status: status,
             lastSync,
             clientsUsing: 0, // TODO: Calculate actual client usage
             accountName: integration.config.accountInfo?.name,

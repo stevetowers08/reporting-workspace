@@ -210,8 +210,8 @@ export class GoogleSheetsOAuthService {
       }
 
       // Check if token is expired and refresh if needed
-      const expiresIn = integration.config.tokens.expiresIn;
-      if (expiresIn && expiresIn <= Date.now()) {
+      const expiresAt = integration.config.tokens.expiresAt;
+      if (expiresAt && new Date(expiresAt) <= new Date()) {
         debugLogger.info('GoogleSheetsOAuthService', 'Google Sheets token expired, refreshing...');
         await this.refreshSheetsToken();
         

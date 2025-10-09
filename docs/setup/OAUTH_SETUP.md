@@ -113,6 +113,11 @@ VITE_GHL_REDIRECT_URI=https://yourdomain.com/api/leadconnector/oath
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
+# Token Encryption Key (IMPORTANT: Must match the key used when tokens were encrypted)
+# For development, the default key is used if not set
+# For production, set a secure 32-character key
+VITE_ENCRYPTION_KEY=your-32-character-production-key-here
+
 # Environment
 NODE_ENV=development
 ```
@@ -213,6 +218,16 @@ NODE_ENV=development
 - **Token Refresh**: Google Ads tokens expire every 1 hour, implement refresh logic
 - **API Version**: Use Google Ads API v20 (current stable version)
 - **Direct API Calls**: Use direct API calls instead of Edge Functions for better reliability
+
+**9. Token Encryption Issues**
+
+- **401 Authentication Errors**: Usually caused by token decryption failure
+- **Missing Encryption Key**: Set `VITE_ENCRYPTION_KEY` environment variable
+- **Key Mismatch**: Ensure encryption key matches the one used when tokens were encrypted
+- **Token Format**: Encrypted tokens contain `:` separator, plain text tokens don't
+- **Development vs Production**: Use consistent encryption keys across environments
+- **Automatic Detection**: TokenManager now handles both encrypted and plain text tokens
+- **Recovery**: If decryption fails, tokens can be manually decrypted and stored as plain text
 
 ### Debug Mode
 

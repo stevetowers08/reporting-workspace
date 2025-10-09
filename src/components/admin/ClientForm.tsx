@@ -172,6 +172,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       if (initialData.accounts.googleAds && initialData.accounts.googleAds !== 'none') {
         console.log('🔍 ClientForm: Loading Google Ads accounts for existing account ID:', initialData.accounts.googleAds);
         loadGoogleAccounts();
+      } else if (isIntegrationConnected('googleAds')) {
+        // Also load Google Ads accounts if the integration is connected but no account is selected yet
+        console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration (no existing account)');
+        loadGoogleAccounts();
       }
       
       // Load GHL accounts if we have a GHL account ID
@@ -198,6 +202,29 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }
     }
   }, [initialData]);
+
+  // Load accounts for connected integrations on component mount
+  useEffect(() => {
+    console.log('🔍 ClientForm: Checking for connected integrations to load accounts');
+    
+    // Load Google Ads accounts if integration is connected
+    if (isIntegrationConnected('googleAds') && !googleAccountsLoaded) {
+      console.log('🔍 ClientForm: Loading Google Ads accounts for connected integration');
+      loadGoogleAccounts();
+    }
+    
+    // Load Facebook accounts if integration is connected
+    if (isIntegrationConnected('facebookAds') && !facebookAccountsLoaded) {
+      console.log('🔍 ClientForm: Loading Facebook accounts for connected integration');
+      loadFacebookAccounts();
+    }
+    
+    // Load GHL accounts if integration is connected
+    if (isIntegrationConnected('goHighLevel') && !ghlAccountsLoaded) {
+      console.log('🔍 ClientForm: Loading GHL accounts for connected integration');
+      loadGHLAccounts();
+    }
+  }, []); // Run once on mount
 
   // Initialize Google Sheets configuration from initial data
   useEffect(() => {

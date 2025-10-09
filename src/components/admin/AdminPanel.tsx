@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminClients } from '@/hooks/useAdminClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { Bot, Settings, Users } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface AdminPanelProps {
@@ -33,6 +33,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
   
   const [activeTab, setActiveTab] = useState(getActiveTabFromPath(location.pathname));
+  const hasLoadedRef = useRef(false);
   
   // Use our custom hooks
   const {
@@ -56,10 +57,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setTesting
   } = useIntegrations();
 
-  // Load data on component mount
+  // Load data on component mount (only once)
   useEffect(() => {
-    loadClients();
-    loadIntegrations();
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadClients();
+      loadIntegrations();
+    }
   }, [loadClients, loadIntegrations]);
 
   // Sync active tab with URL changes

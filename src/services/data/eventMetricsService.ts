@@ -2,8 +2,25 @@ import { debugLogger } from '@/lib/debug';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
 import { GoHighLevelService } from '../api/goHighLevelService';
 import { GoogleAdsMetrics } from '../api/googleAdsService';
-import { EventMetrics } from '../export/googleSheetsService';
 import { LeadDataService } from './leadDataService';
+
+// Event metrics interface (moved from old export service)
+export interface EventMetrics {
+  totalEvents: number;
+  averageGuests: number;
+  totalSubmissions: number;
+  eventTypeBreakdown: Array<{
+    type: string;
+    count: number;
+    percentage: number;
+    avgGuests: number;
+  }>;
+  budgetDistribution: Array<{
+    range: string;
+    count: number;
+    percentage: number;
+  }>;
+}
 
 export interface EventLeadMetrics {
   // Cost per lead metrics
