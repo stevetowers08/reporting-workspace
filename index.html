@@ -20,6 +20,19 @@
     <!-- Load JetBrains Mono for data/code display -->
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
+    <!-- Ensure React is available globally before any modules load -->
+    <script>
+      // Create a placeholder React object to prevent forwardRef errors
+      window.React = window.React || {
+        forwardRef: function(component) {
+          return component;
+        },
+        createElement: function() {
+          return null;
+        }
+      };
+    </script>
+    
     <!-- Prevent flash of unstyled content -->
     <style>
       html {
