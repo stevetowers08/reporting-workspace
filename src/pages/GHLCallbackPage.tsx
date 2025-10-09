@@ -79,13 +79,9 @@ export const GHLCallbackPage: React.FC = () => {
         // Set credentials for future API calls
         GoHighLevelService.setCredentials(tokenData.accessToken, tokenData.locationId);
 
-        // Save connection to database
-        await DatabaseService.saveGHLConnection({
-          accessToken: tokenData.accessToken,
-          refreshToken: tokenData.refreshToken,
-          locationId: tokenData.locationId,
-          expiresIn: tokenData.expiresIn
-        });
+        // Note: Database saving is handled by the backend API callback
+        // The frontend callback just processes the OAuth flow
+        console.log('GHL Callback - OAuth flow completed successfully');
 
         debugLogger.info('GHLCallbackPage', 'Successfully connected to GHL', {
           locationId: tokenData.locationId

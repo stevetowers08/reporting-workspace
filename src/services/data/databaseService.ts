@@ -576,7 +576,7 @@ export class DatabaseService {
           },
           last_sync: new Date().toISOString()
         }, {
-          onConflict: 'platform'
+          onConflict: 'platform,account_id'
         });
 
       if (error) {
