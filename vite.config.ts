@@ -74,7 +74,7 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: true,
     rollupOptions: {
-      external: [],
+      external: ['react', 'react-dom'],
       output: {
         globals: {
           'react': 'React',
