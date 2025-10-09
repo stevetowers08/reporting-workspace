@@ -47,6 +47,7 @@ export interface GHLCampaign {
 
 export class GoHighLevelService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
+  private static readonly API_V2_BASE_URL = 'https://services.leadconnectorhq.com';
   
   // Agency token for listing locations (scopes: locations.readonly, companies.readonly)
   private static agencyToken: string | null = null;
@@ -187,26 +188,41 @@ export class GoHighLevelService {
   /**
    * Exchange authorization code for access token
    */
-  static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<{ access_token: string; refresh_token: string }> {
+  static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<{ access_token: string; refresh_token: string; locationId: string; expires_in: number; scope: string; userType: string }> {
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
         method: 'POST',
         headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         },
-      body: JSON.stringify({
+      body: new URLSearchParams({
           grant_type: 'authorization_code',
           code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: redirectUri
+        redirect_uri: redirectUri,
+        user_type: 'Company'
         })
       });
 
     if (!response.ok) {
-      throw new Error(`Token exchange failed: ${response.statusText}`);
+      const errorData = await response.text();
+      debugLogger.error('GoHighLevelService', 'Token exchange failed', { 
+        status: response.status, 
+        statusText: response.statusText,
+        error: errorData 
+      });
+      throw new Error(`Token exchange failed: ${response.statusText} - ${errorData}`);
     }
 
-    return await response.json();
+    const tokenData = await response.json();
+    debugLogger.info('GoHighLevelService', 'Token exchange successful', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      locationId: tokenData.locationId,
+      expiresIn: tokenData.expires_in
+    });
+
+    return tokenData;
   }
 
   /**
@@ -313,53 +329,13 @@ export class GoHighLevelService {
           debugLogger.warn('GoHighLevelService', 'Cannot access contacts', error);
         }
 
-        // Test opportunities
-        try {
-          const opportunitiesResponse = await fetch(`${this.API_BASE_URL}/opportunities?locationId=${testLocationId}`, {
-            method: 'GET',
-        headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Version': '2021-07-28',
-            }
-          });
-          capabilities.canAccessOpportunities = opportunitiesResponse.ok;
-          debugLogger.info('GoHighLevelService', 'Opportunities access test', { success: opportunitiesResponse.ok });
-        } catch (error) {
-          debugLogger.warn('GoHighLevelService', 'Cannot access opportunities', error);
-        }
-
-        // Test calendars
-        try {
-          const calendarsResponse = await fetch(`${this.API_BASE_URL}/calendars?locationId=${testLocationId}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Version': '2021-07-28',
-            }
-          });
-          capabilities.canAccessCalendars = calendarsResponse.ok;
-          debugLogger.info('GoHighLevelService', 'Calendars access test', { success: calendarsResponse.ok });
-        } catch (error) {
-          debugLogger.warn('GoHighLevelService', 'Cannot access calendars', error);
-        }
-
-        // Test funnels
-        try {
-          const funnelsResponse = await fetch(`${this.API_BASE_URL}/funnels?locationId=${testLocationId}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Version': '2021-07-28',
-            }
-          });
-          capabilities.canAccessFunnels = funnelsResponse.ok;
-          debugLogger.info('GoHighLevelService', 'Funnels access test', { success: funnelsResponse.ok });
-        } catch (error) {
-          debugLogger.warn('GoHighLevelService', 'Cannot access funnels', error);
-        }
+        // Note: Opportunities, calendars, and funnels endpoints may not be available
+        // or may require different endpoint structures. These are currently disabled
+        // until the correct API endpoints are identified.
+        capabilities.canAccessOpportunities = false;
+        capabilities.canAccessCalendars = false;
+        capabilities.canAccessFunnels = false;
+        debugLogger.info('GoHighLevelService', 'Skipping opportunities/calendars/funnels tests - endpoints not available');
       }
       
       // Restore original token
