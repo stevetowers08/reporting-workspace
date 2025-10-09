@@ -20,48 +20,6 @@
     <!-- Load JetBrains Mono for data/code display -->
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
-    <!-- Ensure React is available globally before any modules load -->
-    <script>
-      // Create a comprehensive React object to prevent forwardRef errors
-      window.React = window.React || {
-        forwardRef: function(component) {
-          return component;
-        },
-        createElement: function() {
-          return null;
-        },
-        Component: function() {},
-        PureComponent: function() {},
-        memo: function(component) { return component; },
-        useCallback: function(fn) { return fn; },
-        useMemo: function(fn) { return fn(); },
-        useState: function(initial) { return [initial, function() {}]; },
-        useEffect: function() {},
-        useRef: function() { return { current: null }; },
-        useContext: function() { return null; },
-        useReducer: function() { return [null, function() {}]; },
-        useLayoutEffect: function() {},
-        useImperativeHandle: function() {},
-        useDebugValue: function() {},
-        Fragment: function(props) { return props.children; },
-        StrictMode: function(props) { return props.children; },
-        Suspense: function(props) { return props.children; },
-        lazy: function(fn) { return fn; },
-        createContext: function() { return { Provider: function(props) { return props.children; }, Consumer: function(props) { return props.children; } }; },
-        createRef: function() { return { current: null }; },
-        isValidElement: function() { return true; },
-        cloneElement: function(element) { return element; },
-        createFactory: function() { return function() {}; },
-        Children: {
-          map: function(children, fn) { return children; },
-          forEach: function(children, fn) {},
-          count: function(children) { return 0; },
-          only: function(children) { return children; },
-          toArray: function(children) { return []; }
-        }
-      };
-    </script>
-    
     <!-- Prevent flash of unstyled content -->
     <style>
       html {

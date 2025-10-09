@@ -39,8 +39,6 @@ export default defineConfig({
   ].filter(Boolean),
   optimizeDeps: {
     include: [
-      'react', 
-      'react-dom', 
       '@tanstack/react-query',
       '@supabase/supabase-js',
       'chart.js',
@@ -77,10 +75,7 @@ export default defineConfig({
       external: [],
       output: {
         manualChunks: (id) => {
-          // Core React libraries
-          if (id.includes('react') || id.includes('react-dom')) {
-            return 'react-vendor';
-          }
+          // Don't separate React - keep it with main bundle to ensure proper loading order
           
           // UI Components - keep together for better caching
           if (id.includes('@radix-ui')) {
