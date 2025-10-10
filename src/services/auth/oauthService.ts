@@ -4,11 +4,10 @@ import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
 
-// Declare sessionStorage for browser environment
 declare const sessionStorage: {
-  getItem(_key: string): string | null;
-  setItem(_key: string, _value: string): void;
-  removeItem(_key: string): void;
+  getItem: (string) => string | null;
+  setItem: (string, string) => void;
+  removeItem: (string) => void;
 };
 
 // Production-ready OAuth 2.0 service for all integrations
@@ -63,12 +62,10 @@ export class OAuthService {
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ];
                     
-                    // Use backend OAuth for Google Ads (secure), frontend for Google Sheets
-                    const redirectUri = platform === 'googleAds' 
-                        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth-exchange`
-                        : (window.location.hostname === 'localhost' 
-                            ? `${window.location.origin}/oauth/callback`
-                            : 'https://tulenreporting.vercel.app/oauth/callback');
+                    // Use frontend OAuth callback for all platforms
+                    const redirectUri = window.location.hostname === 'localhost' 
+                        ? `${window.location.origin}/oauth/callback`
+                        : 'https://tulenreporting.vercel.app/oauth/callback';
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
@@ -82,10 +79,8 @@ export class OAuthService {
                 throw new Error(`No OAuth credentials found for platform: ${platform}`);
             }
 
-            // Use backend OAuth for Google Ads (secure), frontend for others
-            const redirectUri = platform === 'googleAds' 
-                ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-oauth-exchange`
-                : credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
+            // Use frontend OAuth callback for all platforms
+            const redirectUri = credentials.redirectUri.replace('https://your-domain.com', window.location.origin);
 
             return {
                 clientId: credentials.clientId,
