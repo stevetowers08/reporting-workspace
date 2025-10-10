@@ -25,7 +25,7 @@ interface AgencyHeaderProps {
 
 export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
   clients,
-  selectedClientId,
+  selectedClientId: _selectedClientId,
   onClientSelect,
   onBackToDashboard,
   onGoToAgency,
@@ -40,15 +40,17 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   useEffect(() => {
-    if (selectedClientId && clients.length > 0) {
-      const client = clients.find(c => c.id === selectedClientId);
+    if (_selectedClientId && clients.length > 0) {
+      const client = clients.find(c => c.id === _selectedClientId);
       setSelectedClient(client || null);
     } else {
       setSelectedClient(null);
     }
-  }, [selectedClientId, clients]);
+  }, [_selectedClientId, clients]);
 
-  if (isShared) return null; // Don't show agency header for shared views
+  if (isShared) {
+    return null; // Don't show agency header for shared views
+  }
 
   return (
     <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-sm px-20">

@@ -20,7 +20,7 @@ declare const process: NodeJS.Process;
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load environment variables
-  const env = loadEnv(mode, process.cwd(), '');
+  const _env = loadEnv(mode, process.cwd(), '');
   
   // Development optimizations
   const isDev = mode === 'development';

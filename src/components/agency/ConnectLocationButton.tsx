@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import { OAuthService } from '@/services/auth/oauthService';
 import React, { useState } from 'react';
+import { debugLogger } from '@/lib/debugLogger';
 
 interface ConnectLocationButtonProps {
   clientId?: string;
