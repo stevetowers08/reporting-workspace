@@ -4,11 +4,7 @@ import { IntegrationPlatform } from '@/types/integration';
 import { TokenManager } from './TokenManager';
 import { OAuthCredentialsService } from './oauthCredentialsService';
 
-declare const sessionStorage: {
-  getItem: (string) => string | null;
-  setItem: (string, string) => void;
-  removeItem: (string) => void;
-};
+// Use window.window.sessionStorage for proper typing
 
 // Production-ready OAuth 2.0 service for all integrations
 export interface OAuthConfig {
@@ -157,7 +153,7 @@ export class OAuthService {
         
         // Generate PKCE parameters for Google OAuth
         let pkceParams: { code_challenge?: string; code_challenge_method?: string } = {};
-        if (platform === 'googleSheets') {
+        if (platform === 'googleSheets' || platform === 'googleAds') {
             try {
                 const pkce = await this.generatePKCE();
                 pkceParams = {
@@ -165,9 +161,9 @@ export class OAuthService {
                     code_challenge_method: 'S256'
                 };
                 
-                // Store code verifier securely in sessionStorage (not localStorage)
+                // Store code verifier securely in window.sessionStorage (not localStorage)
                 // SessionStorage is cleared when tab closes, reducing XSS attack window
-                sessionStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
+                window.window.sessionStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
                 
                 DevLogger.debug('OAuthService', 'PKCE generated and stored securely', {
                     platform,
@@ -175,7 +171,7 @@ export class OAuthService {
                     codeChallengeLength: pkce.codeChallenge.length,
                     storageKey: `oauth_code_verifier_${platform}`,
                     codeVerifierPreview: pkce.codeVerifier.substring(0, 20) + '...',
-                    storageType: 'sessionStorage'
+                    storageType: 'window.sessionStorage'
                 });
             } catch (error) {
                 DevLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
@@ -194,8 +190,8 @@ export class OAuthService {
             ...additionalParams
         });
 
-        // Store state securely in sessionStorage for validation
-        sessionStorage.setItem(`oauth_state_${platform}`, state);
+        // Store state securely in window.sessionStorage for validation
+        window.window.sessionStorage.setItem(`oauth_state_${platform}`, state);
 
         const authUrl = `${config.authUrl}?${params.toString()}`;
         DevLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
@@ -227,7 +223,7 @@ export class OAuthService {
         const config = await this.getOAuthConfig(platform);
 
         // Validate state
-        const storedState = sessionStorage.getItem(`oauth_state_${platform}`);
+        const storedState = window.sessionStorage.getItem(`oauth_state_${platform}`);
         if (!storedState || storedState !== state) {
             DevLogger.error('OAuthService', 'State validation failed', {
                 platform,
@@ -256,16 +252,16 @@ export class OAuthService {
             DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
         }
 
-        // Add PKCE code verifier for Google Sheets only (Google Ads uses backend)
-        if (platform === 'googleSheets') {
-            const codeVerifier = sessionStorage.getItem(`oauth_code_verifier_${platform}`);
+        // Add PKCE code verifier for Google OAuth platforms
+        if (platform === 'googleSheets' || platform === 'googleAds') {
+            const codeVerifier = window.sessionStorage.getItem(`oauth_code_verifier_${platform}`);
             DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
                 platform,
                 storageKey: `oauth_code_verifier_${platform}`,
                 hasCodeVerifier: !!codeVerifier,
                 codeVerifierLength: codeVerifier?.length || 0,
                 codeVerifierPreview: codeVerifier ? codeVerifier.substring(0, 20) + '...' : 'MISSING',
-                sessionStorageKeys: Object.keys(sessionStorage).filter(key => key.includes('oauth'))
+                sessionStorageKeys: Object.keys(window.sessionStorage).filter(key => key.includes('oauth'))
             });
             
             if (codeVerifier) {
@@ -284,10 +280,10 @@ export class OAuthService {
                     isValidLength: codeVerifier.length >= 43 && codeVerifier.length <= 128
                 });
             } else {
-                DevLogger.error('OAuthService', 'PKCE code verifier not found in sessionStorage', {
+                DevLogger.error('OAuthService', 'PKCE code verifier not found in window.sessionStorage', {
                     platform,
                     storageKey: `oauth_code_verifier_${platform}`,
-                    availableKeys: Object.keys(sessionStorage).filter(key => key.includes('oauth'))
+                    availableKeys: Object.keys(window.sessionStorage).filter(key => key.includes('oauth'))
                 });
                 
                 // For Google OAuth, PKCE is required - this is a critical error
@@ -365,8 +361,8 @@ export class OAuthService {
             await this.storeTokens(platform, normalizedTokens);
 
             // Clean up state and PKCE code verifier
-            sessionStorage.removeItem(`oauth_state_${platform}`);
-            sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
+            window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            window.sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
 
             return normalizedTokens;
         } catch (error) {
@@ -386,7 +382,7 @@ export class OAuthService {
         DevLogger.info('OAuthService', `Using backend OAuth flow for ${platform}`);
 
         // Validate state
-        const storedState = sessionStorage.getItem(`oauth_state_${platform}`);
+        const storedState = window.sessionStorage.getItem(`oauth_state_${platform}`);
         if (!storedState || storedState !== state) {
             DevLogger.error('OAuthService', 'State validation failed', {
                 platform,
@@ -425,8 +421,8 @@ export class OAuthService {
             DevLogger.info('OAuthService', `Backend OAuth exchange successful for ${platform}`);
             
             // Clean up state
-            sessionStorage.removeItem(`oauth_state_${platform}`);
-            sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
+            window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            window.sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
 
             // Return tokens that will be retrieved from database
             return {
