@@ -18,18 +18,14 @@ const GoogleAdsConnection = ({ onConnectionChange }: GoogleAdsConnectionProps) =
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkConnection();
-  }, [checkConnection]);
-
   const checkConnection = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       
       // Check if Google Ads is connected via integrations table
-      const integrations = await UnifiedIntegrationService.getIntegrations();
-      const googleAdsIntegration = integrations.find(integration => integration.platform === 'googleAds');
+      const integration = await UnifiedIntegrationService.getIntegration('googleAds');
+      const googleAdsIntegration = integration;
       
       setIsConnected(!!googleAdsIntegration);
       onConnectionChange?.(!!googleAdsIntegration);
@@ -40,6 +36,10 @@ const GoogleAdsConnection = ({ onConnectionChange }: GoogleAdsConnectionProps) =
       setIsLoading(false);
     }
   }, [onConnectionChange]);
+
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
 
   const handleConnect = async () => {
     try {
@@ -60,7 +60,7 @@ const GoogleAdsConnection = ({ onConnectionChange }: GoogleAdsConnectionProps) =
       setIsDisconnecting(true);
       setError(null);
       
-      await UnifiedIntegrationService.disconnectIntegration('googleAds');
+      await UnifiedIntegrationService.disconnect('googleAds');
       setIsConnected(false);
       onConnectionChange?.(false);
     } catch (error) {

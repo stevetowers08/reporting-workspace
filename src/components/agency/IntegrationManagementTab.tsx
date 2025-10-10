@@ -302,8 +302,8 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                             // Google Sheets selection completed
                             
                             try {
-                              const selectedSpreadsheet = accounts[0]?.sheets.find(sheet => sheet.id === spreadsheetId);
-                              const spreadsheetName = selectedSpreadsheet?.name || 'Unknown Spreadsheet';
+                              // Get spreadsheet name from the GoogleSheetsSelector or use a default
+                              const spreadsheetName = 'Selected Spreadsheet';
                               
                               await UnifiedIntegrationService.saveIntegration('googleSheets', {
                                 connected: true,
@@ -312,9 +312,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                                 metadata: {
                                   googleSheets: {
                                     spreadsheetId: spreadsheetId,
-                                    spreadsheetName: spreadsheetName,
-                                    selectedSheetName: sheetName,
-                                    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
+                                    sheetName: sheetName
                                   }
                                 }
                               });

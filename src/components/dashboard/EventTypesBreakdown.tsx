@@ -1,6 +1,8 @@
 import { Card } from '@/components/ui/card';
+import { debugLogger } from '@/lib/debug';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
+import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface EventTypesBreakdownProps {
   data: {
@@ -146,7 +148,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
           }
         </p>
         <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/{id}/values | Smart detection: Event type column
+          API: GET /spreadsheets/{{id}}/values | Smart detection: Event type column
         </div>
       </div>
       

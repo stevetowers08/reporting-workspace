@@ -73,6 +73,8 @@ export default defineConfig(({ mode }) => {
     ].filter(Boolean),
     optimizeDeps: {
       include: [
+        'react',
+        'react-dom',
         '@tanstack/react-query',
         '@supabase/supabase-js',
         'chart.js',
@@ -97,10 +99,15 @@ export default defineConfig(({ mode }) => {
           keepNames: true,
         }),
       },
+      // Prevent React duplication
+      dedupe: ['react', 'react-dom'],
     },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
+      // Ensure React is resolved consistently
+      'react': 'react',
+      'react-dom': 'react-dom',
     },
   },
     define: {
@@ -117,16 +124,23 @@ export default defineConfig(({ mode }) => {
       minify: isDev ? false : 'esbuild',
       rollupOptions: {
         external: [],
+        onwarn(warning, warn) {
+          // Suppress unreachable code warnings from react-router-dom
+          if (warning.code === 'UNREACHABLE_CODE' && warning.message.includes('react-router-dom')) {
+            return;
+          }
+          warn(warning);
+        },
         output: {
-          // Improved chunking strategy to resolve dynamic import conflicts
+          // Improved chunking strategy to resolve dynamic import conflicts     
           manualChunks: isDev ? undefined : (id) => {
             // Handle node_modules dependencies
             if (id.includes('node_modules')) {
-              // React core
+              // React core - keep React and React-DOM together and ensure single instance
               if (id.includes('react') && !id.includes('react-router')) {
                 return 'react-vendor';
               }
-              // React Router
+              // React Router - separate chunk to avoid conflicts
               if (id.includes('react-router')) {
                 return 'router-vendor';
               }
@@ -135,7 +149,7 @@ export default defineConfig(({ mode }) => {
                 return 'supabase-vendor';
               }
               // Chart libraries
-              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('recharts')) {
+              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('recharts')) {                                                       
                 return 'chart-vendor';
               }
               // PDF libraries (lazy loaded)
@@ -143,11 +157,11 @@ export default defineConfig(({ mode }) => {
                 return 'pdf-vendor';
               }
               // UI libraries
-              if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+              if (id.includes('@radix-ui') || id.includes('lucide-react')) {    
                 return 'ui-vendor';
               }
               // Utility libraries
-              if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
+              if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {                                            
                 return 'utils-vendor';
               }
               // Monitoring

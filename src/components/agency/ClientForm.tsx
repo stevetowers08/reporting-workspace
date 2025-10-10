@@ -716,7 +716,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
             .eq('connected', true)
             .eq('platform', platform);
           
-          const isConnected = integrations && integrations.length > 0;
+          const isConnected = Boolean(integrations && integrations.length > 0);
           debugLogger.debug('ClientForm', `Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
           return isConnected;
         }

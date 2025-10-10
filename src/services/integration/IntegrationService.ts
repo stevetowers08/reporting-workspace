@@ -230,7 +230,7 @@ export class UnifiedIntegrationService {
           .select('platform')
           .eq('connected', true)
           .eq('platform', platform);
-        return integrations && integrations.length > 0;
+        return Boolean(integrations && integrations.length > 0);
       }
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', `Failed to check connection status for ${platform}`, error);

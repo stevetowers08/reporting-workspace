@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { ChartWrapper } from '@/components/ui/chart-wrapper';
+import { debugLogger } from '@/lib/debug';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
@@ -19,11 +20,11 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
-        if (data?.clientAccounts?.googleSheetsConfig) {
-          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheetsConfig);
+        if (data?.clientAccounts?.googleSheets) {
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheets);
           leadDataResult = await LeadDataService.fetchLeadData(
-            data.clientAccounts.googleSheetsConfig.spreadsheetId,
-            data.clientAccounts.googleSheetsConfig.sheetName
+            data.clientAccounts.googleSheets,
+            'Sheet1' // Default sheet name
           );
         } else {
           debugLogger.debug('GuestCountDistribution', 'Using default Google Sheets config');

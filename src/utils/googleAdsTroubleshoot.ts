@@ -78,7 +78,7 @@ export class GoogleAdsTroubleshoot {
         test: 'Environment Variables',
         status: 'fail',
         message: 'Error checking environment variables',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       });
     }
 
@@ -114,7 +114,7 @@ export class GoogleAdsTroubleshoot {
         test: 'OAuth Tokens',
         status: 'fail',
         message: 'Error checking OAuth tokens',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       });
     }
 
@@ -144,7 +144,7 @@ export class GoogleAdsTroubleshoot {
         test: 'Google Ads API Connection',
         status: 'fail',
         message: 'Error testing Google Ads API connection',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       });
     }
 
@@ -177,7 +177,7 @@ export class GoogleAdsTroubleshoot {
         test: 'Account Access',
         status: 'fail',
         message: 'Error fetching Google Ads accounts',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       });
     }
 
@@ -205,7 +205,7 @@ export class GoogleAdsTroubleshoot {
         test: 'Database Tokens',
         status: 'fail',
         message: 'Error checking database tokens',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       });
     }
 
@@ -241,7 +241,7 @@ export class GoogleAdsTroubleshoot {
       return {
         success: false,
         accounts: [],
-        error: error.message
+        error: (error as Error).message
       };
     }
   }

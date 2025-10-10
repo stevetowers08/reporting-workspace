@@ -18,7 +18,7 @@ interface GHLMetrics {
 }
 
 export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ locationId, dateRange }) => {
-  const { data: metrics, loading, error } = useGHLContactCount(locationId, dateRange);
+  const { count: metrics, loading, error } = useGHLContactCount(locationId, dateRange);
 
   if (loading) {
     return (

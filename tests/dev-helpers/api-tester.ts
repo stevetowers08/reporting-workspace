@@ -71,7 +71,7 @@ export class DevAPITester {
       results.push(this.createResult('Facebook Ads', 'Get Campaigns', true, undefined, { count: campaigns.length, campaigns }));
       
       if (campaigns.length > 0) {
-        const metrics = await FacebookAdsService.getCampaignMetrics(campaigns[0].id, {
+        const metrics = await FacebookAdsService.getAccountMetrics(undefined, {
           start: '2024-01-01',
           end: '2024-01-31'
         });

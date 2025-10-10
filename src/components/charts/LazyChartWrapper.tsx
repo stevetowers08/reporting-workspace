@@ -42,7 +42,7 @@ export const LazyChartWrapper: React.FC<LazyChartWrapperProps> = ({
  * Creates a lazy-loaded chart component
  */
 export const createLazyChart = <P extends object>(
-  importFn: () => Promise<{ default: ComponentType<P> }>
+  importFn: () => Promise<{ default: ComponentType<any> }>
 ) => {
   const LazyComponent = lazy(importFn);
   

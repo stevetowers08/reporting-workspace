@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GHLPipelineStagesProps {
+  locationId: string;
   dateRange?: { start: string; end: string };
 }
 
@@ -24,7 +25,10 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
   useEffect(() => {
     const fetchPipelineData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+        const metrics = await GoHighLevelService.getGHLMetrics(locationId, {
+          startDate: dateRange?.start,
+          endDate: dateRange?.end
+        });
         
         // Get all contacts to analyze pipeline stages
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out

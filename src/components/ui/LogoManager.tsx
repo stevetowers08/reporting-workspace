@@ -1,5 +1,5 @@
-import { logoService } from '@/services/logoService';
 import { debugLogger } from '@/lib/debug';
+import { logoService } from '@/services/logoService';
 import React from 'react';
 
 interface LogoManagerProps {

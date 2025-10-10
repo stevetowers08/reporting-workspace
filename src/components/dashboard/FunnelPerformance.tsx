@@ -85,7 +85,7 @@ export const FunnelPerformance: React.FC<FunnelPerformanceProps> = ({ data, date
     );
   }
 
-  const totalPageViews = funnelData.totalPageViews || 0;
+  const totalPageViews = data?.ghlMetrics?.pageViewAnalytics?.totalPageViews || 0;
   const conversionRate = totalPageViews > 0 ? (totalContacts / totalPageViews) * 100 : 0;
 
   return (

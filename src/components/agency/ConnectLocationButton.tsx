@@ -11,10 +11,12 @@ import React, { useState } from 'react';
 
 interface ConnectLocationButtonProps {
   clientId?: string;
+  onConnected?: () => void;
 }
 
 export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
-  clientId
+  clientId,
+  onConnected
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -24,6 +26,11 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     try {
       // Use OAuthService to generate proper OAuth URL with state validation
       const authUrl = await OAuthService.generateAuthUrl('goHighLevel', {}, clientId);
+      
+      // Call onConnected callback if provided
+      if (onConnected) {
+        onConnected();
+      }
       
       // Redirect to GHL OAuth
       window.location.href = authUrl;

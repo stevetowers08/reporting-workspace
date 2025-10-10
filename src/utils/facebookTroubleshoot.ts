@@ -47,7 +47,7 @@ export class FacebookTroubleshoot {
     // Test 3: OAuth Configuration
     try {
       const { OAuthService } = await import('@/services/auth/oauthService');
-      const authUrl = OAuthService.generateAuthUrl('facebook');
+      const authUrl = await OAuthService.generateAuthUrl('facebook');
       const tokens = await FacebookTokenService.getTokens();
       const oauthCheck = {
         authUrlGenerated: !!authUrl,
@@ -68,7 +68,7 @@ export class FacebookTroubleshoot {
       debugLogger.info('FacebookTroubleshoot', 'Authentication check', { authenticated: isAuthenticated });
     } catch (error) {
       errors.push(`Authentication failed: ${error}`);
-      results.authentication = { authenticated: false, error: error.message };
+      results.authentication = { authenticated: false, error: (error as Error).message };
     }
 
     // Test 5: API Endpoints
@@ -88,7 +88,7 @@ export class FacebookTroubleshoot {
       }
     } catch (error) {
       errors.push(`API endpoints failed: ${error}`);
-      results.apiEndpoints = { success: false, error: error.message };
+      results.apiEndpoints = { success: false, error: (error as Error).message };
     }
 
     // Test 6: Ad Accounts Access
@@ -102,7 +102,7 @@ export class FacebookTroubleshoot {
       debugLogger.info('FacebookTroubleshoot', 'Ad accounts access check', results.adAccountsAccess);
     } catch (error) {
       errors.push(`Ad accounts access failed: ${error}`);
-      results.adAccountsAccess = { success: false, error: error.message };
+      results.adAccountsAccess = { success: false, error: (error as Error).message };
     }
 
     const success = errors.length === 0;
@@ -118,7 +118,7 @@ export class FacebookTroubleshoot {
       return result;
     } catch (error) {
       debugLogger.error('FacebookTroubleshoot', 'Connection test failed', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -129,7 +129,7 @@ export class FacebookTroubleshoot {
       return { success: true, data: metrics };
     } catch (error) {
       debugLogger.error('FacebookTroubleshoot', 'Get account metrics failed', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 

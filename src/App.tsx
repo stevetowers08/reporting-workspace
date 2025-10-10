@@ -32,6 +32,13 @@ const HealthCheckPage = () => {
     error?: string;
     timestamp: string;
     services: Record<string, unknown>;
+    metrics?: {
+      responseTime: number;
+      memoryUsage: number;
+      uptime: number;
+    };
+    version?: string;
+    environment?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +51,19 @@ const HealthCheckPage = () => {
         );
         
         const statusPromise = HealthCheck();
-        const status = await Promise.race([statusPromise, timeoutPromise]);
+        const status = await Promise.race([statusPromise, timeoutPromise]) as {
+          status: string;
+          error?: string;
+          timestamp: string;
+          services: Record<string, unknown>;
+          metrics?: {
+            responseTime: number;
+            memoryUsage: number;
+            uptime: number;
+          };
+          version?: string;
+          environment?: string;
+        };
         setHealthStatus(status);
       } catch (error) {
         debugLogger.error('App', 'Health check failed', error);

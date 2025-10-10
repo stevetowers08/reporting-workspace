@@ -28,7 +28,7 @@ export class IntegrationService {
       return await IntegrationApiService.getIntegration(platform);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error fetching integration ${platform}`, error);
-      throw new Error(`Failed to fetch integration: ${error.message}`);
+      throw new Error(`Failed to fetch integration: ${(error as Error).message}`);
     }
   }
 
@@ -41,7 +41,7 @@ export class IntegrationService {
       return await IntegrationApiService.getAllIntegrations();
     } catch (error) {
       debugLogger.error('IntegrationService', 'Error fetching all integrations', error);
-      throw new Error(`Failed to fetch all integrations: ${error.message}`);
+      throw new Error(`Failed to fetch all integrations: ${(error as Error).message}`);
     }
   }
 
@@ -54,7 +54,7 @@ export class IntegrationService {
       return await IntegrationApiService.getIntegrationDisplay();
     } catch (error) {
       debugLogger.error('IntegrationService', 'Error fetching integration display data', error);
-      throw new Error(`Failed to fetch integration display data: ${error.message}`);
+      throw new Error(`Failed to fetch integration display data: ${(error as Error).message}`);
     }
   }
 
@@ -73,7 +73,7 @@ export class IntegrationService {
       return await IntegrationApiService.saveOAuthTokens(platform, tokens, accountInfo, metadata, settings);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error saving OAuth tokens for ${platform}`, error);
-      throw new Error(`Failed to save OAuth tokens: ${error.message}`);
+      throw new Error(`Failed to save OAuth tokens: ${(error as Error).message}`);
     }
   }
 
@@ -92,7 +92,7 @@ export class IntegrationService {
       return await IntegrationApiService.saveApiKey(platform, apiKeyConfig, accountInfo, metadata, settings);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error saving API key for ${platform}`, error);
-      throw new Error(`Failed to save API key: ${error.message}`);
+      throw new Error(`Failed to save API key: ${(error as Error).message}`);
     }
   }
 
@@ -108,7 +108,7 @@ export class IntegrationService {
       return await IntegrationApiService.refreshTokens(platform, newTokens);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error refreshing tokens for ${platform}`, error);
-      throw new Error(`Failed to refresh tokens: ${error.message}`);
+      throw new Error(`Failed to refresh tokens: ${(error as Error).message}`);
     }
   }
 
@@ -122,7 +122,7 @@ export class IntegrationService {
       debugLogger.info('IntegrationService', `${platform} disconnected successfully`);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error disconnecting ${platform}`, error);
-      throw new Error(`Failed to disconnect integration: ${error.message}`);
+      throw new Error(`Failed to disconnect integration: ${(error as Error).message}`);
     }
   }
 
@@ -164,7 +164,7 @@ export class IntegrationService {
       }
     } catch (error) {
       debugLogger.error('IntegrationService', `Error saving integration config for ${platform}`, error);
-      throw new Error(`Failed to save integration config: ${error.message}`);
+      throw new Error(`Failed to save integration config: ${(error as Error).message}`);
     }
   }
 
@@ -183,7 +183,7 @@ export class IntegrationService {
       return await IntegrationApiService.getTokens(platform);
     } catch (error) {
       debugLogger.error('IntegrationService', `Error getting tokens for ${platform}`, error);
-      throw new Error(`Failed to get tokens: ${error.message}`);
+      throw new Error(`Failed to get tokens: ${(error as Error).message}`);
     }
   }
 
