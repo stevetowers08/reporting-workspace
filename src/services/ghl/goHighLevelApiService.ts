@@ -16,6 +16,36 @@ export class GoHighLevelApiService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
   private static readonly API_VERSION = '2021-07-28'; // Keep V1 for now, but structure requests for V2
 
+  // Caching system
+  private static cache = new Map<string, { data: any; expiry: number }>();
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Cache helper methods
+  private static getCachedData<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      debugLogger.debug('GoHighLevelApiService', 'Cache hit', { key });
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key);
+    }
+    return null;
+  }
+
+  private static setCachedData<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + this.CACHE_DURATION
+    });
+    debugLogger.debug('GoHighLevelApiService', 'Cache set', { key, expiry: this.CACHE_DURATION });
+  }
+
+  private static clearCache(): void {
+    this.cache.clear();
+    debugLogger.debug('GoHighLevelApiService', 'Cache cleared');
+  }
+
   // Campaigns
   static async getCampaigns(locationId: string): Promise<GHLCampaign[]> {
     await GHLRateLimiter.enforceRateLimit();
@@ -33,6 +63,14 @@ export class GoHighLevelApiService {
 
   // Contacts
   static async getContacts(locationId: string, limit = 100, offset = 0): Promise<GHLContact[]> {
+    const cacheKey = `ghl_contacts_${locationId}_${limit}_${offset}`;
+    
+    // Check cache first
+    const cachedData = this.getCachedData<GHLContact[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
     await GHLRateLimiter.enforceRateLimit();
     
     // Use client-specific OAuth token instead of agency token
@@ -85,7 +123,12 @@ export class GoHighLevelApiService {
     const data = await response.json();
     debugLogger.info('GoHighLevelApiService', `Retrieved ${data.contacts?.length || 0} contacts`);
     
-    return data.contacts || [];
+    const contacts = data.contacts || [];
+    
+    // Cache the results
+    this.setCachedData(cacheKey, contacts);
+    
+    return contacts;
   }
 
   static async getContactCount(locationId: string, dateParams?: { startDate?: string; endDate?: string }): Promise<number> {

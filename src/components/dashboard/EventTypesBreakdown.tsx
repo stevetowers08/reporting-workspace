@@ -1,7 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
-import { ChartWrapper } from '@/components/ui/chart-wrapper';
 
 interface EventTypesBreakdownProps {
   data: {
@@ -188,4 +187,4 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
       </div>
     </Card>
   );
-};
+});

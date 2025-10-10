@@ -25,10 +25,42 @@ export class GoogleAdsService {
   private static readonly QUOTA_CHECK_INTERVAL = 30000; // Check quota every 30 seconds
   private static lastQuotaCheck = 0;
 
+  // Caching system
+  private static cache = new Map<string, { data: any; expiry: number }>();
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   // Exponential backoff configuration
   private static readonly MAX_RETRIES = 3;
   private static readonly BASE_DELAY = 1000; // 1 second
   private static readonly MAX_DELAY = 30000; // 30 seconds
+
+  /**
+   * Cache helper methods
+   */
+  private static getCachedData<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && cached.expiry > Date.now()) {
+      debugLogger.debug('GoogleAdsService', 'Cache hit', { key });
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key);
+    }
+    return null;
+  }
+
+  private static setCachedData<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + this.CACHE_DURATION
+    });
+    debugLogger.debug('GoogleAdsService', 'Cache set', { key, expiry: this.CACHE_DURATION });
+  }
+
+  private static clearCache(): void {
+    this.cache.clear();
+    debugLogger.debug('GoogleAdsService', 'Cache cleared');
+  }
 
   /**
    * Normalize customer ID by removing all non-digit characters
@@ -361,6 +393,14 @@ export class GoogleAdsService {
    * Get Google Ads accounts - using new accounts service
    */
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
+    const cacheKey = 'googleAds_accounts';
+    
+    // Check cache first
+    const cachedData = this.getCachedData<GoogleAdsAccount[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
     try {
       debugLogger.debug('GoogleAdsService', 'Fetching accounts using new service');
       
@@ -375,13 +415,18 @@ export class GoogleAdsService {
       });
 
       // Convert to our interface format
-      return accounts.map(account => ({
+      const formattedAccounts = accounts.map(account => ({
         id: account.id,
         name: account.name || account.descriptiveName || `Account ${account.id}`,
         status: 'enabled',
         currency: 'USD',
         timezone: 'UTC'
       }));
+
+      // Cache the results
+      this.setCachedData(cacheKey, formattedAccounts);
+      
+      return formattedAccounts;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting accounts', error);
       return [];
