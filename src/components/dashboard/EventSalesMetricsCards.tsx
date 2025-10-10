@@ -15,9 +15,6 @@ export const EventSalesMetricsCards: React.FC<EventSalesMetricsCardsProps> = ({ 
             <p className="text-sm font-medium text-slate-600 mb-2">Total Leads</p>
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-bold text-slate-900">{data?.eventMetrics?.totalEvents || '0'}</p>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-green-600 font-medium">↑ +12%</span>
-              </div>
             </div>
           </div>
         </div>

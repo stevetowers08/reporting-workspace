@@ -277,7 +277,7 @@ export class DatabaseService {
       const validatedData = validateInput(ClientCreateSchema, {
         name: clientData.name,
         logo_url: clientData.logo_url || '',
-        type: 'venue', // Default type
+        type: 'Client', // Default type
         location: 'Unknown', // Default location
         status: 'active',
         services: {
@@ -305,6 +305,8 @@ export class DatabaseService {
       const newClient = {
         name: validatedData.name,
         logo_url: validatedData.logo_url,
+        type: validatedData.type,
+        location: validatedData.location,
         status: 'active' as const,
         conversion_actions: clientData.conversionActions || {},
         accounts: accountsWithSheetsConfig,
@@ -387,6 +389,30 @@ export class DatabaseService {
       debugLogger.info('DatabaseService', 'Integration deleted successfully from database', { platform });
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error deleting integration from database', error);
+      throw error;
+    }
+  }
+
+  static async updateIntegrationConfig(platform: string, config: Record<string, any>): Promise<void> {
+    try {
+      debugDatabase.query('UPDATE', 'integrations');
+      
+      const { error } = await supabase
+        .from('integrations')
+        .update({ 
+          config: supabase.raw(`config || '${JSON.stringify(config)}'::jsonb`)
+        })
+        .eq('platform', platform);
+
+      if (error) {
+        debugDatabase.error('UPDATE', 'integrations', error);
+        throw error;
+      }
+
+      debugDatabase.success('UPDATE', 'integrations', { platform });
+      debugLogger.info('DatabaseService', 'Integration config updated successfully', { platform });
+    } catch (error) {
+      debugLogger.error('DatabaseService', 'Error updating integration config', error);
       throw error;
     }
   }

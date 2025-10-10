@@ -9,13 +9,13 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select-simple";
 import { Switch } from "@/components/ui/switch-simple";
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 import { AIInsightsConfig, AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
-import { IntegrationPlatform } from "@/types/integration";
 import { AlertCircle, Bot, CheckCircle, ImageIcon, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
@@ -68,6 +68,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   onCancel,
   cancelLabel = "Cancel"
 }) => {
+  console.log('ClientForm: Component mounted/rendered');
+  console.log('ClientForm: About to check integration status...');
   debugLogger.info('ClientForm', 'Component loaded', { isEdit, clientId, hasInitialData: !!initialData });
   
   const [formData, setFormData] = useState<ClientFormData>(initialData || {
@@ -87,13 +89,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
+  const [integrationStatusLoaded, setIntegrationStatusLoaded] = useState(false);
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [facebookAccountsLoaded, setFacebookAccountsLoaded] = useState(false);
   const [facebookAccountsLoading, setFacebookAccountsLoading] = useState(false);
   const [googleAccountsLoaded, setGoogleAccountsLoaded] = useState(false);
+  const [googleAccountsLoading, setGoogleAccountsLoading] = useState(false);
   const [ghlAccountsLoaded, setGhlAccountsLoaded] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logo_url || null);
   const [conversionActions, setConversionActions] = useState<Record<string, unknown[]>>({});
+  const [conversionActionsLoading, setConversionActionsLoading] = useState<Record<string, boolean>>({});
   const [logoFile, setLogoFile] = useState<globalThis.File | null>(null);
   const [aiConfig, setAiConfig] = useState<AIInsightsConfig | null>(null);
   const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
@@ -103,6 +109,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  
+  // Test useEffect to see if useEffect works at all
+  useEffect(() => {
+    console.log('ClientForm: TEST useEffect - this should run immediately');
+  }, []);
   
   // Edit states for each integration
   const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});
@@ -184,16 +195,43 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }
   }, [facebookAccountsLoaded, facebookAccountsLoading]);
 
-  // Load Google Ads accounts when needed
+  // Load Google Ads accounts when needed with caching
   const loadGoogleAccounts = useCallback(async (forceReload = false) => {
     debugLogger.info('ClientForm', 'loadGoogleAccounts function called', { forceReload, googleAccountsLoaded });
     
-    if (googleAccountsLoaded && !forceReload) {
-      debugLogger.debug('ClientForm', 'Google accounts already loaded, skipping');
+    if (googleAccountsLoaded && !forceReload || googleAccountsLoading) {
+      debugLogger.debug('ClientForm', 'Google accounts already loaded or loading, skipping');
       return;
     }
     
-    debugLogger.info('ClientForm', 'Loading Google Ads accounts on demand');
+    // Check cache first
+    const cacheKey = 'googleAds_accounts_cache';
+    const cacheExpiry = 'googleAds_accounts_cache_expiry';
+    const now = Date.now();
+    const cacheTime = 5 * 60 * 1000; // 5 minutes cache
+    
+    if (!forceReload) {
+      try {
+        const cachedAccounts = localStorage.getItem(cacheKey);
+        const cachedExpiry = localStorage.getItem(cacheExpiry);
+        
+        if (cachedAccounts && cachedExpiry && (now - parseInt(cachedExpiry)) < cacheTime) {
+          debugLogger.info('ClientForm', 'Using cached Google Ads accounts');
+          const accounts = JSON.parse(cachedAccounts);
+          setConnectedAccounts(prev => {
+            const filteredPrev = prev.filter(acc => acc.platform !== 'googleAds');
+            return [...filteredPrev, ...accounts];
+          });
+          setGoogleAccountsLoaded(true);
+          return;
+        }
+      } catch (error) {
+        debugLogger.warn('ClientForm', 'Failed to read cache, fetching fresh data', error);
+      }
+    }
+    
+    debugLogger.info('ClientForm', 'Loading Google Ads accounts from API');
+    setGoogleAccountsLoading(true);
     
     try {
       debugLogger.info('ClientForm', 'Calling GoogleAdsService.getAdAccounts');
@@ -206,7 +244,20 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         platform: 'googleAds' as const
       }));
       
-      setConnectedAccounts(prev => [...prev, ...accounts]);
+      // Cache the results
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(accounts));
+        localStorage.setItem(cacheExpiry, now.toString());
+        debugLogger.info('ClientForm', 'Cached Google Ads accounts');
+      } catch (cacheError) {
+        debugLogger.warn('ClientForm', 'Failed to cache accounts', cacheError);
+      }
+      
+      setConnectedAccounts(prev => {
+        // Remove existing Google Ads accounts to avoid duplicates
+        const filteredPrev = prev.filter(acc => acc.platform !== 'googleAds');
+        return [...filteredPrev, ...accounts];
+      });
       setGoogleAccountsLoaded(true);
       debugLogger.info('ClientForm', 'Google Ads accounts loaded successfully', { accountCount: accounts.length });
     } catch (error) {
@@ -218,8 +269,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         platform: 'googleAds' as const
       }]);
       setGoogleAccountsLoaded(true);
+    } finally {
+      setGoogleAccountsLoading(false);
     }
-  }, [googleAccountsLoaded]);
+  }, [googleAccountsLoaded, googleAccountsLoading]);
 
   // Load GoHighLevel accounts when needed (simplified for location-level OAuth)
   const loadGHLAccounts = useCallback(async () => {
@@ -387,7 +440,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         googleSheetsConfig: submitData.googleSheetsConfig || undefined
       });
 
-      // Show success message
+      // Only show success message if onSubmit completed successfully
       setSubmitSuccess(`${isEdit ? 'Client updated' : 'Client created'} successfully!`);
       
       // Clear success message after 2 seconds and close modal
@@ -555,17 +608,38 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     }));
   };
 
-  const loadFacebookConversionActions = async (adAccountId: string) => {
+  const loadFacebookConversionActions = useCallback(async (adAccountId: string) => {
     try {
-      const actions = await FacebookAdsService.getConversionActions(adAccountId);
+      debugLogger.info('ClientForm', 'Loading Facebook conversion actions', { adAccountId });
+      setConversionActionsLoading(prev => ({ ...prev, facebookAds: true }));
+      
+      // Ensure account ID has proper format
+      const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      debugLogger.info('ClientForm', 'Formatted account ID for conversion actions', { original: adAccountId, formatted: formattedAccountId });
+      
+      const actions = await FacebookAdsService.getConversionActions(formattedAccountId);
+      debugLogger.info('ClientForm', 'Facebook conversion actions loaded', { actions });
       setConversionActions(prev => ({
         ...prev,
         facebookAds: actions
       }));
     } catch (error) {
       debugLogger.error('ClientForm', 'Failed to load Facebook conversion actions', error);
+      // Set fallback actions on error
+      setConversionActions(prev => ({
+        ...prev,
+        facebookAds: [
+          { id: 'lead', name: 'Lead' },
+          { id: 'purchase', name: 'Purchase' },
+          { id: 'add_to_cart', name: 'Add to Cart' },
+          { id: 'view_content', name: 'View Content' },
+          { id: 'signup', name: 'Sign Up' }
+        ]
+      }));
+    } finally {
+      setConversionActionsLoading(prev => ({ ...prev, facebookAds: false }));
     }
-  };
+  }, []);
 
   const loadGoogleConversionActions = async (customerId: string) => {
     try {
@@ -600,25 +674,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Synchronous version for UI rendering
   const isIntegrationConnectedSync = (platform: string): boolean => {
-    debugLogger.debug('ClientForm', `Checking if ${platform} is connected (sync)`);
+    console.log('ClientForm: isIntegrationConnectedSync called for', platform);
+    console.log('ClientForm: formData.accounts =', formData.accounts);
     
-    // For GoHighLevel, it's always client-level only - check if client has location configured
-    if (platform === 'goHighLevel') {
-      const hasLocationId = typeof formData.accounts.goHighLevel === 'string' 
-        ? formData.accounts.goHighLevel && formData.accounts.goHighLevel !== 'none'
-        : formData.accounts.goHighLevel?.locationId && formData.accounts.goHighLevel?.locationId !== 'none';
-      
-      debugLogger.debug('ClientForm', 'GoHighLevel client-level check', {
-        hasLocationId,
-        formData: formData.accounts.goHighLevel
-      });
-      return Boolean(hasLocationId);
-    }
+    // Check if client has selected an account for this platform
+    const accountId = formData.accounts[platform as keyof typeof formData.accounts];
+    const hasAccount = accountId && accountId !== 'none' && accountId !== '';
     
-    // For other platforms, check agency integration status
-    const isConnected = integrationStatus[platform] || false;
-    debugLogger.debug('ClientForm', `isIntegrationConnectedSync(${platform}) = ${isConnected}`);
-    return isConnected;
+    console.log('ClientForm: isIntegrationConnectedSync result for', platform, '=', hasAccount);
+    console.log('ClientForm: accountId =', accountId);
+    
+    return Boolean(hasAccount);
   };
 
   // Async version for account loading
@@ -647,8 +713,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           debugLogger.debug('ClientForm', `Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
           return isConnected;
         } else {
-          const { TokenManager } = await import('@/services/auth/TokenManager');
-          const isConnected = await TokenManager.isConnected(platform as IntegrationPlatform);
+          // Simple database check
+          const { data: integrations } = await supabase
+            .from('integrations')
+            .select('platform')
+            .eq('connected', true)
+            .eq('platform', platform);
+          
+          const isConnected = integrations && integrations.length > 0;
           debugLogger.debug('ClientForm', `Direct check isIntegrationConnected(${platform}) = ${isConnected}`);
           return isConnected;
         }
@@ -658,17 +730,21 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       }
     }
     
+    if (!integrationStatusLoaded) {
+      return false; // Return false while loading
+    }
+    
     const isConnected = integrationStatus[platform] || false;
     debugLogger.debug('ClientForm', `isIntegrationConnected(${platform}) = ${isConnected}`);
     return isConnected;
-  }, [formData.accounts.goHighLevel, integrationStatus]);
+  }, [formData.accounts.goHighLevel, integrationStatus, integrationStatusLoaded]);
 
   // Load AI config when component mounts (for edit mode)
   useEffect(() => {
     if (isEdit && clientId) {
       loadAIConfig();
     }
-  }, [isEdit, clientId, integrationStatusLoading, loadAIConfig]);
+  }, [isEdit, clientId, integrationStatusLoaded, loadAIConfig]);
 
   // Load accounts for platforms that have account IDs in initial data
   useEffect(() => {
@@ -698,9 +774,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   // Load conversion actions when Facebook Ads account changes
   useEffect(() => {
     if (formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none') {
+      debugLogger.info('ClientForm', 'Facebook Ads account changed, loading conversion actions', { 
+        accountId: formData.accounts.facebookAds 
+      });
       loadFacebookConversionActions(formData.accounts.facebookAds);
+    } else {
+      debugLogger.debug('ClientForm', 'Facebook Ads account not set or is none, skipping conversion actions load');
     }
-  }, [formData.accounts.facebookAds]);
+  }, [formData.accounts.facebookAds, loadFacebookConversionActions]);
 
   // Load conversion actions when Google Ads account changes
   useEffect(() => {
@@ -716,6 +797,56 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       debugLogger.info('ClientForm', 'Initialized Google Sheets config from initial data', initialData.googleSheetsConfig);
     }
   }, [initialData]);
+
+  // Load integration status using TokenManager
+  useEffect(() => {
+    console.log('ClientForm: useEffect for integration status loading started');
+    console.log('ClientForm: About to call loadIntegrationStatus...');
+    
+    // Test if useEffect is working at all
+    console.log('ClientForm: useEffect is running - this should appear');
+    
+    const loadIntegrationStatus = async () => {
+      try {
+        console.log('ClientForm: Starting to load integration status...');
+        console.log('ClientForm: TokenManager imported successfully');
+        console.log('ClientForm: GoogleSheetsOAuthService imported successfully');
+
+        // Simple approach: Just check if integrations exist in database
+        console.log('ClientForm: Checking integrations directly from database...');
+        const { data: integrations, error } = await supabase
+          .from('integrations')
+          .select('platform')
+          .eq('connected', true);
+
+        let statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
+
+        if (error) {
+          console.error('ClientForm: Failed to load integrations:', error);
+        } else {
+          console.log('ClientForm: Found connected integrations:', integrations);
+          // Set to true if found in database
+          integrations?.forEach(integration => {
+            if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
+              statusMap[integration.platform] = true;
+            }
+          });
+        }
+
+        console.log('ClientForm: Integration status loaded:', statusMap);
+        setIntegrationStatus(statusMap);
+        setIntegrationStatusLoaded(true);
+        console.log('ClientForm: Integration status set successfully');
+      } catch (error) {
+        console.error('ClientForm: Error loading integration status:', error);
+        console.error('ClientForm: Error details:', error.message, error.stack);
+        setIntegrationStatus({});
+        setIntegrationStatusLoaded(true);
+      }
+    };
+
+    loadIntegrationStatus();
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -833,7 +964,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnectedSync('facebookAds') ? (
+            {integrationStatusLoaded && integrationStatus.facebookAds === true ? (
               <div className="space-y-3">
                 {editingIntegrations.facebookAds ? (
                   <div className="space-y-3">
@@ -867,21 +998,43 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                      (pendingChanges.facebookAds ?? formData.accounts.facebookAds) !== 'none') && (
                       <div>
                         <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
-                        <Select
-                          value={formData.conversionActions.facebookAds || "lead"}
-                          onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(conversionActions.facebookAds as Array<{ id: string; name: string }>)?.map((action) => (
-                              <SelectItem key={action.id} value={action.id}>
-                                {action.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {conversionActionsLoading.facebookAds ? (
+                          <div className="flex items-center gap-2 mt-1 p-2 border border-gray-200 rounded">
+                            <LoadingSpinner size="sm" />
+                            <span className="text-sm text-gray-500">Loading conversion actions...</span>
+                          </div>
+                        ) : (
+                          <Select
+                            value={formData.conversionActions.facebookAds || "lead"}
+                            onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select action" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {conversionActions.facebookAds && conversionActions.facebookAds.length > 0 ? (
+                                (conversionActions.facebookAds as Array<{ id: string; name: string }>).map((action) => (
+                                  <SelectItem key={action.id} value={action.id}>
+                                    {action.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                // Fallback options when no conversion actions are loaded
+                                [
+                                  { id: 'lead', name: 'Lead' },
+                                  { id: 'purchase', name: 'Purchase' },
+                                  { id: 'add_to_cart', name: 'Add to Cart' },
+                                  { id: 'view_content', name: 'View Content' },
+                                  { id: 'signup', name: 'Sign Up' }
+                                ].map((action) => (
+                                  <SelectItem key={action.id} value={action.id}>
+                                    {action.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                     )}
                     
@@ -968,7 +1121,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnectedSync('googleAds') ? (
+            {integrationStatusLoaded && integrationStatus.googleAds === true ? (
               <div className="space-y-3">
                 {editingIntegrations.googleAds ? (
                   <div className="space-y-3">
@@ -991,11 +1144,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                         searchPlaceholder="Search accounts..."
                         className="mt-1"
                         onOpenChange={(open) => {
-                          if (open && !googleAccountsLoaded) {
+                          if (open && !googleAccountsLoaded && !googleAccountsLoading) {
                             loadGoogleAccounts(true); // Force reload to get latest accounts
                           }
                         }}
                       />
+                      {googleAccountsLoading && (
+                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                          <LoadingSpinner size="sm" />
+                          Loading Google Ads accounts...
+                        </div>
+                      )}
                     </div>
                     
                     {((pendingChanges.googleAds ?? formData.accounts.googleAds) && 
@@ -1158,7 +1317,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               )}
             </div>
             
-            {isIntegrationConnectedSync('googleSheets') ? (
+            {integrationStatusLoaded && integrationStatus.googleSheets === true ? (
               <div 
                 className="space-y-3"
                 onClick={(e) => e.stopPropagation()}

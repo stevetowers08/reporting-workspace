@@ -157,19 +157,9 @@ export class UnifiedIntegrationService {
             if (integration && integration.connected) {
               // Check if tokens exist and are not expired
               if (integration.config.tokens?.accessToken) {
-                if (integration.config.tokens.expiresAt) {
-                  const expiresAt = new Date(integration.config.tokens.expiresAt);
-                  if (expiresAt > new Date()) {
-                    isConnected = true;
-                    status = 'connected';
-                  } else {
-                    isConnected = true; // Still connected but expired
-                    status = 'expired';
-                  }
-                } else {
-                  isConnected = true; // No expiration means it's still valid
-                  status = 'connected';
-                }
+                // Simple approach: if connected=true in database, show as connected
+                isConnected = true;
+                status = 'connected';
               } else if (integration.config.apiKey) {
                 isConnected = true; // API key based connection
                 status = 'connected';
@@ -233,7 +223,14 @@ export class UnifiedIntegrationService {
         const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
         return await GoogleSheetsOAuthService.getSheetsAuthStatus();
       } else {
-        return await TokenManager.isConnected(platform);
+        // Simple database check
+        const { supabase } = await import('@/lib/supabase');
+        const { data: integrations } = await supabase
+          .from('integrations')
+          .select('platform')
+          .eq('connected', true)
+          .eq('platform', platform);
+        return integrations && integrations.length > 0;
       }
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', `Failed to check connection status for ${platform}`, error);

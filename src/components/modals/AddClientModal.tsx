@@ -29,10 +29,10 @@ const AddClientModal = ({ isOpen, onClose, onAddClient }: AddClientModalProps) =
             name: formData.name,
             logo_url: formData.logo_url,
             accounts: {
-                facebookAds: formData.accounts.facebookAds === "none" ? undefined : formData.accounts.facebookAds,
-                googleAds: formData.accounts.googleAds === "none" ? undefined : formData.accounts.googleAds,
-                goHighLevel: formData.accounts.goHighLevel === "none" ? undefined : formData.accounts.goHighLevel,
-                googleSheets: formData.accounts.googleSheets === "none" ? undefined : formData.accounts.googleSheets,
+                facebookAds: formData.accounts.facebookAds,
+                googleAds: formData.accounts.googleAds,
+                goHighLevel: formData.accounts.goHighLevel,
+                googleSheets: formData.accounts.googleSheets,
             },
             conversionActions: {
                 facebookAds: formData.conversionActions.facebookAds,

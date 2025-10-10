@@ -94,6 +94,10 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     }
   };
 
+  const handleOpenClient = (clientId: string) => {
+    navigate(`/dashboard/${clientId}`);
+  };
+
   const handleDeleteClient = async (clientId: string, clientName: string) => {
     if (!window.confirm(`Are you sure you want to delete ${clientName}? This action cannot be undone.`)) {
       return;
@@ -208,6 +212,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
               onAddClient={handleAddClient}
               onEditClient={handleEditClient}
               onDeleteClient={handleDeleteClient}
+              onOpenClient={handleOpenClient}
             />
           </TabsContent>
 

@@ -33,6 +33,20 @@ export interface FacebookAdsMetrics {
     roas: number;
     reach: number;
     frequency: number;
+    // Previous period data for comparison
+    previousPeriod?: {
+        impressions: number;
+        clicks: number;
+        spend: number;
+        leads: number;
+        conversions: number;
+        ctr: number;
+        cpc: number;
+        cpm: number;
+        roas: number;
+        reach: number;
+        frequency: number;
+    };
 }
 
 export interface GoogleAdsMetrics {
@@ -47,6 +61,20 @@ export interface GoogleAdsMetrics {
     costPerConversion: number;
     searchImpressionShare: number;
     qualityScore: number;
+    // Previous period data for comparison
+    previousPeriod?: {
+        impressions: number;
+        clicks: number;
+        cost: number;
+        leads: number;
+        conversions: number;
+        ctr: number;
+        cpc: number;
+        conversionRate: number;
+        costPerConversion: number;
+        searchImpressionShare: number;
+        qualityScore: number;
+    };
 }
 
 export interface GoHighLevelMetrics {

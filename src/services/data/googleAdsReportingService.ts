@@ -51,13 +51,21 @@ export class GoogleAdsReportingService {
 
       const googleClients = clients.filter(client =>
         client.accounts?.googleAds &&
-        client.services?.googleAds === true
+        client.accounts.googleAds !== 'none'
       );
 
-      debugLogger.info('GOOGLE_REPORTING', 'Google-enabled clients', {
-        count: googleClients.length,
-        clients: googleClients.map(c => ({ id: c.id, name: c.name, googleAccount: c.accounts?.googleAds }))
-      });
+      console.log('🔍 Google Reporting: All clients:', clients.map(c => ({
+        id: c.id,
+        name: c.name,
+        googleAds: c.accounts?.googleAds,
+        services: c.services
+      })));
+
+      console.log('🔍 Google Reporting: Filtered Google clients:', googleClients.map(c => ({
+        id: c.id,
+        name: c.name,
+        googleAds: c.accounts?.googleAds
+      })));
 
       const reportingData: GoogleAdsReportingData[] = [];
       let totalSpend = 0;

@@ -1,9 +1,8 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Client } from '@/services/agency/agencyService';
-import { BarChart3, Edit, Plus, Search, Trash2 } from 'lucide-react';
+import { BarChart3, Edit, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface ClientManagementTabProps {
@@ -13,6 +12,7 @@ interface ClientManagementTabProps {
   onAddClient: () => void;
   onEditClient: (client: Client) => void;
   onDeleteClient: (clientId: string, clientName: string) => void;
+  onOpenClient: (clientId: string) => void;
 }
 
 export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
@@ -21,25 +21,16 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
   deleting,
   onAddClient,
   onEditClient,
-  onDeleteClient
+  onDeleteClient,
+  onOpenClient
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
 
   const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || client.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'paused': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'inactive': return 'bg-slate-50 text-slate-600 border-slate-200';
-      default: return 'bg-slate-50 text-slate-600 border-slate-200';
-    }
-  };
 
   if (loading) {
     return <LoadingState message="Loading venues..." />;
@@ -64,7 +55,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
           </Button>
         </div>
 
-        {/* Filters */}
+        {/* Search */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -76,16 +67,6 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
               className="w-60 pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
             />
           </div>
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-          >
-            <option value="">All status</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="inactive">Inactive</option>
-          </select>
           <span className="text-xs text-slate-500 ml-auto">{filteredClients.length} result{filteredClients.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
@@ -102,7 +83,6 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Venue</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Platforms</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -125,11 +105,6 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                         )}
                         <div className="text-sm font-medium text-slate-900">{client.name}</div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(client.status)}`}>
-                        {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
@@ -173,6 +148,16 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => onOpenClient(client.id)}
+                          className="h-7 w-7 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                          title="Open Dashboard"
+                          data-testid="open-client-btn"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm"

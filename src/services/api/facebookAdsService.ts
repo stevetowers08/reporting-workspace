@@ -1365,12 +1365,21 @@ export class FacebookAdsService {
       const token = await this.getAccessToken();
       const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
 
-      const response = await fetch(
-        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status&access_token=${userToken}`
+      debugLogger.debug('FacebookAdsService', 'Fetching conversion actions', { 
+        accountId: formattedAccountId,
+        tokenLength: token.length 
+      });
+
+      const response = await this.rateLimitedFetch(
+        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status&access_token=${token}`
       );
 
       if (!response.ok) {
         const errorData = await response.json();
+        debugLogger.error('FacebookAdsService', 'Facebook conversion actions API error', {
+          status: response.status,
+          error: errorData
+        });
         throw new Error(`Facebook API error: ${errorData.error?.message || response.statusText}`);
       }
 
@@ -1379,6 +1388,7 @@ export class FacebookAdsService {
       
       // Return fallback conversion actions if no custom conversions exist
       if (!data.data || data.data.length === 0) {
+        debugLogger.info('FacebookAdsService', 'No custom conversions found, returning fallback actions');
         return [
           { id: 'lead', name: 'Lead', category: 'LEAD', type: 'WEBSITE', status: 'ACTIVE' },
           { id: 'purchase', name: 'Purchase', category: 'PURCHASE', type: 'WEBSITE', status: 'ACTIVE' },
@@ -1388,6 +1398,9 @@ export class FacebookAdsService {
         ];
       }
       
+      debugLogger.info('FacebookAdsService', 'Successfully loaded custom conversions', { 
+        count: data.data.length 
+      });
       return data.data || [];
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook conversion actions', error);
@@ -1462,7 +1475,7 @@ export class FacebookAdsService {
     }
   }
 
-  static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics> {
+  static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
       // Create cache key for this request
       const cacheKey = `account-metrics-${adAccountId}-${dateRange?.start}-${dateRange?.end}-${conversionAction}`;
@@ -1531,8 +1544,18 @@ export class FacebookAdsService {
       debugLogger.debug('FacebookAdsService', 'Facebook insights response', {
         dataCount: data.data?.length || 0,
         firstRecord: data.data?.[0] || null,
-        paging: data.paging
+        paging: data.paging,
+        rawResponse: data
       });
+      
+      // Log if we got empty data
+      if (!data.data || data.data.length === 0) {
+        debugLogger.warn('FacebookAdsService', 'Facebook API returned empty data array', {
+          accountId: formattedAccountId,
+          dateRange,
+          response: data
+        });
+      }
       
       // Fetch demographic and platform breakdown data
       const demographics = await this.getDemographicBreakdown(accountId, dateRange);
@@ -1542,6 +1565,17 @@ export class FacebookAdsService {
       // Include demographic and platform data
       metrics.demographics = demographics;
       metrics.platformBreakdown = platformBreakdown;
+      
+      // Fetch previous period data if requested
+      if (includePreviousPeriod && dateRange) {
+        try {
+          const previousPeriodMetrics = await this.getPreviousPeriodMetrics(formattedAccountId, dateRange, conversionAction);
+          metrics.previousPeriod = previousPeriodMetrics;
+        } catch (error) {
+          debugLogger.warn('FacebookAdsService', 'Failed to fetch previous period data', error);
+          // Continue without previous period data
+        }
+      }
       
       // Cache the result
       this.setCachedData(cacheKey, metrics);
@@ -1553,21 +1587,98 @@ export class FacebookAdsService {
     }
   }
 
+  private static async getPreviousPeriodMetrics(accountId: string, currentDateRange: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics['previousPeriod']> {
+    try {
+      // Calculate previous period date range
+      const currentStart = new Date(currentDateRange.start);
+      const currentEnd = new Date(currentDateRange.end);
+      const periodLength = currentEnd.getTime() - currentStart.getTime();
+      
+      const previousEnd = new Date(currentStart.getTime() - 1); // Day before current period starts
+      const previousStart = new Date(previousEnd.getTime() - periodLength);
+      
+      const previousDateRange = {
+        start: previousStart.toISOString().split('T')[0],
+        end: previousEnd.toISOString().split('T')[0]
+      };
+      
+      debugLogger.debug('FacebookAdsService', 'Fetching previous period data', {
+        currentPeriod: currentDateRange,
+        previousPeriod: previousDateRange
+      });
+      
+      const fields = 'impressions,clicks,spend,actions,ctr,cpc,cpm,reach,frequency';
+      const token = await this.getAccessToken();
+      const params = new URLSearchParams({
+        access_token: token,
+        fields,
+        level: 'account',
+        time_range: JSON.stringify({
+          since: previousDateRange.start,
+          until: previousDateRange.end
+        })
+      });
+
+      const url = `${this.BASE_URL}/${accountId}/insights?${params}`;
+      const response = await FacebookAdsService.rateLimitedFetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Previous period API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const previousMetrics = this.parseMetrics(data.data?.[0] || {}, conversionAction);
+      
+      return {
+        impressions: previousMetrics.impressions,
+        clicks: previousMetrics.clicks,
+        spend: previousMetrics.spend,
+        leads: previousMetrics.leads,
+        conversions: previousMetrics.conversions,
+        ctr: previousMetrics.ctr,
+        cpc: previousMetrics.cpc,
+        cpm: previousMetrics.cpm,
+        roas: previousMetrics.roas,
+        reach: previousMetrics.reach,
+        frequency: previousMetrics.frequency
+      };
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error fetching previous period metrics', error);
+      throw error;
+    }
+  }
+
   private static parseMetrics(insights: any, conversionAction?: string): FacebookAdsMetrics {
+    debugLogger.debug('FacebookAdsService', 'Parsing metrics from insights', {
+      insights,
+      conversionAction,
+      hasActions: !!insights.actions,
+      actionsCount: insights.actions?.length || 0
+    });
+
     let leads = 0;
 
     if (conversionAction && insights.actions) {
       // Use specific conversion action
       const action = insights.actions.find((action: any) => action.action_type === conversionAction);
       leads = action?.value || 0;
+      debugLogger.debug('FacebookAdsService', 'Using specific conversion action', {
+        conversionAction,
+        action,
+        leads
+      });
     } else {
       // Fallback to lead or purchase
       leads = insights.actions?.find((action: any) =>
         action.action_type === 'purchase' || action.action_type === 'lead'
       )?.value || 0;
+      debugLogger.debug('FacebookAdsService', 'Using fallback conversion action', {
+        actions: insights.actions,
+        leads
+      });
     }
 
-    return {
+    const metrics = {
       impressions: parseInt(insights.impressions || '0'),
       clicks: parseInt(insights.clicks || '0'),
       spend: parseFloat(insights.spend || '0'),
@@ -1580,6 +1691,9 @@ export class FacebookAdsService {
       reach: parseInt(insights.reach || '0'),
       frequency: parseFloat(insights.frequency || '0')
     };
+
+    debugLogger.debug('FacebookAdsService', 'Parsed metrics result', metrics);
+    return metrics;
   }
 
   static async testConnection(): Promise<{ success: boolean; error?: string; accountInfo?: any }> {

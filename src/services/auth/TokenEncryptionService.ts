@@ -131,6 +131,13 @@ export class TokenEncryptionService {
    * Check if token is encrypted (basic heuristic)
    */
   static isEncrypted(token: string): boolean {
+    // OAuth tokens typically start with specific patterns
+    // Encrypted tokens are base64 encoded and typically longer
+    // Check for OAuth token patterns first
+    if (token.startsWith('ya29.') || token.startsWith('EAA') || token.startsWith('eyJ')) {
+      return false; // These are OAuth tokens, not encrypted
+    }
+    
     // Encrypted tokens are base64 encoded and typically longer
     // This is a basic check - in production, use a more robust method
     return token.length > 100 && /^[A-Za-z0-9+/=]+$/.test(token);

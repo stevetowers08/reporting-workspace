@@ -330,7 +330,8 @@ export class TokenManager {
       const config = data.config as IntegrationConfig;
 
       // Check OAuth tokens first (handle both camelCase and snake_case)
-      const encryptedAccessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token;
+      // Also check direct accessToken field for Facebook Ads
+      const encryptedAccessToken = config.tokens?.accessToken || (config.tokens as any)?.access_token || (config as any)?.accessToken;
       if (encryptedAccessToken) {
         DevLogger.info('TokenManager', `Found access token for ${platform}`);
         

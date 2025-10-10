@@ -1,4 +1,5 @@
 import { LogoManager } from '@/components/ui/LogoManager';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -61,17 +62,16 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
           }
         ];
 
+        // Simple approach: Check database directly
+        const { data: integrations } = await supabase
+          .from('integrations')
+          .select('platform')
+          .eq('connected', true);
+
+        const connectedPlatforms = new Set(integrations?.map(i => i.platform) || []);
+
         const stepPromises = onboardingSteps.map(async (step) => {
-          let completed = false;
-          try {
-            if (step.platform === 'googleSheets') {
-              completed = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-            } else {
-              completed = await TokenManager.isConnected(step.platform as any);
-            }
-          } catch (error) {
-            completed = false;
-          }
+          const completed = connectedPlatforms.has(step.platform);
           
           return {
             ...step,

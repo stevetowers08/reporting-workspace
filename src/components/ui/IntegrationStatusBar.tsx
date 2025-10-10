@@ -1,4 +1,5 @@
 import { LogoManager } from '@/components/ui/LogoManager';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -36,17 +37,16 @@ export const IntegrationStatusBar: React.FC<IntegrationStatusBarProps> = ({
           { platform: 'google-ai', name: 'Google AI Studio', logo: 'google-ai' }
         ];
 
+        // Simple approach: Check database directly
+        const { data: integrations } = await supabase
+          .from('integrations')
+          .select('platform')
+          .eq('connected', true);
+
+        const connectedPlatforms = new Set(integrations?.map(i => i.platform) || []);
+
         const statusPromises = platforms.map(async (platform) => {
-          let connected = false;
-          try {
-            if (platform.platform === 'googleSheets') {
-              connected = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-            } else {
-              connected = await TokenManager.isConnected(platform.platform as any);
-            }
-          } catch (error) {
-            connected = false;
-          }
+          const connected = connectedPlatforms.has(platform.platform);
           
           return {
             platform: platform.platform,

@@ -192,7 +192,14 @@ export class GoogleSheetsOAuthService {
    */
   static async getSheetsAuthStatus(): Promise<boolean> {
     try {
-      return await TokenManager.isConnected('googleSheets');
+      // Simple database check
+      const { supabase } = await import('@/lib/supabase');
+      const { data: integrations } = await supabase
+        .from('integrations')
+        .select('platform')
+        .eq('connected', true)
+        .eq('platform', 'googleSheets');
+      return integrations && integrations.length > 0;
     } catch (error) {
       debugLogger.error('GoogleSheetsOAuthService', 'Error getting Google Sheets auth status', error);
       return false;

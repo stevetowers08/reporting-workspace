@@ -54,9 +54,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Leads</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{data?.facebookMetrics?.leads || '0'}</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-green-600 font-medium">↑ +15.2%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -72,9 +69,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
                     ? (data.facebookMetrics.spend / data.facebookMetrics.leads).toFixed(2)
                     : '0.00'}
                 </p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-red-600 font-medium">↓ -8.3%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -90,9 +84,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
                     ? ((data.facebookMetrics.leads / data.facebookMetrics.clicks) * 100).toFixed(1)
                     : '0.0'}%
                 </p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-green-600 font-medium">↑ +5.7%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -104,9 +95,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">${data?.facebookMetrics?.spend?.toLocaleString() || '0'}</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-green-600 font-medium">↑ +2.0%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -121,9 +109,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Impressions</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{data?.facebookMetrics?.impressions?.toLocaleString() || '0'}</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-green-600 font-medium">↑ +8.5%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -135,9 +120,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Link Clicks</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{data?.facebookMetrics?.clicks?.toLocaleString() || '0'}</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-green-600 font-medium">↑ +22.3%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -149,9 +131,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Link Click</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">${(data?.facebookMetrics?.cpc ?? 0).toFixed(2)}</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-red-600 font-medium">↓ -12.8%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -163,9 +142,6 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">CTR</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{(data?.facebookMetrics?.ctr ?? 0).toFixed(2)}%</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-red-600 font-medium">↓ -47.2%</span>
-                </div>
               </div>
             </div>
           </div>

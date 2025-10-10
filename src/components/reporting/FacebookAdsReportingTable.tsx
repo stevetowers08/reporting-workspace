@@ -65,81 +65,81 @@ export const FacebookAdsReportingTable: React.FC<FacebookAdsReportingTableProps>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-white border-b border-slate-200">
               <tr>
-                <th className="text-left py-3 px-6 font-semibold text-gray-900">Venue</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Leads</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Cost Per Lead</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Conversion Rate</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Spent</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Impressions</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Link Clicks</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">Cost Per Click</th>
-                <th className="text-right py-3 px-3 font-semibold text-gray-900">CTR</th>
+                <th className="text-left py-4 px-6 font-semibold text-slate-900">Venue</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Leads</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Cost Per Lead</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Conversion Rate</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Spent</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Impressions</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Link Clicks</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">Cost Per Click</th>
+                <th className="text-right py-4 px-4 font-semibold text-slate-900">CTR</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-100">
               {data.map((venue) => (
                 <tr key={venue.clientId} className="hover:bg-slate-50 transition-colors">
                   {/* Venue Name Column */}
-                  <td className="px-6 py-1.5">
-                    <p className="text-sm font-medium text-slate-900">{venue.venueName}</p>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-semibold text-slate-900">{venue.venueName}</p>
                   </td>
 
                   {/* Metric Columns */}
                   <MetricTableCell
                     label="Leads"
                     value={venue.metrics.leads}
-                    trend={{ direction: 'up', percentage: 15.2 }}
+                    trend={venue.trends?.leads}
                     format="number"
                   />
                   
                   <MetricTableCell
                     label="Cost Per Lead"
                     value={venue.metrics.costPerLead}
-                    trend={{ direction: 'down', percentage: 8.3 }}
+                    trend={venue.trends?.costPerLead}
                     format="currency"
                   />
                   
                   <MetricTableCell
                     label="Conversion Rate"
                     value={venue.metrics.conversionRate}
-                    trend={{ direction: 'up', percentage: 5.7 }}
+                    trend={venue.trends?.conversionRate}
                     format="percentage"
                   />
                   
                   <MetricTableCell
                     label="Spent"
                     value={venue.metrics.spent}
-                    trend={{ direction: 'up', percentage: 2.0 }}
+                    trend={venue.trends?.spent}
                     format="currency"
                   />
                   
                   <MetricTableCell
                     label="Impressions"
                     value={venue.metrics.impressions}
-                    trend={{ direction: 'up', percentage: 8.5 }}
+                    trend={venue.trends?.impressions}
                     format="number"
                   />
                   
                   <MetricTableCell
                     label="Link Clicks"
                     value={venue.metrics.clicks}
-                    trend={{ direction: 'up', percentage: 22.3 }}
+                    trend={venue.trends?.clicks}
                     format="number"
                   />
                   
                   <MetricTableCell
                     label="Cost Per Click"
                     value={venue.metrics.costPerClick}
-                    trend={{ direction: 'down', percentage: 12.8 }}
+                    trend={venue.trends?.costPerClick}
                     format="currency"
                   />
                   
                    <MetricTableCell
                      label="CTR"
                      value={venue.metrics.ctr}
-                     trend={{ direction: 'down', percentage: 47.2 }}
+                     trend={venue.trends?.ctr}
                      format="percentage"
                    />
                 </tr>

@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DatabaseService } from '@/services/data/databaseService';
 import {
-  BarChart3,
-  Edit,
-  Plus,
-  Users
+    BarChart3,
+    Edit,
+    Plus,
+    Users
 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -54,30 +54,38 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   // Use TokenManager for proper connection status checking
   const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
+  const [integrationStatusLoaded, setIntegrationStatusLoaded] = useState(false);
   
-  // Load integration status using TokenManager (same as agency panel)
+  // Load integration status using simple database check
   React.useEffect(() => {
     const loadIntegrationStatus = async () => {
       try {
-        const { TokenManager } = await import('@/services/auth/TokenManager');
-        const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+        const { supabase } = await import('@/lib/supabase');
         
-        const statusMap: Record<string, boolean> = {};
-        
-        // Check agency-level platforms using TokenManager
-        const agencyPlatforms = ['facebookAds', 'googleAds', 'googleSheets'] as const;
-        
-        for (const platform of agencyPlatforms) {
-          if (platform === 'googleSheets') {
-            statusMap[platform] = await GoogleSheetsOAuthService.getSheetsAuthStatus();
-          } else {
-            statusMap[platform] = await TokenManager.isConnected(platform);
-          }
+        // Simple approach: Just check if integrations exist in database
+        const { data: integrations, error } = await supabase
+          .from('integrations')
+          .select('platform')
+          .eq('connected', true);
+
+        if (error) {
+          console.error('HomePage: Failed to load integrations:', error);
+          setIntegrationStatus({ facebookAds: false, googleAds: false, googleSheets: false });
+        } else {
+          // Set all to false first
+          let statusMap = { facebookAds: false, googleAds: false, googleSheets: false };
+          // Set to true if found in database
+          integrations?.forEach(integration => {
+            if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
+              statusMap[integration.platform] = true;
+            }
+          });
+          setIntegrationStatus(statusMap);
         }
-        
-        setIntegrationStatus(statusMap);
+        setIntegrationStatusLoaded(true);
       } catch (error) {
         setIntegrationStatus({});
+        setIntegrationStatusLoaded(true);
       }
     };
 
@@ -256,8 +264,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <div className="flex items-center gap-1.5">
                       {/* Facebook Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatus.facebookAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatus.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected'}
+                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.facebookAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatusLoaded ? (integrationStatus.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="meta" 
@@ -269,8 +277,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                       
                       {/* Google Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatus.googleAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatus.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected'}
+                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatusLoaded ? (integrationStatus.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="googleAds" 
@@ -295,8 +303,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                       
                       {/* Google Sheets */}
                       <div 
-                        className={`flex items-center ${integrationStatus.googleSheets ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatus.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
+                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleSheets ? 'opacity-100' : 'opacity-40'}`}
+                        title={integrationStatusLoaded ? (integrationStatus.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="googleSheets" 

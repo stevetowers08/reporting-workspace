@@ -358,62 +358,30 @@ export class GoogleAdsService {
     }
   }
   /**
-   * Get Google Ads accounts - simplified
+   * Get Google Ads accounts - using new accounts service
    */
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
     try {
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-
-      if (!accessToken || !developerToken) {
-        return [];
-      }
-
-      let managerAccountId = await this.getManagerAccountId();
-      if (!managerAccountId) {
-        managerAccountId = await this.discoverManagerAccount(accessToken, developerToken);
-        if (!managerAccountId) {
-          return [];
-        }
-      }
-
-      const gaql = `SELECT customer_client.id, customer_client.descriptive_name, customer_client.status, customer_client.manager FROM customer_client`;
-      const blocks = await this.makeApiRequest({
-        accessToken,
-        developerToken,
-        customerId: managerAccountId,
-        managerId: managerAccountId,
-        gaql
+      debugLogger.debug('GoogleAdsService', 'Fetching accounts using new service');
+      
+      // Import the new accounts service
+      const { listAccessibleCustomers } = await import('@/services/googleAds/accountsService');
+      
+      // Get accounts using the new service
+      const accounts = await listAccessibleCustomers();
+      
+      debugLogger.debug('GoogleAdsService', 'Successfully fetched accounts', { 
+        accountCount: accounts.length 
       });
 
-      const accounts: GoogleAdsAccount[] = [];
-      const seenIds = new Set<string>();
-
-      for (const block of blocks) {
-        const results = (block as { results?: unknown[] }).results || [];
-        for (const result of results) {
-          const cc = (result as { customerClient?: { id?: string; descriptiveName?: string; manager?: boolean; status?: string } }).customerClient;
-          if (!cc?.id || cc.manager) {
-            continue;
-          }
-          
-          const id = this.normalizeCid(cc.id);
-          if (seenIds.has(id)) {
-            continue;
-          }
-          
-          seenIds.add(id);
-          accounts.push({
-            id,
-            name: cc.descriptiveName || `Ad Account ${id}`,
-            status: (cc.status || 'ENABLED').toLowerCase(),
-            currency: 'USD',
-            timezone: 'UTC'
-          });
-        }
-      }
-
-      return accounts;
+      // Convert to our interface format
+      return accounts.map(account => ({
+        id: account.id,
+        name: account.name || account.descriptiveName || `Account ${account.id}`,
+        status: 'enabled',
+        currency: 'USD',
+        timezone: 'UTC'
+      }));
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting accounts', error);
       return [];
@@ -441,40 +409,25 @@ export class GoogleAdsService {
   }
 
   /**
-   * Get developer token from secure backend endpoint
+   * Get developer token from environment
    */
   private static async getDeveloperToken(): Promise<string | null> {
     try {
-      // Get developer token from backend to avoid exposing it in frontend
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ads-config`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        debugLogger.warn('GoogleAdsService', 'Failed to get developer token from backend', { 
-          status: response.status,
-          statusText: response.statusText 
-        });
+      // Get developer token from environment variable
+      const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
+      
+      if (!developerToken) {
+        debugLogger.warn('GoogleAdsService', 'Google Ads developer token not configured');
         return null;
       }
 
-      const config = await response.json();
-      if (!config.success || !config.developerToken) {
-        debugLogger.warn('GoogleAdsService', 'No developer token in backend config');
-        return null;
-      }
-
-      debugLogger.debug('GoogleAdsService', 'Developer token retrieved from backend', { 
-        hasToken: !!config.developerToken, 
-        tokenLength: config.developerToken.length 
+      debugLogger.debug('GoogleAdsService', 'Developer token retrieved from environment', { 
+        hasToken: !!developerToken, 
+        tokenLength: developerToken.length 
       });
-      return config.developerToken;
+      return developerToken;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to get developer token from backend', error);
+      debugLogger.error('GoogleAdsService', 'Failed to get developer token from environment', error);
       return null;
     }
   }
@@ -506,7 +459,7 @@ export class GoogleAdsService {
   /**
    * Get account metrics - simplified
    */
-  static async getAccountMetrics(customerId: string, dateRange: { start: string; end: string }): Promise<{
+  static async getAccountMetrics(customerId: string, dateRange: { start: string; end: string }, includePreviousPeriod: boolean = false): Promise<{
     impressions: number;
     clicks: number;
     cost: number;
@@ -514,6 +467,18 @@ export class GoogleAdsService {
     ctr: number;
     averageCpc: number;
     conversions: number;
+    conversionRate: number;
+    // Previous period data for comparison
+    previousPeriod?: {
+      impressions: number;
+      clicks: number;
+      cost: number;
+      leads: number;
+      ctr: number;
+      averageCpc: number;
+      conversions: number;
+      conversionRate: number;
+    };
   }> {
     try {
       const accessToken = await this.ensureValidToken();
@@ -524,32 +489,159 @@ export class GoogleAdsService {
         return this.getEmptyMetrics();
       }
 
-      const gaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM customer WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      const gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
       const blocks = await this.makeApiRequest({
         accessToken,
         developerToken,
-        customerId: customerId,
+        customerId: this.normalizeCid(customerId),
         managerId: managerAccountId,
         gaql
       });
 
       let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
+      
+      debugLogger.info('GoogleAdsService', 'Processing API blocks', {
+        blockCount: blocks.length,
+        blocks: blocks.map(block => ({
+          hasResults: !!(block as { results?: unknown[] }).results,
+          resultCount: ((block as { results?: unknown[] }).results || []).length
+        }))
+      });
+      
       for (const block of blocks) {
         const results = (block as { results?: unknown[] }).results || [];
         for (const result of results) {
-          const m = (result as { metrics?: { impressions?: string | number; clicks?: string | number; costMicros?: string | number; conversions?: string | number } }).metrics || {};
+          const m = (result as { 
+            metrics?: { 
+              impressions?: string | number; 
+              clicks?: string | number; 
+              costMicros?: string | number; 
+              conversions?: string | number;
+              conversionsFromInteractionsRate?: string | number;
+              averageCpc?: string | number;
+            } 
+          }).metrics || {};
+          
+          debugLogger.debug('GoogleAdsService', 'Processing campaign result', {
+            impressions: m.impressions,
+            clicks: m.clicks,
+            costMicros: m.costMicros,
+            conversions: m.conversions,
+            rawMetrics: m
+          });
+          
           impressions += Number(m.impressions || 0);
           clicks += Number(m.clicks || 0);
           costMicros += Number(m.costMicros || 0);
           conversions += Number(m.conversions || 0);
         }
       }
+      
+      debugLogger.info('GoogleAdsService', 'Aggregated raw data', {
+        impressions,
+        clicks,
+        costMicros,
+        conversions
+      });
 
+      // Convert cost from micros to dollars
       const cost = costMicros / 1e6;
       const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-      const averageCpc = clicks > 0 ? (costMicros / clicks) / 1e6 : 0;
+      
+      // Calculate conversion rate: conversions / clicks * 100 (not conversions / impressions)
+      const conversionRate = clicks > 0 ? (conversions / clicks) * 100 : 0;
+      
+      // Calculate average CPC: cost / clicks (already in dollars)
+      const averageCpc = clicks > 0 ? cost / clicks : 0;
 
-      return { impressions, clicks, cost, leads: conversions, ctr, averageCpc, conversions };
+      debugLogger.info('GoogleAdsService', 'Conversion rate calculation', {
+        conversions,
+        clicks,
+        conversionRate,
+        impressions,
+        ctr: (clicks / impressions) * 100
+      });
+
+      debugLogger.info('GoogleAdsService', 'Final metrics being returned', {
+        impressions,
+        clicks,
+        cost,
+        leads: conversions, // Using conversions as leads
+        conversions,
+        ctr,
+        averageCpc,
+        conversionRate
+      });
+
+      // Fetch previous period data if requested
+      let previousPeriod;
+      if (includePreviousPeriod) {
+        try {
+          const { getPreviousDateRange } = await import('@/lib/dateUtils');
+          const previousDateRange = getPreviousDateRange('30d'); // Default to 30d for now
+          
+          const previousGaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'`;
+          const previousBlocks = await this.makeApiRequest({
+            accessToken,
+            developerToken,
+            customerId: this.normalizeCid(customerId),
+            managerId: managerAccountId,
+            gaql: previousGaql
+          });
+
+          let prevImpressions = 0, prevClicks = 0, prevCostMicros = 0, prevConversions = 0;
+          
+          for (const block of previousBlocks) {
+            const results = (block as { results?: unknown[] }).results || [];
+            for (const result of results) {
+              const m = (result as { 
+                metrics?: { 
+                  impressions?: string | number; 
+                  clicks?: string | number; 
+                  costMicros?: string | number; 
+                  conversions?: string | number;
+                } 
+              }).metrics || {};
+              
+              prevImpressions += Number(m.impressions || 0);
+              prevClicks += Number(m.clicks || 0);
+              prevCostMicros += Number(m.costMicros || 0);
+              prevConversions += Number(m.conversions || 0);
+            }
+          }
+
+          const prevCost = Math.round(prevCostMicros / 1e6);
+          const prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
+          const prevConversionRate = prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0;
+          const prevAverageCpc = prevClicks > 0 ? prevCost / prevClicks : 0;
+
+          previousPeriod = {
+            impressions: prevImpressions,
+            clicks: prevClicks,
+            cost: prevCost,
+            leads: prevConversions,
+            ctr: prevCtr,
+            averageCpc: prevAverageCpc,
+            conversions: prevConversions,
+            conversionRate: prevConversionRate
+          };
+        } catch (error) {
+          debugLogger.warn('GoogleAdsService', 'Failed to fetch previous period data', error);
+          // Continue without previous period data
+        }
+      }
+
+      return { 
+        impressions, 
+        clicks, 
+        cost, 
+        leads: conversions, 
+        ctr, 
+        averageCpc, 
+        conversions,
+        conversionRate,
+        previousPeriod
+      };
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting metrics', error);
       return this.getEmptyMetrics();
@@ -680,7 +772,12 @@ export class GoogleAdsService {
       leads: 0,
       ctr: 0,
       averageCpc: 0,
-      conversions: 0
+      conversions: 0,
+      conversionRate: 0,
+      costPerConversion: 0,
+      searchImpressionShare: 0,
+      qualityScore: 0,
+      previousPeriod: undefined
     };
   }
 }

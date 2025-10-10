@@ -1,6 +1,6 @@
 import { debugLogger } from '@/lib/debug';
+import { GoogleAdsMetrics } from '@/types/dashboard';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
-import { GoogleAdsMetrics } from '../api/googleAdsService';
 import { GoHighLevelService } from '../ghl/goHighLevelService';
 import { LeadDataService } from './leadDataService';
 
@@ -94,7 +94,8 @@ export class EventMetricsService {
     _clientId: string,
     dateRange: { start: string; end: string },
     clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string },
-    clientConversionActions?: { facebookAds?: string; googleAds?: string }
+    clientConversionActions?: { facebookAds?: string; googleAds?: string },
+    includePreviousPeriod: boolean = false
   ): Promise<EventDashboardData> {
     try {
       // Only fetch data for connected accounts
@@ -136,7 +137,7 @@ export class EventMetricsService {
          (typeof clientAccounts.goHighLevel === 'object' && clientAccounts.goHighLevel?.locationId));
       const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
 
-      if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds));}
+      if (hasFacebookAds && clientAccounts?.facebookAds) {promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod));}
       if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds));}
       if (hasGoHighLevel) {
         // Extract locationId from goHighLevel object if it's an object, otherwise use as string
@@ -205,9 +206,66 @@ export class EventMetricsService {
       }
       if (hasGoogleAds) {
         const result = results[resultIndex++];
+        console.log('🔍 EventMetricsService: Google Ads API result:', {
+          status: result.status,
+          hasData: result.status === 'fulfilled' ? !!result.value : false,
+          error: result.status === 'rejected' ? result.reason : null
+        });
+        
+        debugLogger.info('EventMetricsService', 'Google Ads API result:', {
+          status: result.status,
+          hasData: result.status === 'fulfilled' ? !!result.value : false,
+          error: result.status === 'rejected' ? result.reason : null
+        });
+        
         if (result.status === 'fulfilled') {
-          googleMetrics = result.value as GoogleAdsMetrics;
+          const googleAdsResult = result.value as any;
+          console.log('🔍 EventMetricsService: Google Ads raw result:', googleAdsResult);
+          
+          // Map the fields from GoogleAdsService to the expected GoogleAdsMetrics format
+          googleMetrics = {
+            impressions: googleAdsResult.impressions || 0,
+            clicks: googleAdsResult.clicks || 0,
+            cost: googleAdsResult.cost || 0,
+            leads: googleAdsResult.leads || googleAdsResult.conversions || 0, // Use conversions as leads
+            conversions: googleAdsResult.conversions || 0,
+            ctr: googleAdsResult.ctr || 0,
+            cpc: googleAdsResult.averageCpc || 0, // Map averageCpc to cpc
+            conversionRate: googleAdsResult.conversionRate || 0,
+            costPerConversion: googleAdsResult.costPerConversion || 0,
+            searchImpressionShare: 0, // Not available in current API
+            qualityScore: 0, // Not available in current API
+            // Include previous period data if available
+            previousPeriod: googleAdsResult.previousPeriod ? {
+              impressions: googleAdsResult.previousPeriod.impressions || 0,
+              clicks: googleAdsResult.previousPeriod.clicks || 0,
+              cost: googleAdsResult.previousPeriod.cost || 0,
+              leads: googleAdsResult.previousPeriod.leads || googleAdsResult.previousPeriod.conversions || 0,
+              conversions: googleAdsResult.previousPeriod.conversions || 0,
+              ctr: googleAdsResult.previousPeriod.ctr || 0,
+              cpc: googleAdsResult.previousPeriod.averageCpc || 0,
+              conversionRate: googleAdsResult.previousPeriod.conversionRate || 0,
+              costPerConversion: 0, // Not calculated for previous period
+              searchImpressionShare: 0,
+              qualityScore: 0
+            } : undefined
+          };
+          
+          console.log('🔍 EventMetricsService: Google metrics mapped:', {
+            leads: googleMetrics.leads,
+            cost: googleMetrics.cost,
+            impressions: googleMetrics.impressions,
+            clicks: googleMetrics.clicks
+          });
+          
+          debugLogger.info('EventMetricsService', 'Google metrics loaded:', {
+            leads: googleMetrics.leads,
+            cost: googleMetrics.cost,
+            impressions: googleMetrics.impressions,
+            clicks: googleMetrics.clicks
+          });
         } else {
+          console.log('❌ EventMetricsService: Google metrics failed:', result.reason);
           debugLogger.warn('EventMetricsService', 'Google metrics failed:', result.reason);
         }
       }
@@ -231,7 +289,7 @@ export class EventMetricsService {
       // Calculate combined metrics
       const totalSpend = facebookMetrics.spend + googleMetrics.cost;
       const totalLeads = facebookMetrics.leads + googleMetrics.leads;
-      const _totalRevenue = ghlMetrics.wonRevenue;
+      const _totalRevenue = ghlMetrics?.wonRevenue || 0;
       const roi = totalSpend > 0 ? (_totalRevenue / totalSpend) : 0;
 
       // Calculate cost per lead
@@ -241,6 +299,15 @@ export class EventMetricsService {
       const googleCostPerLead = googleMetrics.leads > 0
         ? googleMetrics.cost / googleMetrics.leads
         : 0;
+
+      console.log('🔍 EventMetricsService: Cost per lead calculation:', {
+        facebookLeads: facebookMetrics.leads,
+        facebookSpend: facebookMetrics.spend,
+        facebookCostPerLead,
+        googleLeads: googleMetrics.leads,
+        googleCost: googleMetrics.cost,
+        googleCostPerLead
+      });
 
       // Build lead metrics
       const leadMetrics = this.calculateLeadMetrics(
@@ -270,7 +337,12 @@ export class EventMetricsService {
         totalLeads: result.totalLeads,
         facebookLeads: result.facebookMetrics.leads,
         facebookSpend: result.facebookMetrics.spend,
-        hasFacebookData: result.facebookMetrics.leads > 0 || result.facebookMetrics.spend > 0
+        facebookCostPerLead: result.facebookMetrics.costPerLead,
+        googleLeads: result.googleMetrics.leads,
+        googleCost: result.googleMetrics.cost,
+        googleCostPerLead: result.googleMetrics.costPerLead,
+        hasFacebookData: result.facebookMetrics.leads > 0 || result.facebookMetrics.spend > 0,
+        hasGoogleData: result.googleMetrics.leads > 0 || result.googleMetrics.cost > 0
       });
 
       return result;
@@ -280,11 +352,15 @@ export class EventMetricsService {
     }
   }
 
-  private static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics> {
+  private static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
       debugLogger.debug('EventMetricsService', 'Fetching Facebook metrics for account', { adAccountId, dateRange, conversionAction });
-      const metrics = await FacebookAdsService.getAccountMetrics(adAccountId, dateRange, conversionAction);
-      debugLogger.debug('EventMetricsService', 'Facebook metrics result', metrics);
+      const metrics = await FacebookAdsService.getAccountMetrics(adAccountId, dateRange, conversionAction, includePreviousPeriod);
+      debugLogger.debug('EventMetricsService', 'Facebook metrics result', {
+        metrics,
+        hasData: !!(metrics && (metrics.leads > 0 || metrics.spend > 0 || metrics.impressions > 0)),
+        accountId: adAccountId
+      });
       
       // Log if we got empty data
       if (!metrics || (metrics.leads === 0 && metrics.spend === 0 && metrics.impressions === 0)) {
@@ -307,8 +383,13 @@ export class EventMetricsService {
       const { GoogleAdsService } = await import('@/services/api/googleAdsService');
       
       // Check if Google Ads is connected first
-      const { TokenManager } = await import('@/services/auth/TokenManager');
-      const isConnected = await TokenManager.isConnected('googleAds');
+      const { supabase } = await import('@/lib/supabase');
+      const { data: integrations } = await supabase
+        .from('integrations')
+        .select('platform')
+        .eq('connected', true)
+        .eq('platform', 'googleAds');
+      const isConnected = integrations && integrations.length > 0;
       
       if (!isConnected) {
         debugLogger.warn('EventMetricsService', 'Google Ads not connected, returning empty metrics');
@@ -338,7 +419,7 @@ export class EventMetricsService {
       });
       
       // Use the client account ID for the API call (manager account is used for login-customer-id header)
-      const metrics = await GoogleAdsService.getAccountMetrics(targetAccountId, dateRange);
+      const metrics = await GoogleAdsService.getAccountMetrics(targetAccountId, dateRange, true); // Include previous period data
       debugLogger.debug('EventMetricsService', 'Google Ads metrics result', metrics);
       
       // Log if we got empty data
@@ -521,7 +602,7 @@ export class EventMetricsService {
     };
   }
 
-  private static getEmptyGoogleMetrics(): GoogleAdsMetrics {
+  private static getEmptyGoogleMetrics(): any {
     return {
       impressions: 0,
       clicks: 0,

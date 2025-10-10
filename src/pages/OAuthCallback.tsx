@@ -1,3 +1,4 @@
+import { GoogleAdsManagerModal } from '@/components/modals/GoogleAdsManagerModal';
 import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
@@ -10,6 +11,8 @@ const OAuthCallback: React.FC = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [showManagerModal, setShowManagerModal] = useState(false);
+  const [platform, setPlatform] = useState<string>('');
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -77,8 +80,11 @@ const OAuthCallback: React.FC = () => {
             name: 'Google Ads User'
           });
 
+          // Show manager account ID input modal
+          setPlatform('googleAds');
+          setShowManagerModal(true);
           setStatus('success');
-          setMessage('Successfully connected to Google Ads!');
+          setMessage('Successfully connected to Google Ads! Please configure your manager account ID.');
         } else if (platform === 'goHighLevel') {
           // Handle GoHighLevel OAuth
           debugLogger.debug('🔍 Processing GoHighLevel OAuth');
@@ -103,10 +109,12 @@ const OAuthCallback: React.FC = () => {
           throw new Error(`Unsupported platform: ${platform}`);
         }
 
-        // Redirect after successful connection
-        globalThis.setTimeout(() => {
-          navigate('/agency/integrations');
-        }, 2000);
+        // Redirect after successful connection (only if not showing manager modal)
+        if (!showManagerModal) {
+          globalThis.setTimeout(() => {
+            navigate('/agency/integrations');
+          }, 2000);
+        }
 
       } catch (error) {
         debugLogger.error('🔍 OAuth Callback Error:', error);
@@ -122,6 +130,22 @@ const OAuthCallback: React.FC = () => {
 
     handleOAuthCallback();
   }, [searchParams, navigate]);
+
+  const handleManagerModalSuccess = () => {
+    setShowManagerModal(false);
+    // Redirect after manager account is configured
+    globalThis.setTimeout(() => {
+      navigate('/agency/integrations');
+    }, 1000);
+  };
+
+  const handleManagerModalClose = () => {
+    setShowManagerModal(false);
+    // Still redirect even if user cancels
+    globalThis.setTimeout(() => {
+      navigate('/agency/integrations');
+    }, 1000);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -154,6 +178,13 @@ const OAuthCallback: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* Google Ads Manager Account Modal */}
+      <GoogleAdsManagerModal
+        isOpen={showManagerModal}
+        onClose={handleManagerModalClose}
+        onSuccess={handleManagerModalSuccess}
+      />
     </div>
   );
 };

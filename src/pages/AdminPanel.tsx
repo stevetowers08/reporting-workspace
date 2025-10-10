@@ -2,6 +2,7 @@ import { AgencyPanel as RefactoredAgencyPanel } from "@/components/agency/Agency
 import { IntegrationErrorBoundary } from "@/components/error/IntegrationErrorBoundary";
 import AddClientModal from "@/components/modals/AddClientModal";
 import EditClientModal from "@/components/modals/EditClientModal";
+import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { useEffect, useState } from "react";
@@ -29,6 +30,9 @@ const AgencyPanel = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+
+  // Use the agency clients hook to get access to loadClients
+  const { loadClients } = useAgencyClients();
 
   // Handle OAuth success redirect and client edit route
   useEffect(() => {
@@ -95,8 +99,8 @@ const AgencyPanel = () => {
     setShowEditClientModal(true);
   };
 
-  const handleAddClientSubmit = async (clientData: { 
-    name: string; 
+  const handleAddClientSubmit = async (clientData: {
+    name: string;
     logo_url?: string; 
     accounts: { 
       facebookAds?: string; 
@@ -116,6 +120,16 @@ const AgencyPanel = () => {
     try {
       await DatabaseService.createClient(clientData);
       setShowAddClientModal(false);
+      // Show success message
+      setShowSuccessMessage(true);
+      // Refresh the client list after successful creation
+      await loadClients();
+      debugLogger.info('AgencyPanel', 'Client created and list refreshed');
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to add client', error);
     }

@@ -20,8 +20,8 @@ export const ClientCreateSchema = z.object({
     .max(100, 'Client name must be less than 100 characters')
     .regex(/^[a-zA-Z0-9\s\-_&.()]+$/, 'Client name contains invalid characters'),
   
-  type: z.enum(['venue', 'agency', 'enterprise'], {
-    errorMap: () => ({ message: 'Client type must be venue, agency, or enterprise' })
+  type: z.enum(['Client', 'agency', 'enterprise'], {
+    errorMap: () => ({ message: 'Client type must be Client, agency, or enterprise' })
   }),
   
   location: z.string()
@@ -49,7 +49,7 @@ export const ClientCreateSchema = z.object({
       .or(z.literal('')),
     
     googleAds: z.string()
-      .regex(/^\d+-\d+-\d+$/, 'Google Ads customer ID must be in format XXX-XXX-XXXX')
+      .regex(/^(customers\/)?\d{10}$|^\d{3}-\d{3}-\d{4}$/, 'Google Ads customer ID must be 10 digits or in format XXX-XXX-XXXX')
       .optional()
       .or(z.literal('')),
     
@@ -90,8 +90,8 @@ export const ClientUpdateSchema = z.object({
     .regex(/^[a-zA-Z0-9\s\-_&.()]+$/, 'Client name contains invalid characters')
     .optional(),
   
-  type: z.enum(['venue', 'agency', 'enterprise'], {
-    errorMap: () => ({ message: 'Client type must be venue, agency, or enterprise' })
+  type: z.enum(['Client', 'agency', 'enterprise'], {
+    errorMap: () => ({ message: 'Client type must be Client, agency, or enterprise' })
   }).optional(),
   
   location: z.string()
@@ -129,8 +129,8 @@ export const ClientUpdateSchema = z.object({
       .or(z.literal('none'))
       .refine((val) => {
         if (!val || val === '' || val === 'none') return true;
-        return /^\d+-\d+-\d+$/.test(val);
-      }, 'Google Ads customer ID must be in format XXX-XXX-XXXX'),
+        return /^(customers\/)?\d{10}$|^\d{3}-\d{3}-\d{4}$/.test(val);
+      }, 'Google Ads customer ID must be 10 digits or in format XXX-XXX-XXXX'),
     
     goHighLevel: z.string()
       .optional()

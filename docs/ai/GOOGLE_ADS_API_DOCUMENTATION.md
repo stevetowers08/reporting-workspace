@@ -51,24 +51,88 @@ const isValid = await GoogleAdsService.authenticate();
 
 ## API Endpoints
 
-### Account Management
+### Supabase Edge Functions
 
-#### Get Ad Accounts
+#### Google Ads API Edge Function
+- **Endpoint**: `${VITE_SUPABASE_URL}/functions/v1/google-ads-api`
+- **Purpose**: Secure backend proxy for Google Ads API calls
+- **Authentication**: Uses Supabase JWT tokens
+- **Developer Token**: Retrieved from environment variables
+
+#### Available Actions
+
+##### Get Accounts
+```http
+GET /functions/v1/google-ads-api/accounts
+Headers:
+  Authorization: Bearer {supabase_jwt}
+  Content-Type: application/json
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "1234567890",
+      "name": "Account Name",
+      "currency": "USD",
+      "timezone": "America/New_York",
+      "descriptiveName": "Account Display Name"
+    }
+  ],
+  "cached": false
+}
+```
+
+**Features**:
+- Automatic token management
+- Caching (5 minutes)
+- Error handling
+- Rate limiting
+
+##### Get Campaigns
+```http
+GET /functions/v1/google-ads-api/campaigns?customerId={customer_id}
+Headers:
+  Authorization: Bearer {supabase_jwt}
+  Content-Type: application/json
+```
+
+##### Get Campaign Performance
+```http
+GET /functions/v1/google-ads-api/campaign-performance?customerId={customer_id}&dateRange={date_range}
+Headers:
+  Authorization: Bearer {supabase_jwt}
+  Content-Type: application/json
+```
+
+### Frontend Service Integration
+
+#### Get Ad Accounts (Updated)
 ```typescript
 const accounts = await GoogleAdsService.getAdAccounts();
 ```
 
-**GAQL Query**: 
+**Implementation**: Now uses Edge Function instead of direct API calls
+**Benefits**:
+- Secure developer token handling
+- Automatic caching
+- Simplified error handling
+- No frontend token exposure
+
+**Previous GAQL Query** (now handled by Edge Function): 
 ```sql
 SELECT customer_client.id, customer_client.descriptive_name, customer_client.status, customer_client.manager 
 FROM customer_client
 ```
 
 **Features**:
-- Manager account discovery
-- Client account filtering
-- Duplicate removal
-- Status validation
+- Edge Function integration
+- Automatic token management
+- Caching support
+- Error handling
 
 #### Manager Account Discovery
 ```typescript
@@ -347,18 +411,29 @@ const isValid = await GoogleAdsService.authenticate();
 ## Environment Configuration
 
 ### Required Environment Variables
+
+#### Frontend (.env.local)
 ```bash
 # Google OAuth Configuration
 VITE_GOOGLE_CLIENT_ID=your_client_id
 VITE_GOOGLE_CLIENT_SECRET=your_client_secret
 
-# Google Ads API Configuration
-VITE_GOOGLE_ADS_DEVELOPER_TOKEN=your_developer_token
-
 # Supabase Configuration
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+
+#### Supabase Edge Functions (Environment Variables)
+```bash
+# Google Ads API Configuration
+GOOGLE_ADS_DEVELOPER_TOKEN=your_developer_token
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+**Note**: The developer token is now stored securely in Supabase Edge Function environment variables, not exposed to the frontend.
 
 ### OAuth Redirect URIs
 - **Development**: `http://localhost:3000/oauth/callback`

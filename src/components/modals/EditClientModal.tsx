@@ -44,10 +44,10 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             logo_url: formData.logo_url,
             status: formData.status,
             accounts: {
-                facebookAds: formData.accounts.facebookAds === "none" ? undefined : formData.accounts.facebookAds,
-                googleAds: formData.accounts.googleAds === "none" ? undefined : formData.accounts.googleAds,
-                goHighLevel: formData.accounts.goHighLevel === "none" ? undefined : formData.accounts.goHighLevel,
-                googleSheets: formData.accounts.googleSheets === "none" ? undefined : formData.accounts.googleSheets,
+                facebookAds: formData.accounts.facebookAds,
+                googleAds: formData.accounts.googleAds,
+                goHighLevel: formData.accounts.goHighLevel,
+                googleSheets: formData.accounts.googleSheets,
                 // Include Google Sheets configuration in accounts if available
                 ...(formData.googleSheetsConfig && {
                     googleSheetsConfig: formData.googleSheetsConfig
@@ -123,7 +123,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                           googleSheetsConfig: initialData.googleSheetsConfig || undefined
                         }}
                         isEdit={true}
-                        clientId={client.id}
+                        clientId={client?.id || ''}
                         onSubmit={handleSubmit}
                         onCancel={onClose}
                         submitLabel="Update Client"

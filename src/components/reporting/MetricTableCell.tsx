@@ -23,9 +23,9 @@ export const MetricTableCell: React.FC<MetricTableCellProps> = ({
     
     switch (format) {
       case 'currency':
-        return `$${val.toLocaleString()}`;
+        return `$${val.toFixed(2)}`;
       case 'percentage':
-        return `${val.toFixed(1)}%`;
+        return `${val.toFixed(2)}%`;
       case 'number':
       default:
         return val.toLocaleString();
@@ -50,7 +50,7 @@ export const MetricTableCell: React.FC<MetricTableCellProps> = ({
           <div className={`flex items-center gap-0.5 text-xs font-medium ${getTrendColor(trend.direction)}`}>
             {React.createElement(getTrendIcon(trend.direction), { className: "h-3 w-3" })}
             <span>
-              {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.percentage).toFixed(1)}%
+              {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.percentage).toFixed(2)}%
             </span>
           </div>
         )}

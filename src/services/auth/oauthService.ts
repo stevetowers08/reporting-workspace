@@ -526,27 +526,25 @@ export class OAuthService {
      * Refresh access token using refresh token
      */
     static async refreshAccessToken(platform: string): Promise<OAuthTokens> {
-        // For Google platforms, use backend refresh endpoint
-        if (platform === 'googleAds' || platform === 'googleSheets') {
-            return this.refreshAccessTokenBackend(platform);
-        }
-
-        const config = await this.getOAuthConfig(platform);
-        const tokens = await this.getStoredTokens(platform);
-
-        if (!tokens?.refreshToken) {
-            throw new Error(`No refresh token available for ${platform}`);
-        }
-
-        const refreshParams = new URLSearchParams({
-            client_id: config.clientId,
-            client_secret: config.clientSecret,
-            refresh_token: tokens.refreshToken,
-            grant_type: 'refresh_token'
-        });
-
         try {
-            const response = await fetch(config.tokenUrl, {
+            DevLogger.info('OAuthService', `Refreshing access token for ${platform}`);
+
+            const config = await this.getOAuthConfig(platform);
+            const tokens = await this.getStoredTokens(platform);
+
+            if (!tokens?.refreshToken) {
+                throw new Error(`No refresh token available for ${platform}`);
+            }
+
+            // Make refresh token request to Google's token endpoint
+            const refreshParams = new URLSearchParams({
+                client_id: config.clientId,
+                client_secret: config.clientSecret,
+                refresh_token: tokens.refreshToken,
+                grant_type: 'refresh_token'
+            });
+
+            const response = await fetch('https://oauth2.googleapis.com/token', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -556,28 +554,31 @@ export class OAuthService {
             });
 
             if (!response.ok) {
-                throw new Error(`Token refresh failed: ${response.statusText}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Token refresh failed: ${response.status} ${JSON.stringify(errorData)}`);
             }
 
             const newTokens = await response.json();
 
-            // Calculate expiration timestamp
-            const expiresAt = newTokens.expires_in 
-                ? new Date(Date.now() + (newTokens.expires_in * 1000)).toISOString()
-                : undefined;
+            // Calculate expiration timestamp (Google tokens expire in 1 hour)
+            const expiresAt = new Date(Date.now() + (newTokens.expires_in * 1000)).toISOString();
 
-            // Update stored tokens
-            this.storeTokens(platform, {
-                ...tokens,
+            // Prepare updated token data
+            const updatedTokens = {
                 accessToken: newTokens.access_token,
-                refreshToken: newTokens.refresh_token || tokens.refreshToken, // Keep existing refresh token if not provided
+                refreshToken: newTokens.refresh_token || tokens.refreshToken, // Keep existing if not provided
                 expiresIn: newTokens.expires_in,
-                tokenType: newTokens.token_type || tokens.tokenType,
+                tokenType: newTokens.token_type || 'Bearer',
                 scope: newTokens.scope || tokens.scope,
                 expiresAt: expiresAt
-            });
+            };
 
-            return newTokens;
+            // Store updated tokens directly in database (avoid circular dependency)
+            await this.storeTokensDirectly(platform, updatedTokens);
+
+            DevLogger.success('OAuthService', `Token refreshed successfully for ${platform}`);
+            return updatedTokens;
+
         } catch (error) {
             DevLogger.error('OAuthService', `Token refresh failed for ${platform}:`, error);
             throw error;
@@ -631,6 +632,51 @@ export class OAuthService {
      * Get stored tokens for a platform
      */
     static async getStoredTokens(platform: string): Promise<OAuthTokens | null> {
+        try {
+            // Map platform names to IntegrationPlatform
+            const platformMap: Record<string, IntegrationPlatform> = {
+                'facebook': 'facebookAds',
+                'google': 'googleAds',
+                'gohighlevel': 'goHighLevel'
+            };
+
+            const integrationPlatform = platformMap[platform] || platform as IntegrationPlatform;
+            
+            // Direct database query to avoid circular dependency
+            const { supabase } = await import('@/lib/supabase');
+            const { data: integration, error } = await supabase
+                .from('integrations')
+                .select('config')
+                .eq('platform', integrationPlatform)
+                .eq('connected', true)
+                .single();
+
+            if (error || !integration) {
+                DevLogger.warn('OAuthService', `No stored tokens found for ${platform}`);
+                return null;
+            }
+
+            const config = integration.config as any;
+            if (!config.tokens) {
+                DevLogger.warn('OAuthService', `No tokens in config for ${platform}`);
+                return null;
+            }
+
+            return {
+                accessToken: config.tokens.accessToken,
+                refreshToken: config.tokens.refreshToken,
+                expiresIn: config.tokens.expiresIn,
+                tokenType: config.tokens.tokenType || 'Bearer',
+                scope: config.tokens.scope,
+                expiresAt: config.tokens.expiresAt
+            };
+        } catch (error) {
+            DevLogger.error('OAuthService', `Failed to get stored tokens for ${platform}:`, error);
+            return null;
+        }
+    }
+
+    static async getStoredTokensOld(platform: string): Promise<OAuthTokens | null> {
         try {
             // Map platform names to IntegrationPlatform
             const platformMap: Record<string, IntegrationPlatform> = {
@@ -771,6 +817,69 @@ export class OAuthService {
         };
 
         return btoa(JSON.stringify(state));
+    }
+
+    /**
+     * Store tokens directly in database (avoid circular dependency)
+     */
+    private static async storeTokensDirectly(platform: string, tokens: OAuthTokens): Promise<void> {
+        try {
+            DevLogger.info('OAuthService', `Storing tokens directly for ${platform}`);
+
+            // Map platform names to IntegrationPlatform
+            const platformMap: Record<string, IntegrationPlatform> = {
+                'facebook': 'facebookAds',
+                'googleAds': 'googleAds',
+                'googleSheets': 'googleSheets',
+                'gohighlevel': 'goHighLevel'
+            };
+
+            const integrationPlatform = platformMap[platform] || platform as IntegrationPlatform;
+
+            // Import supabase directly to avoid circular dependency
+            const { supabase } = await import('@/lib/supabase');
+
+            // Get existing integration config
+            const { data: existingData, error: fetchError } = await supabase
+                .from('integrations')
+                .select('config')
+                .eq('platform', integrationPlatform)
+                .eq('connected', true)
+                .single();
+
+            if (fetchError) {
+                throw new Error(`Failed to fetch existing config: ${fetchError.message}`);
+            }
+
+            // Update the tokens in the existing config
+            const existingConfig = existingData.config as any;
+            const updatedConfig = {
+                ...existingConfig,
+                tokens: {
+                    ...existingConfig.tokens,
+                    ...tokens
+                }
+            };
+
+            // Update the database
+            const { error: updateError } = await supabase
+                .from('integrations')
+                .update({
+                    config: updatedConfig,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('platform', integrationPlatform)
+                .eq('connected', true);
+
+            if (updateError) {
+                throw new Error(`Failed to update tokens: ${updateError.message}`);
+            }
+
+            DevLogger.success('OAuthService', `Tokens stored directly for ${platform}`);
+        } catch (error) {
+            DevLogger.error('OAuthService', `Failed to store tokens directly for ${platform}:`, error);
+            throw error;
+        }
     }
 
     /**
