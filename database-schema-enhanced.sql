@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS clients (
 -- Create integrations table (admin-level integrations only)
 CREATE TABLE IF NOT EXISTS integrations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    platform VARCHAR(50) NOT NULL UNIQUE CHECK (
+    platform VARCHAR(50) NOT NULL CHECK (
         platform IN (
             'facebookAds',
             'googleAds',
@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS integrations (
     last_sync TIMESTAMP WITH TIME ZONE,
     config JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT integrations_platform_account_id_unique UNIQUE (platform, account_id)
 );
 -- Create user_google_ads_auth table for per-user OAuth tokens
 CREATE TABLE IF NOT EXISTS user_google_ads_auth (
