@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debugLogger } from '@/lib/debug';
+import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
-import { TokenManager } from '@/services/auth/TokenManager';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const OAuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,7 +17,24 @@ const OAuthCallback: React.FC = () => {
         const code = searchParams.get('code');
         const state = searchParams.get('state');
         const error = searchParams.get('error');
-        const platform = searchParams.get('platform') || 'googleSheets';
+        
+        // Parse state to get platform information
+        let platform = 'googleSheets'; // default fallback
+        if (state) {
+          try {
+            const stateData = JSON.parse(atob(state));
+            platform = stateData.platform || 'googleSheets';
+            debugLogger.debug('🔍 Parsed state data:', stateData);
+          } catch (error) {
+            debugLogger.warn('🔍 Failed to parse state, using default platform', error);
+          }
+        }
+        
+        // Fallback to URL parameter if state parsing fails
+        const urlPlatform = searchParams.get('platform');
+        if (urlPlatform && platform === 'googleSheets') {
+          platform = urlPlatform;
+        }
 
         debugLogger.debug('🔍 OAuth Callback received:', {
           hasCode: !!code,
