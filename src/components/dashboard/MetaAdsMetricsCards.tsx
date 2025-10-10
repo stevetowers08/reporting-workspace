@@ -7,8 +7,7 @@ interface MetaAdsMetricsCardsProps {
 }
 
 export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data }) => {
-  console.log('🔍 MetaAdsMetricsCards: Received data:', data);
-  console.log('🔍 MetaAdsMetricsCards: Facebook metrics:', data?.facebookMetrics);
+  debugLogger.debug('MetaAdsMetricsCards', 'Received data', { data, facebookMetrics: data?.facebookMetrics });
   
   // Check if we have any Facebook data
   const hasData = data?.facebookMetrics && (
@@ -17,7 +16,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
     data.facebookMetrics.impressions > 0
   );
 
-  console.log('🔍 MetaAdsMetricsCards: Has data:', hasData);
+  debugLogger.debug('MetaAdsMetricsCards', 'Has data', hasData);
 
   // If no data, show a message
   if (!hasData) {

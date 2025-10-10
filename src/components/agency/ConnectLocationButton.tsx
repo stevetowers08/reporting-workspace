@@ -4,7 +4,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { debugLogger } from '@/lib/debugLogger';
+import { debugLogger } from '@/lib/debug';
 import { OAuthService } from '@/services/auth/oauthService';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';

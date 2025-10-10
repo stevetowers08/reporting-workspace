@@ -60,7 +60,7 @@ interface ClientFormProps {
   cancelLabel?: string;
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({
+export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   initialData,
   isEdit = false,
   clientId,
@@ -68,8 +68,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   onCancel,
   cancelLabel = "Cancel"
 }) => {
-  console.log('ClientForm: Component mounted/rendered');
-  console.log('ClientForm: About to check integration status...');
   debugLogger.info('ClientForm', 'Component loaded', { isEdit, clientId, hasInitialData: !!initialData });
   
   const [formData, setFormData] = useState<ClientFormData>(initialData || {
@@ -110,9 +108,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   
-  // Test useEffect to see if useEffect works at all
+  // Load integration status on mount
   useEffect(() => {
-    console.log('ClientForm: TEST useEffect - this should run immediately');
+    // This useEffect will be implemented later
   }, []);
   
   // Edit states for each integration
@@ -674,15 +672,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Synchronous version for UI rendering
   const isIntegrationConnectedSync = (platform: string): boolean => {
-    console.log('ClientForm: isIntegrationConnectedSync called for', platform);
-    console.log('ClientForm: formData.accounts =', formData.accounts);
+    debugLogger.debug('ClientForm', 'Checking integration status', { platform, accounts: formData.accounts });
     
     // Check if client has selected an account for this platform
     const accountId = formData.accounts[platform as keyof typeof formData.accounts];
     const hasAccount = accountId && accountId !== 'none' && accountId !== '';
     
-    console.log('ClientForm: isIntegrationConnectedSync result for', platform, '=', hasAccount);
-    console.log('ClientForm: accountId =', accountId);
+    debugLogger.debug('ClientForm', 'Integration status result', { platform, hasAccount, accountId });
     
     return Boolean(hasAccount);
   };
@@ -800,20 +796,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
 
   // Load integration status using TokenManager
   useEffect(() => {
-    console.log('ClientForm: useEffect for integration status loading started');
-    console.log('ClientForm: About to call loadIntegrationStatus...');
-    
-    // Test if useEffect is working at all
-    console.log('ClientForm: useEffect is running - this should appear');
+    debugLogger.info('ClientForm', 'Loading integration status');
     
     const loadIntegrationStatus = async () => {
       try {
-        console.log('ClientForm: Starting to load integration status...');
-        console.log('ClientForm: TokenManager imported successfully');
-        console.log('ClientForm: GoogleSheetsOAuthService imported successfully');
+        debugLogger.debug('ClientForm', 'Checking integrations from database');
 
         // Simple approach: Just check if integrations exist in database
-        console.log('ClientForm: Checking integrations directly from database...');
         const { data: integrations, error } = await supabase
           .from('integrations')
           .select('platform')
@@ -822,9 +811,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({
         let statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
 
         if (error) {
-          console.error('ClientForm: Failed to load integrations:', error);
+          debugLogger.error('ClientForm', 'Failed to load integrations', error);
         } else {
-          console.log('ClientForm: Found connected integrations:', integrations);
+          debugLogger.debug('ClientForm', 'Found connected integrations', integrations);
           // Set to true if found in database
           integrations?.forEach(integration => {
             if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
@@ -833,13 +822,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           });
         }
 
-        console.log('ClientForm: Integration status loaded:', statusMap);
+        debugLogger.debug('ClientForm', 'Integration status loaded', statusMap);
         setIntegrationStatus(statusMap);
         setIntegrationStatusLoaded(true);
-        console.log('ClientForm: Integration status set successfully');
       } catch (error) {
-        console.error('ClientForm: Error loading integration status:', error);
-        console.error('ClientForm: Error details:', error.message, error.stack);
+        debugLogger.error('ClientForm', 'Error loading integration status', error);
         setIntegrationStatus({});
         setIntegrationStatusLoaded(true);
       }
@@ -1508,4 +1495,4 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       </div>
     </form>
   );
-};
+});

@@ -43,7 +43,7 @@ interface HomePageProps {
   loading?: boolean;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({
+export const HomePage: React.FC<HomePageProps> = React.memo(({
   clients,
   onClientSelect,
   onGoToAgency,
@@ -69,7 +69,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           .eq('connected', true);
 
         if (error) {
-          console.error('HomePage: Failed to load integrations:', error);
+          debugLogger.error('HomePage', 'Failed to load integrations', error);
           setIntegrationStatus({ facebookAds: false, googleAds: false, googleSheets: false });
         } else {
           // Set all to false first
@@ -338,4 +338,4 @@ export const HomePage: React.FC<HomePageProps> = ({
       )}
     </div>
   );
-};
+});

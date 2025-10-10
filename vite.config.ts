@@ -114,30 +114,76 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
-      // Development optimizations
       minify: isDev ? false : 'esbuild',
       rollupOptions: {
         external: [],
         output: {
-          // Bundle everything together to ensure proper loading order
-          manualChunks: isDev ? undefined : {
-            vendor: ['react', 'react-dom'],
-            supabase: ['@supabase/supabase-js'],
-            charts: ['chart.js', 'react-chartjs-2'],
-            ui: ['@radix-ui/react-slot', '@radix-ui/react-primitive', 'lucide-react'],
+          // Improved chunking strategy to resolve dynamic import conflicts
+          manualChunks: isDev ? undefined : (id) => {
+            // Handle node_modules dependencies
+            if (id.includes('node_modules')) {
+              // React core
+              if (id.includes('react') && !id.includes('react-router')) {
+                return 'react-vendor';
+              }
+              // React Router
+              if (id.includes('react-router')) {
+                return 'router-vendor';
+              }
+              // Supabase
+              if (id.includes('@supabase')) {
+                return 'supabase-vendor';
+              }
+              // Chart libraries
+              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('recharts')) {
+                return 'chart-vendor';
+              }
+              // PDF libraries (lazy loaded)
+              if (id.includes('jspdf') || id.includes('html2canvas')) {
+                return 'pdf-vendor';
+              }
+              // UI libraries
+              if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+                return 'ui-vendor';
+              }
+              // Utility libraries
+              if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
+                return 'utils-vendor';
+              }
+              // Monitoring
+              if (id.includes('@sentry')) {
+                return 'sentry-vendor';
+              }
+              // Everything else
+              return 'vendor';
+            }
+            
+            // Handle source files - group by feature
+            if (id.includes('/src/')) {
+              // Services
+              if (id.includes('/services/')) {
+                return 'services';
+              }
+              // Components
+              if (id.includes('/components/')) {
+                return 'components';
+              }
+              // Pages
+              if (id.includes('/pages/')) {
+                return 'pages';
+              }
+              // Hooks
+              if (id.includes('/hooks/')) {
+                return 'hooks';
+              }
+            }
+            
+            return null;
           },
         },
       },
-      // Increase chunk size warning limit since we're bundling everything together
+      // Increase chunk size warning limit
       chunkSizeWarningLimit: 2000,
-      // Development optimizations
-      ...(isDev && {
-        rollupOptions: {
-          output: {
-            manualChunks: undefined,
-          },
-        },
-      }),
     },
   };
 });

@@ -8,38 +8,38 @@ interface GuestCountDistributionProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = ({ data }) => {
+export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = React.memo(({ data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('GuestCountDistribution: Starting to fetch lead data...');
+        debugLogger.debug('GuestCountDistribution', 'Starting to fetch lead data');
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
         if (data?.clientAccounts?.googleSheetsConfig) {
-          console.log('GuestCountDistribution: Using client-specific Google Sheets config:', data.clientAccounts.googleSheetsConfig);
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheetsConfig);
           leadDataResult = await LeadDataService.fetchLeadData(
             data.clientAccounts.googleSheetsConfig.spreadsheetId,
             data.clientAccounts.googleSheetsConfig.sheetName
           );
         } else {
-          console.log('GuestCountDistribution: Using default Google Sheets config');
+          debugLogger.debug('GuestCountDistribution', 'Using default Google Sheets config');
           leadDataResult = await LeadDataService.fetchLeadData();
         }
         
-        console.log('GuestCountDistribution: Received lead data:', leadDataResult);
+        debugLogger.debug('GuestCountDistribution', 'Received lead data', leadDataResult);
         
         if (leadDataResult) {
-          console.log('GuestCountDistribution: Guest ranges data:', leadDataResult.guestRanges);
+          debugLogger.debug('GuestCountDistribution', 'Guest ranges data', leadDataResult.guestRanges);
           setLeadData(leadDataResult);
         } else {
-          console.warn('GuestCountDistribution: No data returned from LeadDataService');
+          debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService');
         }
       } catch (error) {
-        console.error('GuestCountDistribution: Failed to fetch lead data:', error);
+        debugLogger.error('GuestCountDistribution', 'Failed to fetch lead data', error);
       } finally {
         setLoading(false);
       }

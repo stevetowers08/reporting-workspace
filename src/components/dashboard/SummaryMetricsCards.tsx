@@ -7,11 +7,13 @@ interface SummaryMetricsCardsProps {
 }
 
 export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashboardData }) => {
-  console.log('🔍 SummaryMetricsCards: Received dashboardData:', dashboardData);
-  console.log('🔍 SummaryMetricsCards: Facebook metrics:', dashboardData?.facebookMetrics);
-  console.log('🔍 SummaryMetricsCards: Google metrics:', dashboardData?.googleMetrics);
-  console.log('🔍 SummaryMetricsCards: Google cost per lead:', dashboardData?.googleMetrics?.costPerLead);
-  console.log('🔍 SummaryMetricsCards: Total leads:', dashboardData?.totalLeads);
+  debugLogger.debug('SummaryMetricsCards', 'Received dashboardData', { 
+    dashboardData, 
+    facebookMetrics: dashboardData?.facebookMetrics,
+    googleMetrics: dashboardData?.googleMetrics,
+    googleCostPerLead: dashboardData?.googleMetrics?.costPerLead,
+    totalLeads: dashboardData?.totalLeads
+  });
   
   return (
     <div className="mb-6">

@@ -22,38 +22,38 @@ interface EventTypesBreakdownProps {
   dateRange?: { start: string; end: string };
 }
 
-export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = ({ data, dateRange }) => {
+export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('EventTypesBreakdown: Starting to fetch lead data...');
+        debugLogger.debug('EventTypesBreakdown', 'Starting to fetch lead data');
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
         if (data?.clientAccounts?.googleSheetsConfig) {
-          console.log('EventTypesBreakdown: Using client-specific Google Sheets config:', data.clientAccounts.googleSheetsConfig);
+          debugLogger.debug('EventTypesBreakdown', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheetsConfig);
           leadDataResult = await LeadDataService.fetchLeadData(
             data.clientAccounts.googleSheetsConfig.spreadsheetId,
             data.clientAccounts.googleSheetsConfig.sheetName
           );
         } else {
-          console.log('EventTypesBreakdown: Using default Google Sheets config');
+          debugLogger.debug('EventTypesBreakdown', 'Using default Google Sheets config');
           leadDataResult = await LeadDataService.fetchLeadData();
         }
         
-        console.log('EventTypesBreakdown: Received lead data:', leadDataResult);
+        debugLogger.debug('EventTypesBreakdown', 'Received lead data', leadDataResult);
         
         if (leadDataResult) {
-          console.log('EventTypesBreakdown: Event types data:', leadDataResult.eventTypes);
+          debugLogger.debug('EventTypesBreakdown', 'Event types data', leadDataResult.eventTypes);
           setLeadData(leadDataResult);
         } else {
-          console.warn('EventTypesBreakdown: No data returned from LeadDataService');
+          debugLogger.warn('EventTypesBreakdown', 'No data returned from LeadDataService');
         }
       } catch (error) {
-        console.error('EventTypesBreakdown: Failed to fetch lead data:', error);
+        debugLogger.error('EventTypesBreakdown', 'Failed to fetch lead data', error);
       } finally {
         setLoading(false);
       }
