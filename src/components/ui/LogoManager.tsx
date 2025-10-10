@@ -1,4 +1,5 @@
 import { logoService } from '@/services/logoService';
+import { debugLogger } from '@/lib/debug';
 import React from 'react';
 
 interface LogoManagerProps {
@@ -6,6 +7,7 @@ interface LogoManagerProps {
   size?: number;
   className?: string;
   context?: string;
+  title?: string;
   fallback?: React.ReactNode;
 }
 
@@ -14,6 +16,7 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
   size,
   className = '',
   context = 'default',
+  title,
   fallback
 }) => {
   const logoMetadata = logoService.getLogoMetadata(platform);
@@ -63,12 +66,17 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
   return (
     <img
       src={logoPath}
-      alt={`${logoMetadata.name} logo`}
+      alt={title || `${logoMetadata.name} logo`}
+      title={title}
       width={recommendedSize}
       height={recommendedSize}
       className={className}
       style={{ width: recommendedSize, height: recommendedSize }}
       onError={(e) => {
+        // Log error in development for debugging
+        if (process.env.NODE_ENV === 'development') {
+          debugLogger.warn('LogoManager', `Failed to load logo for ${platform}`, { logoPath });
+        }
         // Silently handle image loading errors without console spam
         e.currentTarget.style.display = 'none';
         // Create fallback element if it doesn't exist
