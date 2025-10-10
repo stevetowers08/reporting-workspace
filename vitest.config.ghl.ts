@@ -1,8 +1,8 @@
 // Test configuration for GHL services
 
 import { resolve } from 'path';
-import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'url';
+import { defineConfig } from 'vitest/config';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
