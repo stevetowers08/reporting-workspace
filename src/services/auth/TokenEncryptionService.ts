@@ -1,16 +1,11 @@
 import { debugLogger } from '@/lib/debug';
-import { getSupabaseConfig } from '@/lib/envValidator';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Token Encryption Service using Supabase Vault
  * Provides secure encryption/decryption of sensitive tokens
  */
 export class TokenEncryptionService {
-  private static supabase = createClient(
-    getSupabaseConfig().url,
-    getSupabaseConfig().anonKey
-  );
 
   /**
    * Encrypt sensitive data using Supabase Vault
@@ -18,7 +13,7 @@ export class TokenEncryptionService {
   static async encryptToken(token: string): Promise<string> {
     try {
       // Use Supabase Vault for encryption
-      const { data, error } = await this.supabase.rpc('encrypt_sensitive_data', {
+      const { data, error } = await supabase.rpc('encrypt_sensitive_data', {
         data: token
       });
 
@@ -39,7 +34,7 @@ export class TokenEncryptionService {
   static async decryptToken(encryptedToken: string): Promise<string> {
     try {
       // Use Supabase Vault for decryption
-      const { data, error } = await this.supabase.rpc('decrypt_sensitive_data', {
+      const { data, error } = await supabase.rpc('decrypt_sensitive_data', {
         encrypted_data: encryptedToken
       });
 
