@@ -15,18 +15,6 @@ export const GHLCallbackPage: React.FC = () => {
     searchParams: Object.fromEntries(searchParams.entries())
   });
 
-  // Immediate fallback render to ensure something shows
-  if (!status) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">GHL Callback Page</h1>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const handleCallback = async () => {
       try {
@@ -68,7 +56,9 @@ export const GHLCallbackPage: React.FC = () => {
         // Get OAuth credentials from environment
         const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
         const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-        const redirectUri = `${window.location.origin}/oauth/callback`;
+        const redirectUri = window.location.hostname === 'localhost' 
+            ? `${window.location.origin}/oauth/callback`
+            : 'https://tulenreporting.vercel.app/oauth/callback';
         
         if (!clientId || !clientSecret) {
           throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');

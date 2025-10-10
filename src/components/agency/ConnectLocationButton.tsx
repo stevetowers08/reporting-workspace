@@ -9,24 +9,22 @@ import React, { useState } from 'react';
 
 interface ConnectLocationButtonProps {
   clientId?: string;
-  locationId?: string;
-  onConnected?: (locationId: string) => void;
 }
 
 export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
-  clientId,
-  locationId,
-  onConnected
+  clientId
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
 
   const handleConnect = () => {
     setIsConnecting(true);
     
-    const authUrl = new URL('https://marketplace.leadconnectorhq.com/oauth/chooselocation');
+    const authUrl = new globalThis.URL('https://marketplace.leadconnectorhq.com/oauth/chooselocation');
     
     authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('redirect_uri', `${window.location.origin}/oauth/callback`);
+    authUrl.searchParams.append('redirect_uri', window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/oauth/callback`
+        : 'https://tulenreporting.vercel.app/oauth/callback');
     authUrl.searchParams.append('client_id', import.meta.env.VITE_GHL_CLIENT_ID);
     authUrl.searchParams.append('scope', 'contacts.readonly opportunities.readonly calendars.readonly funnels/funnel.readonly funnels/page.readonly');
     
@@ -72,20 +70,13 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           </>
         )}
       </Button>
-      
-      {locationId && (
-        <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
-          <CheckCircle className="h-4 w-4" />
-          Connected to location: {locationId}
-        </div>
-      )}
     </div>
   );
 };
 
 // Status component to show connection status
 export const ConnectionStatus: React.FC<{ locationId?: string; isConnected: boolean }> = ({
-  locationId,
+  locationId: _locationId,
   isConnected
 }) => {
   if (!isConnected) {
@@ -100,7 +91,7 @@ export const ConnectionStatus: React.FC<{ locationId?: string; isConnected: bool
   return (
     <div className="flex items-center gap-2 text-sm text-green-600">
       <CheckCircle className="h-4 w-4" />
-      Connected to location: {locationId}
+      Connected to location: {_locationId}
     </div>
   );
 };
