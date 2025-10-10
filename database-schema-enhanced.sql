@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS integrations (
     config JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT integrations_platform_account_id_unique UNIQUE (platform, account_id)
+    CONSTRAINT integrations_platform_unique UNIQUE (platform)
 );
 -- Create user_google_ads_auth table for per-user OAuth tokens
 CREATE TABLE IF NOT EXISTS user_google_ads_auth (
