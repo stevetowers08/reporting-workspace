@@ -65,7 +65,7 @@ export class OAuthService {
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: '', // NEVER expose client secret in frontend
+                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Required for Google OAuth with PKCE
                         redirectUri: redirectUri,
                         scopes: scopes,
                         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -80,7 +80,7 @@ export class OAuthService {
 
             return {
                 clientId: credentials.clientId,
-                clientSecret: '', // NEVER expose client secret in frontend
+                clientSecret: credentials.clientSecret, // Use client secret from database
                 redirectUri: redirectUri,
                 scopes: credentials.scopes,
                 authUrl: credentials.authUrl,
@@ -236,15 +236,15 @@ export class OAuthService {
             redirect_uri: config.redirectUri
         };
 
-        // Add client secret for non-Google platforms only (Google Ads uses backend)
-        if (config.clientSecret && platform !== 'googleAds' && platform !== 'googleSheets') {
+        // Add client secret for all platforms (Google OAuth with PKCE still requires client secret)
+        if (config.clientSecret) {
             tokenParams.client_secret = config.clientSecret;
             DevLogger.debug('OAuthService', `Using client secret for ${platform} token exchange`, {
                 hasClientSecret: !!config.clientSecret,
                 clientSecretLength: config.clientSecret.length
             });
         } else {
-            DevLogger.debug('OAuthService', `No client secret used for ${platform} (secure backend flow)`);
+            DevLogger.warn('OAuthService', `No client secret available for ${platform} - this may cause OAuth errors`);
         }
 
         // Add PKCE code verifier for Google OAuth platforms
