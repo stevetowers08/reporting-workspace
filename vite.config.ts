@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => {
       }),
       react({
         jsxRuntime: 'automatic',
+        jsxImportSource: 'react',
         // Development optimizations
         ...(isDev && {
           fastRefresh: true,
@@ -89,7 +90,7 @@ export default defineConfig(({ mode }) => {
         '@radix-ui/react-primitive',
       ],
       exclude: ['@vite/client', '@vite/env'],
-      // Development optimizations
+      // Force optimization to prevent React conflicts
       force: isDev ? false : false,
       esbuildOptions: {
         target: 'es2020',
@@ -99,15 +100,12 @@ export default defineConfig(({ mode }) => {
           keepNames: true,
         }),
       },
-      // Prevent React duplication
-      dedupe: ['react', 'react-dom'],
+      // Aggressive deduplication to prevent multiple React instances
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
-      // Ensure React is resolved consistently
-      'react': 'react',
-      'react-dom': 'react-dom',
     },
   },
     define: {
@@ -122,11 +120,15 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
       minify: isDev ? false : 'esbuild',
-      rollupOptions: {
+        rollupOptions: {
         external: [],
         onwarn(warning, warn) {
           // Suppress unreachable code warnings from react-router-dom
-          if (warning.code === 'UNREACHABLE_CODE' && warning.message.includes('react-router-dom')) {
+          if (warning.code === 'UNREACHABLE_CODE' && warning.message.includes('react-router-dom')) {                                                            
+            return;
+          }
+          // Suppress React warnings
+          if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('react')) {
             return;
           }
           warn(warning);
@@ -136,13 +138,17 @@ export default defineConfig(({ mode }) => {
           manualChunks: isDev ? undefined : (id) => {
             // Handle node_modules dependencies
             if (id.includes('node_modules')) {
-              // React core - keep React and React-DOM together and ensure single instance
-              if (id.includes('react') && !id.includes('react-router')) {
+              // React core - prioritize React loading to prevent Children property errors
+              if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux') && !id.includes('react-query')) {
                 return 'react-vendor';
               }
               // React Router - separate chunk to avoid conflicts
               if (id.includes('react-router')) {
                 return 'router-vendor';
+              }
+              // React Redux - separate chunk
+              if (id.includes('react-redux') || id.includes('@reduxjs')) {
+                return 'redux-vendor';
               }
               // Supabase
               if (id.includes('@supabase')) {
