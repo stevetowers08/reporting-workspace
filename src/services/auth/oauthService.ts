@@ -215,11 +215,6 @@ export class OAuthService {
         code: string,
         state: string
     ): Promise<OAuthTokens> {
-        // For Google Ads, use backend OAuth endpoint
-        if (platform === 'googleAds') {
-            return this.exchangeCodeForTokensBackend(platform, code, state);
-        }
-
         const config = await this.getOAuthConfig(platform);
 
         // Validate state
