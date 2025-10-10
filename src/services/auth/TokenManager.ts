@@ -177,7 +177,7 @@ export class TokenManager {
           },
           last_sync: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }, { onConflict: 'integrations_platform_account_id_unique' });
+        }, { onConflict: 'platform' });
 
       if (error) {
         DevLogger.error('TokenManager', 'Failed to store tokens safely', error);
