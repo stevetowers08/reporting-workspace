@@ -51,7 +51,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
   if (isShared) return null; // Don't show agency header for shared views
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm px-20">
+    <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-sm px-20">
       <div className="py-4">
         <div className="flex items-center justify-between">
           {/* Left: Branding */}
@@ -60,8 +60,8 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
               <BarChart3 className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-slate-900">Marketing Analytics</h1>
-              <p className="text-xs text-slate-500">Agency Dashboard</p>
+              <h1 className="text-sm font-semibold text-white">Marketing Analytics</h1>
+              <p className="text-xs text-slate-300">Agency Dashboard</p>
             </div>
           </div>
 

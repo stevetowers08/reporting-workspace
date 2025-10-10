@@ -5,6 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { OAuthService } from '@/services/auth/oauthService';
 import React, { useState } from 'react';
 
 interface ConnectLocationButtonProps {
@@ -16,37 +17,19 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsConnecting(true);
     
-    const authUrl = new globalThis.URL('https://marketplace.leadconnectorhq.com/oauth/chooselocation');
-    
-    authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('redirect_uri', window.location.hostname === 'localhost' 
-        ? `${window.location.origin}/oauth/callback`
-        : 'https://tulenreporting.vercel.app/oauth/callback');
-    authUrl.searchParams.append('client_id', import.meta.env.VITE_GHL_CLIENT_ID);
-    authUrl.searchParams.append('scope', 'contacts.readonly opportunities.readonly calendars.readonly funnels/funnel.readonly funnels/page.readonly');
-    
-    if (clientId) {
-      // Check if this is a new client (clientId starts with 'new_')
-      if (clientId.startsWith('new_')) {
-        const state = btoa(JSON.stringify({ platform: 'goHighLevel', clientId }));
-        authUrl.searchParams.append('state', state);
-      } else {
-        const state = btoa(JSON.stringify({ platform: 'goHighLevel', clientId }));
-        authUrl.searchParams.append('state', state);
-      }
-    } else {
-      // For new client creation without a clientId yet, use a special state
-      const state = btoa(JSON.stringify({ platform: 'goHighLevel', clientId: 'new_client' }));
-      authUrl.searchParams.append('state', state);
+    try {
+      // Use OAuthService to generate proper OAuth URL with state validation
+      const authUrl = await OAuthService.generateAuthUrl('goHighLevel', {}, clientId);
+      
+      // Redirect to GHL OAuth
+      window.location.href = authUrl;
+    } catch (error) {
+      debugLogger.error('ConnectLocationButton', 'Failed to generate OAuth URL:', error);
+      setIsConnecting(false);
     }
-    
-    // Redirecting to GHL OAuth
-    
-    // Redirect to GHL OAuth (popup won't work with server-side callback)
-    window.location.href = authUrl.toString();
   };
 
   return (

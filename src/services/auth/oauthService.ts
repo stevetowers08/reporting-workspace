@@ -41,21 +41,30 @@ export class OAuthService {
             const credentials = await OAuthCredentialsService.getCredentials(platform);
             if (!credentials) {
                 // For Google platforms, use public client ID only (no secrets in frontend)
-                if (platform === 'googleAds' || platform === 'googleSheets') {
+                if (platform === 'googleAds' || platform === 'googleSheets' || platform === 'goHighLevel') {
                     DevLogger.info('OAuthService', `No OAuth credentials in database, using public config for ${platform}`);
                     
-                    // Different scopes for different Google services
+                    // Different scopes for different services
                     const scopes = platform === 'googleAds' 
                         ? [
                             'https://www.googleapis.com/auth/adwords',
                             'https://www.googleapis.com/auth/userinfo.email',
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ]
-                        : [
+                        : platform === 'googleSheets'
+                        ? [
                             'https://www.googleapis.com/auth/spreadsheets',
                             'https://www.googleapis.com/auth/drive.readonly',
                             'https://www.googleapis.com/auth/userinfo.email',
                             'https://www.googleapis.com/auth/userinfo.profile'
+                          ]
+                        : [
+                            'contacts.readonly',
+                            'opportunities.readonly',
+                            'calendars.readonly',
+                            'funnels/funnel.readonly',
+                            'funnels/page.readonly',
+                            'locations.readonly'
                           ];
                     
                     // Use frontend OAuth callback for all platforms
@@ -64,12 +73,20 @@ export class OAuthService {
                         : 'https://tulenreporting.vercel.app/oauth/callback';
                     
                     return {
-                        clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Required for Google OAuth with PKCE
+                        clientId: platform === 'goHighLevel' 
+                            ? import.meta.env.VITE_GHL_CLIENT_ID || ''
+                            : import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+                        clientSecret: platform === 'goHighLevel'
+                            ? import.meta.env.VITE_GHL_CLIENT_SECRET || ''
+                            : import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Required for Google OAuth with PKCE
                         redirectUri: redirectUri,
                         scopes: scopes,
-                        authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-                        tokenUrl: 'https://oauth2.googleapis.com/token'
+                        authUrl: platform === 'goHighLevel'
+                            ? 'https://marketplace.leadconnectorhq.com/oauth/chooselocation'
+                            : 'https://accounts.google.com/o/oauth2/v2/auth',
+                        tokenUrl: platform === 'goHighLevel'
+                            ? 'https://services.leadconnectorhq.com/oauth/token'
+                            : 'https://oauth2.googleapis.com/token'
                     };
                 }
                 throw new Error(`No OAuth credentials found for platform: ${platform}`);
@@ -190,8 +207,10 @@ export class OAuthService {
             ...additionalParams
         });
 
-        // Store state securely in window.sessionStorage for validation
-        window.window.sessionStorage.setItem(`oauth_state_${platform}`, state);
+        // Store state securely in window.sessionStorage for validation (skip for GoHighLevel)
+        if (platform !== 'goHighLevel') {
+            window.sessionStorage.setItem(`oauth_state_${platform}`, state);
+        }
 
         const authUrl = `${config.authUrl}?${params.toString()}`;
         DevLogger.debug('OAuthService', 'Generated OAuth URL with PKCE', { 
@@ -217,15 +236,17 @@ export class OAuthService {
     ): Promise<OAuthTokens> {
         const config = await this.getOAuthConfig(platform);
 
-        // Validate state
-        const storedState = window.sessionStorage.getItem(`oauth_state_${platform}`);
-        if (!storedState || storedState !== state) {
-            DevLogger.error('OAuthService', 'State validation failed', {
-                platform,
-                storedState: storedState ? storedState.substring(0, 20) + '...' : 'none',
-                receivedState: state ? state.substring(0, 20) + '...' : 'none'
-            });
-            throw new Error('Invalid OAuth state - possible CSRF attack');
+        // Validate state (skip for GoHighLevel - internal app)
+        if (platform !== 'goHighLevel') {
+            const storedState = window.sessionStorage.getItem(`oauth_state_${platform}`);
+            if (!storedState || storedState !== state) {
+                DevLogger.error('OAuthService', 'State validation failed', {
+                    platform,
+                    storedState: storedState ? storedState.substring(0, 20) + '...' : 'none',
+                    receivedState: state ? state.substring(0, 20) + '...' : 'none'
+                });
+                throw new Error('Invalid OAuth state - possible CSRF attack');
+            }
         }
 
         // Prepare token exchange parameters
@@ -247,7 +268,7 @@ export class OAuthService {
             DevLogger.warn('OAuthService', `No client secret available for ${platform} - this may cause OAuth errors`);
         }
 
-        // Add PKCE code verifier for Google OAuth platforms
+        // Add PKCE code verifier for Google OAuth platforms only
         if (platform === 'googleSheets' || platform === 'googleAds') {
             const codeVerifier = window.sessionStorage.getItem(`oauth_code_verifier_${platform}`);
             DevLogger.debug('OAuthService', 'PKCE code verifier lookup', {
@@ -284,6 +305,11 @@ export class OAuthService {
                 // For Google OAuth, PKCE is required - this is a critical error
                 throw new Error('PKCE code verifier not found - OAuth flow may have been interrupted. Please try connecting again.');
             }
+        }
+
+        // Add GoHighLevel specific parameters
+        if (platform === 'goHighLevel') {
+            tokenParams.user_type = 'Location';
         }
 
         try {
@@ -355,8 +381,10 @@ export class OAuthService {
             // Store tokens using TokenManager (database-only)
             await this.storeTokens(platform, normalizedTokens);
 
-            // Clean up state and PKCE code verifier
-            window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            // Clean up state and PKCE code verifier (skip state cleanup for GoHighLevel)
+            if (platform !== 'goHighLevel') {
+                window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            }
             window.sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
 
             return normalizedTokens;
@@ -415,8 +443,10 @@ export class OAuthService {
 
             DevLogger.info('OAuthService', `Backend OAuth exchange successful for ${platform}`);
             
-            // Clean up state
-            window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            // Clean up state (skip for GoHighLevel)
+            if (platform !== 'goHighLevel') {
+                window.sessionStorage.removeItem(`oauth_state_${platform}`);
+            }
             window.sessionStorage.removeItem(`oauth_code_verifier_${platform}`);
 
             // Return tokens that will be retrieved from database
