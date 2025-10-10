@@ -50,10 +50,18 @@ const OAuthCallback: React.FC = () => {
           setStatus('success');
           setMessage('Successfully connected to Google Sheets!');
         } else if (platform === 'googleAds') {
-          // Google Ads uses backend OAuth flow - tokens are already stored by backend
-          debugLogger.debug('🔍 Google Ads backend OAuth - tokens already stored');
-          navigate('/agency/integrations?googleAds=connected');
-          return;
+          // Handle Google Ads OAuth with PKCE (frontend flow)
+          debugLogger.debug('🔍 Processing Google Ads OAuth with PKCE');
+          
+          const tokens = await OAuthService.exchangeCodeForTokens('googleAds', code, state);
+          
+          await TokenManager.storeOAuthTokens('googleAds', tokens, {
+            id: 'google-ads-user',
+            name: 'Google Ads User'
+          });
+
+          setStatus('success');
+          setMessage('Successfully connected to Google Ads!');
         } else if (platform === 'goHighLevel') {
           // Handle GoHighLevel OAuth
           debugLogger.debug('🔍 Processing GoHighLevel OAuth');

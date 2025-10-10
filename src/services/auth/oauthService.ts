@@ -163,7 +163,7 @@ export class OAuthService {
                 
                 // Store code verifier securely in window.sessionStorage (not localStorage)
                 // SessionStorage is cleared when tab closes, reducing XSS attack window
-                window.window.sessionStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
+                window.sessionStorage.setItem(`oauth_code_verifier_${platform}`, pkce.codeVerifier);
                 
                 DevLogger.debug('OAuthService', 'PKCE generated and stored securely', {
                     platform,
@@ -171,7 +171,7 @@ export class OAuthService {
                     codeChallengeLength: pkce.codeChallenge.length,
                     storageKey: `oauth_code_verifier_${platform}`,
                     codeVerifierPreview: pkce.codeVerifier.substring(0, 20) + '...',
-                    storageType: 'window.sessionStorage'
+                    storageType: 'sessionStorage'
                 });
             } catch (error) {
                 DevLogger.warn('OAuthService', 'PKCE generation failed, falling back to standard flow', error);
