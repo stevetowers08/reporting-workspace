@@ -158,11 +158,49 @@ try {
 }
 ```
 
+## OAuth Token Storage
+
+### Simple Development Storage (Standard Approach)
+
+**This is the standard approach for ALL OAuth services in development:**
+
+- **Direct Storage**: OAuth tokens are stored directly in `integrations.config.tokens` as plain JSON
+- **No Encryption Complexity**: Keeps implementation simple and working
+- **Database Security**: Tokens protected by Supabase Row Level Security policies
+- **Applies to All Services**: Google Ads, Google Sheets, Facebook Ads, GoHighLevel
+
+### Token Storage Structure
+
+```json
+{
+  "integrations": {
+    "platform": "goHighLevel",
+    "connected": true,
+    "config": {
+      "tokens": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "refreshToken": "refresh_token_here",
+        "expiresAt": "2024-01-01T12:00:00Z",
+        "tokenType": "Bearer",
+        "scope": "contacts.readonly locations.readonly"
+      }
+    }
+  }
+}
+```
+
+### Security Considerations
+
+- **Database Level**: Supabase Row Level Security policies
+- **Network Level**: HTTPS in production
+- **Access Control**: Database access controls
+- **Future Enhancement**: Encryption can be added later via database triggers without code changes
+
 ## Security Considerations
 
 1. **OAuth Credentials Storage**: Never commit client ID/secret to version control
 2. **Environment Variables**: Use environment variables for sensitive data
-3. **Token Security**: Store OAuth tokens securely in database with encryption
+3. **Token Security**: Store OAuth tokens securely in database (simple approach with RLS protection)
 4. **HTTPS Only**: Ensure all OAuth redirects use HTTPS
 5. **Scope Limitation**: Request only necessary OAuth scopes
 6. **Token Expiration**: Implement automatic token refresh

@@ -494,6 +494,7 @@ ORDER BY month DESC;
 - **At Rest**: AES-256 encryption
 - **In Transit**: TLS 1.3 encryption
 - **Application Level**: JWT token encryption
+- **OAuth Tokens**: Simple storage approach (RLS protection, encryption can be added later)
 
 ### Access Control
 - **Authentication**: Supabase Auth integration

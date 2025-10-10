@@ -171,15 +171,24 @@ user_type=Location
 
 ### Token Storage
 
+#### Simple Development Storage (Standard Approach)
+
+**This is the standard approach for ALL OAuth services in development:**
+
+- **Direct Storage**: OAuth tokens are stored directly in `integrations.config.tokens` as plain JSON
+- **No Encryption Complexity**: Keeps implementation simple and working
+- **Database Security**: Tokens protected by Supabase Row Level Security policies
+- **Applies to All Services**: Google Ads, Google Sheets, Facebook Ads, GoHighLevel
+
 #### Database Storage (Primary)
 ```typescript
-// Store tokens in Supabase
+// Store tokens in Supabase - simple approach
 await TokenManager.storeOAuthTokens(platform, tokens, userInfo);
 ```
 
 **Storage Tables**:
-- `integrations`: Platform configurations and tokens
-- `user_google_ads_auth`: Google-specific token storage
+- `integrations`: Platform configurations and tokens (PRIMARY)
+- `user_google_ads_auth`: Google-specific token storage (legacy)
 - `oauth_credentials`: Platform OAuth configurations
 
 #### Token Structure
@@ -193,6 +202,32 @@ interface OAuthTokens {
   scope?: string;
 }
 ```
+
+**Database Storage Format**:
+```json
+{
+  "integrations": {
+    "platform": "googleAds",
+    "connected": true,
+    "config": {
+      "tokens": {
+        "accessToken": "ya29.a0AfH6SMC...",
+        "refreshToken": "1//04...",
+        "expiresAt": "2024-01-01T12:00:00Z",
+        "tokenType": "Bearer",
+        "scope": "https://www.googleapis.com/auth/adwords"
+      }
+    }
+  }
+}
+```
+
+#### Security Considerations
+
+- **Database Level**: Supabase Row Level Security policies
+- **Network Level**: HTTPS in production
+- **Access Control**: Database access controls
+- **Future Enhancement**: Encryption can be added later via database triggers without code changes
 
 ### Token Refresh
 

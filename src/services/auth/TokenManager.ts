@@ -1,4 +1,4 @@
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DevLogger } from '@/lib/logger';
 import { SecureLogger } from '@/lib/secureLogger';
 import { supabase } from '@/lib/supabase';
@@ -36,7 +36,7 @@ export class TokenManager {
   
   // Clear refresh in progress after timeout to prevent stuck states
   private static clearRefreshInProgress(platform: IntegrationPlatform, timeoutMs = 60000) {
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.refreshInProgress.delete(platform);
       this.refreshPromises.delete(platform);
       DevLogger.debug('TokenManager', `Cleared refresh in progress flag for ${platform} after timeout`);
@@ -148,16 +148,16 @@ export class TokenManager {
         hasAccessToken: !!config.tokens?.accessToken
       });
 
-      // For production - encrypt tokens before storing
+      // Store tokens directly - simple and working approach
       const tokensForStorage = {
-        accessToken: await TokenEncryptionService.safeEncryptToken(tokens.accessToken),
-        refreshToken: tokens.refreshToken ? await TokenEncryptionService.safeEncryptToken(tokens.refreshToken) : undefined,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
         expiresAt: config.tokens?.expiresAt,
         tokenType: tokens.tokenType,
         scope: tokens.scope
       };
 
-      SecureLogger.logTokenOperation('TokenManager', 'Encrypting tokens for storage', {
+      DevLogger.info('TokenManager', 'Storing OAuth tokens', {
         platform,
         hasAccessToken: !!tokensForStorage.accessToken,
         hasRefreshToken: !!tokensForStorage.refreshToken
@@ -362,7 +362,7 @@ export class TokenManager {
                     DevLogger.info('TokenManager', `Received refreshed token for ${platform} from concurrent request`);
                     return refreshedToken;
                   }
-                } catch (error) {
+                } catch {
                   DevLogger.warn('TokenManager', `Concurrent refresh failed for ${platform}, proceeding with existing token`);
                 }
               }
