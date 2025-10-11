@@ -26,14 +26,23 @@ export const initSentry = () => {
       environment: import.meta.env.MODE,
       tracesSampleRate: isProduction ? 0.1 : 1.0, // Lower sample rate in production
       
-      // ✅ DISABLE Session Replay to fix SES lockdown conflicts with React
-      replaysSessionSampleRate: 0, // Disable session replay
-      replaysOnErrorSampleRate: 0, // Disable error replay
+      // ✅ Session Replay with React-friendly configuration
+      replaysSessionSampleRate: 0.1, // 10% of sessions
+      replaysOnErrorSampleRate: 1.0, // 100% when error occurs
       
-      // Performance monitoring - Session Replay disabled to prevent SES conflicts
+      // Performance monitoring - React-friendly Session Replay configuration
       integrations: [
-        // Session Replay integration removed to prevent SES lockdown conflicts
-        // Can be re-enabled later with proper configuration
+        Sentry.replayIntegration({
+          // Mask all text by default (reduces processing)
+          maskAllText: true,
+          
+          // Block iframes that might cause conflicts
+          block: [".ses-conflict", "iframe"],
+          
+          // Reduce mutation tracking (can help with React)
+          mutationLimit: 1000,
+          mutationBreadcrumbLimit: 750,
+        }),
       ],
       
       // Error filtering

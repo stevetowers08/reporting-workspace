@@ -186,8 +186,18 @@ const App = () => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => {
-    // Temporarily disable Sentry completely to test SES fix
-    debugLogger.info('App', 'Sentry disabled for SES testing');
+    // Initialize production monitoring - load Sentry lazily to prevent SES conflicts
+    const loadSentry = async () => {
+      try {
+        const { initSentry } = await import("@/lib/sentry");
+        initSentry();
+      } catch (error) {
+        debugLogger.error('App', 'Failed to load Sentry', error);
+      }
+    };
+    
+    // Load Sentry after React is fully initialized
+    setTimeout(loadSentry, 0);
     
     // Start automatic token refresh service
     TokenRefreshService.start();
