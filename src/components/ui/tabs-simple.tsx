@@ -1,15 +1,15 @@
 import { cn } from "@/lib/utils";
-import * as React from "react";
+import React, { createContext, useContext, forwardRef } from "react";
 
 interface TabsContextValue {
   value: string;
   onValueChange: (value: string) => void;
 }
 
-const TabsContext = React.createContext<TabsContextValue | undefined>(undefined);
+const TabsContext = createContext<TabsContextValue | undefined>(undefined);
 
 const useTabsContext = () => {
-  const context = React.useContext(TabsContext);
+  const context = useContext(TabsContext);
   if (!context) {
     throw new Error("Tabs components must be used within a Tabs component");
   }
@@ -23,7 +23,7 @@ interface TabsProps {
   className?: string;
 }
 
-const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
+const Tabs = forwardRef<HTMLDivElement, TabsProps>(
   ({ value, onValueChange, children, className, ...props }, ref) => {
     return (
       <TabsContext.Provider value={{ value, onValueChange }}>
@@ -36,7 +36,7 @@ const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(
 );
 Tabs.displayName = "Tabs";
 
-const TabsList = React.forwardRef<
+const TabsList = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
@@ -55,7 +55,7 @@ interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   value: string;
 }
 
-const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
+const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
   ({ className, value, ...props }, ref) => {
     const { value: selectedValue, onValueChange } = useTabsContext();
     const isActive = selectedValue === value;
@@ -80,7 +80,7 @@ interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
   value: string;
 }
 
-const TabsContent = React.forwardRef<HTMLDivElement, TabsContentProps>(
+const TabsContent = forwardRef<HTMLDivElement, TabsContentProps>(
   ({ className, value, ...props }, ref) => {
     const { value: selectedValue } = useTabsContext();
     

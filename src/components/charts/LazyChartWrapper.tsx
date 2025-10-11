@@ -46,7 +46,7 @@ export const createLazyChart = <P extends object>(
 ) => {
   const LazyComponent = lazy(importFn);
   
-  return React.forwardRef<any, P>((props, ref) => (
+  return forwardRef<any, P>((props, ref) => (
     <LazyChartWrapper 
       chartComponent={LazyComponent} 
       {...props} 

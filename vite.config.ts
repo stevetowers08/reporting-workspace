@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv } from "vite";
 import { envOptimizationPlugin } from './src/plugins/envOptimization';
+import path from 'path';
 
 // Extend NodeJS.ProcessEnv to include ANALYZE
 declare global {
@@ -106,12 +107,16 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
+      'react': path.resolve('./node_modules/react'),
+      'react-dom': path.resolve('./node_modules/react-dom'),
     },
+    mainFields: ['browser', 'module', 'jsnext:main', 'main'],
+    dedupe: ['react', 'react-dom']
   },
     define: {
       global: 'globalThis',
       'process.env': JSON.stringify(process.env),
-      'process.env.NODE_ENV': JSON.stringify(mode),
+      'process.env.NODE_ENV': JSON.stringify('production'),
       // Environment-specific defines
       __DEV__: isDev,
       __PROD__: !isDev,
@@ -121,6 +126,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: isDev ? true : 'hidden',
       minify: isDev ? false : 'esbuild',
         rollupOptions: {
+        // Ensure React is NOT externalized - it must be bundled
         external: [],
         onwarn(warning, warn) {
           // Suppress unreachable code warnings from react-router-dom
@@ -138,9 +144,9 @@ export default defineConfig(({ mode }) => {
           manualChunks: isDev ? undefined : (id) => {
             // Handle node_modules dependencies
             if (id.includes('node_modules')) {
-              // React core - prioritize React loading to prevent Children property errors
+              // React core - keep in main vendor chunk to prevent loading issues
               if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux') && !id.includes('react-query')) {
-                return 'react-vendor';
+                return 'vendor';
               }
               // React Router - separate chunk to avoid conflicts
               if (id.includes('react-router')) {

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import * as React from "react";
+import React, { forwardRef, React } from "react";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   value?: string;
@@ -7,7 +7,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   children: React.ReactNode;
 }
 
-const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, value, onValueChange, children, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       onValueChange?.(e.target.value);
@@ -35,7 +35,7 @@ interface SelectContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
+const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(
   ({ className, children, ...props }, ref) => (
     <div ref={ref} className={cn("", className)} {...props}>
       {children}
@@ -49,7 +49,7 @@ interface SelectItemProps extends React.OptionHTMLAttributes<HTMLOptionElement> 
   children: React.ReactNode;
 }
 
-const SelectItem = React.forwardRef<HTMLOptionElement, SelectItemProps>(
+const SelectItem = forwardRef<HTMLOptionElement, SelectItemProps>(
   ({ className, value, children, ...props }, ref) => (
     <option
       ref={ref}
@@ -67,7 +67,7 @@ interface SelectTriggerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-const SelectTrigger = React.forwardRef<HTMLDivElement, SelectTriggerProps>(
+const SelectTrigger = forwardRef<HTMLDivElement, SelectTriggerProps>(
   ({ className, children, ...props }, ref) => (
     <div ref={ref} className={cn("", className)} {...props}>
       {children}
@@ -80,7 +80,7 @@ interface SelectValueProps extends React.HTMLAttributes<HTMLSpanElement> {
   placeholder?: string;
 }
 
-const SelectValue = React.forwardRef<HTMLSpanElement, SelectValueProps>(
+const SelectValue = forwardRef<HTMLSpanElement, SelectValueProps>(
   ({ className, placeholder, ...props }, ref) => (
     <span ref={ref} className={cn("", className)} {...props}>
       {placeholder}

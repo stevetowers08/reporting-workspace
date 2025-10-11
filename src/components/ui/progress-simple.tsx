@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
-import * as React from "react";
+import React, { forwardRef, React } from "react";
 
 interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   value?: number;
   max?: number;
 }
 
-const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
+const Progress = forwardRef<HTMLDivElement, ProgressProps>(
   ({ className, value = 0, max = 100, ...props }, ref) => {
     const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
     
