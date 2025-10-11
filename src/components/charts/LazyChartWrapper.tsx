@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import React, { ComponentType, Suspense, lazy } from 'react';
+import React, { ComponentType, Suspense, lazy, forwardRef } from 'react';
 
 interface LazyChartWrapperProps {
   chartComponent: ComponentType<any>;

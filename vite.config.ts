@@ -1,9 +1,9 @@
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from 'node:url';
+import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv } from "vite";
 import { envOptimizationPlugin } from './src/plugins/envOptimization';
-import path from 'path';
 
 // Extend NodeJS.ProcessEnv to include ANALYZE
 declare global {
@@ -140,72 +140,9 @@ export default defineConfig(({ mode }) => {
           warn(warning);
         },
         output: {
-          // Improved chunking strategy to resolve dynamic import conflicts     
-          manualChunks: isDev ? undefined : (id) => {
-            // Handle node_modules dependencies
-            if (id.includes('node_modules')) {
-              // React core - keep in main vendor chunk to prevent loading issues
-              if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux') && !id.includes('react-query')) {
-                return 'vendor';
-              }
-              // React Router - separate chunk to avoid conflicts
-              if (id.includes('react-router')) {
-                return 'router-vendor';
-              }
-              // React Redux - separate chunk
-              if (id.includes('react-redux') || id.includes('@reduxjs')) {
-                return 'redux-vendor';
-              }
-              // Supabase
-              if (id.includes('@supabase')) {
-                return 'supabase-vendor';
-              }
-              // Chart libraries
-              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('recharts')) {                                                       
-                return 'chart-vendor';
-              }
-              // PDF libraries (lazy loaded)
-              if (id.includes('jspdf') || id.includes('html2canvas')) {
-                return 'pdf-vendor';
-              }
-              // UI libraries
-              if (id.includes('@radix-ui') || id.includes('lucide-react')) {    
-                return 'ui-vendor';
-              }
-              // Utility libraries
-              if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {                                            
-                return 'utils-vendor';
-              }
-              // Monitoring
-              if (id.includes('@sentry')) {
-                return 'sentry-vendor';
-              }
-              // Everything else
-              return 'vendor';
-            }
-            
-            // Handle source files - group by feature
-            if (id.includes('/src/')) {
-              // Services
-              if (id.includes('/services/')) {
-                return 'services';
-              }
-              // Components
-              if (id.includes('/components/')) {
-                return 'components';
-              }
-              // Pages
-              if (id.includes('/pages/')) {
-                return 'pages';
-              }
-              // Hooks
-              if (id.includes('/hooks/')) {
-                return 'hooks';
-              }
-            }
-            
-            return null;
-          },
+          // ✅ SIMPLEST FIX: Let Vite handle chunking automatically
+          // This prevents React-dependent libraries from being split into separate chunks
+          manualChunks: undefined
         },
       },
       // Increase chunk size warning limit
