@@ -5,7 +5,7 @@ import { ErrorProvider } from "@/contexts/ErrorContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
-import { initSentry } from "@/lib/sentry";
+// Sentry will be loaded lazily to prevent SES conflicts with React
 import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AgencyPanel from "@/pages/AdminPanel";
@@ -186,8 +186,8 @@ const App = () => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => {
-    // Initialize production monitoring
-    initSentry();
+    // Temporarily disable Sentry completely to test SES fix
+    debugLogger.info('App', 'Sentry disabled for SES testing');
     
     // Start automatic token refresh service
     TokenRefreshService.start();

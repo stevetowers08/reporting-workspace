@@ -25,15 +25,15 @@ export const initSentry = () => {
       dsn: sentryDsn,
       environment: import.meta.env.MODE,
       tracesSampleRate: isProduction ? 0.1 : 1.0, // Lower sample rate in production
-      replaysSessionSampleRate: 0.1, // Session replay sampling
-      replaysOnErrorSampleRate: 1.0, // Always replay on errors
       
-      // Performance monitoring
+      // ✅ DISABLE Session Replay to fix SES lockdown conflicts with React
+      replaysSessionSampleRate: 0, // Disable session replay
+      replaysOnErrorSampleRate: 0, // Disable error replay
+      
+      // Performance monitoring - Session Replay disabled to prevent SES conflicts
       integrations: [
-        Sentry.replayIntegration({
-          maskAllText: false, // Don't mask text for debugging
-          blockAllMedia: false, // Don't block media
-        }),
+        // Session Replay integration removed to prevent SES lockdown conflicts
+        // Can be re-enabled later with proper configuration
       ],
       
       // Error filtering
