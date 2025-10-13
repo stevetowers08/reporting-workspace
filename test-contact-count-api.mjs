@@ -38,8 +38,8 @@ async function getGHLAccessToken(locationId) {
   return data.tokens.accessToken;
 }
 
-async function inspectContactsData() {
-  console.log('🔍 Inspecting GoHighLevel Contacts Data...\n');
+async function testContactCountAPI() {
+  console.log('🔍 Testing GoHighLevel Contact Count API...\n');
 
   const locationId = 'glgXnEKLMggg0CFhBRN8';
   const API_BASE_URL = 'https://services.leadconnectorhq.com';
@@ -49,8 +49,9 @@ async function inspectContactsData() {
     const accessToken = await getGHLAccessToken(locationId);
     if (!accessToken) throw new Error('GHL Access Token not found');
 
-    // Test the contacts search API
-    const response = await fetch(`${API_BASE_URL}/contacts/search`, {
+    // Test the contact count API with different pageLimit values
+    console.log('📊 Test 1: Contact Count with pageLimit=1000');
+    const response1 = await fetch(`${API_BASE_URL}/contacts/search`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -59,30 +60,49 @@ async function inspectContactsData() {
       },
       body: JSON.stringify({
         locationId: locationId,
-        pageLimit: 1, // Just get 1 contact to see the structure
+        pageLimit: 1000,
         query: ''
       })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Contacts API Response Structure:');
-      console.log('Total contacts:', data.meta?.total);
-      console.log('Returned contacts:', data.contacts?.length);
-      
-      if (data.contacts && data.contacts.length > 0) {
-        console.log('\n📊 Sample Contact Data Structure:');
-        console.log('First contact:', JSON.stringify(data.contacts[0], null, 2));
-      }
-      
-      console.log('\n🔍 Analysis:');
-      console.log('- Meta total:', data.meta?.total);
-      console.log('- Contacts array length:', data.contacts?.length);
-      console.log('- Has meta field:', 'meta' in data);
-      console.log('- Meta fields:', data.meta ? Object.keys(data.meta) : 'No meta');
+    if (response1.ok) {
+      const data1 = await response1.json();
+      console.log('✅ Contact Count API Response:', {
+        totalContacts: data1.contacts?.length || 0,
+        hasMeta: 'meta' in data1,
+        metaTotal: data1.meta?.total,
+        firstContact: data1.contacts?.[0] ? { id: data1.contacts[0].id, name: data1.contacts[0].firstName + ' ' + data1.contacts[0].lastName } : null
+      });
     } else {
-      const errorData = await response.json();
-      console.error('❌ Contacts API Error:', response.status, errorData);
+      const errorData1 = await response1.json();
+      console.error('❌ Contact Count API Error:', response1.status, errorData1);
+    }
+
+    console.log('\n📊 Test 2: Contact Count with pageLimit=100');
+    const response2 = await fetch(`${API_BASE_URL}/contacts/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Version': API_VERSION
+      },
+      body: JSON.stringify({
+        locationId: locationId,
+        pageLimit: 100,
+        query: ''
+      })
+    });
+
+    if (response2.ok) {
+      const data2 = await response2.json();
+      console.log('✅ Contact Count API Response (100 limit):', {
+        totalContacts: data2.contacts?.length || 0,
+        hasMeta: 'meta' in data2,
+        metaTotal: data2.meta?.total
+      });
+    } else {
+      const errorData2 = await response2.json();
+      console.error('❌ Contact Count API Error (100 limit):', response2.status, errorData2);
     }
 
   } catch (error) {
@@ -90,4 +110,4 @@ async function inspectContactsData() {
   }
 }
 
-inspectContactsData();
+testContactCountAPI();

@@ -148,7 +148,7 @@ export class GoHighLevelApiService {
       
       const requestBody: any = {
         locationId,
-        pageLimit: dateParams ? 100 : 1000 // Fetch more contacts to get accurate count
+        pageLimit: 100 // ✅ FIX: Use 100 instead of 1000 (API limit is 500)
       };
 
       // Log the request body for debugging
@@ -171,12 +171,55 @@ export class GoHighLevelApiService {
       }
 
       const data: any = await response.json();
-      const contacts = data.contacts || [];
+      let allContacts = data.contacts || [];
+      
+      // ✅ FIX: Implement pagination to get actual total count
+      // Since API doesn't return meta.total, we need to fetch all pages
+      let hasMorePages = allContacts.length === 100; // If we got exactly 100, there might be more
+      let pageCount = 1;
+      const maxPages = 20; // Safety limit to prevent infinite loops
+      
+      while (hasMorePages && pageCount < maxPages) {
+        try {
+          const nextPageResponse = await fetch(`${this.API_BASE_URL}/contacts/search`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Version': this.API_VERSION,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              locationId,
+              pageLimit: 100,
+              query: '',
+              skip: pageCount * 100 // Skip already fetched contacts
+            })
+          });
+          
+          if (nextPageResponse.ok) {
+            const nextPageData = await nextPageResponse.json();
+            const nextPageContacts = nextPageData.contacts || [];
+            
+            if (nextPageContacts.length === 0) {
+              hasMorePages = false;
+            } else {
+              allContacts = [...allContacts, ...nextPageContacts];
+              hasMorePages = nextPageContacts.length === 100;
+              pageCount++;
+            }
+          } else {
+            hasMorePages = false;
+          }
+        } catch (error) {
+          debugLogger.warn('GoHighLevelApiService', 'Error fetching next page of contacts', error);
+          hasMorePages = false;
+        }
+      }
       
       // If no date filtering needed, return total count
       if (!dateParams?.startDate && !dateParams?.endDate) {
-        const count = data.meta?.total || contacts.length;
-        debugLogger.info('GoHighLevelApiService', `Retrieved total contact count: ${count}`);
+        const count = allContacts.length;
+        debugLogger.info('GoHighLevelApiService', `Retrieved total contact count: ${count} (fetched ${pageCount} pages)`);
         return count;
       }
       
@@ -184,7 +227,7 @@ export class GoHighLevelApiService {
       const startDate = dateParams.startDate ? new Date(dateParams.startDate) : null;
       const endDate = dateParams.endDate ? new Date(dateParams.endDate) : null;
       
-      const filteredCount = contacts.filter((contact: any) => {
+      const filteredCount = allContacts.filter((contact: any) => {
         const contactDate = new Date(contact.dateAdded || contact.createdAt || 0);
         
         if (startDate && contactDate < startDate) return false;
