@@ -196,22 +196,22 @@ export default async function handler(req, res) {
         // Check if this is a new client creation (state starts with 'new_')
         if (clientId && clientId.startsWith('new_')) {
           // For new client creation, redirect back to admin panel with success message
-          res.redirect(302, `${baseUrl}/admin?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
+          res.redirect(302, `${baseUrl}/agency?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
         } else if (clientId) {
           // If we have an existing clientId in state, redirect back to client edit page
-          res.redirect(302, `${baseUrl}/admin/clients/${clientId}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
+          res.redirect(302, `${baseUrl}/agency/clients/${clientId}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
         } else {
           // Fallback to admin panel
-          res.redirect(302, `${baseUrl}/admin?connected=true&location=${tokenData.locationId}`);
+          res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
         }
       } catch (decodeError) {
         console.error('❌ Error decoding state parameter:', decodeError);
         // Fallback to admin panel if state decoding fails
-        res.redirect(302, `${baseUrl}/admin?connected=true&location=${tokenData.locationId}`);
+        res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
       }
     } else {
       // Fallback to admin panel
-      res.redirect(302, `${baseUrl}/admin?connected=true&location=${tokenData.locationId}`);
+      res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
     }
     
   } catch (error) {
