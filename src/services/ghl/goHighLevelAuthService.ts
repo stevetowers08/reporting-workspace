@@ -18,7 +18,9 @@ export class GoHighLevelAuthService {
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
-      scope: scopes.join(' ')
+      scope: scopes.join(' '),
+      access_type: 'offline',
+      prompt: 'consent'
     });
     return `${baseUrl}?${params.toString()}`;
   }
