@@ -26,10 +26,12 @@ interface EventTypesBreakdownProps {
 export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null);
         debugLogger.debug('EventTypesBreakdown', 'Starting to fetch lead data');
         
         // Use client-specific Google Sheets configuration if available
@@ -52,9 +54,12 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
           setLeadData(leadDataResult);
         } else {
           debugLogger.warn('EventTypesBreakdown', 'No data returned from LeadDataService');
+          setLeadData(null);
         }
       } catch (error) {
         debugLogger.error('EventTypesBreakdown', 'Failed to fetch lead data', error);
+        setError('Failed to load event types data');
+        setLeadData(null);
       } finally {
         setLoading(false);
       }
@@ -81,7 +86,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     );
   }
 
-  if (!leadData) {
+  if (error) {
     return (
       <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
         <div className="pb-3">
@@ -90,7 +95,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-slate-500 mb-2">Failed to load event type data</div>
+            <div className="text-slate-500 mb-2">{error}</div>
             <div className="text-xs text-slate-400">
               Check console for details. Proxy server may not be running.
             </div>
@@ -148,7 +153,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
           }
         </p>
         <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/{{id}}/values | Smart detection: Event type column
+          API: GET /spreadsheets/values | Smart detection: Event type column
         </div>
       </div>
       

@@ -11,7 +11,7 @@ interface LeadInfoMetricsCardsProps {
   dateRange?: { start: string; end: string };
 }
 
-export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.memo(({ data, clientData, dateRange }) => {
+export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.memo(({ data, clientData: _clientData, dateRange: _dateRange }) => {
   const [ghlNeedsReconnect, setGhlNeedsReconnect] = useState(false);
 
   const handleGHLReconnect = useCallback(() => {
@@ -24,6 +24,38 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   
   // Use dashboard data if available, otherwise show loading
   const isLoading = useMemo(() => !data, [data]);
+
+  // Use Google Sheets data for lead counts (PRIMARY SOURCE) - memoized
+  const leadMetrics = useMemo(() => ({
+    totalLeads: leadData?.totalLeads || 0,
+    facebookLeads: leadData?.facebookLeads || 0,
+    googleLeads: leadData?.googleLeads || 0
+  }), [leadData]);
+  
+  // Use GoHighLevel data for contact count (REAL DATA) - memoized
+  const ghlMetrics = useMemo(() => data?.ghlMetrics || null, [data?.ghlMetrics]);
+  const totalContacts = useMemo(() => ghlMetrics?.totalContacts || 0, [ghlMetrics?.totalContacts]);
+  
+  // ✅ FIX: Check if GoHighLevel is actually connected (has valid OAuth) - memoized
+  const ghlConnectionStatus = useMemo(() => {
+    const isGHLConnected = data?.ghlMetrics !== null && data?.ghlMetrics !== undefined;
+    const hasGHLData = isGHLConnected && totalContacts > 0;
+    const shouldShowReconnectPrompt = data?.clientAccounts?.goHighLevel && 
+      data.clientAccounts.goHighLevel !== 'none' && !isGHLConnected;
+    
+    return { isGHLConnected, hasGHLData, shouldShowReconnectPrompt };
+  }, [data?.ghlMetrics, data?.clientAccounts?.goHighLevel, totalContacts]);
+  
+  debugLogger.debug('LeadInfoMetricsCards', 'GHL Reconnect Check', {
+    isGHLConnected: ghlConnectionStatus.isGHLConnected,
+    hasGHLData: ghlConnectionStatus.hasGHLData,
+    shouldShowReconnectPrompt: ghlConnectionStatus.shouldShowReconnectPrompt,
+    totalContacts,
+    loading: isLoading,
+    ghlAccount: data?.clientAccounts?.goHighLevel
+  });
+  
+  // Remove fake funnel data - we don't have real page analytics
 
   if (isLoading) {
     return (
@@ -48,38 +80,6 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
     );
   }
 
-  // Use Google Sheets data for lead counts (PRIMARY SOURCE) - memoized
-  const leadMetrics = useMemo(() => ({
-    totalLeads: leadData?.totalLeads || 0,
-    facebookLeads: leadData?.facebookLeads || 0,
-    googleLeads: leadData?.googleLeads || 0
-  }), [leadData]);
-  
-  // Use GoHighLevel data for contact count (REAL DATA) - memoized
-  const ghlMetrics = useMemo(() => data?.ghlMetrics || {}, [data?.ghlMetrics]);
-  const totalContacts = useMemo(() => ghlMetrics.totalContacts || 0, [ghlMetrics.totalContacts]);
-  
-  // ✅ FIX: Check if GoHighLevel is actually connected (has valid OAuth) - memoized
-  const ghlConnectionStatus = useMemo(() => {
-    const isGHLConnected = data?.ghlMetrics !== null && data?.ghlMetrics !== undefined;
-    const hasGHLData = isGHLConnected && totalContacts > 0;
-    const shouldShowReconnectPrompt = data?.clientAccounts?.goHighLevel && 
-      data.clientAccounts.goHighLevel !== 'none' && !isGHLConnected;
-    
-    return { isGHLConnected, hasGHLData, shouldShowReconnectPrompt };
-  }, [data?.ghlMetrics, data?.clientAccounts?.goHighLevel, totalContacts]);
-  
-  debugLogger.debug('LeadInfoMetricsCards', 'GHL Reconnect Check', {
-    isGHLConnected: ghlConnectionStatus.isGHLConnected,
-    hasGHLData: ghlConnectionStatus.hasGHLData,
-    shouldShowReconnectPrompt: ghlConnectionStatus.shouldShowReconnectPrompt,
-    totalContacts,
-    loading: isLoading,
-    ghlAccount: data?.clientAccounts?.goHighLevel
-  });
-  
-  // Remove fake funnel data - we don't have real page analytics
-
   return (
     <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
       {ghlConnectionStatus.shouldShowReconnectPrompt && (
@@ -91,7 +91,9 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
             <p className="text-sm font-medium text-slate-600 mb-2">Total Contacts</p>
             {ghlConnectionStatus.isGHLConnected ? (
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-slate-900">{totalContacts.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-slate-900">
+                  {totalContacts > 0 ? totalContacts.toLocaleString() : '—'}
+                </p>
                 <div className="flex items-center gap-1">
                   <span className="text-sm text-blue-600 font-medium">GHL</span>
                   <span className="text-xs text-slate-500">(All Time)</span>

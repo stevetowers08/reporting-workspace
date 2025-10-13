@@ -5,6 +5,7 @@ import { LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from '@/services/data/databaseService';
 import {
     BarChart3,
@@ -24,14 +25,14 @@ type Client = {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
   };
   conversion_actions?: {
     facebookAds?: string;
     googleAds?: string;
-  };
-  googleSheetsConfig?: {
-    spreadsheetId: string;
-    sheetName: string;
   };
   shareable_link: string;
 };

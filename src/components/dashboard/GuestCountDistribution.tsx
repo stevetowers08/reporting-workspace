@@ -12,10 +12,12 @@ interface GuestCountDistributionProps {
 export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = React.memo(({ data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null);
         debugLogger.debug('GuestCountDistribution', 'Starting to fetch lead data');
         
         // Use client-specific Google Sheets configuration if available
@@ -38,9 +40,12 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
           setLeadData(leadDataResult);
         } else {
           debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService');
+          setLeadData(null);
         }
       } catch (error) {
         debugLogger.error('GuestCountDistribution', 'Failed to fetch lead data', error);
+        setError('Failed to load guest count data');
+        setLeadData(null);
       } finally {
         setLoading(false);
       }
@@ -67,6 +72,25 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
     );
   }
 
+  if (error) {
+    return (
+      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
+        <div className="pb-4">
+          <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
+          <p className="text-sm text-slate-500">Average: 88 guests per lead</p>
+        </div>
+        <div className="h-64 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-slate-500 mb-2">{error}</div>
+            <div className="text-xs text-slate-400">
+              Check console for details. Proxy server may not be running.
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (!leadData) {
     return (
       <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
@@ -76,7 +100,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-slate-500 mb-2">Failed to load guest count data</div>
+            <div className="text-slate-500 mb-2">No guest count data available</div>
             <div className="text-xs text-slate-400">
               Check console for details. Proxy server may not be running.
             </div>
@@ -100,7 +124,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
         <p className="text-sm text-slate-500">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
         <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/{id}/values | Guest count analysis
+          API: GET /spreadsheets/values | Guest count analysis
         </div>
       </div>
       

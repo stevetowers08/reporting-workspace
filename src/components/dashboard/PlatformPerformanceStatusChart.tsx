@@ -88,7 +88,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
       <div>
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-semibold text-slate-700">Spend Distribution</h3>
-          <span className="text-xs text-slate-500">${metrics.totalSpend.toLocaleString()} total spend</span>
+          <span className="text-xs text-slate-500">${Math.round(metrics.totalSpend).toLocaleString()} total spend</span>
         </div>
         
         {/* Combined Spend Progress Bar */}

@@ -18,8 +18,8 @@
     "test:coverage": "vitest run --coverage",
     "analyze": "cross-env ANALYZE=true npm run build",
     "build:analyze": "npm run analyze",
-    "env:validate": "node -e \"console.log('Environment validation:', process.env.VITE_SUPABASE_URL ? '✅ Valid' : '❌ Missing VITE_SUPABASE_URL')\"",
-    "env:check": "node -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\""
+    "env:validate": "node -r dotenv/config -e \"console.log('Environment validation:', process.env.VITE_SUPABASE_URL ? '✅ Valid' : '❌ Missing VITE_SUPABASE_URL')\"",
+    "env:check": "node -r dotenv/config -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\""
   },
   "keywords": [
     "mcp",
@@ -40,7 +40,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@sentry/react": "^10.17.0",
-    "@supabase/supabase-js": "^2.58.0",
+    "@supabase/supabase-js": "^2.75.0",
     "@tanstack/react-query": "^5.90.2",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",

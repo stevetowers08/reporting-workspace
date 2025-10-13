@@ -3,6 +3,7 @@
  * Provides development-specific optimizations and debugging tools
  */
 
+import { debugLogger } from './debug';
 import { getEnvConfig, isDevelopment } from './envValidator';
 
 export class DevUtils {

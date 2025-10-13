@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { usePDFExport } from '@/hooks/usePDFExport';
+import { debugLogger } from '@/lib/debug';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React from 'react';
 

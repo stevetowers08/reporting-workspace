@@ -30,15 +30,6 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         };
       })();
       
-      console.log('🔍 useSummaryTabData: Fetching summary data', { 
-        clientId, 
-        finalDateRange,
-        clientAccounts: {
-          facebookAds: clientData.accounts?.facebookAds,
-          facebookAdsType: typeof clientData.accounts?.facebookAds,
-          facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
-        }
-      });
       
       debugLogger.info('useSummaryTabData', 'Fetching summary data', { 
         clientId, 
@@ -58,10 +49,6 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         googleSheets: clientData.accounts?.googleSheets
       };
       
-      console.log('🔍 useSummaryTabData: Calling EventMetricsService with:', {
-        clientAccounts,
-        willCallFacebook: clientAccounts.facebookAds && clientAccounts.facebookAds !== 'none'
-      });
       
       debugLogger.info('useSummaryTabData', 'Calling EventMetricsService with:', {
         clientAccounts,
@@ -88,7 +75,7 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
 // Hook for Meta/Facebook Ads tab data
 export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
-    queryKey: ['meta-tab-data', clientId, dateRange],
+    queryKey: ['meta-tab-data', clientId, dateRange, 'with-previous-period'],
     queryFn: async () => {
       if (!clientId) throw new Error('Client ID is required');
       
@@ -105,15 +92,6 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         };
       })();
       
-      console.log('🔍 useMetaTabData: Fetching Meta ads data', { 
-        clientId, 
-        finalDateRange,
-        clientAccounts: {
-          facebookAds: clientData.accounts?.facebookAds,
-          facebookAdsType: typeof clientData.accounts?.facebookAds,
-          facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
-        }
-      });
       
       debugLogger.info('useMetaTabData', 'Fetching Meta ads data', { 
         clientId, 
@@ -133,10 +111,6 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         googleSheets: undefined
       };
       
-      console.log('🔍 useMetaTabData: Calling EventMetricsService with:', {
-        clientAccounts,
-        willCallFacebook: clientAccounts.facebookAds && clientAccounts.facebookAds !== 'none'
-      });
       
       debugLogger.info('useMetaTabData', 'Calling EventMetricsService with:', {
         clientAccounts,
@@ -146,7 +120,9 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
       const result = await EventMetricsService.getComprehensiveMetrics(
         clientId,
         finalDateRange,
-        clientAccounts
+        clientAccounts,
+        undefined, // clientConversionActions
+        true // includePreviousPeriod
       );
       
       return { ...result, clientData };

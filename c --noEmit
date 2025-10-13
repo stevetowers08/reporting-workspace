@@ -1,0 +1,71 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'playwright-report/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/agency/ClientForm.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/agency/IntegrationManagementTab.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/connection/GoogleAdsConnection.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/EventTypesBreakdown.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/FunnelPerformance.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/GHLContactQualityCards.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/GHLFunnelAnalytics.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/GHLPageViewsAnalytics.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/GHLPipelineStages.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/GuestCountDistribution.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/MetaAdsMetricsCards.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/dashboard/SummaryMetricsCards.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/export/ExportButton.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/IntegrationOnboardingBar.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/IntegrationStatusBar.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/LogoManager.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/button-simple.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/label-simple.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/progress-simple.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/ui/select-simple.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/apiClient.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/devUtils.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/EventDashboard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/GHLCallbackPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api/googleAdsService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/data/eventMetricsService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/export/pdfExportService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/ghl/goHighLevelAnalyticsService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/ghl/goHighLevelApiService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/ghl/goHighLevelService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/ghl/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/integration/IntegrationService.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/integration/IntegrationServiceV2.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/facebookTroubleshoot.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/googleAdsTroubleshoot.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/dev-helpers/api-tester.ts', LF will be replaced by CRLF the next time Git touches it
+package-lock.json
+package.json
+playwright-report/index.html
+scripts/verify-integrations.mjs
+src/components/agency/ClientForm.tsx
+src/components/charts/LazyChartWrapper.tsx
+src/components/dashboard/HomePage.tsx
+src/components/dashboard/MetaAdsMetricsCards.tsx
+src/components/dashboard/SummaryMetricsCards.tsx
+src/components/export/ExportButton.tsx
+src/components/integration/GoogleSheetsSelector.tsx
+src/components/modals/EditClientModal.tsx
+src/components/ui/IntegrationOnboardingBar.tsx
+src/components/ui/IntegrationStatusBar.tsx
+src/components/ui/alert.tsx
+src/components/ui/button-simple.tsx
+src/components/ui/label-simple.tsx
+src/components/ui/progress-simple.tsx
+src/components/ui/progress.tsx
+src/components/ui/searchable-select.tsx
+src/components/ui/select-simple.tsx
+src/components/ui/switch.tsx
+src/components/ui/textarea.tsx
+src/lib/apiClient.ts
+src/lib/devUtils.ts
+src/services/export/pdfExportService.ts
+src/services/ghl/goHighLevelAnalyticsService.ts
+src/services/ghl/index.ts
+src/services/googleAds/accountsService.ts
+vite.config.ts

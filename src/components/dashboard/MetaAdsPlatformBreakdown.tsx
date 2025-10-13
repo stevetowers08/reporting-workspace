@@ -49,7 +49,7 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
           <div>
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-semibold text-slate-700">Ad Placements</h3>
-              <span className="text-xs text-slate-500">${data?.facebookMetrics?.spend?.toLocaleString() || '0'} total spend</span>
+              <span className="text-xs text-slate-500">${Math.round(data?.facebookMetrics?.spend || 0).toLocaleString()} total spend</span>
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">

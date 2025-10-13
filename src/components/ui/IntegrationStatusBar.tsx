@@ -1,4 +1,5 @@
 import { LogoManager } from '@/components/ui/LogoManager';
+import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';

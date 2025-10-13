@@ -3,6 +3,7 @@
 import { debugLogger } from '@/lib/debug';
 import { GoHighLevelApiService } from './goHighLevelApiService';
 import type {
+    GHLCalendarAnalytics,
     GHLFunnelAnalytics,
     GHLMetrics,
     GHLOpportunityAnalytics,
@@ -32,12 +33,13 @@ export class GoHighLevelAnalyticsService {
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting GHL metrics', { locationId, dateRange });
 
       // Get all metrics in parallel with proper error handling
-      const [contacts, campaigns, funnels, pages, opportunities] = await Promise.allSettled([
+      const [contacts, campaigns, funnels, pages, opportunities, calendars] = await Promise.allSettled([
         this.getContactMetrics(locationId, dateRange),
         this.getCampaignMetrics(locationId, dateRange),
         this.getFunnelAnalytics(locationId, dateRange),
         this.getPageAnalytics(locationId, dateRange),
-        this.getOpportunitiesAnalytics(locationId, dateRange)
+        this.getOpportunitiesAnalytics(locationId, dateRange),
+        this.getCalendarAnalytics(locationId, dateRange)
       ]);
 
       const result: GHLMetrics = {
@@ -61,22 +63,55 @@ export class GoHighLevelAnalyticsService {
           valueByStatus: {},
           averageDealSize: 0,
           conversionRate: 0
+        },
+        calendars: calendars.status === 'fulfilled' ? calendars.value : {
+          totalEvents: 0,
+          totalAppointments: 0,
+          totalMeetings: 0,
+          eventsByType: {},
+          averageEventDuration: 0,
+          eventsByStatus: {}
         }
       };
 
       debugLogger.info('GoHighLevelAnalyticsService', 'GHL metrics retrieved successfully', { locationId });
-      return result;
+      
+      // Transform the new nested structure to the old flat structure that eventMetricsService expects
+      return {
+        totalContacts: result.contacts.total,
+        newContacts: result.contacts.newThisMonth,
+        totalOpportunities: result.opportunities.totalOpportunities,
+        wonOpportunities: result.opportunities.opportunitiesByStatus?.won || 0,
+        lostOpportunities: result.opportunities.opportunitiesByStatus?.lost || 0,
+        pipelineValue: result.opportunities.totalValue,
+        avgDealSize: result.opportunities.averageDealSize,
+        conversionRate: result.opportunities.conversionRate,
+        responseTime: 0, // Not available in new structure
+        wonRevenue: result.opportunities.valueByStatus?.won || 0
+      };
 
     } catch (error) {
       debugLogger.error('GoHighLevelAnalyticsService', 'Failed to get GHL metrics', error);
-      return null; // Return null instead of throwing
+      // Return the old flat structure that eventMetricsService expects
+      return {
+        totalContacts: 0,
+        newContacts: 0,
+        totalOpportunities: 0,
+        wonOpportunities: 0,
+        lostOpportunities: 0,
+        pipelineValue: 0,
+        avgDealSize: 0,
+        conversionRate: 0,
+        responseTime: 0,
+        wonRevenue: 0
+      }; // Return default flat structure instead of null
     }
   }
 
   // Contact Metrics
   private static async getContactMetrics(
     locationId: string,
-    dateRange?: { startDate?: string; endDate?: string }
+    _dateRange?: { startDate?: string; endDate?: string }
   ): Promise<{ total: number; newThisMonth: number; growthRate: number }> {
     try {
       // ✅ FIX: Get total count without date filter (supported)
@@ -104,7 +139,7 @@ export class GoHighLevelAnalyticsService {
   // Campaign Metrics
   private static async getCampaignMetrics(
     locationId: string,
-    dateRange?: { startDate?: string; endDate?: string }
+    _dateRange?: { startDate?: string; endDate?: string }
   ): Promise<{ total: number; active: number; totalSpent: number; totalConversions: number }> {
     try {
       const campaigns = await GoHighLevelApiService.getCampaigns(locationId);
@@ -337,6 +372,46 @@ export class GoHighLevelAnalyticsService {
         valueByStatus: {},
         averageDealSize: 0,
         conversionRate: 0
+      };
+    }
+  }
+
+  // Calendar Analytics
+  static async getCalendarAnalytics(
+    locationId: string,
+    _dateRange?: { startDate?: string; endDate?: string }
+  ): Promise<GHLCalendarAnalytics> {
+    try {
+      await GHLRateLimiter.enforceRateLimit();
+      
+      debugLogger.info('GoHighLevelAnalyticsService', 'Getting calendar analytics', { locationId, dateRange });
+
+      // For now, return a placeholder implementation
+      // This would need to be implemented based on actual GHL calendar API
+      const result: GHLCalendarAnalytics = {
+        totalEvents: 0,
+        totalAppointments: 0,
+        totalMeetings: 0,
+        eventsByType: {},
+        averageEventDuration: 0,
+        eventsByStatus: {}
+      };
+
+      debugLogger.info('GoHighLevelAnalyticsService', 'Calendar analytics retrieved', { 
+        totalEvents: result.totalEvents 
+      });
+      
+      return result;
+
+    } catch (error) {
+      debugLogger.error('GoHighLevelAnalyticsService', 'Failed to get calendar analytics', error);
+      return {
+        totalEvents: 0,
+        totalAppointments: 0,
+        totalMeetings: 0,
+        eventsByType: {},
+        averageEventDuration: 0,
+        eventsByStatus: {}
       };
     }
   }

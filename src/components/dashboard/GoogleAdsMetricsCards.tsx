@@ -86,7 +86,7 @@ export const GoogleAdsMetricsCards: React.FC<GoogleAdsMetricsCardsProps> = ({ da
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-slate-900">${data?.googleMetrics?.cost?.toLocaleString() || '0'}</p>
+                <p className="text-3xl font-bold text-slate-900">${Math.round(data?.googleMetrics?.cost || 0).toLocaleString()}</p>
                 {data?.googleMetrics?.previousPeriod && (
                   <PercentageChange 
                     current={data.googleMetrics.cost} 

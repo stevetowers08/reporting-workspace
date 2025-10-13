@@ -1,6 +1,6 @@
 import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { Button } from '@/components/ui/button-simple';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select-simple';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsAccount, GoogleSheetsService } from '@/services/api/googleSheetsService';
 import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
@@ -52,6 +52,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
       // First check if we have access tokens
       const accessToken = await GoogleSheetsService.getAccessToken();
       console.log('🔍 GoogleSheetsSelector: Access token check:', accessToken ? 'Found' : 'Not found');
+      console.log('🔍 GoogleSheetsSelector: Access token preview:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No Google OAuth access token found. Please connect your Google account first.');
@@ -96,6 +97,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   };
 
   const handleSpreadsheetChange = (spreadsheetId: string) => {
+    console.log('🔍 GoogleSheetsSelector: Spreadsheet changed to:', spreadsheetId);
     setSelectedSpreadsheet(spreadsheetId);
     setSelectedSheet('');
     setSheetNames([]);
@@ -113,7 +115,8 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     try {
       console.log('🔍 GoogleSheetsSelector: Fetching sheet names for spreadsheet:', spreadsheetId);
       const accessToken = await GoogleSheetsService.getAccessToken();
-      console.log('🔍 GoogleSheetsSelector: Access token:', accessToken ? 'Found' : 'Not found');
+      console.log('🔍 GoogleSheetsSelector: Access token for sheet names:', accessToken ? 'Found' : 'Not found');
+      console.log('🔍 GoogleSheetsSelector: Access token preview for sheet names:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No access token available');
@@ -153,9 +156,26 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
   const handleSheetChange = (sheetName: string) => {
     debugLogger.info('GoogleSheetsSelector', 'Sheet changed', { sheetName, selectedSpreadsheet });
+    console.log('🔍 GoogleSheetsSelector: Sheet changed to:', sheetName);
+    console.log('🔍 GoogleSheetsSelector: Selected spreadsheet:', selectedSpreadsheet);
+    console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
+    console.log('🔍 GoogleSheetsSelector: onSelectionComplete callback:', !!onSelectionComplete);
+    
     setSelectedSheet(sheetName);
-    // Prevent any potential form submission
-    return false;
+    
+    // If hideSaveButton is true, automatically call onSelectionComplete when both are selected
+    if (hideSaveButton && selectedSpreadsheet && sheetName && onSelectionComplete) {
+      console.log('🔍 GoogleSheetsSelector: Auto-calling onSelectionComplete (hideSaveButton=true)');
+      console.log('🔍 GoogleSheetsSelector: Calling with:', { selectedSpreadsheet, sheetName });
+      debugLogger.info('GoogleSheetsSelector', 'Auto-calling onSelectionComplete', { selectedSpreadsheet, sheetName });
+      onSelectionComplete(selectedSpreadsheet, sheetName);
+    } else {
+      console.log('🔍 GoogleSheetsSelector: Not auto-calling onSelectionComplete');
+      console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
+      console.log('🔍 GoogleSheetsSelector: selectedSpreadsheet:', selectedSpreadsheet);
+      console.log('🔍 GoogleSheetsSelector: sheetName:', sheetName);
+      console.log('🔍 GoogleSheetsSelector: onSelectionComplete:', !!onSelectionComplete);
+    }
   };
 
   const handleSaveSelection = async (e?: React.MouseEvent) => {
@@ -183,7 +203,12 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
       // Call the completion callback with the selected spreadsheet and sheet
       if (onSelectionComplete) {
+        console.log('🔍 GoogleSheetsSelector: Calling onSelectionComplete with:', { selectedSpreadsheet, selectedSheet });
+        debugLogger.info('GoogleSheetsSelector', 'Calling onSelectionComplete callback', { selectedSpreadsheet, selectedSheet });
         onSelectionComplete(selectedSpreadsheet, selectedSheet);
+      } else {
+        console.log('🔍 GoogleSheetsSelector: No onSelectionComplete callback provided');
+        debugLogger.warn('GoogleSheetsSelector', 'No onSelectionComplete callback provided');
       }
       
       debugLogger.info('GoogleSheetsSelector', 'Selection completed successfully', {
@@ -284,7 +309,11 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
                 <button
                   key={sheet.id}
                   type="button"
-                  onClick={() => handleSpreadsheetChange(sheet.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSpreadsheetChange(sheet.id);
+                  }}
                   className={`w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
                     selectedSpreadsheet === sheet.id ? 'bg-blue-50 text-blue-700' : ''
                   }`}
@@ -317,12 +346,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
               </div>
             ) : sheetNames.length > 0 ? (
               <Select value={selectedSheet} onValueChange={handleSheetChange}>
-                <SelectTrigger 
-                  className="w-full"
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => e.preventDefault()}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a sheet" />
                 </SelectTrigger>
                 <SelectContent>

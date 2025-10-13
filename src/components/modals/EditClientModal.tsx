@@ -36,6 +36,10 @@ interface EditClientModalProps {
 
 const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, client }: EditClientModalProps) => {
     const handleSubmit = async (formData: any) => {
+        console.log('🔍 EditClientModal: handleSubmit called with:', formData);
+        console.log('🔍 EditClientModal: formData.googleSheetsConfig:', formData.googleSheetsConfig);
+        console.log('🔍 EditClientModal: formData.accounts.googleSheets:', formData.accounts.googleSheets);
+        
         debugLogger.info('EditClientModal', 'handleSubmit called', { formData, clientId: client?.id, isCreating: !client });
         
         // Transform form data to match expected format
@@ -58,6 +62,9 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                 googleAds: formData.conversionActions.googleAds,
             }
         };
+        
+        console.log('🔍 EditClientModal: Transformed clientData:', clientData);
+        console.log('🔍 EditClientModal: clientData.accounts.googleSheetsConfig:', clientData.accounts.googleSheetsConfig);
         
         if (client) {
             // Editing existing client
@@ -104,6 +111,13 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         },
         googleSheetsConfig: null
     };
+
+    console.log('🔍 EditClientModal: Client data:', client);
+    console.log('🔍 EditClientModal: Client accounts:', client?.accounts);
+    console.log('🔍 EditClientModal: Client accounts.googleSheetsConfig:', client?.accounts?.googleSheetsConfig);
+    console.log('🔍 EditClientModal: Client accounts.googleSheets:', client?.accounts?.googleSheets);
+    console.log('🔍 EditClientModal: Initial data:', initialData);
+    console.log('🔍 EditClientModal: Initial data.googleSheetsConfig:', initialData.googleSheetsConfig);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

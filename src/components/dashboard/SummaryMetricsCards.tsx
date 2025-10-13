@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { debugLogger } from "@/lib/debug";
 import { EventDashboardData } from "@/services/data/eventMetricsService";
 import React from 'react';
 

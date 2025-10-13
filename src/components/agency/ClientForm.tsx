@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button-simple";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label-simple";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select-simple";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch-simple";
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
@@ -30,7 +30,6 @@ interface ClientFormData {
   id?: string;
   name: string;
   logo_url: string;
-  status?: 'active' | 'paused' | 'inactive';
   accounts: {
     facebookAds: string;
     googleAds: string;
@@ -68,12 +67,15 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   onCancel,
   cancelLabel = "Cancel"
 }) => {
+  console.log('🔍 ClientForm: Component loaded with initialData:', initialData);
+  console.log('🔍 ClientForm: initialData.googleSheetsConfig:', initialData?.googleSheetsConfig);
+  console.log('🔍 ClientForm: initialData.accounts:', initialData?.accounts);
+  
   debugLogger.info('ClientForm', 'Component loaded', { isEdit, clientId, hasInitialData: !!initialData });
   
   const [formData, setFormData] = useState<ClientFormData>(initialData || {
     name: "",
     logo_url: "",
-    status: 'active',
     accounts: {
       facebookAds: "none",
       googleAds: "none",
@@ -260,10 +262,12 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       debugLogger.info('ClientForm', 'Google Ads accounts loaded successfully', { accountCount: accounts.length });
     } catch (error) {
       debugLogger.error('ClientForm', 'Google Ads error', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load Google Ads accounts';
+      
       // Add error to connected accounts so user knows there was an issue
       setConnectedAccounts(prev => [...prev, {
         id: 'google_error',
-        name: 'Error loading Google Ads accounts',
+        name: `Error: ${errorMessage}`,
         platform: 'googleAds' as const
       }]);
       setGoogleAccountsLoaded(true);
@@ -427,7 +431,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           goHighLevel: typeof formData.accounts.goHighLevel === 'object' 
             ? formData.accounts.goHighLevel?.locationId || 'none'
             : formData.accounts.goHighLevel || 'none',
-          googleSheets: googleSheetsConfig ? 'google_sheets_account' : 'none'
+          googleSheets: googleSheetsConfig?.spreadsheetId || 'none'
         },
         googleSheetsConfig: googleSheetsConfig
       };
@@ -597,6 +601,8 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   };
 
   const handleConversionActionSelect = (platform: string, actionType: string) => {
+    console.log('🔍 ClientForm: handleConversionActionSelect called with:', { platform, actionType });
+    debugLogger.info('ClientForm', 'Conversion action selected', { platform, actionType });
     setFormData(prev => ({
       ...prev,
       conversionActions: {
@@ -604,6 +610,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         [platform]: actionType
       }
     }));
+    console.log('🔍 ClientForm: Form data updated');
   };
 
   const loadFacebookConversionActions = useCallback(async (adAccountId: string) => {
@@ -658,6 +665,25 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       totalConnectedAccounts: connectedAccounts.length,
       accounts 
     });
+    
+    // Check if the current account ID is in the loaded accounts
+    const currentAccountId = formData.accounts[platform as keyof typeof formData.accounts];
+    const hasCurrentAccount = accounts.some(acc => acc.id === currentAccountId);
+    
+    // If current account is not in loaded accounts but exists, add it
+    if (currentAccountId && currentAccountId !== 'none' && !hasCurrentAccount) {
+      console.log(`🔍 ClientForm: Adding current ${platform} account to available accounts:`, currentAccountId);
+      debugLogger.info('ClientForm', `Adding current ${platform} account to available accounts`, { currentAccountId });
+      
+      // Create a placeholder account for the current selection
+      const currentAccount = {
+        id: currentAccountId,
+        name: `${platform === 'googleAds' ? 'Google Ads' : platform === 'facebookAds' ? 'Facebook Ads' : platform} Account (${currentAccountId})`,
+        platform: platform as any
+      };
+      
+      accounts.unshift(currentAccount); // Add to beginning
+    }
     
     // Check specifically for Savanna Rooftop
     const savannaAccount = accounts.find(acc => acc.name?.toLowerCase().includes('savanna'));
@@ -788,9 +814,16 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
 
   // Initialize Google Sheets configuration from initial data
   useEffect(() => {
+    console.log('🔍 ClientForm: Initializing Google Sheets config from initial data');
+    console.log('🔍 ClientForm: initialData:', initialData);
+    console.log('🔍 ClientForm: initialData.googleSheetsConfig:', initialData?.googleSheetsConfig);
+    
     if (initialData?.googleSheetsConfig) {
+      console.log('🔍 ClientForm: Setting Google Sheets config:', initialData.googleSheetsConfig);
       setGoogleSheetsConfig(initialData.googleSheetsConfig);
       debugLogger.info('ClientForm', 'Initialized Google Sheets config from initial data', initialData.googleSheetsConfig);
+    } else {
+      console.log('🔍 ClientForm: No Google Sheets config in initial data');
     }
   }, [initialData]);
 
@@ -849,28 +882,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
       </div>
 
-      {isEdit && (
-        <div>
-          <Label className="text-sm font-medium">Status</Label>
-          <Select
-            value={formData.status}
-            onValueChange={(value: string) => {
-              if (value === 'active' || value === 'paused' || value === 'inactive') {
-                setFormData(prev => ({ ...prev, status: value }));
-              }
-            }}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="paused">Paused</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
 
       <div>
         <Label className="text-sm font-medium">Client Logo</Label>
@@ -993,7 +1004,10 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         ) : (
                           <Select
                             value={formData.conversionActions.facebookAds || "lead"}
-                            onValueChange={(value) => handleConversionActionSelect("facebookAds", value)}
+                            onValueChange={(value) => {
+                              console.log('🔍 ClientForm: Facebook conversion action Select changed to:', value);
+                              handleConversionActionSelect("facebookAds", value);
+                            }}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select action" />
@@ -1199,6 +1213,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                           Action: {formData.conversionActions.googleAds}
                         </div>
                       )}
+                      <div className="text-xs text-gray-400 mt-1">
+                        Debug: Account ID: {formData.accounts.googleAds}, Available: {getAvailableAccounts('googleAds').length}
+                      </div>
                     </div>
                     <Button 
                       type="button"
@@ -1317,10 +1334,13 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                       initialSheetName={googleSheetsConfig?.sheetName}
                       hideSaveButton={true}
                       onSelectionComplete={(spreadsheetId, sheetName) => {
+                        console.log('🔍 ClientForm: onSelectionComplete called with:', { spreadsheetId, sheetName });
+                        debugLogger.info('ClientForm', 'GoogleSheets onSelectionComplete called', { spreadsheetId, sheetName });
                         setPendingChanges(prev => ({
                           ...prev,
                           googleSheets: { spreadsheetId, sheetName }
                         }));
+                        console.log('🔍 ClientForm: Pending changes updated');
                       }}
                     />
                     
@@ -1329,8 +1349,13 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         type="button"
                         size="sm"
                         onClick={() => {
+                          console.log('🔍 ClientForm: Save button clicked');
+                          console.log('🔍 ClientForm: Pending changes:', pendingChanges);
                           const pending = pendingChanges.googleSheets;
+                          console.log('🔍 ClientForm: GoogleSheets pending:', pending);
+                          
                           if (pending && typeof pending === 'object' && 'spreadsheetId' in pending) {
+                            console.log('🔍 ClientForm: Saving GoogleSheets config:', pending);
                             setGoogleSheetsConfig(pending);
                             setFormData(prev => ({
                               ...prev,
@@ -1341,6 +1366,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                             }));
                             setGoogleSheetsSuccess(`Configured: ${pending.sheetName}`);
                             window.setTimeout(() => setGoogleSheetsSuccess(null), 3000);
+                            console.log('🔍 ClientForm: GoogleSheets config saved successfully');
+                          } else {
+                            console.log('🔍 ClientForm: No valid pending changes to save');
                           }
                           setEditingIntegrations(prev => ({ ...prev, googleSheets: false }));
                           setPendingChanges(prev => {
@@ -1375,6 +1403,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                           ID: {googleSheetsConfig.spreadsheetId}
                         </div>
                       )}
+                      <div className="text-xs text-gray-400 mt-1">
+                        Debug: {JSON.stringify(googleSheetsConfig)}
+                      </div>
                     </div>
                     <Button 
                       type="button"
@@ -1433,6 +1464,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                   <Select
                     value={aiConfig?.frequency || 'weekly'}
                     onValueChange={(value: string) => {
+                      console.log('🔍 ClientForm: AI frequency Select changed to:', value);
                       if (value === 'daily' || value === 'weekly' || value === 'monthly') {
                         handleAIFrequencyChange(value);
                       }

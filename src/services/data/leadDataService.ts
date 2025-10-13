@@ -65,8 +65,8 @@ export class LeadDataService {
       );
 
       if (!data) {
-        debugLogger.error('LeadDataService', 'Failed to fetch data via direct Google Sheets API');
-        return null;
+        debugLogger.warn('LeadDataService', 'No data returned from Google Sheets API - returning empty data');
+        return this.getEmptyLeadData();
       }
 
       debugLogger.info('LeadDataService', 'Direct Google Sheets API response', {
@@ -76,11 +76,11 @@ export class LeadDataService {
       });
 
       if (!data || !data.values || data.values.length < 2) {
-        debugLogger.error('LeadDataService', 'No data found in Google Sheets', {
+        debugLogger.warn('LeadDataService', 'No data found in Google Sheets - returning empty data', {
           data: data,
           valuesLength: data?.values?.length
         });
-        return null;
+        return this.getEmptyLeadData();
       }
 
       const headers = data.values[0];
@@ -219,8 +219,8 @@ export class LeadDataService {
       return result;
 
     } catch (error) {
-      debugLogger.error('LeadDataService', 'Failed to fetch lead data', error);
-      return null;
+      debugLogger.error('LeadDataService', 'Failed to fetch lead data - returning empty data', error);
+      return this.getEmptyLeadData();
     }
   }
 
@@ -308,5 +308,23 @@ export class LeadDataService {
     }
 
     return null;
+  }
+
+  /**
+   * Get empty lead data structure for fallback
+   */
+  private static getEmptyLeadData(): LeadData {
+    return {
+      totalLeads: 0,
+      facebookLeads: 0,
+      googleLeads: 0,
+      totalGuests: 0,
+      averageGuestsPerLead: 0,
+      eventTypes: [],
+      leadSources: [],
+      guestRanges: [],
+      dayPreferences: [],
+      landingPageTypes: []
+    };
   }
 }

@@ -25,49 +25,66 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
   locationId 
 }) => {
   const [availableCharts, setAvailableCharts] = useState<ChartConfig[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const charts: ChartConfig[] = [
-      {
-        id: 'daily-funnel',
-        component: DailyFunnelAnalytics,
-        props: { locationId, dateRange },
-        priority: 1,
-        hasData: true // Always show this one
-      },
-      {
-        id: 'event-types',
-        component: EventTypesBreakdown,
-        props: { data: dashboardData, dateRange },
-        priority: 2,
-        hasData: true // Always show - component handles empty data gracefully
-      },
-      {
-        id: 'guest-count',
-        component: GuestCountDistribution,
-        props: { data: dashboardData },
-        priority: 3,
-        hasData: true // Always show - component handles empty data gracefully
-      },
-      {
-        id: 'opportunity-stages',
-        component: OpportunityStagesChart,
-        props: { data: dashboardData, dateRange },
-        priority: 4,
-        hasData: true // Always show opportunities chart - it handles empty data gracefully
-      }
-    ];
+    try {
+      const charts: ChartConfig[] = [
+        {
+          id: 'daily-funnel',
+          component: DailyFunnelAnalytics,
+          props: { locationId, dateRange },
+          priority: 1,
+          hasData: true // Always show this one
+        },
+        {
+          id: 'event-types',
+          component: EventTypesBreakdown,
+          props: { data: dashboardData, dateRange },
+          priority: 2,
+          hasData: true // Always show - component handles empty data gracefully
+        },
+        {
+          id: 'guest-count',
+          component: GuestCountDistribution,
+          props: { data: dashboardData },
+          priority: 3,
+          hasData: true // Always show - component handles empty data gracefully
+        },
+        {
+          id: 'opportunity-stages',
+          component: OpportunityStagesChart,
+          props: { data: dashboardData, dateRange },
+          priority: 4,
+          hasData: true // Always show opportunities chart - it handles empty data gracefully
+        }
+      ];
 
-    // Sort by priority - show all charts, let components handle empty data
-    const sortedCharts = charts.sort((a, b) => a.priority - b.priority);
+      // Sort by priority - show all charts, let components handle empty data
+      const sortedCharts = charts.sort((a, b) => a.priority - b.priority);
 
-    setAvailableCharts(sortedCharts);
+      setAvailableCharts(sortedCharts);
+      setError(null);
+    } catch (error) {
+      console.error('SmartChartLayout error:', error);
+      setError('Failed to initialize charts');
+      setAvailableCharts([]);
+    }
   }, [dashboardData, dateRange, locationId]);
 
   // Create pairs for 2-column layout
   const chartPairs: ChartConfig[][] = [];
   for (let i = 0; i < availableCharts.length; i += 2) {
     chartPairs.push(availableCharts.slice(i, i + 2));
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-slate-500">
+        <p>{error}</p>
+        <p className="text-sm mt-2">Please try refreshing the page.</p>
+      </div>
+    );
   }
 
   if (availableCharts.length === 0) {
@@ -85,10 +102,11 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
           {pair.map((chart) => {
             const ChartComponent = chart.component;
             return (
-              <ChartComponent
-                key={chart.id}
-                {...chart.props}
-              />
+              <div key={chart.id} className="min-h-[300px]">
+                <ChartComponent
+                  {...chart.props}
+                />
+              </div>
             );
           })}
           {/* Fill empty space if odd number of charts */}

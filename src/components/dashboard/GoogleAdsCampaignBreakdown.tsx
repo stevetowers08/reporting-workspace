@@ -55,7 +55,7 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
           <div>
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-semibold text-slate-700">Ad Formats</h3>
-              <span className="text-xs text-slate-500">${data?.googleMetrics?.cost?.toLocaleString() || '0'} total spend</span>
+              <span className="text-xs text-slate-500">${Math.round(data?.googleMetrics?.cost || 0).toLocaleString()} total spend</span>
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">

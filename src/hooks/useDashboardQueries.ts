@@ -12,7 +12,7 @@ interface Client {
 // Custom hook for fetching dashboard data with React Query
 export const useDashboardData = (clientId: string | undefined, dateRange?: { start: string; end: string }) => {
   return useQuery({
-    queryKey: ['dashboard-data', clientId, dateRange],
+    queryKey: ['dashboard-data', clientId, dateRange, 'with-previous-period'],
     queryFn: async (): Promise<EventDashboardData> => {
       if (!clientId) throw new Error('Client ID is required');
       
@@ -40,13 +40,15 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         };
       })();
       
-      console.log('🔍 useDashboardData: Date range:', finalDateRange);
       
       const result = await EventMetricsService.getComprehensiveMetrics(
         clientId,
         finalDateRange,
-        clientAccounts
+        clientAccounts,
+        undefined, // clientConversionActions
+        true // includePreviousPeriod
       );
+      
       
       return result;
     },

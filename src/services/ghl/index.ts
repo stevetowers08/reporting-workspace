@@ -13,18 +13,13 @@ export type {
     GHLAccount, GHLCampaign, GHLContact
 } from './goHighLevelService';
 
-// New organized modules
-export { GHLAnalyticsModule as GHLAnalytics } from './modules/analytics';
-export { GHLContactsModule as GHLContacts } from './modules/contacts';
+// Export all available services and types
+export { GoHighLevelAnalyticsService } from './goHighLevelAnalyticsService';
+export { GoHighLevelApiService } from './goHighLevelApiService';
+export { GoHighLevelAuthService } from './goHighLevelAuthService';
 
-// Export module-specific types
-export type {
-    ContactSearchOptions
-} from './modules/contacts';
-
-export type {
-    DateRange, GHLAnalyticsMetrics
-} from './modules/analytics';
+// Export all types
+export type * from './goHighLevelTypes';
 
 /**
  * Usage Examples:

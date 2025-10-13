@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '@/constants/apiVersions';
 import { debugLogger } from './debug';
 
 export interface ApiRequestConfig {

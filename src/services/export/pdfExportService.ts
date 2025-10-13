@@ -1,4 +1,5 @@
 import { debugLogger } from '@/lib/debug';
+import { jsPDF } from 'jspdf';
 import { EventDashboardData } from '../data/eventMetricsService';
 
 // Add type definitions for jsPDF

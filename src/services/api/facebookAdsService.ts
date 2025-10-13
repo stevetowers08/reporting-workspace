@@ -13,6 +13,19 @@ export interface FacebookAdsMetrics {
   roas: number;
   reach: number;
   frequency: number;
+  previousPeriod?: {
+    impressions: number;
+    clicks: number;
+    spend: number;
+    leads: number;
+    conversions: number;
+    ctr: number;
+    cpc: number;
+    cpm: number;
+    roas: number;
+    reach: number;
+    frequency: number;
+  };
   demographics?: {
     ageGroups: {
       '25-34': number;
@@ -1089,6 +1102,12 @@ export class FacebookAdsService {
     debugLogger.info('FacebookAdsService', 'Cache clear requested (no-op for direct token)');
   }
 
+  // Clear metrics cache to force fresh fetch
+  static clearMetricsCache(): void {
+    this.requestCache.clear();
+    debugLogger.info('FacebookAdsService', 'Metrics cache cleared');
+  }
+
   // Cache ad accounts in Supabase integration
   private static async cacheAdAccounts(accounts: any[]): Promise<void> {
     // No caching needed for direct token approach
@@ -1477,14 +1496,23 @@ export class FacebookAdsService {
 
   static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
-      // Create cache key for this request
-      const cacheKey = `account-metrics-${adAccountId}-${dateRange?.start}-${dateRange?.end}-${conversionAction}`;
+      // Clear cache if includePreviousPeriod is true to ensure fresh data
+      if (includePreviousPeriod) {
+        this.clearMetricsCache();
+      }
       
-      // Check cache first
+      // Create cache key for this request
+      const cacheKey = `account-metrics-${adAccountId}-${dateRange?.start}-${dateRange?.end}-${conversionAction}-${includePreviousPeriod}`;
+      
+      // Check cache first (but skip cache if includePreviousPeriod is true)
       const cachedData = this.getCachedData(cacheKey);
-      if (cachedData) {
+      if (cachedData && !includePreviousPeriod) {
         debugLogger.debug('FacebookAdsService', 'Using cached account metrics', { cacheKey });
         return cachedData;
+      }
+      
+      if (cachedData && includePreviousPeriod) {
+        debugLogger.debug('FacebookAdsService', 'Skipping cache for previous period data', { cacheKey });
       }
 
       // Use provided account ID or get from integration config
@@ -1567,14 +1595,43 @@ export class FacebookAdsService {
       metrics.platformBreakdown = platformBreakdown;
       
       // Fetch previous period data if requested
+        includePreviousPeriod,
+        hasDateRange: !!dateRange,
+        dateRange,
+        formattedAccountId,
+        willFetch: includePreviousPeriod && !!dateRange
+      });
+      
       if (includePreviousPeriod && dateRange) {
+        debugLogger.debug('FacebookAdsService', 'Fetching previous period data', {
+          includePreviousPeriod,
+          dateRange,
+          formattedAccountId
+        });
         try {
           const previousPeriodMetrics = await this.getPreviousPeriodMetrics(formattedAccountId, dateRange, conversionAction);
           metrics.previousPeriod = previousPeriodMetrics;
+            previousPeriodMetrics,
+            hasPreviousPeriod: !!metrics.previousPeriod
+          });
+          debugLogger.debug('FacebookAdsService', 'Previous period data fetched successfully', {
+            previousPeriodMetrics,
+            hasPreviousPeriod: !!metrics.previousPeriod
+          });
         } catch (error) {
+          console.error('🔍 FacebookAdsService: Failed to fetch previous period data:', error);
           debugLogger.warn('FacebookAdsService', 'Failed to fetch previous period data', error);
           // Continue without previous period data
         }
+      } else {
+          includePreviousPeriod,
+          hasDateRange: !!dateRange,
+          reason: !includePreviousPeriod ? 'includePreviousPeriod is false' : 'dateRange is missing'
+        });
+        debugLogger.debug('FacebookAdsService', 'Skipping previous period data', {
+          includePreviousPeriod,
+          hasDateRange: !!dateRange
+        });
       }
       
       // Cache the result
@@ -1602,6 +1659,14 @@ export class FacebookAdsService {
         end: previousEnd.toISOString().split('T')[0]
       };
       
+        currentStart: currentDateRange.start,
+        currentEnd: currentDateRange.end,
+        periodLengthDays: Math.round(periodLength / (1000 * 60 * 60 * 24)),
+        previousStart: previousDateRange.start,
+        previousEnd: previousDateRange.end,
+        previousPeriodLengthDays: Math.round((new Date(previousDateRange.end).getTime() - new Date(previousDateRange.start).getTime()) / (1000 * 60 * 60 * 24))
+      });
+      
       debugLogger.debug('FacebookAdsService', 'Fetching previous period data', {
         currentPeriod: currentDateRange,
         previousPeriod: previousDateRange
@@ -1620,14 +1685,31 @@ export class FacebookAdsService {
       });
 
       const url = `${this.BASE_URL}/${accountId}/insights?${params}`;
+      
       const response = await FacebookAdsService.rateLimitedFetch(url);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 Facebook Previous Period API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
         throw new Error(`Previous period API error: ${response.statusText}`);
       }
 
       const data = await response.json();
+        hasData: !!data.data,
+        dataCount: data.data?.length || 0,
+        firstRecord: data.data?.[0] || null,
+        rawResponse: data
+      });
+      
       const previousMetrics = this.parseMetrics(data.data?.[0] || {}, conversionAction);
+      
+        previousMetrics,
+        hasData: !!data.data?.[0]
+      });
       
       return {
         impressions: previousMetrics.impressions,

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 import { PDFExportService } from "@/services/export/pdfExportService";
+import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
@@ -326,6 +327,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Show error state
   if (dashboardError || clientError) {
+    console.error('🔍 EventDashboard Error:', { dashboardError, clientError });
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
@@ -485,11 +487,13 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             
             {/* Lead Info Metrics Cards - Google Sheets Data */}
             <Suspense fallback={<ComponentLoader />}>
-              <LeadInfoMetricsCards 
-                data={dashboardData} 
-                clientData={clientData as Client | null}
-                dateRange={getDateRange(selectedPeriod)}
-              />
+              <AppErrorBoundary>
+                <LeadInfoMetricsCards 
+                  data={dashboardData} 
+                  clientData={clientData as Client | null}
+                  dateRange={getDateRange(selectedPeriod)}
+                />
+              </AppErrorBoundary>
             </Suspense>
             
             {/* Top-Level Funnel Metrics - Very Top */}
@@ -509,11 +513,13 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             {/* Smart Chart Layout - 2 columns with automatic reordering */}
             <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
-                <SmartChartLayout 
-                  dashboardData={dashboardData}
-                  dateRange={getDateRange(selectedPeriod)}
-                  locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'}
-                />
+                <AppErrorBoundary>
+                  <SmartChartLayout 
+                    dashboardData={dashboardData}
+                    dateRange={getDateRange(selectedPeriod)}
+                    locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'}
+                  />
+                </AppErrorBoundary>
               </Suspense>
             </div>
             
