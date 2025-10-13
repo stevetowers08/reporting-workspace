@@ -126,23 +126,33 @@ export const useGHLIntegration = () => {
   // Connect to GHL
   const connect = async () => {
     try {
-      console.log('GHL Connect - Starting connection process');
+      debugLogger.info('useGHLIntegration', 'Starting connection process');
       setIsConnecting(true);
       debugLogger.info('useGHLIntegration', 'Initiating GHL connection');
       
-      const authUrl = await GoHighLevelService.getAuthorizationUrl();
-      console.log('GHL Connect - Generated auth URL:', authUrl);
+      // Get OAuth credentials from environment
+      const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      const redirectUri = window.location.hostname === 'localhost' 
+          ? `${window.location.origin}/oauth/callback`
+          : 'https://tulenreporting.vercel.app/oauth/callback';
+      
+      if (!clientId) {
+        throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
+      }
+      
+      const authUrl = GoHighLevelService.getAuthorizationUrl(clientId, redirectUri);
+      debugLogger.info('useGHLIntegration', 'Generated auth URL', { authUrl });
       
       // Open OAuth flow in new window/tab
       const authWindow = window.open(authUrl, 'ghl-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
-      console.log('GHL Connect - Opened window:', !!authWindow);
+      debugLogger.info('useGHLIntegration', 'Opened window', { hasWindow: !!authWindow });
       
       if (!authWindow) {
         throw new Error('Failed to open OAuth window. Please allow popups for this site.');
       }
       
       // Listen for messages from the popup window
-      const handleMessage = (event: MessageEvent) => {
+      const handleMessage = (event: MessageEvent<any>) => {
         if (event.data?.type === 'GHL_CONNECTED') {
           setIsConnecting(false);
           if (event.data.success) {
