@@ -327,7 +327,7 @@ CREATE TABLE ghl_app_credentials (
 
 ### 7. OAuth Credentials Table
 
-**Purpose**: Generic OAuth credentials storage for all platforms.
+**Purpose**: Agency-level OAuth app credentials storage for all platforms.
 
 ```sql
 CREATE TABLE oauth_credentials (
@@ -348,8 +348,8 @@ CREATE TABLE oauth_credentials (
 **Columns**:
 - `id`: Unique credentials identifier
 - `platform`: Platform name (unique)
-- `client_id`: OAuth client ID
-- `client_secret`: OAuth client secret
+- `client_id`: OAuth client ID (agency-level app credentials)
+- `client_secret`: OAuth client secret (agency-level app credentials)
 - `redirect_uri`: OAuth redirect URI
 - `scopes`: OAuth scopes array
 - `auth_url`: Authorization URL
@@ -357,6 +357,11 @@ CREATE TABLE oauth_credentials (
 - `is_active`: Credentials status
 - `created_at`: Record creation timestamp
 - `updated_at`: Record update timestamp
+
+**Architecture**:
+- **Agency Level**: OAuth app credentials (Client ID, Client Secret) stored globally
+- **Client Level**: OAuth tokens stored per client in `integrations` table
+- **GoHighLevel**: One app for entire agency, each client connects to their own location
 
 ## Database Relationships
 

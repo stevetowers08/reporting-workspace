@@ -403,26 +403,43 @@ const longLivedToken = await fetch(
 
 ### GoHighLevel OAuth Configuration
 
-#### App Credentials
+#### Architecture Overview
+GoHighLevel OAuth uses a **hybrid architecture**:
+- **OAuth App Credentials**: Stored at **agency level** (shared across all clients)
+- **OAuth Tokens**: Stored at **client level** (each client has their own tokens)
+
+#### App Credentials (Agency Level)
 ```bash
 VITE_GHL_CLIENT_ID=your_client_id
 VITE_GHL_CLIENT_SECRET=your_client_secret
 VITE_GHL_REDIRECT_URI=your_redirect_uri
 ```
 
-#### Required Scopes
-- `contacts.read`: Read contact data
-- `contacts.write`: Write contact data
-- `campaigns.read`: Read campaign data
-- `opportunities.read`: Read opportunity data
-- `calendars.read`: Read calendar data
+**Storage**: `oauth_credentials` table (agency-wide)
+- One GoHighLevel app for the entire agency
+- All clients share the same app credentials
+- Credentials stored globally in `oauth_credentials` table
 
-#### Location Selection
+#### Required Scopes
+- `contacts.readonly`: Read contact data
+- `opportunities.readonly`: Read opportunity data
+- `calendars.readonly`: Read calendar data
+- `funnels/funnel.readonly`: Read funnel data
+- `funnels/page.readonly`: Read page data
+- `locations.readonly`: Read location data
+
+#### Client-Level Token Storage
 ```typescript
-// GoHighLevel requires location selection during OAuth
+// Each client connects to their own GoHighLevel location
 const authUrl = GoHighLevelAuthService.getAuthorizationUrl(clientId, redirectUri, scopes);
 // User selects location during OAuth flow
+// Tokens stored with account_id = locationId in integrations table
 ```
+
+**Storage**: `integrations` table (client-specific)
+- Each client has their own `locationId` and `locationToken`
+- Tokens stored with `account_id: locationId`
+- Client-specific OAuth tokens for each GoHighLevel location
 
 ## Error Handling
 
