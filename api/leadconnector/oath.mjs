@@ -140,42 +140,77 @@ export default async function handler(req, res) {
 
     console.log('✅ Token saved to database successfully');
 
-    // Update client's GoHighLevel account if we have a clientId in state
-    if (state && !state.startsWith('new_')) {
-      console.log('🔍 Updating client GoHighLevel account with locationId:', tokenData.locationId);
-      
-      // First get the current client data to merge accounts properly
-      const { data: currentClient, error: fetchError } = await supabase
-        .from('clients')
-        .select('accounts')
-        .eq('id', state)
-        .single();
-
-      if (fetchError) {
-        console.error('❌ Error fetching current client data:', fetchError);
-      } else {
-        // Merge the GoHighLevel account data with existing accounts
-        const updatedAccounts = {
-          ...currentClient.accounts,
-          goHighLevel: {
-            locationId: tokenData.locationId,
-            locationName: tokenData.locationName || 'GoHighLevel Location'
+    // Fetch location name from GoHighLevel API
+    let locationName = 'Unknown Location';
+    try {
+      console.log('🔍 Fetching location name from GoHighLevel API...');
+      const locationResponse = await fetch(
+        `https://services.leadconnectorhq.com/locations/${tokenData.locationId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Content-Type': 'application/json'
           }
-        };
-
-        const { error: clientUpdateError } = await supabase
-          .from('clients')
-          .update({
-            accounts: updatedAccounts
-          })
-          .eq('id', state);
-
-        if (clientUpdateError) {
-          console.error('❌ Error updating client GoHighLevel account:', clientUpdateError);
-          // Don't throw error here - token is saved, just client update failed
-        } else {
-          console.log('✅ Client GoHighLevel account updated successfully');
         }
+      );
+      
+      if (locationResponse.ok) {
+        const locationData = await locationResponse.json();
+        locationName = locationData.name || locationData.locationName || 'Unknown Location';
+        console.log('✅ Location name fetched:', locationName);
+      } else {
+        console.log('⚠️ Failed to fetch location name, using default');
+      }
+    } catch (locationError) {
+      console.log('⚠️ Error fetching location name:', locationError.message);
+    }
+
+    // Update client's GoHighLevel account if we have a clientId in state
+    if (state) {
+      try {
+        // Decode the state parameter to get the actual client ID
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        const clientId = decodedState.integrationPlatform || decodedState.clientId;
+        
+        if (clientId && !clientId.startsWith('new_')) {
+          console.log('🔍 Updating client GoHighLevel account with locationId:', tokenData.locationId, 'for client:', clientId);
+          
+          // First get the current client data to merge accounts properly
+          const { data: currentClient, error: fetchError } = await supabase
+            .from('clients')
+            .select('accounts')
+            .eq('id', clientId)
+            .single();
+
+          if (fetchError) {
+            console.error('❌ Error fetching current client data:', fetchError);
+          } else {
+            // Merge the GoHighLevel account data with existing accounts
+            const updatedAccounts = {
+              ...currentClient.accounts,
+              goHighLevel: {
+                locationId: tokenData.locationId,
+                locationName: locationName
+              }
+            };
+
+            const { error: clientUpdateError } = await supabase
+              .from('clients')
+              .update({
+                accounts: updatedAccounts
+              })
+              .eq('id', clientId);
+
+            if (clientUpdateError) {
+              console.error('❌ Error updating client GoHighLevel account:', clientUpdateError);
+              // Don't throw error here - token is saved, just client update failed
+            } else {
+              console.log('✅ Client GoHighLevel account updated successfully');
+            }
+          }
+        }
+      } catch (decodeError) {
+        console.error('❌ Error decoding state for client update:', decodeError);
       }
     }
 
@@ -196,10 +231,10 @@ export default async function handler(req, res) {
         // Check if this is a new client creation (state starts with 'new_')
         if (clientId && clientId.startsWith('new_')) {
           // For new client creation, redirect back to admin panel with success message
-          res.redirect(302, `${baseUrl}/agency?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
+          res.redirect(302, `${baseUrl}/agency?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}`);
         } else if (clientId) {
           // If we have an existing clientId in state, redirect back to client edit page
-          res.redirect(302, `${baseUrl}/agency/clients/${clientId}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(tokenData.locationName || 'Unknown Location')}`);
+          res.redirect(302, `${baseUrl}/agency/clients/${clientId}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}`);
         } else {
           // Fallback to admin panel
           res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
