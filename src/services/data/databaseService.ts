@@ -38,6 +38,12 @@ const supabaseHelpers = {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
+    
+    // Extract googleSheetsConfig from accounts field if it exists
+    if (data && data.accounts && data.accounts.googleSheetsConfig) {
+      data.googleSheetsConfig = data.accounts.googleSheetsConfig;
+    }
+    
     return data;
   },
 
