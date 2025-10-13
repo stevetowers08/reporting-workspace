@@ -4,6 +4,7 @@ import { DailyFunnelAnalytics } from './DailyFunnelAnalytics';
 import { EventTypesBreakdown } from './EventTypesBreakdown';
 import { GuestCountDistribution } from './GuestCountDistribution';
 import { OpportunityStagesChart } from './OpportunityStagesChart';
+import { GHLOpportunityMetricsCard } from './GHLOpportunityMetricsCard';
 
 interface SmartChartLayoutProps {
   dashboardData: EventDashboardData | null | undefined;
@@ -31,31 +32,38 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
     try {
       const charts: ChartConfig[] = [
         {
+          id: 'ghl-opportunity-metrics',
+          component: GHLOpportunityMetricsCard,
+          props: { data: dashboardData },
+          priority: 1,
+          hasData: true // Always show - shows real opportunity data from API
+        },
+        {
           id: 'daily-funnel',
           component: DailyFunnelAnalytics,
           props: { locationId, dateRange },
-          priority: 1,
+          priority: 2,
           hasData: true // Always show this one
         },
         {
           id: 'event-types',
           component: EventTypesBreakdown,
           props: { data: dashboardData, dateRange },
-          priority: 2,
+          priority: 3,
           hasData: true // Always show - component handles empty data gracefully
         },
         {
           id: 'guest-count',
           component: GuestCountDistribution,
           props: { data: dashboardData },
-          priority: 3,
+          priority: 4,
           hasData: true // Always show - component handles empty data gracefully
         },
         {
           id: 'opportunity-stages',
           component: OpportunityStagesChart,
           props: { data: dashboardData, dateRange },
-          priority: 4,
+          priority: 5,
           hasData: true // Always show opportunities chart - it handles empty data gracefully
         }
       ];
