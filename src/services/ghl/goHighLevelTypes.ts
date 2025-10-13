@@ -96,10 +96,10 @@ export interface GHLPageAnalytics {
 }
 
 export interface GHLOpportunity {
-  _id: string;
-  title: string;
+  id: string; // Changed from _id to id
+  name: string; // Changed from title to name
   status: string;
-  value: number;
+  monetaryValue: number; // Changed from value to monetaryValue
   createdAt: string;
   updatedAt: string;
 }

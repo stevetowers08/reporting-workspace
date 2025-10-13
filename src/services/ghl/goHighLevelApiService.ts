@@ -148,7 +148,7 @@ export class GoHighLevelApiService {
       
       const requestBody: any = {
         locationId,
-        pageLimit: dateParams ? 100 : 1 // Use pageLimit instead of limit
+        pageLimit: dateParams ? 100 : 1000 // Fetch more contacts to get accurate count
       };
 
       // Log the request body for debugging

@@ -330,7 +330,7 @@ export class GoHighLevelAnalyticsService {
       const opportunities = await GoHighLevelApiService.getOpportunities(locationId);
       
       const totalOpportunities = opportunities.length;
-      const totalValue = opportunities.reduce((sum, opp) => sum + (opp.value || 0), 0);
+      const totalValue = opportunities.reduce((sum, opp) => sum + (opp.monetaryValue || 0), 0);
       
       const opportunitiesByStatus: Record<string, number> = {};
       const valueByStatus: Record<string, number> = {};
@@ -338,13 +338,13 @@ export class GoHighLevelAnalyticsService {
       opportunities.forEach(opp => {
         const status = opp.status || 'unknown';
         opportunitiesByStatus[status] = (opportunitiesByStatus[status] || 0) + 1;
-        valueByStatus[status] = (valueByStatus[status] || 0) + (opp.value || 0);
+        valueByStatus[status] = (valueByStatus[status] || 0) + (opp.monetaryValue || 0);
       });
 
       const averageDealSize = totalOpportunities > 0 ? totalValue / totalOpportunities : 0;
       
       // Calculate conversion rate (simplified)
-      const closedWon = opportunitiesByStatus['closed-won'] || 0;
+      const closedWon = opportunitiesByStatus['closed-won'] || opportunitiesByStatus['won'] || 0;
       const conversionRate = totalOpportunities > 0 ? (closedWon / totalOpportunities) * 100 : 0;
 
       const result: GHLOpportunityAnalytics = {
