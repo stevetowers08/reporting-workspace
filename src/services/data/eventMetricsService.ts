@@ -112,6 +112,7 @@ export class EventMetricsService {
       });
 
       const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
+      debugLogger.debug('EventMetricsService', 'Facebook Ads check:', {
         facebookAdsValue: clientAccounts?.facebookAds,
         hasFacebookAds,
         willCallFacebookAPI: hasFacebookAds && clientAccounts?.facebookAds
@@ -168,6 +169,7 @@ export class EventMetricsService {
       let resultIndex = 0;
       if (hasFacebookAds) {
         const result = results[resultIndex++];
+        debugLogger.debug('EventMetricsService', 'Facebook API result:', {
           status: result.status,
           hasData: result.status === 'fulfilled' ? !!result.value : false,
           error: result.status === 'rejected' ? result.reason : null
@@ -181,6 +183,7 @@ export class EventMetricsService {
         
         if (result.status === 'fulfilled') {
           facebookMetrics = result.value as FacebookAdsMetrics;
+          debugLogger.debug('EventMetricsService', 'Facebook metrics loaded:', {
             leads: facebookMetrics.leads,
             spend: facebookMetrics.spend,
             impressions: facebookMetrics.impressions
@@ -197,6 +200,7 @@ export class EventMetricsService {
       }
       if (hasGoogleAds) {
         const result = results[resultIndex++];
+        debugLogger.debug('EventMetricsService', 'Google Ads API result:', {
           status: result.status,
           hasData: result.status === 'fulfilled' ? !!result.value : false,
           error: result.status === 'rejected' ? result.reason : null
@@ -240,6 +244,7 @@ export class EventMetricsService {
             } : undefined
           };
           
+          debugLogger.debug('EventMetricsService', 'Google metrics loaded:', {
             leads: googleMetrics.leads,
             cost: googleMetrics.cost,
             impressions: googleMetrics.impressions,
@@ -293,6 +298,7 @@ export class EventMetricsService {
         ? googleMetrics.cost / googleMetrics.leads
         : 0;
 
+      debugLogger.debug('EventMetricsService', 'Cost per lead calculated:', {
         facebookLeads: facebookMetrics.leads,
         facebookSpend: facebookMetrics.spend,
         facebookCostPerLead,

@@ -35,6 +35,24 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
     previousPeriodData: data?.facebookMetrics?.previousPeriod
   });
   
+  // Show loading state if data is not yet available
+  if (!data) {
+    return (
+      <div className="mb-6">
+        <Card className="bg-white border border-slate-200 shadow-sm p-8">
+          <div className="text-center">
+            <div className="animate-pulse">
+              <div className="h-4 bg-slate-200 rounded w-3/4 mx-auto mb-4"></div>
+              <div className="h-8 bg-slate-200 rounded w-1/2 mx-auto mb-2"></div>
+              <div className="h-4 bg-slate-200 rounded w-1/4 mx-auto"></div>
+            </div>
+            <p className="text-sm text-slate-500 mt-4">Loading Facebook Ads data...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  
   // Check if we have any Facebook data
   const hasData = data?.facebookMetrics && (
     data.facebookMetrics.leads > 0 || 

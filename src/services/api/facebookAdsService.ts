@@ -298,7 +298,7 @@ export class FacebookAdsService {
   static async authenticate(accessToken?: string, _adAccountId?: string): Promise<boolean> {
     try {
       const userToken = accessToken || await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
+      const _developerToken = await this.getDeveloperToken();
 
       // Validate both tokens with Facebook Graph API
       const headers = await this.buildApiHeaders();
@@ -509,7 +509,7 @@ export class FacebookAdsService {
   }
 
   // Fetch paginated accounts to handle large numbers of ad accounts
-  private static async fetchPaginatedAccounts(url: string, userToken?: string): Promise<any[]> {
+  private static async fetchPaginatedAccounts(url: string, _userToken?: string): Promise<any[]> {
     const allAccounts: any[] = [];
     let nextUrl: string | null = url;
 
@@ -629,8 +629,8 @@ export class FacebookAdsService {
     try {
       debugLogger.info('FacebookAdsService', 'Force refreshing ad accounts from Facebook API');
       
-      const token = await this.getAccessToken();
-      if (!token) {
+      const userToken = await this.getAccessToken();
+      if (!userToken) {
         throw new Error('Facebook access token not found. Please authenticate first.');
       }
 
@@ -1595,6 +1595,7 @@ export class FacebookAdsService {
       metrics.platformBreakdown = platformBreakdown;
       
       // Fetch previous period data if requested
+      debugLogger.debug('FacebookAdsService', 'Previous period check:', {
         includePreviousPeriod,
         hasDateRange: !!dateRange,
         dateRange,
@@ -1611,9 +1612,6 @@ export class FacebookAdsService {
         try {
           const previousPeriodMetrics = await this.getPreviousPeriodMetrics(formattedAccountId, dateRange, conversionAction);
           metrics.previousPeriod = previousPeriodMetrics;
-            previousPeriodMetrics,
-            hasPreviousPeriod: !!metrics.previousPeriod
-          });
           debugLogger.debug('FacebookAdsService', 'Previous period data fetched successfully', {
             previousPeriodMetrics,
             hasPreviousPeriod: !!metrics.previousPeriod
@@ -1624,13 +1622,10 @@ export class FacebookAdsService {
           // Continue without previous period data
         }
       } else {
+        debugLogger.debug('FacebookAdsService', 'Skipping previous period data', {
           includePreviousPeriod,
           hasDateRange: !!dateRange,
           reason: !includePreviousPeriod ? 'includePreviousPeriod is false' : 'dateRange is missing'
-        });
-        debugLogger.debug('FacebookAdsService', 'Skipping previous period data', {
-          includePreviousPeriod,
-          hasDateRange: !!dateRange
         });
       }
       
@@ -1659,6 +1654,7 @@ export class FacebookAdsService {
         end: previousEnd.toISOString().split('T')[0]
       };
       
+      debugLogger.debug('FacebookAdsService', 'Previous period date range calculated:', {
         currentStart: currentDateRange.start,
         currentEnd: currentDateRange.end,
         periodLengthDays: Math.round(periodLength / (1000 * 60 * 60 * 24)),
@@ -1699,6 +1695,7 @@ export class FacebookAdsService {
       }
 
       const data = await response.json();
+      debugLogger.debug('FacebookAdsService', 'Previous period insights response', {
         hasData: !!data.data,
         dataCount: data.data?.length || 0,
         firstRecord: data.data?.[0] || null,
@@ -1707,6 +1704,7 @@ export class FacebookAdsService {
       
       const previousMetrics = this.parseMetrics(data.data?.[0] || {}, conversionAction);
       
+      debugLogger.debug('FacebookAdsService', 'Previous period metrics parsed', {
         previousMetrics,
         hasData: !!data.data?.[0]
       });
@@ -1785,7 +1783,7 @@ export class FacebookAdsService {
       let token: string;
       try {
         token = await this.getAccessToken();
-      } catch (error) {
+      } catch (_error) {
         debugService.error('FacebookAdsService', 'testConnection', 'No access token found');
         return { success: false, error: 'No Facebook access token found. Please connect your Facebook account first.' };
       }
