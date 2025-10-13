@@ -68,9 +68,14 @@ export class OAuthService {
                           ];
                     
                     // Use frontend OAuth callback for all platforms
-                    const redirectUri = window.location.hostname === 'localhost' 
-                        ? `${window.location.origin}/oauth/callback`
-                        : 'https://tulenreporting.vercel.app/oauth/callback';
+                    const redirectUri = platform === 'goHighLevel' 
+                        ? (import.meta.env.VITE_GHL_REDIRECT_URI || 
+                           (window.location.hostname === 'localhost' 
+                               ? `${window.location.origin}/oauth/callback`
+                               : 'https://tulenreporting.vercel.app/oauth/callback'))
+                        : (window.location.hostname === 'localhost' 
+                            ? `${window.location.origin}/oauth/callback`
+                            : 'https://tulenreporting.vercel.app/oauth/callback');
                     
                     return {
                         clientId: platform === 'goHighLevel' 
