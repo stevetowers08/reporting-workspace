@@ -210,7 +210,8 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
         facebookAds: undefined, // Don't fetch Facebook data for Leads tab
         googleAds: undefined, // Don't fetch Google Ads data for Leads tab
         goHighLevel: clientData.accounts?.goHighLevel,
-        googleSheets: clientData.accounts?.googleSheets
+        googleSheets: clientData.accounts?.googleSheets,
+        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
       };
       
       const result = await EventMetricsService.getComprehensiveMetrics(

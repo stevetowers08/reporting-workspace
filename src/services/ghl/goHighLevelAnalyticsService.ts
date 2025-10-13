@@ -13,7 +13,7 @@ import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelAnalyticsService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28';
+  private static readonly API_VERSION = '2021-07-28'; // Confirmed working version
 
   // Main Metrics Aggregator
   static async getGHLMetrics(

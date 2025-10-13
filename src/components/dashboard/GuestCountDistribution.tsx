@@ -22,11 +22,17 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
-        if (data?.clientAccounts?.googleSheets) {
-          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheets);
+        if (data?.clientAccounts?.googleSheetsConfig) {
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheetsConfig);
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheetsConfig.spreadsheetId,
+            data.clientAccounts.googleSheetsConfig.sheetName
+          );
+        } else if (data?.clientAccounts?.googleSheets) {
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config (legacy)', data.clientAccounts.googleSheets);
           leadDataResult = await LeadDataService.fetchLeadData(
             data.clientAccounts.googleSheets,
-            'Sheet1' // Default sheet name
+            'Event Leads' // Use Event Leads as default sheet name
           );
         } else {
           debugLogger.debug('GuestCountDistribution', 'Using default Google Sheets config');

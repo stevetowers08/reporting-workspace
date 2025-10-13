@@ -14,7 +14,7 @@ import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelApiService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28'; // Keep V1 for now, but structure requests for V2
+  private static readonly API_VERSION = '2021-07-28'; // Confirmed working version
 
   // Caching system
   private static cache = new Map<string, { data: any; expiry: number }>();
