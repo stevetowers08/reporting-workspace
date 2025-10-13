@@ -61,7 +61,7 @@ export default async function handler(req, res) {
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Location',
-          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/oauth/callback`
+          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
         })
       }
     );
