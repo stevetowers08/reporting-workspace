@@ -242,6 +242,7 @@ const App = () => {
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
                 <Route path="/api-testing" element={<APITestingPage />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
                 <Route path="/health" element={<HealthCheckPage />} />
