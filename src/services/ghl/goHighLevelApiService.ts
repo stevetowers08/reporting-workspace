@@ -14,7 +14,7 @@ import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelApiService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28'; // Confirmed working version
+  private static readonly API_VERSION = '2021-04-15'; // API 2.0 version header
 
   // Caching system
   private static cache = new Map<string, { data: any; expiry: number }>();
@@ -251,9 +251,52 @@ export class GoHighLevelApiService {
       throw new Error(`No valid OAuth token found for location ${locationId}`);
     }
 
-    // Opportunities endpoint doesn't exist in current API version
-    debugLogger.info('GoHighLevelApiService', 'Opportunities endpoint not available in current API version - returning empty array');
-    return []; // Return empty array since endpoint doesn't exist
+    debugLogger.info('GoHighLevelApiService', 'Fetching opportunities', { locationId });
+
+    try {
+      // ✅ FIXED: Use GET method instead of POST for opportunities/search
+      const response = await fetch(`${this.API_BASE_URL}/opportunities/search?location_id=${locationId}&limit=100`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Version': this.API_VERSION,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        await GHLRateLimiter.handleRateLimitError(response);
+        
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          // Handle empty response bodies
+        }
+        
+        const errorMessage = errorData.error || errorData.message || 
+          `API call failed: ${response.status} ${response.statusText}`;
+        
+        debugLogger.error('GoHighLevelApiService', 'Opportunities API call failed', {
+          status: response.status,
+          locationId,
+          error: errorMessage
+        });
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      debugLogger.info('GoHighLevelApiService', 'Opportunities fetched successfully', { 
+        count: data.opportunities?.length || 0,
+        locationId 
+      });
+      
+      return Array.isArray(data.opportunities) ? data.opportunities : [];
+    } catch (error) {
+      debugLogger.error('GoHighLevelApiService', 'Failed to get opportunities', error);
+      throw error;
+    }
   }
 
 

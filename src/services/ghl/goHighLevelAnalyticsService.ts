@@ -13,7 +13,7 @@ import { GHLRateLimiter } from './goHighLevelUtils';
 
 export class GoHighLevelAnalyticsService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28'; // Confirmed working version
+  private static readonly API_VERSION = '2021-04-15'; // API 2.0 version header
 
   // Main Metrics Aggregator
   static async getGHLMetrics(
@@ -291,7 +291,7 @@ export class GoHighLevelAnalyticsService {
     funnelId: string,
     pageId: string,
     locationId: string,
-    dateRange?: { startDate?: string; endDate?: string }
+    _dateRange?: { startDate?: string; endDate?: string }
   ): Promise<GHLPageAnalytics> {
     // GoHighLevel doesn't provide page-level analytics in their current API
     // Return empty data structure instead of mock data

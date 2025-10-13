@@ -7,7 +7,7 @@ import { GHLRateLimiter, GHLValidator } from './goHighLevelUtils';
 
 export class GoHighLevelAuthService {
   private static readonly API_BASE_URL = 'https://services.leadconnectorhq.com';
-  private static readonly API_VERSION = '2021-07-28'; // Confirmed working version
+  private static readonly API_VERSION = '2021-04-15'; // API 2.0 version header
   private static agencyToken: string | null = null;
   private static locationTokens: Map<string, string> = new Map();
 
