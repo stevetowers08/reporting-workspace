@@ -1,18 +1,18 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
+import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
-import { PDFExportService } from "@/services/export/pdfExportService";
-import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
+import { usePDFExport } from '@/hooks/usePDFExport';
 import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 // Lazy load chart components to avoid circular dependencies
@@ -52,6 +52,15 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
   
+  // Refs for each tab content
+  const summaryTabRef = useRef<HTMLDivElement>(null);
+  const metaTabRef = useRef<HTMLDivElement>(null);
+  const googleTabRef = useRef<HTMLDivElement>(null);
+  const leadsTabRef = useRef<HTMLDivElement>(null);
+  
+  // PDF export hook
+  const { exportTabsToPDF, isExporting, error } = usePDFExport();
+  
   // Get active tab from URL params, default to "summary"
   const activeTab = searchParams.get('tab') || "summary";
   
@@ -61,6 +70,40 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     newSearchParams.set('tab', tab);
     setSearchParams(newSearchParams);
   }, [searchParams, setSearchParams]);
+
+  // Handle PDF export with tabs
+  const handleExportPDF = useCallback(async () => {
+    if (!clientData) {
+      alert('Client data not available for export');
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      // Collect tab elements
+      const tabElements: { [key: string]: HTMLElement } = {};
+      
+      if (summaryTabRef.current) tabElements.summary = summaryTabRef.current;
+      if (metaTabRef.current) tabElements.meta = metaTabRef.current;
+      if (googleTabRef.current) tabElements.google = googleTabRef.current;
+      if (leadsTabRef.current) tabElements.leads = leadsTabRef.current;
+
+      // Export all tabs as separate pages
+      await exportTabsToPDF(tabElements, {
+        clientName: clientData.name,
+        logoUrl: clientData.logo_url,
+        dateRange: getDateRange(selectedPeriod),
+        includeAllTabs: true,
+        includeCharts: true,
+        includeDetailedMetrics: true
+      });
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  }, [clientData, selectedPeriod, exportTabsToPDF]);
 
   // Get client ID from URL params, props, or URL path
   const actualClientId = useMemo(() => {
@@ -279,27 +322,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     logo_url: client.logo_url
   }));
 
-  const handleExportPDF = useCallback(async () => {
-    if (!dashboardData || !clientData) {
-      return;
-    }
-    
-    setExportingPDF(true);
-    try {
-      await PDFExportService.exportDashboardToPDF(dashboardData, { 
-        clientName: clientData?.name || 'Dashboard',
-        logoUrl: clientData?.logo_url,
-        dateRange: selectedPeriod,
-        includeCharts: true,
-        includeDetailedMetrics: true
-      });
-    } catch {
-      // Handle error silently or show user-friendly message
-    } finally {
-      setExportingPDF(false);
-    }
-  }, [dashboardData, clientData, selectedPeriod]);
-
   const handleShare = useCallback(() => {
     if (typeof window !== 'undefined' && actualClientId) {
       const shareUrl = `${window.location.origin}/share/${actualClientId}`;
@@ -415,6 +437,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
+            <div ref={summaryTabRef}>
             
             <Suspense fallback={<ComponentLoader />}>
               <SummaryMetricsCards dashboardData={summaryDashboardData} />
@@ -446,10 +469,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
               </Suspense>
             </div>
             
+            </div>
           </TabsContent>
 
           {/* Meta Ads Tab */}
           <TabsContent value="meta" className="mt-6">
+            <div ref={metaTabRef}>
             
             <Suspense fallback={<ComponentLoader />}>
               <MetaAdsMetricsCards data={dashboardData} />
@@ -463,10 +488,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                 <MetaAdsPlatformBreakdown data={dashboardData} />
               </Suspense>
             </div>
+            </div>
           </TabsContent>
 
           {/* Google Ads Tab */}
           <TabsContent value="google" className="mt-6">
+            <div ref={googleTabRef}>
             
             <Suspense fallback={<ComponentLoader />}>
               <GoogleAdsMetricsCards data={dashboardData} />
@@ -480,10 +507,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                 <GoogleAdsCampaignBreakdown data={dashboardData} />
               </Suspense>
             </div>
+            </div>
           </TabsContent>
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
+            <div ref={leadsTabRef}>
             
             {/* Lead Info Metrics Cards - Google Sheets Data */}
             <Suspense fallback={<ComponentLoader />}>
@@ -523,6 +552,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
               </Suspense>
             </div>
             
+            </div>
           </TabsContent>
 
         </Tabs>

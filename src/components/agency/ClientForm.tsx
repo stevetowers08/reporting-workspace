@@ -361,18 +361,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   const handleLogoUpload = async (e: React.ChangeEvent<globalThis.HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setErrors({ logo: 'Please select a valid image file' });
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors({ logo: 'Image size must be less than 5MB' });
-        return;
-      }
-
       setLogoFile(file);
       setErrors({});
 
@@ -388,7 +376,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         debugLogger.info('ClientForm', 'Logo uploaded successfully', { logoUrl });
       } catch (error) {
         debugLogger.error('ClientForm', 'Error uploading logo', error);
-        setErrors({ logo: 'Failed to upload logo. Please try again.' });
+        setErrors({ logo: error instanceof Error ? error.message : 'Failed to upload logo. Please try again.' });
       }
     }
   };

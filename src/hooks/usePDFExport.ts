@@ -1,10 +1,11 @@
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import { PDFExportOptions } from '@/services/export/pdfExportService';
+import { PDFExportOptions, TabExportOptions } from '@/services/export/pdfExportService';
 import { useCallback, useState } from 'react';
 
 interface UsePDFExportReturn {
   exportToPDF: (data: EventDashboardData, options: PDFExportOptions) => Promise<void>;
   exportSectionToPDF: (element: HTMLElement, fileName: string, options: PDFExportOptions) => Promise<void>;
+  exportTabsToPDF: (tabElements: { [key: string]: HTMLElement }, options: TabExportOptions) => Promise<void>;
   isExporting: boolean;
   error: string | null;
 }
@@ -55,9 +56,30 @@ export const usePDFExport = (): UsePDFExportReturn => {
     }
   }, []);
 
+  const exportTabsToPDF = useCallback(async (
+    tabElements: { [key: string]: HTMLElement },
+    options: TabExportOptions
+  ) => {
+    try {
+      setIsExporting(true);
+      setError(null);
+      
+      // Dynamic import of PDF export service
+      const { PDFExportService } = await import('@/services/export/pdfExportService');
+      await PDFExportService.exportTabsToPDF(tabElements, options);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to export PDF';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
+
   return {
     exportToPDF,
     exportSectionToPDF,
+    exportTabsToPDF,
     isExporting,
     error
   };

@@ -18,7 +18,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
   
   return (
     <div className="mb-6">
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-6 mb-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5 mb-4">
         <Card variant="elevated" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
@@ -87,20 +87,6 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                     : 0;
                   return facebookRate.toFixed(1);
                 })()}%
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card variant="elevated" className="p-6 h-32 summary-card">
-          <div className="flex flex-col justify-between h-full">
-            <div>
-              <p className="text-label mb-3">PIPELINE</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-4xl font-bold text-blue-600">{dashboardData?.ghlMetrics?.totalOpportunities || '0'}</p>
-              </div>
-              <div className="text-caption text-left mt-2">
-                ${dashboardData?.ghlMetrics?.pipelineValue?.toLocaleString() || '0'} total value
               </div>
             </div>
           </div>

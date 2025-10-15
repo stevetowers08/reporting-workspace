@@ -11,8 +11,27 @@ export class FileUploadService {
         path?: string
     ): Promise<string> {
         try {
+            // Validate file type
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                throw new Error('Invalid file type. Please upload PNG, JPG, GIF, or WebP images only.');
+            }
+
+            // Validate file size (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                throw new Error('File size must be less than 5MB.');
+            }
+
             // Generate unique filename if no path provided
             const fileName = path || `${Date.now()}-${file.name}`;
+
+            debugLogger.info('FileUploadService', 'Uploading file', { 
+                fileName, 
+                fileSize: file.size, 
+                fileType: file.type,
+                bucket 
+            });
 
             // Upload file to Supabase Storage
             const { data, error } = await supabase.storage
@@ -23,8 +42,18 @@ export class FileUploadService {
                 });
 
             if (error) {
-                debugLogger.error('FileUploadService', 'Error uploading file', error);
-                throw new Error(`Failed to upload file: ${error.message}`);
+                debugLogger.error('FileUploadService', 'Supabase storage error', error);
+                
+                // Provide more specific error messages
+                if (error.message.includes('not found')) {
+                    throw new Error('Storage bucket not found. Please contact support.');
+                } else if (error.message.includes('permission')) {
+                    throw new Error('Permission denied. Please check your authentication.');
+                } else if (error.message.includes('size')) {
+                    throw new Error('File size exceeds the allowed limit.');
+                } else {
+                    throw new Error(`Upload failed: ${error.message}`);
+                }
             }
 
             // Get public URL
@@ -32,10 +61,25 @@ export class FileUploadService {
                 .from(bucket)
                 .getPublicUrl(fileName);
 
+            debugLogger.info('FileUploadService', 'File uploaded successfully', { 
+                fileName, 
+                publicUrl: urlData.publicUrl 
+            });
+
             return urlData.publicUrl;
         } catch (error) {
             debugLogger.error('FileUploadService', 'File upload error', error);
-            throw error;
+            
+            // Re-throw with user-friendly message if it's our custom error
+            if (error instanceof Error && error.message.includes('Invalid file type')) {
+                throw error;
+            }
+            if (error instanceof Error && error.message.includes('File size must be less than 5MB')) {
+                throw error;
+            }
+            
+            // For other errors, provide a generic message
+            throw new Error('Failed to upload file. Please try again.');
         }
     }
 
