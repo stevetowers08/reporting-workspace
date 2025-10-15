@@ -7,6 +7,7 @@ import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Client {
   id: string;
@@ -30,6 +31,7 @@ const AgencyPanel = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Use the agency clients hook to get access to loadClients
   const { loadClients } = useAgencyClients();
@@ -120,11 +122,16 @@ const AgencyPanel = () => {
     try {
       await DatabaseService.createClient(clientData);
       setShowAddClientModal(false);
+      
+      // Invalidate React Query cache to refresh client data
+      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+      
+      // Also refresh the local client list
+      await loadClients();
+      
       // Show success message
       setShowSuccessMessage(true);
-      // Refresh the client list after successful creation
-      await loadClients();
-      debugLogger.info('AgencyPanel', 'Client created and list refreshed');
+      debugLogger.info('AgencyPanel', 'Client created, cache invalidated and list refreshed');
       
       // Hide success message after 3 seconds
       setTimeout(() => {
@@ -140,8 +147,19 @@ const AgencyPanel = () => {
       debugLogger.info('AgencyPanel', 'handleUpdateClientSubmit called', { clientId, updates });
       await DatabaseService.updateClient(clientId, updates);
       debugLogger.info('AgencyPanel', 'Client updated successfully');
+      
+      // Invalidate React Query cache to refresh client data
+      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+      await queryClient.invalidateQueries({ queryKey: ['client-data', clientId] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-data', clientId] });
+      
+      // Also refresh the local client list
+      await loadClients();
+      
       setShowEditClientModal(false);
       setEditingClient(null);
+      
+      debugLogger.info('AgencyPanel', 'Cache invalidated and client list refreshed');
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to update client', error);
     }
