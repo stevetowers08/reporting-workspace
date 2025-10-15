@@ -1,12 +1,11 @@
 "use client";
 
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
-import { ComparisonMetricsGrid } from '@/components/dashboard/ComparisonMetricsGrid';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
-import { calculatePercentageChange } from '@/lib/utils';
+import { calculatePercentageChange } from '@/lib/dateUtils';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {

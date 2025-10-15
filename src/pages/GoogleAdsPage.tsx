@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { debugLogger } from '@/lib/debug';
-import { calculatePercentageChange } from '@/lib/utils';
+import { calculatePercentageChange } from '@/lib/dateUtils';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {

@@ -1,8 +1,8 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+import { calculatePercentageChange, formatPercentageChange } from '@/lib/dateUtils';
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { calculatePercentageChange, formatPercentageChange } from '@/lib/utils';
 
 interface ComparisonMetricsCardProps {
   title: string;
