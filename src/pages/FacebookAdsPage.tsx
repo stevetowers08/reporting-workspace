@@ -58,7 +58,8 @@ const FacebookAdsPage = () => {
                     client.id,
                     dateRange,
                     client.accounts,
-                    client.conversion_actions
+                    client.conversion_actions,
+                    true // includePreviousPeriod
                 );
                 setDashboardData(metrics);
             }

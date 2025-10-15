@@ -1,10 +1,12 @@
 "use client";
 
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
+import { ComparisonMetricsGrid } from '@/components/dashboard/ComparisonMetricsGrid';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
+import { calculatePercentageChange } from '@/lib/utils';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
@@ -45,6 +47,14 @@ interface AdAccountData {
             leads: number;
             ctr: number;
             cpc: number;
+            previousPeriod?: {
+                impressions: number;
+                clicks: number;
+                spend: number;
+                leads: number;
+                ctr: number;
+                cpc: number;
+            };
         };
         googleMetrics?: {
             impressions: number;
@@ -53,6 +63,14 @@ interface AdAccountData {
             leads: number;
             ctr: number;
             cpc: number;
+            previousPeriod?: {
+                impressions: number;
+                clicks: number;
+                cost: number;
+                leads: number;
+                ctr: number;
+                cpc: number;
+            };
         };
     };
     shareableLink: string;
@@ -121,12 +139,13 @@ const AdAccountsOverview = () => {
                 if (!hasFacebookAds && !hasGoogleAds) continue;
 
                 try {
-                    // Get comprehensive metrics for this client
+                    // Get comprehensive metrics for this client with previous period comparison
                     const metrics = await EventMetricsService.getComprehensiveMetrics(
                         client.id,
                         dateRange,
                         client.accounts,
-                        client.conversion_actions
+                        client.conversion_actions,
+                        true // includePreviousPeriod
                     );
 
                     const accountData: AdAccountData = {
@@ -157,7 +176,8 @@ const AdAccountsOverview = () => {
                                 spend: metrics.facebookMetrics.spend,
                                 leads: metrics.facebookMetrics.leads,
                                 ctr: metrics.facebookMetrics.ctr,
-                                cpc: metrics.facebookMetrics.cpc
+                                cpc: metrics.facebookMetrics.cpc,
+                                previousPeriod: metrics.facebookMetrics.previousPeriod
                             } : undefined,
                             googleMetrics: hasGoogleAds ? {
                                 impressions: metrics.googleMetrics.impressions,
@@ -165,7 +185,8 @@ const AdAccountsOverview = () => {
                                 cost: metrics.googleMetrics.cost,
                                 leads: metrics.googleMetrics.leads,
                                 ctr: metrics.googleMetrics.ctr,
-                                cpc: metrics.googleMetrics.cpc
+                                cpc: metrics.googleMetrics.cpc,
+                                previousPeriod: metrics.googleMetrics.previousPeriod
                             } : undefined
                         },
                         shareableLink: client.shareable_link || ''
@@ -427,6 +448,18 @@ const AdAccountsOverview = () => {
                                                             {account.metrics.facebookMetrics && account.metrics.googleMetrics && (
                                                                 <div className="text-sm text-slate-500 mt-1">
                                                                     FB: {formatNumber(account.metrics.facebookMetrics.leads)} • GA: {formatNumber(account.metrics.googleMetrics.leads)}
+                                                                </div>
+                                                            )}
+                                                            {/* Show comparison data if available */}
+                                                            {(account.metrics.facebookMetrics?.previousPeriod || account.metrics.googleMetrics?.previousPeriod) && (
+                                                                <div className="text-xs text-slate-400 mt-1">
+                                                                    {account.metrics.facebookMetrics?.previousPeriod && (
+                                                                        <span>FB: {calculatePercentageChange(account.metrics.facebookMetrics.leads, account.metrics.facebookMetrics.previousPeriod.leads) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.facebookMetrics.leads, account.metrics.facebookMetrics.previousPeriod.leads)).toFixed(1)}%</span>
+                                                                    )}
+                                                                    {account.metrics.facebookMetrics?.previousPeriod && account.metrics.googleMetrics?.previousPeriod && ' • '}
+                                                                    {account.metrics.googleMetrics?.previousPeriod && (
+                                                                        <span>GA: {calculatePercentageChange(account.metrics.googleMetrics.leads, account.metrics.googleMetrics.previousPeriod.leads) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.googleMetrics.leads, account.metrics.googleMetrics.previousPeriod.leads)).toFixed(1)}%</span>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </td>

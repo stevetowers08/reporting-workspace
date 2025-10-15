@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { debugLogger } from '@/lib/debug';
+import { calculatePercentageChange } from '@/lib/utils';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
@@ -35,6 +36,16 @@ interface GoogleAdAccountData {
         ctr: number;
         cpc: number;
         conversionRate: number;
+        previousPeriod?: {
+            impressions: number;
+            clicks: number;
+            cost: number;
+            leads: number;
+            conversions: number;
+            ctr: number;
+            cpc: number;
+            conversionRate: number;
+        };
     };
     shareableLink: string;
 }
@@ -66,12 +77,13 @@ const GoogleAdsPage = () => {
                 if (!hasGoogleAds) continue;
 
                 try {
-                    // Get comprehensive metrics for this individual client only
+                    // Get comprehensive metrics for this individual client with previous period comparison
                     const metrics = await EventMetricsService.getComprehensiveMetrics(
                         client.id,
                         dateRange,
                         client.accounts,
-                        client.conversion_actions
+                        client.conversion_actions,
+                        true // includePreviousPeriod
                     );
 
                     // Only show clients with actual Google Ads data (not just zeros)
@@ -102,7 +114,8 @@ const GoogleAdsPage = () => {
                             conversions: metrics.googleMetrics.leads, // Same as leads for ads
                             ctr: metrics.googleMetrics.ctr,
                             cpc: metrics.googleMetrics.cpc,
-                            conversionRate: metrics.googleMetrics.conversionRate || 0
+                            conversionRate: metrics.googleMetrics.conversionRate || 0,
+                            previousPeriod: metrics.googleMetrics.previousPeriod
                         },
                         shareableLink: client.shareable_link || ''
                     };
@@ -289,42 +302,77 @@ const GoogleAdsPage = () => {
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatNumber(account.metrics.impressions)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.impressions, account.metrics.previousPeriod.impressions) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.impressions, account.metrics.previousPeriod.impressions)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatNumber(account.metrics.clicks)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.clicks, account.metrics.previousPeriod.clicks) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.clicks, account.metrics.previousPeriod.clicks)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatPercentage(account.metrics.ctr)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.ctr, account.metrics.previousPeriod.ctr) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.ctr, account.metrics.previousPeriod.ctr)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatCurrency(account.metrics.cost)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.cost, account.metrics.previousPeriod.cost) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.cost, account.metrics.previousPeriod.cost)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatCurrency(account.metrics.cpc)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.cpc, account.metrics.previousPeriod.cpc) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.cpc, account.metrics.previousPeriod.cpc)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-green-600 text-sm">
                                                             {formatNumber(account.metrics.conversions)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.conversions, account.metrics.previousPeriod.conversions) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.conversions, account.metrics.previousPeriod.conversions)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-right">
                                                         <div className="font-medium text-gray-900 text-sm">
                                                             {formatPercentage(account.metrics.conversionRate)}
                                                         </div>
+                                                        {account.metrics.previousPeriod && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                {calculatePercentageChange(account.metrics.conversionRate, account.metrics.previousPeriod.conversionRate) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.conversionRate, account.metrics.previousPeriod.conversionRate)).toFixed(1)}%
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     <td className="py-2 px-4 text-center">
