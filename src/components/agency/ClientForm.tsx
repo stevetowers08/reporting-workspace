@@ -54,7 +54,7 @@ interface ClientFormProps {
   initialData?: ClientFormData;
   isEdit?: boolean;
   clientId?: string;
-  onSubmit: (_formData: ClientFormData) => Promise<void>;
+  onSubmit: (formData: ClientFormData) => Promise<void>;
   onCancel: () => void;
   cancelLabel?: string;
 }
