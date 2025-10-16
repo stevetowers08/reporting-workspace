@@ -311,9 +311,8 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
       debugLogger.info('ClientForm', 'GoHighLevel integration found', ghlIntegration);
       
-      // Check if there's an OAuth connection (not just API key)
-      const hasOAuthConnection = ghlIntegration?.config?.apiKey?.keyType === 'bearer' && 
-                                 ghlIntegration?.config?.refreshToken;
+      // Check if there's an OAuth connection with tokens
+      const hasOAuthConnection = ghlIntegration?.config?.tokens?.accessToken;
       
       if (hasOAuthConnection) {
         debugLogger.info('ClientForm', 'GoHighLevel OAuth connection found');
@@ -848,7 +847,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           .select('platform')
           .eq('connected', true);
 
-        let statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
+        const statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
 
         if (error) {
           debugLogger.error('ClientForm', 'Failed to load integrations', error);
@@ -1296,7 +1295,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
                   onConnected={() => {
-                    window.location.reload();
+                    // Refresh GHL accounts to show updated connection status
+                    setGhlAccountsLoaded(false);
+                    loadGHLAccounts();
                   }}
                 />
               </div>

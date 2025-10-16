@@ -216,38 +216,15 @@ export default async function handler(req, res) {
 
     console.log('✅ OAuth flow completed successfully');
     
-    // Redirect back to the appropriate page based on state parameter
+    // Redirect to the frontend callback page instead of direct redirects
+    // This allows the popup to handle the success message properly
     const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app';
     
-    if (state) {
-      try {
-        // Decode the state parameter to get the actual client ID
-        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
-        const clientId = decodedState.integrationPlatform || decodedState.clientId;
-        
-        console.log('🔍 Decoded state:', decodedState);
-        console.log('🔍 Client ID from state:', clientId);
-        
-        // Check if this is a new client creation (state starts with 'new_')
-        if (clientId && clientId.startsWith('new_')) {
-          // For new client creation, redirect back to admin panel with success message
-          res.redirect(302, `${baseUrl}/agency?ghl_connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}`);
-        } else if (clientId) {
-          // If we have an existing clientId in state, redirect back to client edit page
-          res.redirect(302, `${baseUrl}/agency/clients/${clientId}/edit?connected=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}`);
-        } else {
-          // Fallback to admin panel
-          res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
-        }
-      } catch (decodeError) {
-        console.error('❌ Error decoding state parameter:', decodeError);
-        // Fallback to admin panel if state decoding fails
-        res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
-      }
-    } else {
-      // Fallback to admin panel
-      res.redirect(302, `${baseUrl}/agency?connected=true&location=${tokenData.locationId}`);
-    }
+    // Always redirect to the frontend callback page with success parameters
+    const callbackUrl = `${baseUrl}/leadconnector/oath?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
+    
+    console.log('🔍 Redirecting to frontend callback:', callbackUrl);
+    res.redirect(302, callbackUrl);
     
   } catch (error) {
     console.error('❌ OAuth error:', error);

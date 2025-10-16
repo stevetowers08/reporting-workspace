@@ -23,8 +23,36 @@ export const GHLCallbackPage: React.FC = () => {
         const locationId = searchParams.get('locationId');
         const errorParam = searchParams.get('error');
         const state = searchParams.get('state');
+        const success = searchParams.get('success');
+        const locationName = searchParams.get('location_name');
 
-        debugLogger.info('GHLCallbackPage', 'URL parameters', { code, locationId, errorParam, state });
+        debugLogger.info('GHLCallbackPage', 'URL parameters', { code, locationId, errorParam, state, success, locationName });
+
+        // Handle success redirect from API endpoint
+        if (success === 'true' && locationId) {
+          debugLogger.info('GHLCallbackPage', 'Processing success redirect from API');
+          
+          setStatus('success');
+          
+          // Send success message to parent window and close popup
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'GHL_OAUTH_SUCCESS',
+              success: true,
+              locationId: locationId,
+              locationName: locationName || 'GoHighLevel Location'
+            }, window.location.origin);
+            
+            // Close the popup after a short delay to show success message
+            setTimeout(() => {
+              window.close();
+            }, 1000);
+          } else {
+            // Fallback: redirect to agency panel
+            navigate('/agency');
+          }
+          return;
+        }
 
         debugLogger.info('GHLCallbackPage', 'Processing OAuth callback', {
           hasCode: !!code,
@@ -68,13 +96,13 @@ export const GHLCallbackPage: React.FC = () => {
         const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
         
         // Save token to database
-        const success = await GoHighLevelService.saveLocationToken(
+        const saveSuccess = await GoHighLevelService.saveLocationToken(
           tokenData.locationId,
           tokenData.access_token,
           tokenData.scope.split(' ')
         );
         
-        if (!success) {
+        if (!saveSuccess) {
           throw new Error('Failed to save GoHighLevel token to database');
         }
         
@@ -91,15 +119,22 @@ export const GHLCallbackPage: React.FC = () => {
 
         setStatus('success');
         
-        // Close the popup window and redirect parent
+        // Send success message to parent window and close popup
         if (window.opener) {
-          window.opener.postMessage({ type: 'GHL_CONNECTED', success: true }, '*');
-          window.close();
+          window.opener.postMessage({
+            type: 'GHL_OAUTH_SUCCESS',
+            success: true,
+            locationId: tokenData.locationId,
+            locationName: tokenData.locationName || 'GoHighLevel Location'
+          }, window.location.origin);
+          
+          // Close the popup after a short delay to show success message
+          setTimeout(() => {
+            window.close();
+          }, 1000);
         } else {
-          // Fallback: redirect to integrations page
-          window.setTimeout(() => {
-            navigate('/integrations');
-          }, 2000);
+          // Fallback: redirect to agency panel
+          navigate('/agency');
         }
 
       } catch (error) {
@@ -116,7 +151,7 @@ export const GHLCallbackPage: React.FC = () => {
         
         // Notify parent window but don't close immediately
         if (window.opener) {
-          window.opener.postMessage({ type: 'GHL_CONNECTED', success: false, error: errorMessage }, '*');
+          window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
         }
       }
     };

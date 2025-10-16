@@ -27,16 +27,86 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       // Use OAuthService to generate proper OAuth URL with state validation
       const authUrl = await OAuthService.generateAuthUrl('goHighLevel', {}, clientId);
       
-      // Call onConnected callback if provided
-      if (onConnected) {
-        onConnected();
+      debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
+      
+      // Open OAuth flow in popup window (centered)
+      const width = 600;
+      const height = 700;
+      const left = (window.innerWidth - width) / 2;
+      const top = (window.innerHeight - height) / 2;
+      
+      const popup = window.open(
+        authUrl,
+        'ghl-oauth',
+        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes,status=yes,toolbar=no,menubar=no,location=no`
+      );
+      
+      if (!popup) {
+        throw new Error('Failed to open OAuth popup. Please allow popups for this site.');
       }
       
-      // Redirect to GHL OAuth
-      window.location.href = authUrl;
+      // Listen for messages from the popup window
+      const handleMessage = (event: globalThis.MessageEvent) => {
+        if (event.origin !== window.location.origin) {
+          return; // Ignore messages from other origins
+        }
+        
+        if (event.data?.type === 'GHL_OAUTH_SUCCESS') {
+          debugLogger.info('ConnectLocationButton', 'OAuth popup success', event.data);
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          setIsConnecting(false);
+          
+          // Call onConnected callback if provided
+          if (onConnected) {
+            onConnected();
+          }
+        } else if (event.data?.type === 'GHL_OAUTH_ERROR') {
+          debugLogger.error('ConnectLocationButton', 'OAuth popup error', event.data);
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          setIsConnecting(false);
+          window.alert('Failed to connect to GoHighLevel: ' + (event.data.error || 'Unknown error'));
+        }
+      };
+      
+      // Monitor popup URL as fallback (in case postMessage fails)
+      const monitorPopup = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(monitorPopup);
+          window.removeEventListener('message', handleMessage);
+          setIsConnecting(false);
+          debugLogger.info('ConnectLocationButton', 'OAuth popup closed by user');
+          return;
+        }
+        
+        try {
+          // Check if popup has redirected to our callback URL
+          const currentUrl = popup.location.href;
+          if (currentUrl.includes('/leadconnector/oath') && currentUrl.includes('success=true')) {
+            clearInterval(monitorPopup);
+            window.removeEventListener('message', handleMessage);
+            setIsConnecting(false);
+            
+            // Call onConnected callback if provided
+            if (onConnected) {
+              onConnected();
+            }
+            
+            popup.close();
+            debugLogger.info('ConnectLocationButton', 'OAuth success detected via URL monitoring');
+          }
+        } catch (_error) {
+          // Cross-origin error is expected, ignore
+        }
+      }, 1000);
+      
+      window.addEventListener('message', handleMessage);
+      
     } catch (error) {
       debugLogger.error('ConnectLocationButton', 'Failed to generate OAuth URL:', error);
       setIsConnecting(false);
+      window.alert('Failed to start OAuth flow: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
