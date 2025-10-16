@@ -133,14 +133,14 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   };
 
   // Prepare chart data
-  const chartData = eventTypes.map((eventType, index) => ({
+  const chartData = eventTypes.map((eventType, _index) => ({
     name: eventType.type,
     value: eventType.count,
     percentage: eventType.percentage,
     color: getEventTypeColor(eventType.type)
   }));
 
-  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
+  const _COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
   return (
     <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">

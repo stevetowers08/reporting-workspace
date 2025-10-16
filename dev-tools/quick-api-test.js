@@ -14,7 +14,7 @@ async function quickAPITest() {
     const { GoogleAdsService } = await import('./src/services/api/googleAdsService.ts');
     console.log('✅ GoogleAdsService imported successfully');
     
-    const { GoHighLevelService } = await import('./src/services/api/goHighLevelService.ts');
+    const { GoHighLevelService: _GoHighLevelService } = await import('./src/services/api/goHighLevelService.ts');
     console.log('✅ GoHighLevelService imported successfully');
     
     const { DatabaseService } = await import('./src/services/data/databaseService.ts');

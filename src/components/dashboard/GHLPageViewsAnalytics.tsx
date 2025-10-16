@@ -26,7 +26,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
   useEffect(() => {
     const fetchPageViewData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(locationId, {
+        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
           startDate: dateRange?.start,
           endDate: dateRange?.end
         });
@@ -161,7 +161,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
           utmSources,
           referrerBreakdown
         });
-      } catch (error) {
+      } catch (_error) {
         // Error handled by error boundary
       } finally {
         setLoading(false);

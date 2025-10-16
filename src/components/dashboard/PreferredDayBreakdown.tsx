@@ -7,7 +7,7 @@ interface PreferredDayBreakdownProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ data }) => {
+export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ data: _data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 

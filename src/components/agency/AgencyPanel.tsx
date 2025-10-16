@@ -26,9 +26,9 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   
   // Determine active tab from URL path
   const getActiveTabFromPath = (pathname: string): string => {
-    if (pathname.includes('/integrations')) return 'integrations';
-    if (pathname.includes('/ai-insights')) return 'ai-insights';
-    if (pathname.includes('/clients')) return 'clients';
+    if (pathname.includes('/integrations')) {return 'integrations';}
+    if (pathname.includes('/ai-insights')) {return 'ai-insights';}
+    if (pathname.includes('/clients')) {return 'clients';}
     return 'clients'; // default
   };
   

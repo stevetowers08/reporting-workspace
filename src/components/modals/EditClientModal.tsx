@@ -77,7 +77,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) {return null;}
 
     // Prepare initial data for the form
     const initialData = client ? {

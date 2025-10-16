@@ -25,7 +25,7 @@ async function runTests() {
     console.log('------------------------------------');
     
     // Run development API tests
-    const results = await DevAPITester.testAllEndpoints();
+    const _results = await DevAPITester.testAllEndpoints();
     
     console.log('\n3. Test Results Summary');
     console.log('----------------------');

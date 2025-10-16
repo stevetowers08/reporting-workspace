@@ -17,7 +17,7 @@ class DebugLogger {
     private isEnabled = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
     log(level: DebugLog['level'], category: string, message: string, data?: any) {
-        if (!this.isEnabled) return;
+        if (!this.isEnabled) {return;}
 
         const log: DebugLog = {
             id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -71,11 +71,11 @@ class DebugLogger {
     }
 
     getLogs(filter?: { level?: DebugLog['level']; category?: string }) {
-        if (!filter) return this.logs;
+        if (!filter) {return this.logs;}
 
         return this.logs.filter(log => {
-            if (filter.level && log.level !== filter.level) return false;
-            if (filter.category && !log.category.includes(filter.category)) return false;
+            if (filter.level && log.level !== filter.level) {return false;}
+            if (filter.category && !log.category.includes(filter.category)) {return false;}
             return true;
         });
     }

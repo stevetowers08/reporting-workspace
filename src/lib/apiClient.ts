@@ -171,8 +171,8 @@ export class ApiClient {
    * Check if error is retryable
    */
   private isRetryableError(error: Error): boolean {
-    if (error.name === 'AbortError') return false;
-    if (error.message.includes('token')) return false;
+    if (error.name === 'AbortError') {return false;}
+    if (error.message.includes('token')) {return false;}
     return true;
   }
 

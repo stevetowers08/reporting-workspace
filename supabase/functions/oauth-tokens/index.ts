@@ -240,7 +240,7 @@ async function handleStoreTokens(supabaseClient: any, body: RequestBody) {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 
@@ -339,7 +339,7 @@ async function handleRefreshTokens(supabaseClient: any, platform: string, body: 
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 
@@ -422,7 +422,7 @@ async function handleRevokeTokens(supabaseClient: any, platform: string) {
       })
       .eq('platform', platform);
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 

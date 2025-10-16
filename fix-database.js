@@ -18,7 +18,7 @@ async function fixDatabaseSchema() {
   
   try {
     // Test connection first
-    const { data: testData, error: testError } = await supabase
+    const { data: _testData, error: testError } = await supabase
       .from('clients')
       .select('count')
       .limit(1);
@@ -31,7 +31,7 @@ async function fixDatabaseSchema() {
     console.log('✅ Database connection successful');
     
     // Check if oauth_credentials table exists
-    const { data: tableCheck, error: tableError } = await supabase
+    const { data: _tableCheck, error: tableError } = await supabase
       .from('oauth_credentials')
       .select('count')
       .limit(1);
@@ -119,7 +119,7 @@ async function fixDatabaseSchema() {
       console.log('✅ oauth_credentials table exists');
       
       // Check if RPC function exists
-      const { data: rpcCheck, error: rpcError } = await supabase
+      const { data: _rpcCheck, error: rpcError } = await supabase
         .rpc('store_oauth_tokens_safely', {
           p_platform: 'test',
           p_tokens: {},

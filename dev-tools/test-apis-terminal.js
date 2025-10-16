@@ -1,7 +1,6 @@
 // API Test Script for Terminal
-import https from 'https';
-import http from 'http';
 import { createClient } from '@supabase/supabase-js';
+import http from 'http';
 
 console.log('🚀 Testing APIs from Terminal...\n');
 

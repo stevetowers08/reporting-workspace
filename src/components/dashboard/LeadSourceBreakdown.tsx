@@ -7,7 +7,7 @@ interface LeadSourceBreakdownProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data }) => {
+export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: _data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 

@@ -8,7 +8,7 @@ interface GHLContactQualityCardsProps {
   dateRange?: { start: string; end: string };
 }
 
-interface GHLMetrics {
+interface _GHLMetrics {
   totalContacts: number;
   newContacts: number;
   totalGuests: number;

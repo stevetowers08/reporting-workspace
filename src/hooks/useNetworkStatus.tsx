@@ -53,7 +53,7 @@ export const useNetworkStatus = () => {
   const isInitialized = useRef(false);
 
   const updateNetworkStatus = useCallback(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
 
     const connection = (navigator as any).connection || 
                       (navigator as any).mozConnection || 

@@ -22,6 +22,16 @@ export interface GoogleAdsReportingData {
     costPerClick: number;
     ctr: number;
   };
+  trends?: {
+    leads: { direction: 'up' | 'down'; percentage: number };
+    costPerLead: { direction: 'up' | 'down'; percentage: number };
+    conversionRate: { direction: 'up' | 'down'; percentage: number };
+    spent: { direction: 'up' | 'down'; percentage: number };
+    impressions: { direction: 'up' | 'down'; percentage: number };
+    clicks: { direction: 'up' | 'down'; percentage: number };
+    costPerClick: { direction: 'up' | 'down'; percentage: number };
+    ctr: { direction: 'up' | 'down'; percentage: number };
+  };
   shareableLink?: string;
 }
 
@@ -36,6 +46,45 @@ export interface GoogleAdsReportingResponse {
 export class GoogleAdsReportingService {
   constructor() {
     // No instance needed - using static methods
+  }
+
+  /**
+   * Calculate trend percentage between current and previous values
+   */
+  private static calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number } {
+    if (previous === 0) return { direction: 'up', percentage: 0 };
+    const percentage = ((current - previous) / previous) * 100;
+    return {
+      direction: percentage >= 0 ? 'up' : 'down',
+      percentage: Math.abs(percentage)
+    };
+  }
+
+  /**
+   * Calculate trends for all metrics
+   */
+  private static calculateTrends(currentMetrics: any, previousMetrics: any) {
+    if (!previousMetrics) return undefined;
+    
+    return {
+      leads: this.calculateTrendPercentage(currentMetrics.leads, previousMetrics.leads),
+      costPerLead: this.calculateTrendPercentage(
+        currentMetrics.leads > 0 ? currentMetrics.cost / currentMetrics.leads : 0,
+        previousMetrics.leads > 0 ? previousMetrics.cost / previousMetrics.leads : 0
+      ),
+      conversionRate: this.calculateTrendPercentage(
+        currentMetrics.clicks > 0 ? (currentMetrics.leads / currentMetrics.clicks) * 100 : 0,
+        previousMetrics.clicks > 0 ? (previousMetrics.leads / previousMetrics.clicks) * 100 : 0
+      ),
+      spent: this.calculateTrendPercentage(currentMetrics.cost, previousMetrics.cost),
+      impressions: this.calculateTrendPercentage(currentMetrics.impressions, previousMetrics.impressions),
+      clicks: this.calculateTrendPercentage(currentMetrics.clicks, previousMetrics.clicks),
+      costPerClick: this.calculateTrendPercentage(
+        currentMetrics.clicks > 0 ? currentMetrics.cost / currentMetrics.clicks : 0,
+        previousMetrics.clicks > 0 ? previousMetrics.cost / previousMetrics.clicks : 0
+      ),
+      ctr: this.calculateTrendPercentage(currentMetrics.ctr, previousMetrics.ctr)
+    };
   }
 
   async getGoogleAdsReportingData(period: string = '30d'): Promise<GoogleAdsReportingResponse> {
@@ -99,7 +148,8 @@ export class GoogleAdsReportingService {
             client.id,
             dateRange,
             client.accounts,
-            client.conversion_actions
+            client.conversion_actions,
+            true // includePreviousPeriod
           );
 
           debugLogger.info('GOOGLE_REPORTING', `Dashboard data for ${client.name}`, {
@@ -113,6 +163,9 @@ export class GoogleAdsReportingService {
             const costPerLead = metrics.leads > 0 ? metrics.cost / metrics.leads : 0;
             const conversionRate = metrics.clicks > 0 ? (metrics.leads / metrics.clicks) * 100 : 0;
             const costPerClick = metrics.clicks > 0 ? metrics.cost / metrics.clicks : 0;
+
+            // Calculate trends if previous period data is available
+            const trends = GoogleAdsReportingService.calculateTrends(metrics, metrics.previousPeriod);
 
             const clientData: GoogleAdsReportingData = {
               clientId: client.id,
@@ -134,6 +187,7 @@ export class GoogleAdsReportingService {
                 costPerClick,
                 ctr: metrics.ctr || 0
               },
+              trends,
               shareableLink: client.shareable_link || ''
             };
             reportingData.push(clientData);

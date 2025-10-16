@@ -86,8 +86,8 @@ interface ComparisonMetricsGridProps {
 
 export const ComparisonMetricsGrid: React.FC<ComparisonMetricsGridProps> = ({ metrics, platform }) => {
   const isFacebook = platform === 'facebook';
-  const isGoogle = platform === 'google';
-  const isCombined = platform === 'combined';
+  const _isGoogle = platform === 'google';
+  const _isCombined = platform === 'combined';
 
   return (
     <div className="mb-6">

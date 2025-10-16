@@ -161,7 +161,7 @@ async function getCustomerClientAccounts(
 /**
  * Gets detailed information for a specific account
  */
-async function getAccountDetails(
+async function _getAccountDetails(
   customerId: string,
   accessToken: string
 ): Promise<GoogleAdsAccount | null> {

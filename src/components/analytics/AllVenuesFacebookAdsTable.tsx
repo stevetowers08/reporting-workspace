@@ -60,7 +60,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                 // Only include clients that have Facebook ads connected
                 const hasFacebookAds = client.accounts?.facebookAds && client.accounts.facebookAds !== 'none';
 
-                if (!hasFacebookAds) continue;
+                if (!hasFacebookAds) {continue;}
 
                 try {
                     // Get comprehensive metrics for this client
@@ -273,22 +273,22 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="border-b border-gray-200">
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Venue</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">Impressions</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">Clicks</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">CTR</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">Spend</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">CPC</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">Leads</th>
-                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">CPM</th>
-                                        <th className="text-center py-3 px-4 font-semibold text-gray-900">Actions</th>
+                                    <tr className="border-b border-slate-200">
+                                        <th className="text-left py-3 px-3 font-semibold text-slate-900">Venue</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">Impressions</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">Clicks</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">CTR</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">Spend</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">CPC</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">Leads</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">CPM</th>
+                                        <th className="text-center py-3 px-3 font-semibold text-slate-900">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {facebookAccounts.map((account) => (
-                                        <tr key={account.clientId} className="border-b border-gray-100 hover:bg-gray-50">
-                                            <td className="py-3 px-4">
+                                        <tr key={account.clientId} className="border-b border-slate-100 hover:bg-slate-50">
+                                            <td className="py-3 px-3">
                                                 <div className="flex items-center gap-3">
                                                     {account.logoUrl ? (
                                                         <img
@@ -313,49 +313,49 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatNumber(account.metrics.impressions)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatNumber(account.metrics.clicks)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatPercentage(account.metrics.ctr)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatCurrency(account.metrics.spend)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatCurrency(account.metrics.cpc)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
+                                            <td className="py-3 px-3 text-right">
                                                 <div className="font-medium text-green-600 text-sm">
                                                     {formatNumber(account.metrics.leads)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="font-medium text-gray-900 text-sm">
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="font-medium text-slate-900 text-sm">
                                                     {formatCurrency(account.metrics.cpm)}
                                                 </div>
                                             </td>
 
-                                            <td className="py-3 px-4 text-center">
+                                            <td className="py-3 px-3 text-center">
                                                 <Link to={`/share/${account.clientId}`}>
                                                     <Button variant="outline" size="sm">
                                                         <Eye className="h-4 w-4 mr-2" />
@@ -368,16 +368,16 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                 </tbody>
                                 {/* Totals Row */}
                                 <tfoot>
-                                    <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                                        <td className="py-3 px-4 text-gray-900">TOTAL</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">{formatNumber(totals.impressions)}</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">{formatNumber(totals.clicks)}</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">{formatPercentage(avgCtr)}</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">{formatCurrency(totals.spend)}</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">{formatCurrency(avgCpc)}</td>
-                                        <td className="py-3 px-4 text-right text-green-600">{formatNumber(totals.leads)}</td>
-                                        <td className="py-3 px-4 text-right text-gray-900">-</td>
-                                        <td className="py-3 px-4 text-center">-</td>
+                                    <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold">
+                                        <td className="py-3 px-3 text-slate-900">TOTAL</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">{formatNumber(totals.impressions)}</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">{formatNumber(totals.clicks)}</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">{formatPercentage(avgCtr)}</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">{formatCurrency(totals.spend)}</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">{formatCurrency(avgCpc)}</td>
+                                        <td className="py-3 px-3 text-right text-green-600">{formatNumber(totals.leads)}</td>
+                                        <td className="py-3 px-3 text-right text-slate-900">-</td>
+                                        <td className="py-3 px-3 text-center">-</td>
                                     </tr>
                                 </tfoot>
                             </table>

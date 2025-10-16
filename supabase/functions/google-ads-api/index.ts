@@ -1,4 +1,4 @@
-/* eslint-disable no-console, no-undef, no-unused-vars, no-case-declarations, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -9,7 +9,7 @@ class SimpleCache {
 
   static get<T>(key: string): T | null {
     const cached = this.cache.get(key);
-    if (!cached) return null;
+    if (!cached) {return null;}
     
     const now = Date.now();
     if (now - cached.timestamp > cached.ttl) {

@@ -86,10 +86,10 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
   // Filter spreadsheets based on search term
   const getFilteredSheets = () => {
-    if (!accounts.length) return [];
+    if (!accounts.length) {return [];}
     
     const allSheets = accounts[0].sheets;
-    if (!searchTerm.trim()) return allSheets;
+    if (!searchTerm.trim()) {return allSheets;}
     
     return allSheets.filter(sheet => 
       sheet.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -225,8 +225,8 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     }
   };
 
-  const getSelectedSpreadsheet = () => {
-    if (!accounts.length) return null;
+  const _getSelectedSpreadsheet = () => {
+    if (!accounts.length) {return null;}
     return accounts[0].sheets.find(sheet => sheet.id === selectedSpreadsheet);
   };
 

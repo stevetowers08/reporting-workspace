@@ -217,7 +217,7 @@ export class GoHighLevelService {
   /**
    * Setup webhook (placeholder - implement based on needs)
    */
-  static async setupWebhook(locationId: string, webhookUrl: string, events: string[]): Promise<boolean> {
+  static async setupWebhook(_locationId: string, _webhookUrl: string, _events: string[]): Promise<boolean> {
     debugLogger.warn('GoHighLevelService', 'setupWebhook not implemented');
     return false;
   }
@@ -233,3 +233,4 @@ export { GHLQueryBuilder, GHLRateLimiter } from './goHighLevelUtils';
 
 // Re-export types
 export type * from './goHighLevelTypes';
+

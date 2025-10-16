@@ -155,7 +155,7 @@ async function handleGet(supabaseClient: any, platform?: string) {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       return new Response(
         JSON.stringify({ 
@@ -228,7 +228,7 @@ async function handlePost(supabaseClient: any, body: RequestBody) {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 
@@ -319,7 +319,7 @@ async function handlePut(supabaseClient: any, platform: string, body: RequestBod
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 
@@ -404,7 +404,7 @@ async function handleDelete(supabaseClient: any, platform: string) {
       })
       .eq('platform', platform);
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     return new Response(
       JSON.stringify({ 

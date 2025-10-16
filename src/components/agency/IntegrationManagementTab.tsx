@@ -319,10 +319,10 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                               
                               // Google Sheets metadata saved successfully
                               setShowGoogleSheetsSelector(false);
-                              alert(`Successfully configured Google Sheets: ${spreadsheetName} - ${sheetName}`);
-                            } catch (error) {
+                              console.log(`Successfully configured Google Sheets: ${spreadsheetName} - ${sheetName}`);
+                            } catch (_error) {
                               // Failed to save Google Sheets selection
-                              alert('Failed to save Google Sheets selection. Please try again.');
+                              console.error('Failed to save Google Sheets selection. Please try again.');
                             }
                           }}
                         />

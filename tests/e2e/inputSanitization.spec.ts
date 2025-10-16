@@ -52,7 +52,7 @@ class MockMockInputSanitizer {
     return input.trim();
   }
 
-  mockSanitizeFormData(formData: any, schema: any): any {
+  mockSanitizeFormData(formData: any, _schema: any): any {
     const sanitized: any = {};
     for (const [key, value] of Object.entries(formData)) {
       if (typeof value === 'string') {
@@ -89,7 +89,7 @@ const mockSanitizeFormData = (formData: any, schema: any) => {
   return MockMockInputSanitizer.getInstance().mockSanitizeFormData(formData, schema);
 };
 
-const mockGetMockInputSanitizer = () => MockMockInputSanitizer.getInstance();
+const _mockGetMockInputSanitizer = () => MockMockInputSanitizer.getInstance();
 
 test.describe('Input Sanitization Tests', () => {
   

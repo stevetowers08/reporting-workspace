@@ -119,7 +119,7 @@ export const ClientUpdateSchema = z.object({
       .or(z.literal(''))
       .or(z.literal('none'))
       .refine((val) => {
-        if (!val || val === '' || val === 'none') return true;
+        if (!val || val === '' || val === 'none') {return true;}
         return /^(act_)?\d+$/.test(val);
       }, 'Facebook Ads account ID must be numeric or start with act_'),
     
@@ -128,7 +128,7 @@ export const ClientUpdateSchema = z.object({
       .or(z.literal(''))
       .or(z.literal('none'))
       .refine((val) => {
-        if (!val || val === '' || val === 'none') return true;
+        if (!val || val === '' || val === 'none') {return true;}
         return /^(customers\/)?\d{10}$|^\d{3}-\d{3}-\d{4}$/.test(val);
       }, 'Google Ads customer ID must be 10 digits or in format XXX-XXX-XXXX'),
     

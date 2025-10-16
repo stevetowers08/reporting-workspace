@@ -1,6 +1,7 @@
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import { FacebookAdsReportingTable } from '@/components/reporting/FacebookAdsReportingTable';
 import { GoogleAdsReportingTable } from '@/components/reporting/GoogleAdsReportingTable';
+import { UnifiedReportingTable } from '@/components/reporting/UnifiedReportingTable';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { debugLogger } from '@/lib/debug';
@@ -127,7 +128,7 @@ const FacebookAdsReporting: React.FC = () => {
         isAgencyPanel={false}
       />
 
-      <div className="px-20 py-8">
+      <div className="px-6 py-6">
         {/* Tabs and Period Selector */}
         <div className="mb-8 flex items-center justify-between">
           {/* Tabs */}
@@ -146,6 +147,12 @@ const FacebookAdsReporting: React.FC = () => {
               >
                 <LogoManager platform="googleAds" size={20} context="header" />
                 <span>Google Ads</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="combination" 
+                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <span>Combined</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -172,7 +179,7 @@ const FacebookAdsReporting: React.FC = () => {
           <FacebookAdsReportingTable
             data={reportingData}
             loading={loading}
-            error={error || undefined}
+            error={error}
           />
         )}
         
@@ -181,6 +188,15 @@ const FacebookAdsReporting: React.FC = () => {
             data={googleReportingData}
             loading={googleLoading}
             error={googleError}
+          />
+        )}
+        
+        {activeTab === 'combination' && (
+          <UnifiedReportingTable
+            facebookData={reportingData}
+            googleData={googleReportingData}
+            loading={loading || googleLoading}
+            error={error || googleError}
           />
         )}
       </div>

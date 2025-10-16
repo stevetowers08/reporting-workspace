@@ -11,10 +11,10 @@ export class LeadQualityService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line) continue;
+      if (!line) {continue;}
 
       const columns = line.split('\t'); // Assuming tab-separated
-      if (columns.length < 9) continue;
+      if (columns.length < 9) {continue;}
 
       const lead: LeadRecord = {
         id: `lead_${i + 1}`,
@@ -130,7 +130,7 @@ export class LeadQualityService {
       existing.count++;
       existing.totalScore += lead.qualityScore;
       existing.totalBudget += lead.budget;
-      if (lead.status === 'Converted') existing.converted++;
+      if (lead.status === 'Converted') {existing.converted++;}
       sourceMap.set(lead.source, existing);
     });
 

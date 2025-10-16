@@ -15,17 +15,96 @@ import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-// Lazy load chart components to avoid circular dependencies
-const SummaryMetricsCards = lazy(() => import('@/components/dashboard/SummaryMetricsCards').then(module => ({ default: module.SummaryMetricsCards })));
-const MetaAdsMetricsCards = lazy(() => import('@/components/dashboard/MetaAdsMetricsCards').then(module => ({ default: module.MetaAdsMetricsCards })));
-const GoogleAdsMetricsCards = lazy(() => import('@/components/dashboard/GoogleAdsMetricsCards').then(module => ({ default: module.GoogleAdsMetricsCards })));
-const PlatformPerformanceStatusChart = lazy(() => import('@/components/dashboard/PlatformPerformanceStatusChart').then(module => ({ default: module.PlatformPerformanceStatusChart })));
-const KeyInsights = lazy(() => import('@/components/dashboard/KeyInsights').then(module => ({ default: module.KeyInsights })));
-const MetaAdsDemographics = lazy(() => import('@/components/dashboard/MetaAdsDemographics').then(module => ({ default: module.MetaAdsDemographics })));
-const MetaAdsPlatformBreakdown = lazy(() => import('@/components/dashboard/MetaAdsPlatformBreakdown').then(module => ({ default: module.MetaAdsPlatformBreakdown })));
-const GoogleAdsDemographics = lazy(() => import('@/components/dashboard/GoogleAdsDemographics').then(module => ({ default: module.GoogleAdsDemographics })));
-const GoogleAdsCampaignBreakdown = lazy(() => import('@/components/dashboard/GoogleAdsCampaignBreakdown').then(module => ({ default: module.GoogleAdsCampaignBreakdown })));
-const LeadInfoMetricsCards = lazy(() => import('@/components/dashboard/LeadInfoMetricsCards').then(module => ({ default: module.LeadInfoMetricsCards })));
+// ✅ FIX: Safe lazy loading with proper error handling to prevent TDZ issues
+const SummaryMetricsCards = lazy(() => 
+  import('@/components/dashboard/SummaryMetricsCards')
+    .then(module => ({ default: module.SummaryMetricsCards }))
+    .catch(error => {
+      console.error('Failed to load SummaryMetricsCards:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const MetaAdsMetricsCards = lazy(() => 
+  import('@/components/dashboard/MetaAdsMetricsCards')
+    .then(module => ({ default: module.MetaAdsMetricsCards }))
+    .catch(error => {
+      console.error('Failed to load MetaAdsMetricsCards:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const GoogleAdsMetricsCards = lazy(() => 
+  import('@/components/dashboard/GoogleAdsMetricsCards')
+    .then(module => ({ default: module.GoogleAdsMetricsCards }))
+    .catch(error => {
+      console.error('Failed to load GoogleAdsMetricsCards:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const PlatformPerformanceStatusChart = lazy(() => 
+  import('@/components/dashboard/PlatformPerformanceStatusChart')
+    .then(module => ({ default: module.PlatformPerformanceStatusChart }))
+    .catch(error => {
+      console.error('Failed to load PlatformPerformanceStatusChart:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const KeyInsights = lazy(() => 
+  import('@/components/dashboard/KeyInsights')
+    .then(module => ({ default: module.KeyInsights }))
+    .catch(error => {
+      console.error('Failed to load KeyInsights:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const MetaAdsDemographics = lazy(() => 
+  import('@/components/dashboard/MetaAdsDemographics')
+    .then(module => ({ default: module.MetaAdsDemographics }))
+    .catch(error => {
+      console.error('Failed to load MetaAdsDemographics:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const MetaAdsPlatformBreakdown = lazy(() => 
+  import('@/components/dashboard/MetaAdsPlatformBreakdown')
+    .then(module => ({ default: module.MetaAdsPlatformBreakdown }))
+    .catch(error => {
+      console.error('Failed to load MetaAdsPlatformBreakdown:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const GoogleAdsDemographics = lazy(() => 
+  import('@/components/dashboard/GoogleAdsDemographics')
+    .then(module => ({ default: module.GoogleAdsDemographics }))
+    .catch(error => {
+      console.error('Failed to load GoogleAdsDemographics:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const GoogleAdsCampaignBreakdown = lazy(() => 
+  import('@/components/dashboard/GoogleAdsCampaignBreakdown')
+    .then(module => ({ default: module.GoogleAdsCampaignBreakdown }))
+    .catch(error => {
+      console.error('Failed to load GoogleAdsCampaignBreakdown:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
+
+const LeadInfoMetricsCards = lazy(() => 
+  import('@/components/dashboard/LeadInfoMetricsCards')
+    .then(module => ({ default: module.LeadInfoMetricsCards }))
+    .catch(error => {
+      console.error('Failed to load LeadInfoMetricsCards:', error);
+      return { default: () => <div>Failed to load component</div> };
+    })
+);
 
 // Chart.js replacements for recharts components
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
@@ -38,17 +117,84 @@ interface EventDashboardProps {
   clientId?: string;
 }
 
-// Loading component for Suspense fallback
+// ✅ FIX: Enhanced loading component with error boundary
 const ComponentLoader = () => (
   <div className="flex items-center justify-center h-32">
     <LoadingSpinner size="md" />
   </div>
 );
 
+// ✅ COMPREHENSIVE Error boundary for lazy loaded components and TDZ errors
+const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string>('');
+
+  React.useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.error && event.error.message) {
+        const message = event.error.message;
+        if (message.includes('Cannot access') && message.includes('before initialization')) {
+          console.warn('TDZ Error in component, reloading...', message);
+          setErrorMessage(message);
+          setHasError(true);
+          // Reload after a short delay
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else if (message.includes('Cannot read properties of undefined')) {
+          console.warn('Undefined property error in component, reloading...', message);
+          setErrorMessage(message);
+          setHasError(true);
+          // Reload after a short delay
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason && event.reason.message) {
+        const message = event.reason.message;
+        if (message.includes('Cannot access') || message.includes('before initialization')) {
+          console.warn('TDZ Error in promise, reloading...', message);
+          setErrorMessage(message);
+          setHasError(true);
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center h-32 text-red-500">
+        <div className="text-center">
+          <p>Loading component...</p>
+          <p className="text-sm text-gray-500">Please wait while we reload the page</p>
+          <p className="text-xs text-gray-400 mt-2">Error: {errorMessage}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
+  // ✅ FIX: Initialize ALL hooks first to prevent TDZ issues
   const { clientId: urlClientId } = useParams<{ clientId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  // const navigate = useNavigate(); // Removed unused import
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
   
@@ -64,56 +210,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   // Get active tab from URL params, default to "summary"
   const activeTab = searchParams.get('tab') || "summary";
   
-  // Handle tab change by updating URL params
+  // ✅ FIX: Initialize all callbacks and memos AFTER all hooks
   const handleTabChange = useCallback((tab: string) => {
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('tab', tab);
     setSearchParams(newSearchParams);
   }, [searchParams, setSearchParams]);
-
-  // Handle PDF export with tabs
-  const handleExportPDF = useCallback(async () => {
-    if (!clientData) {
-      alert('Client data not available for export');
-      return;
-    }
-
-    setExportingPDF(true);
-    try {
-      // Collect tab elements
-      const tabElements: { [key: string]: HTMLElement } = {};
-      
-      if (summaryTabRef.current) tabElements.summary = summaryTabRef.current;
-      if (metaTabRef.current) tabElements.meta = metaTabRef.current;
-      if (googleTabRef.current) tabElements.google = googleTabRef.current;
-      if (leadsTabRef.current) tabElements.leads = leadsTabRef.current;
-
-      // Export all tabs as separate pages
-      await exportTabsToPDF(tabElements, {
-        clientName: clientData.name,
-        logoUrl: clientData.logo_url,
-        dateRange: getDateRange(selectedPeriod),
-        includeAllTabs: true,
-        includeCharts: true,
-        includeDetailedMetrics: true
-      });
-    } catch (err) {
-      console.error('Export failed:', err);
-      alert('Failed to export PDF. Please try again.');
-    } finally {
-      setExportingPDF(false);
-    }
-  }, [clientData, selectedPeriod, exportTabsToPDF]);
-
-  // Get client ID from URL params, props, or URL path
-  const actualClientId = useMemo(() => {
-    if (urlClientId) {return urlClientId;}
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/')) {
-      const urlClientId = window.location.pathname.split('/share/')[1];
-      return clientId || urlClientId;
-    }
-    return clientId;
-  }, [clientId, urlClientId]);
 
   // Helper function to get date range based on selected period
   const getDateRange = useCallback((period: string) => {
@@ -146,10 +248,58 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     };
   }, []);
 
+  // Get client ID from URL params, props, or URL path
+  const actualClientId = useMemo(() => {
+    if (urlClientId) {return urlClientId;}
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/')) {
+      const urlClientId = window.location.pathname.split('/share/')[1];
+      return clientId || urlClientId;
+    }
+    return clientId;
+  }, [clientId, urlClientId]);
+
   // Use React Query hooks for data fetching
   const dateRange = getDateRange(selectedPeriod);
-  
-  // Load tab-specific data - fetch all tabs to avoid loading delays
+
+  // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
+  const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
+  const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
+
+  // Handle PDF export with tabs
+  const handleExportPDF = useCallback(async () => {
+    if (!clientData) {
+      alert('Client data not available for export');
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      // Collect tab elements
+      const tabElements: { [key: string]: HTMLElement } = {};
+      
+      if (summaryTabRef.current) {tabElements.summary = summaryTabRef.current;}
+      if (metaTabRef.current) {tabElements.meta = metaTabRef.current;}
+      if (googleTabRef.current) {tabElements.google = googleTabRef.current;}
+      if (leadsTabRef.current) {tabElements.leads = leadsTabRef.current;}
+
+      // Export all tabs as separate pages
+      await exportTabsToPDF(tabElements, {
+        clientName: clientData.name,
+        logoUrl: clientData.logo_url,
+        dateRange: getDateRange(selectedPeriod),
+        includeAllTabs: true,
+        includeCharts: true,
+        includeDetailedMetrics: true
+      });
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  }, [clientData, selectedPeriod, exportTabsToPDF, getDateRange]);
+
+  // ✅ FIX: Load tab-specific data AFTER all basic hooks and callbacks
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummaryTabData(
     actualClientId, 
     dateRange
@@ -170,8 +320,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     dateRange
   );
   
-  const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
-  const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
+  // ✅ FIX: clientData already declared above to prevent TDZ
 
   // Get current tab data based on active tab
   const getCurrentTabData = () => {
@@ -404,7 +553,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen">
+    <LazyComponentErrorBoundary>
+      <div className="bg-slate-100 min-h-screen">
       {/* Internal Agency Header with Venue Dropdown - Only for internal users */}
       {!isShared && (
         <AgencyHeader
@@ -439,9 +589,11 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <TabsContent value="summary" className="mt-6">
             <div ref={summaryTabRef}>
             
-            <Suspense fallback={<ComponentLoader />}>
-              <SummaryMetricsCards dashboardData={summaryDashboardData} />
-            </Suspense>
+            <LazyComponentErrorBoundary>
+              <Suspense fallback={<ComponentLoader />}>
+                <SummaryMetricsCards dashboardData={summaryDashboardData} />
+              </Suspense>
+            </LazyComponentErrorBoundary>
             
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
               <Card className="bg-white border border-slate-200 shadow-sm p-6">
@@ -449,9 +601,11 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                   <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
                 </div>
                 <div className="h-64">
-                  <Suspense fallback={<ComponentLoader />}>
-                    <PlatformPerformanceStatusChart data={dashboardData} />
-                  </Suspense>
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <PlatformPerformanceStatusChart data={dashboardData} />
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
                 </div>
               </Card>
 
@@ -559,6 +713,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         </div>
       </div>
     </div>
+    </LazyComponentErrorBoundary>
   );
 };
 

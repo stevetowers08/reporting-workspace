@@ -269,10 +269,10 @@ export class LeadDataService {
     
     // 2. Try guest count estimation
     if (guestCount > 0) {
-      if (guestCount >= 150) return 'Wedding';
-      if (guestCount >= 75) return 'Corporate Event';
-      if (guestCount >= 30) return 'Birthday Party';
-      if (guestCount >= 10) return 'Small Event';
+      if (guestCount >= 150) {return 'Wedding';}
+      if (guestCount >= 75) {return 'Corporate Event';}
+      if (guestCount >= 30) {return 'Birthday Party';}
+      if (guestCount >= 10) {return 'Small Event';}
     }
     
     // 3. Try to extract from notes/description

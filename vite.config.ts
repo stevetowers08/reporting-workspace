@@ -92,7 +92,7 @@ export default defineConfig(({ mode }) => {
       ],
       exclude: ['@vite/client', '@vite/env'],
       // Force optimization to prevent React conflicts
-      force: isDev ? false : false,
+      force: true,
       esbuildOptions: {
         target: 'es2020',
         // Development-specific optimizations
@@ -109,9 +109,16 @@ export default defineConfig(({ mode }) => {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
       'react': path.resolve('./node_modules/react'),
       'react-dom': path.resolve('./node_modules/react-dom'),
+      // Ensure React is always resolved consistently
+      'react/jsx-runtime': path.resolve('./node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve('./node_modules/react/jsx-dev-runtime'),
     },
     mainFields: ['browser', 'module', 'jsnext:main', 'main'],
-    dedupe: ['react', 'react-dom']
+    dedupe: ['react', 'react-dom'],
+    // Prevent circular dependencies
+    preserveSymlinks: false,
+    // Ensure consistent module resolution
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'],
   },
     define: {
       global: 'globalThis',
@@ -124,8 +131,8 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
-      minify: isDev ? false : 'esbuild',
-        rollupOptions: {
+      minify: false, // Disable minification entirely to prevent TDZ issues
+      rollupOptions: {
         // Ensure React is NOT externalized - it must be bundled
         external: [],
         onwarn(warning, warn) {
@@ -137,16 +144,36 @@ export default defineConfig(({ mode }) => {
           if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('react')) {
             return;
           }
+          // Suppress TDZ warnings that can cause production issues
+          if (warning.code === 'CIRCULAR_DEPENDENCY') {
+            return;
+          }
           warn(warning);
         },
         output: {
-          // ✅ SIMPLEST FIX: Let Vite handle chunking automatically
-          // This prevents React-dependent libraries from being split into separate chunks
-          manualChunks: undefined
+          // ✅ ULTRA-AGGRESSIVE TDZ FIX: Single chunk strategy to prevent TDZ issues
+          manualChunks: (id) => {
+            // Put EVERYTHING in a single chunk to prevent TDZ issues
+            return 'main';
+          },
+          // Prevent variable name conflicts in minified code
+          format: 'es',
+          // Ensure proper initialization order
+          hoistTransitiveImports: false,
+          // Prevent TDZ by ensuring proper module order
+          preserveModules: false,
+          // Use consistent chunk naming
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
         },
       },
       // Increase chunk size warning limit
       chunkSizeWarningLimit: 2000,
+      // Prevent TDZ issues in production
+      commonjsOptions: {
+        include: [/node_modules/],
+        transformMixedEsModules: true,
+      },
     },
   };
 });

@@ -247,7 +247,7 @@ class LogoService {
    */
   public getRecommendedSize(platform: string, context: string): number {
     const logo = this.getLogoMetadata(platform);
-    if (!logo?.brandGuidelines) return 24;
+    if (!logo?.brandGuidelines) {return 24;}
 
     const contextSizes: Record<string, number> = {
       'agency-panel': 20,

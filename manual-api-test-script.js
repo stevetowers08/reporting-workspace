@@ -67,7 +67,7 @@ async function makeRequest(url, options = {}) {
             data: jsonData,
             raw: data
           });
-        } catch (error) {
+        } catch (_error) {
           resolve({
             status: res.statusCode,
             headers: res.headers,

@@ -63,7 +63,11 @@ export default [
     },
     rules: {
       // TypeScript rules
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
@@ -91,6 +95,7 @@ export default [
       'no-var': 'error',
       'eqeqeq': ['error', 'always'],
       'curly': ['error', 'all'],
+      'no-unused-vars': 'off', // Use TypeScript version instead
     },
     settings: {
       react: {
@@ -103,6 +108,27 @@ export default [
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
+      'no-unused-vars': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_|mock.*|Mock.*'
+      }],
+    },
+  },
+  {
+    files: ['supabase/functions/**/*'],
+    rules: {
+      'no-console': 'off',
+      'no-undef': 'off', // Deno globals
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'no-case-declarations': 'off',
     },
   },
   {

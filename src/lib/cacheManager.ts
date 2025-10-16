@@ -16,7 +16,7 @@ export class CacheManager {
    * Invalidate all client-related queries
    */
   static invalidateClients() {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating all client queries');
     return this.queryClient.invalidateQueries({ 
@@ -28,7 +28,7 @@ export class CacheManager {
    * Invalidate specific client queries
    */
   static invalidateClient(clientId: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating client queries', { clientId });
     return this.queryClient.invalidateQueries({ 
@@ -40,7 +40,7 @@ export class CacheManager {
    * Invalidate all integration queries
    */
   static invalidateIntegrations() {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating all integration queries');
     return this.queryClient.invalidateQueries({ 
@@ -52,7 +52,7 @@ export class CacheManager {
    * Invalidate specific platform integration queries
    */
   static invalidateIntegration(platform: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating integration queries', { platform });
     return this.queryClient.invalidateQueries({ 
@@ -64,7 +64,7 @@ export class CacheManager {
    * Invalidate all metrics queries for a client
    */
   static invalidateClientMetrics(clientId: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating client metrics', { clientId });
     return this.queryClient.invalidateQueries({ 
@@ -76,7 +76,7 @@ export class CacheManager {
    * Invalidate specific platform metrics for a client
    */
   static invalidateClientPlatformMetrics(clientId: string, platform: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating platform metrics', { clientId, platform });
     return this.queryClient.invalidateQueries({ 
@@ -88,7 +88,7 @@ export class CacheManager {
    * Invalidate Facebook Ads queries
    */
   static invalidateFacebookAds(accountId?: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating Facebook Ads queries', { accountId });
     if (accountId) {
@@ -108,7 +108,7 @@ export class CacheManager {
    * Invalidate Google Ads queries
    */
   static invalidateGoogleAds(customerId?: string) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Invalidating Google Ads queries', { customerId });
     if (customerId) {
@@ -128,7 +128,7 @@ export class CacheManager {
    * Clear all cached data
    */
   static clearAll() {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Clearing all cached data');
     return this.queryClient.clear();
@@ -138,7 +138,7 @@ export class CacheManager {
    * Remove specific queries from cache
    */
   static removeQueries(queryKey: any[]) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Removing queries from cache', { queryKey });
     return this.queryClient.removeQueries({ queryKey });
@@ -148,7 +148,7 @@ export class CacheManager {
    * Prefetch data for better UX
    */
   static async prefetchClient(clientId: string, queryFn: () => Promise<any>) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Prefetching client data', { clientId });
     return this.queryClient.prefetchQuery({
@@ -162,7 +162,7 @@ export class CacheManager {
    * Prefetch integration data
    */
   static async prefetchIntegration(platform: string, queryFn: () => Promise<any>) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Prefetching integration data', { platform });
     return this.queryClient.prefetchQuery({
@@ -176,7 +176,7 @@ export class CacheManager {
    * Get cached data without triggering a fetch
    */
   static getCachedData(queryKey: any[]) {
-    if (!this.queryClient) return null;
+    if (!this.queryClient) {return null;}
     
     return this.queryClient.getQueryData(queryKey);
   }
@@ -185,7 +185,7 @@ export class CacheManager {
    * Set cached data manually
    */
   static setCachedData(queryKey: any[], data: any) {
-    if (!this.queryClient) return;
+    if (!this.queryClient) {return;}
     
     debugLogger.info('CacheManager', 'Setting cached data', { queryKey });
     return this.queryClient.setQueryData(queryKey, data);
@@ -195,7 +195,7 @@ export class CacheManager {
    * Get cache statistics
    */
   static getCacheStats() {
-    if (!this.queryClient) return null;
+    if (!this.queryClient) {return null;}
     
     const cache = this.queryClient.getQueryCache();
     const queries = cache.getAll();

@@ -1533,7 +1533,7 @@ export class FacebookAdsService {
       // Ensure account ID has 'act_' prefix
       const formattedAccountId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
 
-      const fields = 'impressions,clicks,spend,actions,ctr,cpc,cpm,reach,frequency';
+      const fields = 'impressions,clicks,spend,actions,ctr,cpc,cpm,reach,frequency,cost_per_link_click';
       const token = await this.getAccessToken();
       const params = new URLSearchParams({
         access_token: token,
@@ -1715,8 +1715,8 @@ export class FacebookAdsService {
         spend: previousMetrics.spend,
         leads: previousMetrics.leads,
         conversions: previousMetrics.conversions,
-        ctr: previousMetrics.ctr,
-        cpc: previousMetrics.cpc,
+        ctr: parseFloat(previousMetrics.ctr || '0') / 100, // Convert percentage to decimal
+        cpc: parseFloat(previousMetrics.cpc || '0'), // CPC is already in currency format
         cpm: previousMetrics.cpm,
         roas: previousMetrics.roas,
         reach: previousMetrics.reach,
@@ -1764,8 +1764,8 @@ export class FacebookAdsService {
       spend: parseFloat(insights.spend || '0'),
       leads: parseInt(leads.toString()),
       conversions: parseInt(leads.toString()), // Using leads as conversions for now
-      ctr: parseFloat(insights.ctr || '0'),
-      cpc: parseFloat(insights.cpc || '0'),
+      ctr: parseFloat(insights.ctr || '0') / 100, // Convert percentage to decimal (Facebook returns CTR as percentage)
+      cpc: parseFloat(insights.cost_per_link_click || insights.cpc || '0'), // Use cost_per_link_click if available, fallback to cpc
       cpm: parseFloat(insights.cpm || '0'),
       roas: parseFloat(insights.roas || '0'),
       reach: parseInt(insights.reach || '0'),

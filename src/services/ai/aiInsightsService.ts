@@ -42,7 +42,7 @@ export class AIInsightsService {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data || [];
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error fetching system prompts', error);
@@ -58,7 +58,7 @@ export class AIInsightsService {
         .eq('is_active', true)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {throw error;}
       return data;
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error fetching active system prompt', error);
@@ -74,7 +74,7 @@ export class AIInsightsService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error creating system prompt', error);
@@ -91,7 +91,7 @@ export class AIInsightsService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error updating system prompt', error);
@@ -112,7 +112,7 @@ export class AIInsightsService {
         .update({ is_active: true })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {throw error;}
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error setting active system prompt', error);
       throw error;
@@ -126,7 +126,7 @@ export class AIInsightsService {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {throw error;}
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error deleting system prompt', error);
       throw error;
@@ -174,7 +174,7 @@ export class AIInsightsService {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {throw error;}
         return data;
       } else {
         // Create new config
@@ -190,7 +190,7 @@ export class AIInsightsService {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {throw error;}
         return data;
       }
     } catch (error) {
@@ -255,7 +255,7 @@ export class AIInsightsService {
         .order('generated_at', { ascending: false })
         .limit(limit);
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data || [];
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error fetching insights history', error);
@@ -273,7 +273,7 @@ export class AIInsightsService {
         .limit(1)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {throw error;}
       return data;
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error fetching latest insights', error);
@@ -300,7 +300,7 @@ export class AIInsightsService {
           period_end: periodEnd
         }]);
 
-      if (error) throw error;
+      if (error) {throw error;}
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error saving insights history', error);
       throw error;
@@ -318,7 +318,7 @@ export class AIInsightsService {
         })
         .eq('client_id', clientId);
 
-      if (error) throw error;
+      if (error) {throw error;}
     } catch (error) {
       debugLogger.error('AIInsightsService', 'Error updating last generated timestamp', error);
     }

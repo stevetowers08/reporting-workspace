@@ -7,8 +7,8 @@ const getEnvVar = (key: string) => {
   // Handle both browser (import.meta.env) and Node.js (process.env) environments
   // @ts-expect-error Vite injects import.meta.env at build
   const viteEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
-  if (viteEnv && typeof viteEnv[key] !== 'undefined') return viteEnv[key];
-  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') return process.env[key];
+  if (viteEnv && typeof viteEnv[key] !== 'undefined') {return viteEnv[key];}
+  if (typeof process !== 'undefined' && process.env && typeof process.env[key] !== 'undefined') {return process.env[key];}
   return undefined;
 };
 
@@ -228,7 +228,7 @@ export const supabaseHelpers = {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -239,7 +239,7 @@ export const supabaseHelpers = {
       .eq('id', id)
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -250,7 +250,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -262,7 +262,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -272,7 +272,7 @@ export const supabaseHelpers = {
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {throw error;}
   },
 
   // Integration operations
@@ -282,7 +282,7 @@ export const supabaseHelpers = {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -293,7 +293,7 @@ export const supabaseHelpers = {
       .eq('platform', platform)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error && error.code !== 'PGRST116') {throw error;}
     return data;
   },
 
@@ -304,7 +304,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -314,7 +314,7 @@ export const supabaseHelpers = {
       .delete()
       .eq('platform', platform);
 
-    if (error) throw error;
+    if (error) {throw error;}
   },
 
   // Metrics operations
@@ -337,7 +337,7 @@ export const supabaseHelpers = {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -348,7 +348,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -360,7 +360,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -373,7 +373,7 @@ export const supabaseHelpers = {
       .eq('is_active', true)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error && error.code !== 'PGRST116') {throw error;}
     return data;
   },
 
@@ -384,7 +384,7 @@ export const supabaseHelpers = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -394,7 +394,7 @@ export const supabaseHelpers = {
       .delete()
       .eq('platform', platform);
 
-    if (error) throw error;
+    if (error) {throw error;}
   },
 
   // Utility functions

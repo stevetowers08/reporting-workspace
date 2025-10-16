@@ -230,8 +230,8 @@ export class GoHighLevelApiService {
       const filteredCount = allContacts.filter((contact: any) => {
         const contactDate = new Date(contact.dateAdded || contact.createdAt || 0);
         
-        if (startDate && contactDate < startDate) return false;
-        if (endDate && contactDate > endDate) return false;
+        if (startDate && contactDate < startDate) {return false;}
+        if (endDate && contactDate > endDate) {return false;}
         
         return true;
       }).length;
@@ -344,7 +344,7 @@ export class GoHighLevelApiService {
 
 
   // Token Management
-  static async generateLocationToken(locationId: string): Promise<string | null> {
+  static async generateLocationToken(_locationId: string): Promise<string | null> {
     // This method is deprecated - we now use OAuth tokens instead of generating location tokens
     debugLogger.warn('GoHighLevelApiService', 'generateLocationToken is deprecated - use OAuth tokens instead');
     return null;

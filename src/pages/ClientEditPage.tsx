@@ -102,7 +102,7 @@ const ClientEditPage: React.FC = () => {
   }, [clientId]);
 
   const handleUpdateClient = async (updates: Partial<Client>) => {
-    if (!clientId) return;
+    if (!clientId) {return;}
 
     try {
       debugLogger.info('ClientEditPage', 'Updating client', { clientId, updates });

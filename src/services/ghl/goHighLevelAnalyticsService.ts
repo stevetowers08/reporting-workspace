@@ -384,7 +384,7 @@ export class GoHighLevelAnalyticsService {
     try {
       await GHLRateLimiter.enforceRateLimit();
       
-      debugLogger.info('GoHighLevelAnalyticsService', 'Getting calendar analytics', { locationId, dateRange });
+      debugLogger.info('GoHighLevelAnalyticsService', 'Getting calendar analytics', { locationId, dateRange: _dateRange });
 
       // For now, return a placeholder implementation
       // This would need to be implemented based on actual GHL calendar API

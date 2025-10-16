@@ -78,7 +78,7 @@ async function testGoHighLevelAPI() {
     }
     
     // Test 3: Test Go High Level service
-    const { GoHighLevelService } = await import('../src/services/ghl/goHighLevelService.ts');
+    const { GoHighLevelService: _GoHighLevelService } = await import('../src/services/ghl/goHighLevelService.ts');
     
     console.log('🔍 Testing Go High Level connection...');
     // Since we're using location-level OAuth, we don't need to test getAllLocations

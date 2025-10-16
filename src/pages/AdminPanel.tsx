@@ -5,9 +5,9 @@ import EditClientModal from "@/components/modals/EditClientModal";
 import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface Client {
   id: string;

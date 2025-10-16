@@ -76,7 +76,7 @@ export const useGHLIntegration = () => {
         })
         .eq('platform', 'goHighLevel');
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       // Disconnect service
       // GoHighLevelService.disconnect(); // Method doesn't exist - commented out
@@ -94,7 +94,7 @@ export const useGHLIntegration = () => {
   const { data: accountInfo, isLoading: accountLoading } = useQuery({
     queryKey: ['ghl-account-info'],
     queryFn: async () => {
-      if (!connection?.connected) return null;
+      if (!connection?.connected) {return null;}
       return await GoHighLevelService.getAccountInfo();
     },
     enabled: !!connection?.connected,
@@ -105,7 +105,7 @@ export const useGHLIntegration = () => {
   const { data: contacts, isLoading: contactsLoading } = useQuery({
     queryKey: ['ghl-contacts'],
     queryFn: async () => {
-      if (!connection?.connected) return [];
+      if (!connection?.connected) {return [];}
       return await GoHighLevelService.getContacts();
     },
     enabled: !!connection?.connected,
@@ -116,7 +116,7 @@ export const useGHLIntegration = () => {
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ['ghl-campaigns'],
     queryFn: async () => {
-      if (!connection?.connected) return [];
+      if (!connection?.connected) {return [];}
       return await GoHighLevelService.getCampaigns();
     },
     enabled: !!connection?.connected,

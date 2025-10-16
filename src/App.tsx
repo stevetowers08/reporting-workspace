@@ -10,7 +10,7 @@ import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
-import EventDashboard from "@/pages/EventDashboard";
+// ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
@@ -22,8 +22,18 @@ import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
 import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+// ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
+const EventDashboard = lazy(() => 
+  import("@/pages/EventDashboard")
+    .then(module => ({ default: module.default }))
+    .catch(error => {
+      console.error('Failed to load EventDashboard:', error);
+      return { default: () => <div>Failed to load dashboard</div> };
+    })
+);
 
 // Health Check Page Component
 const HealthCheckPage = () => {
@@ -229,7 +239,11 @@ const App = () => {
             <div className="app-shell">
               <Routes>
                 <Route path="/" element={<HomePageWrapper />} />
-                <Route path="/dashboard/:clientId" element={<EventDashboard />} />
+                <Route path="/dashboard/:clientId" element={
+                  <Suspense fallback={<div>Loading dashboard...</div>}>
+                    <EventDashboard />
+                  </Suspense>
+                } />
                 <Route path="/agency" element={<AgencyPanel />} />
                 <Route path="/agency/clients" element={<AgencyPanel />} />
                 <Route path="/agency/integrations" element={<AgencyPanel />} />
@@ -244,7 +258,11 @@ const App = () => {
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
-                <Route path="/share/:clientId" element={<EventDashboard isShared={true} />} />
+                <Route path="/share/:clientId" element={
+                  <Suspense fallback={<div>Loading dashboard...</div>}>
+                    <EventDashboard isShared={true} />
+                  </Suspense>
+                } />
                 <Route path="/health" element={<HealthCheckPage />} />
                 {/* Fallback for unknown routes */}
                 <Route path="*" element={<Fallback />} />

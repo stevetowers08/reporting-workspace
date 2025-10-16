@@ -89,7 +89,7 @@ export class GHLCache {
 
   static get(key: string): any | null {
     const cached = this.cache.get(key);
-    if (!cached) return null;
+    if (!cached) {return null;}
     
     const isExpired = Date.now() - cached.timestamp > this.CACHE_DURATION;
     if (isExpired) {
@@ -119,7 +119,7 @@ export class GHLValidator {
   }
 
   static validateDateRange(startDate?: string, endDate?: string): boolean {
-    if (!startDate || !endDate) return true;
+    if (!startDate || !endDate) {return true;}
     
     const start = new Date(startDate);
     const end = new Date(endDate);

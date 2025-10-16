@@ -74,7 +74,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
           setIntegrationStatus({ facebookAds: false, googleAds: false, googleSheets: false });
         } else {
           // Set all to false first
-          let statusMap = { facebookAds: false, googleAds: false, googleSheets: false };
+          const statusMap = { facebookAds: false, googleAds: false, googleSheets: false };
           // Set to true if found in database
           integrations?.forEach(integration => {
             if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
@@ -84,7 +84,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
           setIntegrationStatus(statusMap);
         }
         setIntegrationStatusLoaded(true);
-      } catch (error) {
+      } catch (_error) {
         setIntegrationStatus({});
         setIntegrationStatusLoaded(true);
       }
@@ -137,7 +137,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       setEditingClient(null);
       // Refresh the page to show updated data
       window.location.reload();
-    } catch (error) {
+    } catch (_error) {
       // Handle error silently or show user-friendly message
     }
   };
@@ -149,7 +149,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       setEditingClient(null);
       // Refresh the page to show updated data
       window.location.reload();
-    } catch (error) {
+    } catch (_error) {
       // Handle error silently or show user-friendly message
     }
   };

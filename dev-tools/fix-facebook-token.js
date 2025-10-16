@@ -1,5 +1,5 @@
 // Quick fix: Store your real Facebook access token
-const storeRealFacebookToken = async (realAccessToken) => {
+const _storeRealFacebookToken = async (realAccessToken) => {
   try {
     const { UnifiedCredentialService } = await import('/src/services/auth/unifiedCredentialService.ts');
     

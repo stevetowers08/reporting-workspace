@@ -61,7 +61,7 @@ export const MobileActionButtons: React.FC<MobileActionButtonsProps> = ({
   exportingPDF,
   isShared = false
 }) => {
-  if (isShared) return null;
+  if (isShared) {return null;}
 
   return (
     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">

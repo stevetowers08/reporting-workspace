@@ -184,7 +184,7 @@ export class GoogleAdsTroubleshoot {
     // Test 5: Database Token Check
     try {
       // Check database for Google Ads tokens
-      const { data, error } = await supabase
+      const { data, error: _error } = await supabase
         .from('integrations')
         .select('connected, config')
         .eq('platform', 'googleAds')

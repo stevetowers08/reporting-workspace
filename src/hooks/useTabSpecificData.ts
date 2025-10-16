@@ -15,10 +15,10 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
   return useQuery({
     queryKey: ['summary-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       
       const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) throw new Error('Client not found');
+      if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -77,10 +77,10 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
   return useQuery({
     queryKey: ['meta-tab-data', clientId, dateRange, 'with-previous-period'],
     queryFn: async () => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       
       const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) throw new Error('Client not found');
+      if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -141,10 +141,10 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
   return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       
       const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) throw new Error('Client not found');
+      if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -188,10 +188,10 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
   return useQuery({
     queryKey: ['leads-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       
       const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) throw new Error('Client not found');
+      if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -251,7 +251,7 @@ export const useGHLTabData = (locationId: string | undefined, dateRange?: DateRa
   return useQuery({
     queryKey: ['ghl-tab-data', locationId, dateRange],
     queryFn: async () => {
-      if (!locationId) throw new Error('Location ID is required');
+      if (!locationId) {throw new Error('Location ID is required');}
       
       debugLogger.info('useGHLTabData', 'Fetching GHL data', { locationId, dateRange });
       

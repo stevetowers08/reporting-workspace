@@ -1,4 +1,3 @@
-import { TrendingDown, TrendingUp } from 'lucide-react';
 import React from 'react';
 
 interface MetricTableCellProps {
@@ -10,14 +9,20 @@ interface MetricTableCellProps {
   };
   format?: 'number' | 'currency' | 'percentage';
   className?: string;
+  padding?: 'compact' | 'normal';
+  colorCode?: boolean;
 }
 
 export const MetricTableCell: React.FC<MetricTableCellProps> = ({
   value,
   trend,
   format = 'number',
-  className = ''
+  className = '',
+  padding = 'compact',
+  colorCode = false
 }) => {
+  const paddingClass = padding === 'normal' ? 'px-3 py-4' : 'px-2 py-2';
+
   const formatValue = (val: string | number): string => {
     if (typeof val === 'string') {return val;}
     
@@ -32,27 +37,39 @@ export const MetricTableCell: React.FC<MetricTableCellProps> = ({
     }
   };
 
+  const getCostPerLeadColor = (val: number): string => {
+    if (val < 10) return 'bg-green-50 text-green-800'; // Best
+    if (val < 20) return 'bg-blue-50 text-blue-800';   // Good
+    if (val < 30) return 'bg-yellow-50 text-yellow-800'; // Okay
+    if (val <= 100) return 'bg-orange-50 text-orange-800'; // Starting to get bad
+    return 'bg-red-50 text-red-800'; // Bad (>100)
+  };
+
+  const getBackgroundColor = (): string => {
+    if (!colorCode || format !== 'currency') return '';
+    
+    const numericValue = typeof value === 'string' ? parseFloat(value.replace('$', '')) : value;
+    if (isNaN(numericValue)) return '';
+    
+    return getCostPerLeadColor(numericValue);
+  };
+
   const getTrendColor = (direction: 'up' | 'down') => {
     return direction === 'up' ? 'text-green-600' : 'text-red-600';
   };
 
-  const getTrendIcon = (direction: 'up' | 'down') => {
-    return direction === 'up' ? TrendingUp : TrendingDown;
-  };
+  // Removed unused getTrendIcon function
 
   return (
-    <td className={`px-3 py-1.5 text-right ${className}`}>
-      <div className="flex items-center justify-end gap-1.5">
-        <p className="text-sm font-medium text-slate-900">
+    <td className={`${paddingClass} text-left ${getBackgroundColor()} ${className}`}>
+      <div className="flex items-center justify-start gap-1 flex-nowrap">
+        <p className="text-sm font-medium whitespace-nowrap">
           {formatValue(value)}
         </p>
         {trend && (
-          <div className={`flex items-center gap-0.5 text-xs font-medium ${getTrendColor(trend.direction)}`}>
-            {React.createElement(getTrendIcon(trend.direction), { className: "h-3 w-3" })}
-            <span>
-              {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.percentage).toFixed(2)}%
-            </span>
-          </div>
+          <span className={`text-xs font-medium whitespace-nowrap ${getTrendColor(trend.direction)}`}>
+            {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.percentage).toFixed(1)}%
+          </span>
         )}
       </div>
     </td>

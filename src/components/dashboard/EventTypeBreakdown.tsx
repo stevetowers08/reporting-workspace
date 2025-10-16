@@ -7,7 +7,7 @@ interface EventTypeBreakdownProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const EventTypeBreakdown: React.FC<EventTypeBreakdownProps> = ({ data }) => {
+export const EventTypeBreakdown: React.FC<EventTypeBreakdownProps> = ({ data: _data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 

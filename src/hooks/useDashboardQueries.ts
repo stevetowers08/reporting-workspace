@@ -14,11 +14,11 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
   return useQuery({
     queryKey: ['dashboard-data', clientId, dateRange, 'with-previous-period'],
     queryFn: async (): Promise<EventDashboardData> => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       
       // Get client data first to extract account information
       const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) throw new Error('Client not found');
+      if (!clientData) {throw new Error('Client not found');}
       
       // Extract account information from client data
       const clientAccounts = {
@@ -67,7 +67,7 @@ export const useClientData = (clientId: string | undefined) => {
   return useQuery({
     queryKey: ['client-data', clientId],
     queryFn: async (): Promise<Client | null> => {
-      if (!clientId) throw new Error('Client ID is required');
+      if (!clientId) {throw new Error('Client ID is required');}
       return await DatabaseService.getClientById(clientId);
     },
     enabled: !!clientId,

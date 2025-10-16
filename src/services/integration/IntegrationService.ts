@@ -144,7 +144,7 @@ export class UnifiedIntegrationService {
       ];
       
       // Use TokenManager for consistent connection checking
-      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const { TokenManager: _TokenManager } = await import('@/services/auth/TokenManager');
       
       const displayData: IntegrationDisplay[] = await Promise.all(
         platformConfigs.map(async config => {
@@ -216,7 +216,7 @@ export class UnifiedIntegrationService {
   static async isConnected(platform: IntegrationPlatform): Promise<boolean> {
     try {
       // Use TokenManager for consistent connection checking
-      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const { TokenManager: _TokenManager } = await import('@/services/auth/TokenManager');
       
       if (platform === 'googleSheets') {
         // Special handling for Google Sheets

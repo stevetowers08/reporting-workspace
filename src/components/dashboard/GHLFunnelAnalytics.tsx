@@ -89,7 +89,7 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
         };
         
         setFunnelData(transformedData);
-      } catch (error) {
+      } catch (_error) {
         // Error handled by error boundary
       } finally {
         setLoading(false);
@@ -192,7 +192,7 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string, props: any) => [
+                formatter={(value: number, name: string, _props: any) => [
                   `${value.toLocaleString()}${name === 'conversionRate' ? '%' : ''}`,
                   name === 'views' ? 'Page Views' : 
                   name === 'conversions' ? 'Conversions' : 

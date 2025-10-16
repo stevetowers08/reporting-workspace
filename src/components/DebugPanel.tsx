@@ -17,7 +17,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
     const [autoRefresh, setAutoRefresh] = useState(true);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {return;}
 
         const updateLogs = () => {
             // Logs not available
@@ -63,7 +63,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isOpen, onClose }) => {
         return new Date(timestamp).toLocaleTimeString();
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) {return null;}
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

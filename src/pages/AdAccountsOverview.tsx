@@ -4,6 +4,7 @@ import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CompactTable, { TableColumn } from "@/components/ui/CompactTable";
 import { debugLogger } from '@/lib/debug';
 import { calculatePercentageChange } from '@/lib/dateUtils';
 import { DatabaseService } from "@/services/data/databaseService";
@@ -73,6 +74,11 @@ interface AdAccountData {
         };
     };
     shareableLink: string;
+    // Add previous period data for trend indicators
+    totalLeads_previous?: number;
+    totalSpend_previous?: number;
+    totalRevenue_previous?: number;
+    roi_previous?: number;
 }
 
 const AdAccountsOverview = () => {
@@ -135,7 +141,7 @@ const AdAccountsOverview = () => {
 
                 console.log(`🔍 AdAccountsOverview: Client ${client.name} - Facebook: ${hasFacebookAds}, Google: ${hasGoogleAds}`);
 
-                if (!hasFacebookAds && !hasGoogleAds) continue;
+                if (!hasFacebookAds && !hasGoogleAds) {continue;}
 
                 try {
                     // Get comprehensive metrics for this client with previous period comparison
@@ -188,7 +194,12 @@ const AdAccountsOverview = () => {
                                 previousPeriod: metrics.googleMetrics.previousPeriod
                             } : undefined
                         },
-                        shareableLink: client.shareable_link || ''
+                        shareableLink: client.shareable_link || '',
+                        // Add previous period data for trend indicators
+                        totalLeads_previous: metrics.totalLeads_previous || 0,
+                        totalSpend_previous: metrics.totalSpend_previous || 0,
+                        totalRevenue_previous: metrics.totalRevenue_previous || 0,
+                        roi_previous: metrics.roi_previous || 0
                     };
 
                     accountsData.push(accountData);
@@ -299,7 +310,7 @@ const AdAccountsOverview = () => {
             />
 
             {/* Header */}
-            <div className="bg-transparent px-6 py-6">
+            <div className="bg-transparent px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link to="/">
@@ -332,259 +343,104 @@ const AdAccountsOverview = () => {
                 </div>
             </div>
 
-            <div className="px-8 pb-8">
+            <div className="px-6 pb-6">
                 <div className="max-w-7xl mx-auto">
+                    {/* Platform Navigation */}
+                    <div className="flex gap-2 mb-6">
+                        <Link to="/facebook-ads">
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">f</span>
+                                </div>
+                                Facebook Ads
+                            </Button>
+                        </Link>
+                        <Link to="/google-ads">
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">G</span>
+                                </div>
+                                Google Ads
+                            </Button>
+                        </Link>
+                    </div>
+
                     {/* Ad Accounts Table */}
-                    <Card className="card-bg-light">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <BarChart3 className="h-5 w-5" />
-                                Ad Accounts Performance
-                            </CardTitle>
-                            <div className="flex gap-2 mt-4">
-                                <Link to="/facebook-ads">
-                                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                        <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
-                                            <span className="text-white font-bold text-xs">f</span>
+                    <CompactTable
+                        data={adAccounts.map(account => ({
+                            ...account,
+                            venue: (
+                                <div className="flex items-center gap-3">
+                                    {account.logoUrl ? (
+                                        <img
+                                            src={account.logoUrl}
+                                            alt={`${account.venueName} logo`}
+                                            className="w-8 h-8 object-cover rounded-lg border border-slate-200"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                                            <BarChart3 className="h-4 w-4 text-white" />
                                         </div>
-                                        Facebook Ads
-                                    </Button>
-                                </Link>
-                                <Link to="/google-ads">
-                                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                        <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
-                                            <span className="text-white font-bold text-xs">G</span>
+                                    )}
+                                    <div>
+                                        <div className="font-semibold text-slate-900">{account.venueName}</div>
+                                        <div className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${account.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                account.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                            }`}>
+                                            {account.status}
                                         </div>
-                                        Google Ads
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {loading ? (
-                                <LoadingState message="Loading ad accounts data..." />
-                            ) : adAccounts.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Ad Accounts Found</h3>
-                                    <p className="text-gray-500 mb-4">No clients have ad accounts connected yet.</p>
-                                    <Link to="/agency">
-                                        <Button>
-                                            <BarChart3 className="h-4 w-4 mr-2" />
-                                            Manage Clients
-                                        </Button>
-                                    </Link>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {/* Desktop Table View */}
-                                    <div className="hidden lg:block overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="border-b border-slate-200">
-                                                    <th className="text-left py-4 px-6 font-semibold text-slate-900">Venue</th>
-                                                    <th className="text-left py-4 px-6 font-semibold text-slate-900">Platforms</th>
-                                                    <th className="text-right py-4 px-6 font-semibold text-slate-900">Leads</th>
-                                                    <th className="text-right py-4 px-6 font-semibold text-slate-900">Spend</th>
-                                                    <th className="text-right py-4 px-6 font-semibold text-slate-900">Revenue</th>
-                                                    <th className="text-right py-4 px-6 font-semibold text-slate-900">ROI</th>
-                                                    <th className="text-center py-4 px-6 font-semibold text-slate-900">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {adAccounts.map((account) => (
-                                                    <tr key={account.clientId} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className="py-4 px-6">
-                                                            <div className="flex items-center gap-3">
-                                                                {account.logoUrl ? (
-                                                                    <img
-                                                                        src={account.logoUrl}
-                                                                        alt={`${account.venueName} logo`}
-                                                                        className="w-10 h-10 object-cover rounded-lg border border-slate-200"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                                                                        <BarChart3 className="h-5 w-5 text-white" />
-                                                                    </div>
-                                                                )}
-                                                                <div>
-                                                                    <div className="font-semibold text-slate-900">{account.venueName}</div>
-                                                                    <div className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${account.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                                            account.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                                                                                'bg-gray-100 text-gray-800'
-                                                                        }`}>
-                                                                        {account.status}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-
-                                                        <td className="py-4 px-6">
-                                                            <div className="flex gap-2">
-                                                                {account.platforms.facebookAds && (
-                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium border border-blue-200">
-                                                                        <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
-                                                                            <span className="text-white font-bold text-xs">f</span>
-                                                                        </div>
-                                                                        Facebook
-                                                                    </div>
-                                                                )}
-                                                                {account.platforms.googleAds && (
-                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-200">
-                                                                        <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
-                                                                            <span className="text-white font-bold text-xs">G</span>
-                                                                        </div>
-                                                                        Google
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-
-                                                        <td className="py-4 px-6 text-right">
-                                                            <div className="font-semibold text-slate-900 text-lg">
-                                                                {formatNumber(account.metrics.totalLeads)}
-                                                            </div>
-                                                            {account.metrics.facebookMetrics && account.metrics.googleMetrics && (
-                                                                <div className="text-sm text-slate-500 mt-1">
-                                                                    FB: {formatNumber(account.metrics.facebookMetrics.leads)} • GA: {formatNumber(account.metrics.googleMetrics.leads)}
-                                                                </div>
-                                                            )}
-                                                            {/* Show comparison data if available */}
-                                                            {(account.metrics.facebookMetrics?.previousPeriod || account.metrics.googleMetrics?.previousPeriod) && (
-                                                                <div className="text-xs text-slate-400 mt-1">
-                                                                    {account.metrics.facebookMetrics?.previousPeriod && (
-                                                                        <span>FB: {calculatePercentageChange(account.metrics.facebookMetrics.leads, account.metrics.facebookMetrics.previousPeriod.leads) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.facebookMetrics.leads, account.metrics.facebookMetrics.previousPeriod.leads)).toFixed(1)}%</span>
-                                                                    )}
-                                                                    {account.metrics.facebookMetrics?.previousPeriod && account.metrics.googleMetrics?.previousPeriod && ' • '}
-                                                                    {account.metrics.googleMetrics?.previousPeriod && (
-                                                                        <span>GA: {calculatePercentageChange(account.metrics.googleMetrics.leads, account.metrics.googleMetrics.previousPeriod.leads) > 0 ? '↑' : '↓'} {Math.abs(calculatePercentageChange(account.metrics.googleMetrics.leads, account.metrics.googleMetrics.previousPeriod.leads)).toFixed(1)}%</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        <td className="py-4 px-6 text-right">
-                                                            <div className="font-semibold text-slate-900 text-lg">
-                                                                {formatCurrency(account.metrics.totalSpend)}
-                                                            </div>
-                                                            {account.metrics.facebookMetrics && account.metrics.googleMetrics && (
-                                                                <div className="text-sm text-slate-500 mt-1">
-                                                                    FB: {formatCurrency(account.metrics.facebookMetrics.spend)} • GA: {formatCurrency(account.metrics.googleMetrics.cost)}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        <td className="py-4 px-6 text-right">
-                                                            <div className="font-semibold text-slate-900 text-lg">
-                                                                {formatCurrency(account.metrics.totalRevenue)}
-                                                            </div>
-                                                        </td>
-
-                                                        <td className="py-4 px-6 text-right">
-                                                            <div className={`font-semibold text-lg ${account.metrics.roi > 0 ? 'text-green-600' :
-                                                                    account.metrics.roi < 0 ? 'text-red-600' :
-                                                                        'text-slate-600'
-                                                                }`}>
-                                                                {formatPercentage(account.metrics.roi)}
-                                                            </div>
-                                                        </td>
-
-                                                        <td className="py-4 px-6 text-center">
-                                                            <Link to={`/share/${account.clientId}`}>
-                                                                <Button variant="outline" size="sm" className="hover:bg-slate-100">
-                                                                    <Eye className="h-4 w-4 mr-2" />
-                                                                    View Dashboard
-                                                                </Button>
-                                                            </Link>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {/* Mobile Card View */}
-                                    <div className="lg:hidden space-y-4">
-                                        {adAccounts.map((account) => (
-                                            <Card key={account.clientId} className="p-6 hover:shadow-md transition-shadow">
-                                                <div className="flex items-start justify-between mb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        {account.logoUrl ? (
-                                                            <img
-                                                                src={account.logoUrl}
-                                                                alt={`${account.venueName} logo`}
-                                                                className="w-12 h-12 object-cover rounded-lg border border-slate-200"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                                                                <BarChart3 className="h-6 w-6 text-white" />
-                                                            </div>
-                                                        )}
-                                                        <div>
-                                                            <div className="font-semibold text-slate-900 text-lg">{account.venueName}</div>
-                                                            <div className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${account.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                                    account.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                                                                        'bg-gray-100 text-gray-800'
-                                                                }`}>
-                                                                {account.status}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <Link to={`/share/${account.clientId}`}>
-                                                        <Button variant="outline" size="sm">
-                                                            <Eye className="h-4 w-4 mr-2" />
-                                                            View
-                                                        </Button>
-                                                    </Link>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                                    <div className="text-center p-3 bg-slate-50 rounded-lg">
-                                                        <div className="text-2xl font-bold text-slate-900">{formatNumber(account.metrics.totalLeads)}</div>
-                                                        <div className="text-sm text-slate-500">Leads</div>
-                                                    </div>
-                                                    <div className="text-center p-3 bg-slate-50 rounded-lg">
-                                                        <div className="text-2xl font-bold text-slate-900">{formatCurrency(account.metrics.totalSpend)}</div>
-                                                        <div className="text-sm text-slate-500">Spend</div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex gap-2">
-                                                        {account.platforms.facebookAds && (
-                                                            <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                                                                <div className="w-3 h-3 bg-blue-600 rounded flex items-center justify-center">
-                                                                    <span className="text-white font-bold text-xs">f</span>
-                                                                </div>
-                                                                Facebook
-                                                            </div>
-                                                        )}
-                                                        {account.platforms.googleAds && (
-                                                            <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
-                                                                <div className="w-3 h-3 bg-red-600 rounded flex items-center justify-center">
-                                                                    <span className="text-white font-bold text-xs">G</span>
-                                                                </div>
-                                                                Google
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-sm text-slate-500">ROI</div>
-                                                        <div className={`font-semibold ${account.metrics.roi > 0 ? 'text-green-600' :
-                                                                account.metrics.roi < 0 ? 'text-red-600' :
-                                                                    'text-slate-600'
-                                                            }`}>
-                                                            {formatPercentage(account.metrics.roi)}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        ))}
                                     </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            ),
+                            platforms: (
+                                <div className="flex gap-2">
+                                    {account.platforms.facebookAds && (
+                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                                            <div className="w-3 h-3 bg-blue-600 rounded flex items-center justify-center">
+                                                <span className="text-white font-bold text-xs">f</span>
+                                            </div>
+                                            Facebook
+                                        </div>
+                                    )}
+                                    {account.platforms.googleAds && (
+                                        <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+                                            <div className="w-3 h-3 bg-red-600 rounded flex items-center justify-center">
+                                                <span className="text-white font-bold text-xs">G</span>
+                                            </div>
+                                            Google
+                                        </div>
+                                    )}
+                                </div>
+                            ),
+                            totalLeads: account.metrics.totalLeads,
+                            totalSpend: account.metrics.totalSpend,
+                            totalRevenue: account.metrics.totalRevenue,
+                            roi: account.metrics.roi,
+                            actions: (
+                                <Link to={`/share/${account.clientId}`}>
+                                    <Button variant="outline" size="sm" className="hover:bg-slate-100">
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        View Dashboard
+                                    </Button>
+                                </Link>
+                            )
+                        }))}
+                        columns={[
+                            { key: 'venue', label: 'Venue', align: 'left', format: 'text' },
+                            { key: 'platforms', label: 'Platforms', align: 'left', format: 'text' },
+                            { key: 'totalLeads', label: 'Leads', align: 'right', format: 'number', showTrend: true },
+                            { key: 'totalSpend', label: 'Spend', align: 'right', format: 'currency', showTrend: true },
+                            { key: 'totalRevenue', label: 'Revenue', align: 'right', format: 'currency', showTrend: true },
+                            { key: 'roi', label: 'ROI', align: 'right', format: 'percentage', showTrend: true },
+                            { key: 'actions', label: 'Actions', align: 'center', format: 'text' }
+                        ]}
+                        density="compact"
+                        loading={loading}
+                        emptyMessage="No clients have ad accounts connected yet."
+                        emptyIcon={<BarChart3 className="h-12 w-12 text-gray-400 mx-auto" />}
+                        maxRows={100}
+                    />
                 </div>
             </div>
         </div>

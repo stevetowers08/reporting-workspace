@@ -22,7 +22,7 @@ const supabaseHelpers = {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data || [];
   },
 
@@ -34,7 +34,7 @@ const supabaseHelpers = {
       .single();
     
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') {return null;}
       throw error;
     }
     return data;
@@ -47,7 +47,7 @@ const supabaseHelpers = {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -62,7 +62,7 @@ const supabaseHelpers = {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -72,7 +72,7 @@ const supabaseHelpers = {
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {throw error;}
   },
 
   async getIntegrations(): Promise<Integration[]> {
@@ -81,7 +81,7 @@ const supabaseHelpers = {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data || [];
   },
 
@@ -93,7 +93,7 @@ const supabaseHelpers = {
       .single();
     
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') {return null;}
       throw error;
     }
     return data;
@@ -110,7 +110,7 @@ const supabaseHelpers = {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 
@@ -120,7 +120,7 @@ const supabaseHelpers = {
       .delete()
       .eq('platform', platform);
     
-    if (error) throw error;
+    if (error) {throw error;}
   },
 
   async getMetrics(clientId: string, platform?: string, dateRange?: { start: string; end: string }): Promise<any[]> {
@@ -141,7 +141,7 @@ const supabaseHelpers = {
     
     const { data, error } = await query.order('date', { ascending: false });
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data || [];
   },
 
@@ -158,7 +158,7 @@ const supabaseHelpers = {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {throw error;}
     return data;
   },
 

@@ -23,8 +23,8 @@ export class DevLogger {
 
   // Debug level logging
   static debug(platform: string, message: string, data?: any, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
-    if (DEBUG_CONFIG.logLevel === 'error' || DEBUG_CONFIG.logLevel === 'warn') return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
+    if (DEBUG_CONFIG.logLevel === 'error' || DEBUG_CONFIG.logLevel === 'warn') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'debug');
     console.log(formattedMessage, data || '');
@@ -32,8 +32,8 @@ export class DevLogger {
 
   // Info level logging
   static info(platform: string, message: string, data?: any, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
-    if (DEBUG_CONFIG.logLevel === 'error') return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
+    if (DEBUG_CONFIG.logLevel === 'error') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'info');
     console.log(formattedMessage, data || '');
@@ -41,7 +41,7 @@ export class DevLogger {
 
   // Warning level logging
   static warn(platform: string, message: string, data?: any, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'warn');
     console.warn(formattedMessage, data || '');
@@ -49,7 +49,7 @@ export class DevLogger {
 
   // Error level logging
   static error(platform: string, message: string, error?: any, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'error');
     console.error(formattedMessage, error || '');
@@ -57,8 +57,8 @@ export class DevLogger {
 
   // Success level logging
   static success(platform: string, message: string, data?: any, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
-    if (DEBUG_CONFIG.logLevel === 'error') return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
+    if (DEBUG_CONFIG.logLevel === 'error') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'success');
     console.log(formattedMessage, data || '');
@@ -66,22 +66,22 @@ export class DevLogger {
 
   // Performance timing
   static time(platform: string, label: string, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
-    if (!DEBUG_CONFIG.features.performance) return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
+    if (!DEBUG_CONFIG.features.performance) {return;}
     
     console.time(`⏱️ ${platform}: ${label}`);
   }
 
   static timeEnd(platform: string, label: string, debugPlatform?: DebugPlatform, debugFeature?: DebugFeature) {
-    if (!this.shouldLog(debugPlatform, debugFeature)) return;
-    if (!DEBUG_CONFIG.features.performance) return;
+    if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
+    if (!DEBUG_CONFIG.features.performance) {return;}
     
     console.timeEnd(`⏱️ ${platform}: ${label}`);
   }
 
   // Network request logging
   static network(platform: string, method: string, url: string, status?: number, debugPlatform?: DebugPlatform) {
-    if (!this.shouldLog(debugPlatform, 'network')) return;
+    if (!this.shouldLog(debugPlatform, 'network')) {return;}
     
     const statusEmoji = status ? (status >= 200 && status < 300 ? '✅' : '❌') : '🔄';
     const message = `${statusEmoji} ${method.toUpperCase()} ${url}${status ? ` (${status})` : ''}`;
@@ -91,7 +91,7 @@ export class DevLogger {
 
   // Token logging (with masking for security)
   static token(platform: string, action: string, token?: string, debugPlatform?: DebugPlatform) {
-    if (!this.shouldLog(debugPlatform, 'tokens')) return;
+    if (!this.shouldLog(debugPlatform, 'tokens')) {return;}
     
     const maskedToken = token ? `${token.substring(0, 8)}...${token.substring(token.length - 4)}` : 'undefined';
     const message = `${action}: ${maskedToken}`;
@@ -101,7 +101,7 @@ export class DevLogger {
 
   // Cache logging
   static cache(platform: string, action: string, key: string, hit?: boolean, debugPlatform?: DebugPlatform) {
-    if (!this.shouldLog(debugPlatform, 'cache')) return;
+    if (!this.shouldLog(debugPlatform, 'cache')) {return;}
     
     const hitEmoji = hit !== undefined ? (hit ? '✅' : '❌') : '🔄';
     const message = `${hitEmoji} ${action}: ${key}`;
@@ -111,7 +111,7 @@ export class DevLogger {
 
   // Group logging for related operations
   static group(platform: string, title: string, debugPlatform?: DebugPlatform) {
-    if (!this.shouldLog(debugPlatform)) return;
+    if (!this.shouldLog(debugPlatform)) {return;}
     
     console.group(`📁 ${platform}: ${title}`);
   }
@@ -122,7 +122,7 @@ export class DevLogger {
 
   // Table logging for structured data
   static table(platform: string, title: string, data: any, debugPlatform?: DebugPlatform) {
-    if (!this.shouldLog(debugPlatform)) return;
+    if (!this.shouldLog(debugPlatform)) {return;}
     
     console.log(`📊 ${platform}: ${title}`);
     console.table(data);

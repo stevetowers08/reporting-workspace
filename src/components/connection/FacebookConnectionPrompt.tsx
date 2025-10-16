@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
 import { AlertCircle, CheckCircle, Facebook } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface FacebookConnectionPromptProps {
   onConnectionSuccess?: () => void;

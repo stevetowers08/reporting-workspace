@@ -204,11 +204,11 @@ export class GoHighLevelAuthService {
       try {
         // Test basic API access
         const accountResponse = await this.makeApiRequest('/accounts/me') as any;
-        const account = accountResponse.account;
+        const _account = accountResponse.account;
 
         // Test location access
         let locations: any[] = [];
-        let capabilities = {
+        const capabilities = {
           canListLocations: false,
           canAccessContacts: false
         };

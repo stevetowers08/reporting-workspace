@@ -28,7 +28,7 @@ export const InternalAgencyHeader: React.FC<InternalAgencyHeaderProps> = ({
   exportingPDF,
   isShared = false
 }) => {
-  if (isShared) return null; // Don't show internal header for shared views
+  if (isShared) {return null;} // Don't show internal header for shared views
 
   return (
     <header className="bg-slate-800 text-white border-b border-slate-700 sticky top-0 z-50 shadow-lg">
@@ -162,11 +162,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
       case '30d':
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
-      case 'lastMonth':
+      case 'lastMonth': {
         // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
         return `${formatDate(lastMonth)} - ${formatDate(lastMonthEnd)}`;
+      }
       case '90d':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         break;

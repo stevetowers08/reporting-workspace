@@ -39,7 +39,7 @@ class FacebookAPICache {
 
 // Usage in FacebookAdsService
 export class FacebookAdsService {
-  static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics> {
+  static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, _conversionAction?: string): Promise<FacebookAdsMetrics> {
     const cacheKey = `metrics_${adAccountId}_${dateRange?.start}_${dateRange?.end}`;
     
     return FacebookAPICache.getCachedOrFetch(cacheKey, async () => {

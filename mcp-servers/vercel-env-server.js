@@ -3,11 +3,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
+    CallToolRequestSchema,
+    ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-class VercelComprehensiveServer {
+class _VercelComprehensiveServer {
   constructor() {
     this.server = new Server(
       {
@@ -309,7 +309,7 @@ class VercelComprehensiveServer {
       throw new Error(`Failed to create environment variable: ${response.status} ${error}`);
     }
 
-    const result = await response.json();
+    const _result = await response.json();
     
     return {
       content: [

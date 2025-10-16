@@ -8,7 +8,7 @@ if (typeof import.meta === 'undefined') {
 }
 
 // Mock the sanitization module
-const mockSanitizeFormData = (formData: any, schema: any) => {
+const mockSanitizeFormData = (formData: any, _schema: any) => {
   const sanitized: any = {};
   for (const [key, value] of Object.entries(formData)) {
     if (typeof value === 'string') {
@@ -25,12 +25,12 @@ const mockSanitizeString = (input: string) => {
 };
 
 // Mock the rate limiting module
-const mockmockRateLimitConfigs = {
+const _mockmockRateLimitConfigs = {
   api: { windowMs: 60000, maxRequests: 100 },
   auth: { windowMs: 300000, maxRequests: 5 }
 };
 
-const mockCheckRateLimit = (key: string, config: any) => {
+const mockCheckRateLimit = (_key: string, _config: any) => {
   return { allowed: true, remaining: 99 };
 };
 

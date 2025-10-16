@@ -231,7 +231,7 @@ export class RateLimiter {
 
   private matchesPattern(key: string, pattern: string): boolean {
     // Simple pattern matching - can be enhanced for more complex patterns
-    if (pattern === '*') return true;
+    if (pattern === '*') {return true;}
     if (pattern.includes('*')) {
       const regex = new RegExp(pattern.replace(/\*/g, '.*'));
       return regex.test(key);

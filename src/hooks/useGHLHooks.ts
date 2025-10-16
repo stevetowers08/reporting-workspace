@@ -11,7 +11,7 @@ const useGHLMetrics = (locationId: string, dateRange?: { start: string; end: str
   const lastFetchRef = useRef<string>('');
 
   const fetchData = useCallback(async () => {
-    if (!locationId) return;
+    if (!locationId) {return;}
     
     // Prevent duplicate requests for same parameters
     const requestKey = `${locationId}-${dateRange?.start || 'no-start'}-${dateRange?.end || 'no-end'}`;
@@ -72,7 +72,7 @@ export const useGHLFunnelAnalytics = (locationId: string, dateRange?: { start: s
   const lastFetchRef = useRef<string>('');
 
   const fetchData = useCallback(async () => {
-    if (!locationId) return;
+    if (!locationId) {return;}
     
     const requestKey = `funnel-${locationId}-${dateRange?.start || 'no-start'}-${dateRange?.end || 'no-end'}`;
     if (lastFetchRef.current === requestKey) {
@@ -131,7 +131,7 @@ export const useGHLContactCount = (locationId: string, dateRange?: { start: stri
   const lastFetchRef = useRef<string>('');
 
   const fetchData = useCallback(async () => {
-    if (!locationId) return;
+    if (!locationId) {return;}
     
     const requestKey = `contacts-${locationId}-${dateRange?.start || 'no-start'}-${dateRange?.end || 'no-end'}`;
     if (lastFetchRef.current === requestKey) {

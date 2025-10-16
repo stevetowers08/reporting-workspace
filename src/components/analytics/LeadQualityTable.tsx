@@ -105,8 +105,8 @@ export const LeadQualityTable: React.FC<LeadQualityTableProps> = ({ leads, onLea
   };
 
   const getQualityScoreColor = (score: number) => {
-    if (score >= 8) return 'text-green-600';
-    if (score >= 6) return 'text-yellow-600';
+    if (score >= 8) {return 'text-green-600';}
+    if (score >= 6) {return 'text-yellow-600';}
     return 'text-red-600';
   };
 

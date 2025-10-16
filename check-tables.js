@@ -18,7 +18,7 @@ async function checkDatabaseTables() {
   
   try {
     // Test connection first
-    const { data: testData, error: testError } = await supabase
+    const { data: _testData, error: testError } = await supabase
       .from('clients')
       .select('count')
       .limit(1);
@@ -35,7 +35,7 @@ async function checkDatabaseTables() {
     
     for (const table of tables) {
       try {
-        const { data, error } = await supabase
+        const { data: _data, error } = await supabase
           .from(table)
           .select('count')
           .limit(1);

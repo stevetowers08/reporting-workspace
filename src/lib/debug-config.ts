@@ -28,10 +28,10 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 // Helper function to check if logging should be enabled
 export const shouldLog = (platform?: DebugPlatform, feature?: DebugFeature): boolean => {
-  if (!DEBUG_CONFIG.enabled) return false;
+  if (!DEBUG_CONFIG.enabled) {return false;}
   
-  if (platform && !DEBUG_CONFIG.platforms[platform]) return false;
-  if (feature && !DEBUG_CONFIG.features[feature]) return false;
+  if (platform && !DEBUG_CONFIG.platforms[platform]) {return false;}
+  if (feature && !DEBUG_CONFIG.features[feature]) {return false;}
   
   return true;
 };

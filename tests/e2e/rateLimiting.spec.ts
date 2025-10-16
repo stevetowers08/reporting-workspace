@@ -56,14 +56,14 @@ class MockRateLimiter {
   }
 }
 
-const mockmockRateLimitConfigs = {
+const _mockmockRateLimitConfigs = {
   api: { windowMs: 60000, maxRequests: 100 },
   auth: { windowMs: 300000, maxRequests: 5 }
 };
 
-const mockCheckRateLimit = (key: string, config: any) => {
-  const limiter = MockRateLimiter.getInstance();
-  return limiter.check(key);
+const mockCheckRateLimit = (_key: string, _config: any) => {
+  const _limiter = MockRateLimiter.getInstance();
+  return _limiter.check(_key);
 };
 
 const mockGetRateLimitStatus = (key: string) => {

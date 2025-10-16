@@ -1,3 +1,5 @@
+import React from 'react';
+
 // Component Prop Types
 export interface DashboardProps {
   data?: any; // Using any for now to avoid circular dependencies

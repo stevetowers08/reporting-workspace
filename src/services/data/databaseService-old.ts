@@ -284,7 +284,7 @@ export class DatabaseService {
   private static getIntegrationsFromLocalStorage(): Integration[] {
     try {
       const config = localStorage.getItem('integrationConfig');
-      if (!config) return [];
+      if (!config) {return [];}
 
       const parsed = JSON.parse(config);
       return Object.entries(parsed).map(([platform, data]: [string, any]) => ({
@@ -352,7 +352,7 @@ export class DatabaseService {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data || [];
     } catch (error) {
       console.error('Error fetching Google Ads configs:', error);
@@ -380,7 +380,7 @@ export class DatabaseService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error saving Google Ads config:', error);
@@ -399,10 +399,10 @@ export class DatabaseService {
         updated_at: new Date().toISOString()
       };
 
-      if (updates.developerToken !== undefined) updateData.developer_token = updates.developerToken;
-      if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
-      if (updates.clientSecret !== undefined) updateData.client_secret = updates.clientSecret;
-      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+      if (updates.developerToken !== undefined) {updateData.developer_token = updates.developerToken;}
+      if (updates.clientId !== undefined) {updateData.client_id = updates.clientId;}
+      if (updates.clientSecret !== undefined) {updateData.client_secret = updates.clientSecret;}
+      if (updates.isActive !== undefined) {updateData.is_active = updates.isActive;}
 
       const { data, error } = await supabaseHelpers.supabase
         .from('google_ads_configs')
@@ -411,7 +411,7 @@ export class DatabaseService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error updating Google Ads config:', error);
@@ -438,7 +438,7 @@ export class DatabaseService {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {throw error;}
       return true;
     } catch (error) {
       console.error('Error deleting Google Ads config:', error);
@@ -502,7 +502,7 @@ export class DatabaseService {
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error fetching user Google Ads auth:', error);
@@ -538,7 +538,7 @@ export class DatabaseService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error saving user Google Ads auth:', error);
@@ -570,7 +570,7 @@ export class DatabaseService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error updating user Google Ads auth:', error);
@@ -585,7 +585,7 @@ export class DatabaseService {
         .delete()
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {throw error;}
       return true;
     } catch (error) {
       console.error('Error deleting user Google Ads auth:', error);
@@ -601,7 +601,7 @@ export class DatabaseService {
         .eq('is_active', true)
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data;
     } catch (error) {
       console.error('Error fetching active Google Ads config:', error);

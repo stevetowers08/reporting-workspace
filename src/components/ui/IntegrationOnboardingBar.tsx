@@ -29,8 +29,8 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
   useEffect(() => {
     const loadOnboardingStatus = async () => {
       try {
-        const { TokenManager } = await import('@/services/auth/TokenManager');
-        const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
+        const { TokenManager: _TokenManager } = await import('@/services/auth/TokenManager');
+        const { GoogleSheetsOAuthService: _GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
         
         const onboardingSteps = [
           { 

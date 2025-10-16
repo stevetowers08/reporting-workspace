@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { code, state, platform = 'googleAds' } = await req.json()
+    const { code, state: _state, platform = 'googleAds' } = await req.json()
 
     if (!code) {
       return new Response(

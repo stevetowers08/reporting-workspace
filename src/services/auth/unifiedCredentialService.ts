@@ -174,7 +174,7 @@ export class UnifiedCredentialService {
    */
   static async areCredentialsValid(platform: string): Promise<boolean> {
     const credentials = await this.getCredentials(platform);
-    if (!credentials?.accessToken) return false;
+    if (!credentials?.accessToken) {return false;}
 
     // Check if token is expired
     if (credentials.tokenExpiresAt) {

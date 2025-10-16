@@ -60,7 +60,7 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
         };
         
         setPageData(transformedData);
-      } catch (error) {
+      } catch (_error) {
         // Error handled by error boundary
         // Set empty data instead of leaving it null
         setPageData({
@@ -166,7 +166,7 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string, props: any) => [
+                formatter={(value: number, name: string, _props: any) => [
                   `${value.toLocaleString()}${name === 'conversionRate' ? '%' : ''}`,
                   name === 'views' ? 'Views' : 
                   name === 'conversions' ? 'Conversions' : 
@@ -208,7 +208,7 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string, props: any) => [
+                formatter={(value: number, _name: string, _props: any) => [
                   `${value.toFixed(1)}%`,
                   'Conversion Rate'
                 ]}

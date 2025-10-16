@@ -25,7 +25,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
   useEffect(() => {
     const fetchPipelineData = async () => {
       try {
-        const metrics = await GoHighLevelService.getGHLMetrics(locationId, {
+        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
           startDate: dateRange?.start,
           endDate: dateRange?.end
         });
@@ -115,7 +115,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
           .sort((a, b) => Object.keys(stages).indexOf(a.stage) - Object.keys(stages).indexOf(b.stage));
 
         setPipelineData(pipelineStages);
-      } catch (error) {
+      } catch (_error) {
         // Error handled by error boundary
       } finally {
         setLoading(false);
@@ -174,8 +174,8 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string, props: any) => [
-                  `${value} leads (${props.payload.percentage.toFixed(1)}%)`,
+                formatter={(value: number, _name: string, _props: any) => [
+                  `${value} leads (${_props.payload.percentage.toFixed(1)}%)`,
                   'Leads'
                 ]}
                 labelStyle={{ color: '#374151' }}
@@ -210,7 +210,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number, name: string, props: any) => [
+                formatter={(value: number, _name: string, _props: any) => [
                   `${value} leads`,
                   'Count'
                 ]}

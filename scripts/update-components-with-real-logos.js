@@ -27,7 +27,7 @@ const realLogos = {
 // Extract SVG content (remove XML declaration and outer svg tags)
 function extractSVGContent(svgContent) {
   // Remove XML declaration
-  let content = svgContent.replace(/<\?xml[^>]*\?>/g, '');
+  const content = svgContent.replace(/<\?xml[^>]*\?>/g, '');
   
   // Extract content between <svg> tags
   const svgMatch = content.match(/<svg[^>]*>(.*)<\/svg>/s);

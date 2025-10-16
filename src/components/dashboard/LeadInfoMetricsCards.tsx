@@ -12,7 +12,7 @@ interface LeadInfoMetricsCardsProps {
 }
 
 export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.memo(({ data, clientData: _clientData, dateRange: _dateRange }) => {
-  const [ghlNeedsReconnect, setGhlNeedsReconnect] = useState(false);
+  const [_ghlNeedsReconnect, _setGhlNeedsReconnect] = useState(false);
 
   const handleGHLReconnect = useCallback(() => {
     // Navigate to agency integrations page
@@ -26,7 +26,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   const isLoading = useMemo(() => !data, [data]);
 
   // Use Google Sheets data for lead counts (PRIMARY SOURCE) - memoized
-  const leadMetrics = useMemo(() => ({
+  const _leadMetrics = useMemo(() => ({
     totalLeads: leadData?.totalLeads || 0,
     facebookLeads: leadData?.facebookLeads || 0,
     googleLeads: leadData?.googleLeads || 0

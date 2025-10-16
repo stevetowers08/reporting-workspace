@@ -74,7 +74,7 @@ const GoogleAdsPage = () => {
                 // Only include clients that have Google ads connected AND the integration is actually working
                 const hasGoogleAds = client.accounts?.googleAds && client.accounts.googleAds !== 'none';
 
-                if (!hasGoogleAds) continue;
+                if (!hasGoogleAds) {continue;}
 
                 try {
                     // Get comprehensive metrics for this individual client with previous period comparison
@@ -190,7 +190,7 @@ const GoogleAdsPage = () => {
     return (
         <div className="page-bg-light">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="bg-transparent px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link to="/ad-accounts">
@@ -213,7 +213,7 @@ const GoogleAdsPage = () => {
                         <select
                             value={selectedPeriod}
                             onChange={(e) => setSelectedPeriod(e.target.value)}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                            className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500 hover:border-slate-400 transition-colors"
                         >
                             <option value="7d">Last 7 days</option>
                             <option value="14d">Last 14 days</option>
@@ -225,7 +225,7 @@ const GoogleAdsPage = () => {
                 </div>
             </div>
 
-            <div className="p-8">
+            <div className="px-6 pb-6">
                 <div className="max-w-7xl mx-auto">
                     {/* Google Ads Table */}
                     <Card className="card-bg-light">

@@ -59,7 +59,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                 // Only include clients that have Google ads connected
                 const hasGoogleAds = client.accounts?.googleAds && client.accounts.googleAds !== 'none';
 
-                if (!hasGoogleAds) continue;
+                if (!hasGoogleAds) {continue;}
 
                 try {
                     // Get comprehensive metrics for this client

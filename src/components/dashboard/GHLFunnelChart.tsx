@@ -53,7 +53,7 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
         ];
 
         setFunnelData(funnelStages);
-      } catch (error) {
+      } catch (_error) {
         // Error handled by error boundary
       } finally {
         setLoading(false);
