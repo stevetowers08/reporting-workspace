@@ -5,7 +5,6 @@
 
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
-import { OAuthService } from '@/services/auth/oauthService';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -24,10 +23,37 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     setIsConnecting(true);
     
     try {
-      // Use OAuthService to generate proper OAuth URL with state validation
-      const authUrl = await OAuthService.generateAuthUrl('goHighLevel', {}, clientId);
+      // Generate OAuth URL directly to ensure it points to external GHL
+      const ghlClientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 'https://tulenreporting.vercel.app/oauth/callback';
+      
+      if (!ghlClientId) {
+        throw new Error('Missing GHL client ID in environment variables');
+      }
+      
+      // Generate state parameter
+      const state = btoa(JSON.stringify({
+        platform: 'goHighLevel',
+        timestamp: Date.now(),
+        nonce: Math.random().toString(36).substring(2, 15),
+        integrationPlatform: clientId || 'new_client'
+      }));
+      
+      // Build OAuth URL directly
+      const authUrl = `https://marketplace.leadconnectorhq.com/oauth/chooselocation?` +
+        `client_id=${ghlClientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=contacts.readonly%20opportunities.readonly%20calendars.readonly%20funnels/funnel.readonly%20funnels/page.readonly%20locations.readonly&` +
+        `state=${encodeURIComponent(state)}`;
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
+      debugLogger.info('ConnectLocationButton', 'OAuth URL being opened:', authUrl);
+      
+      // Ensure we're opening the external GHL OAuth URL
+      if (!authUrl.includes('marketplace.leadconnectorhq.com')) {
+        throw new Error('Invalid OAuth URL - not pointing to GoHighLevel');
+      }
       
       // Open OAuth flow in popup window (centered)
       const width = 600;
@@ -35,8 +61,9 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       const left = (window.innerWidth - width) / 2;
       const top = (window.innerHeight - height) / 2;
       
+      // First open a blank popup to avoid routing issues
       const popup = window.open(
-        authUrl,
+        'about:blank',
         'ghl-oauth',
         `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes,status=yes,toolbar=no,menubar=no,location=no`
       );
@@ -44,6 +71,11 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       if (!popup) {
         throw new Error('Failed to open OAuth popup. Please allow popups for this site.');
       }
+      
+      // Navigate to the OAuth URL after popup is created
+      popup.location.href = authUrl;
+      
+      debugLogger.info('ConnectLocationButton', 'Popup opened and navigating to:', authUrl);
       
       // Listen for messages from the popup window
       const handleMessage = (event: globalThis.MessageEvent) => {
@@ -83,7 +115,9 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         try {
           // Check if popup has redirected to our callback URL
           const currentUrl = popup.location.href;
-          if (currentUrl.includes('/leadconnector/oath') && currentUrl.includes('success=true')) {
+          debugLogger.info('ConnectLocationButton', 'Monitoring popup URL:', currentUrl);
+          
+          if (currentUrl.includes('/oauth/callback') && currentUrl.includes('success=true')) {
             clearInterval(monitorPopup);
             window.removeEventListener('message', handleMessage);
             setIsConnecting(false);
@@ -95,6 +129,12 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
             
             popup.close();
             debugLogger.info('ConnectLocationButton', 'OAuth success detected via URL monitoring');
+          } else if (currentUrl.includes('/oauth/callback') && currentUrl.includes('error=')) {
+            clearInterval(monitorPopup);
+            window.removeEventListener('message', handleMessage);
+            setIsConnecting(false);
+            popup.close();
+            window.alert('OAuth failed: ' + new URLSearchParams(currentUrl.split('?')[1]).get('error'));
           }
         } catch (_error) {
           // Cross-origin error is expected, ignore

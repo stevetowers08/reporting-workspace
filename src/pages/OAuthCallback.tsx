@@ -12,7 +12,7 @@ const OAuthCallback: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [showManagerModal, setShowManagerModal] = useState(false);
-  const [platform, setPlatform] = useState<string>('');
+  const [_platform, setPlatform] = useState<string>('');
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -22,11 +22,11 @@ const OAuthCallback: React.FC = () => {
         const error = searchParams.get('error');
         
         // Parse state to get platform information
-        let platform = 'googleSheets'; // default fallback
+        let detectedPlatform = 'googleSheets'; // default fallback
         if (state) {
           try {
             const stateData = JSON.parse(atob(state));
-            platform = stateData.platform || 'googleSheets';
+            detectedPlatform = stateData.platform || 'googleSheets';
             debugLogger.debug('🔍 Parsed state data:', stateData);
           } catch (error) {
             debugLogger.warn('🔍 Failed to parse state, using default platform', error);
@@ -35,15 +35,15 @@ const OAuthCallback: React.FC = () => {
         
         // Fallback to URL parameter if state parsing fails
         const urlPlatform = searchParams.get('platform');
-        if (urlPlatform && platform === 'googleSheets') {
-          platform = urlPlatform;
+        if (urlPlatform && detectedPlatform === 'googleSheets') {
+          detectedPlatform = urlPlatform;
         }
 
         debugLogger.debug('🔍 OAuth Callback received:', {
           hasCode: !!code,
           hasState: !!state,
           hasError: !!error,
-          platform
+          platform: detectedPlatform
         });
 
         if (error) {
@@ -54,7 +54,7 @@ const OAuthCallback: React.FC = () => {
           throw new Error('No authorization code received');
         }
 
-        if (platform === 'googleSheets') {
+        if (detectedPlatform === 'googleSheets') {
           // Handle Google Sheets OAuth (WORKING PATTERN)
           debugLogger.debug('🔍 Processing Google Sheets OAuth');
           await GoogleSheetsOAuthService.handleSheetsAuthCallback(code, state);
@@ -69,7 +69,7 @@ const OAuthCallback: React.FC = () => {
           
           setStatus('success');
           setMessage('Successfully connected to Google Sheets!');
-        } else if (platform === 'googleAds') {
+        } else if (detectedPlatform === 'googleAds') {
           // Handle Google Ads OAuth with PKCE (frontend flow)
           debugLogger.debug('🔍 Processing Google Ads OAuth with PKCE');
           
@@ -85,28 +85,81 @@ const OAuthCallback: React.FC = () => {
           setShowManagerModal(true);
           setStatus('success');
           setMessage('Successfully connected to Google Ads! Please configure your manager account ID.');
-        } else if (platform === 'goHighLevel') {
+        } else if (detectedPlatform === 'goHighLevel') {
           // Handle GoHighLevel OAuth
           debugLogger.debug('🔍 Processing GoHighLevel OAuth');
           
-          const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-          const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-          
-          if (!clientId || !clientSecret) {
-            throw new Error('Missing GoHighLevel OAuth credentials');
-          }
-          
-          const tokens = await OAuthService.exchangeCodeForTokens('goHighLevel', code, state);
-          
-          await TokenManager.storeOAuthTokens('goHighLevel', tokens, {
-            id: 'ghl-user',
-            name: 'GoHighLevel User'
-          });
+          // Check if this is a popup window (has window.opener)
+          if (window.opener) {
+            // This is a popup window - delegate to GHLCallbackPage logic
+            debugLogger.debug('🔍 GoHighLevel OAuth in popup, delegating to GHLCallbackPage logic');
+            
+            // Import and use GoHighLevelService for proper location token handling
+            const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
+            
+            const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+            const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+            
+            if (!clientId || !clientSecret) {
+              throw new Error('Missing GoHighLevel OAuth credentials');
+            }
+            
+            // Exchange code for tokens using GoHighLevelService
+            const tokenData = await GoHighLevelService.exchangeCodeForToken(
+              code,
+              clientId,
+              clientSecret,
+              window.location.origin + '/oauth/callback'
+            );
+            
+            // Save location token to database
+            const saveSuccess = await GoHighLevelService.saveLocationToken(
+              tokenData.locationId,
+              tokenData.access_token,
+              tokenData.scope.split(' ')
+            );
+            
+            if (!saveSuccess) {
+              throw new Error('Failed to save GoHighLevel token to database');
+            }
+            
+            // Send success message to parent window
+            window.opener.postMessage({
+              type: 'GHL_OAUTH_SUCCESS',
+              success: true,
+              locationId: tokenData.locationId,
+              locationName: 'GoHighLevel Location'
+            }, window.location.origin);
+            
+            // Close the popup after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 1000);
+            
+            setStatus('success');
+            setMessage('Successfully connected to GoHighLevel!');
+            return; // Don't continue with normal redirect logic
+          } else {
+            // This is not a popup - use the original logic
+            const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+            const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+            
+            if (!clientId || !clientSecret) {
+              throw new Error('Missing GoHighLevel OAuth credentials');
+            }
+            
+            const tokens = await OAuthService.exchangeCodeForTokens('goHighLevel', code, state);
+            
+            await TokenManager.storeOAuthTokens('goHighLevel', tokens, {
+              id: 'ghl-user',
+              name: 'GoHighLevel User'
+            });
 
-          setStatus('success');
-          setMessage('Successfully connected to GoHighLevel!');
+            setStatus('success');
+            setMessage('Successfully connected to GoHighLevel!');
+          }
         } else {
-          throw new Error(`Unsupported platform: ${platform}`);
+          throw new Error(`Unsupported platform: ${detectedPlatform}`);
         }
 
         // Redirect after successful connection (only if not showing manager modal)
@@ -121,15 +174,29 @@ const OAuthCallback: React.FC = () => {
         setStatus('error');
         setMessage(error instanceof Error ? error.message : 'OAuth callback failed');
         
-        // Redirect to integrations page after error
-        globalThis.setTimeout(() => {
-          navigate('/agency/integrations');
-        }, 3000);
+        // If this is a popup window, send error message to parent
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'GHL_OAUTH_ERROR',
+            success: false,
+            error: error instanceof Error ? error.message : 'OAuth callback failed'
+          }, window.location.origin);
+          
+          // Close the popup after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 2000);
+        } else {
+          // Redirect to integrations page after error
+          globalThis.setTimeout(() => {
+            navigate('/agency/integrations');
+          }, 3000);
+        }
       }
     };
 
     handleOAuthCallback();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, showManagerModal]);
 
   const handleManagerModalSuccess = () => {
     setShowManagerModal(false);
