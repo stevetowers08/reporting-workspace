@@ -123,13 +123,16 @@ const OAuthCallback: React.FC = () => {
               throw new Error('Failed to save GoHighLevel token to database');
             }
             
-            // Send success message to parent window
-            window.opener.postMessage({
-              type: 'GHL_OAUTH_SUCCESS',
-              success: true,
-              locationId: tokenData.locationId,
-              locationName: 'GoHighLevel Location'
-            }, window.location.origin);
+            // Send success message to parent window with enhanced security
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({
+                type: 'GHL_OAUTH_SUCCESS',
+                success: true,
+                locationId: tokenData.locationId,
+                locationName: 'GoHighLevel Location',
+                timestamp: Date.now()
+              }, window.location.origin);
+            }
             
             // Close the popup after a short delay
             setTimeout(() => {
@@ -174,12 +177,13 @@ const OAuthCallback: React.FC = () => {
         setStatus('error');
         setMessage(error instanceof Error ? error.message : 'OAuth callback failed');
         
-        // If this is a popup window, send error message to parent
-        if (window.opener) {
+        // If this is a popup window, send error message to parent with enhanced security
+        if (window.opener && !window.opener.closed) {
           window.opener.postMessage({
             type: 'GHL_OAUTH_ERROR',
             success: false,
-            error: error instanceof Error ? error.message : 'OAuth callback failed'
+            error: error instanceof Error ? error.message : 'OAuth callback failed',
+            timestamp: Date.now()
           }, window.location.origin);
           
           // Close the popup after a short delay

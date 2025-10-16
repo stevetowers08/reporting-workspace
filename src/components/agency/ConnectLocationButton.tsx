@@ -39,13 +39,14 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         integrationPlatform: clientId || 'new_client'
       }));
       
-      // Build OAuth URL directly
+      // Build OAuth URL directly with GoHighLevel-specific parameters
       const authUrl = `https://marketplace.leadconnectorhq.com/oauth/chooselocation?` +
         `client_id=${ghlClientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `scope=contacts.readonly%20opportunities.readonly%20calendars.readonly%20funnels/funnel.readonly%20funnels/page.readonly%20locations.readonly&` +
-        `state=${encodeURIComponent(state)}`;
+        `state=${encodeURIComponent(state)}&` +
+        `loginWindowOpenMode=self`; // Critical: keeps login in popup instead of redirecting to main window
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       debugLogger.info('ConnectLocationButton', 'OAuth URL being opened:', authUrl);
@@ -77,14 +78,35 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       
       debugLogger.info('ConnectLocationButton', 'Popup opened and navigating to:', authUrl);
       
+      // Add timeout to prevent hanging popup (5 minutes)
+      const timeoutId = setTimeout(() => {
+        if (!popup.closed) {
+          debugLogger.warn('ConnectLocationButton', 'OAuth popup timeout - closing popup');
+          popup.close();
+          clearInterval(monitorPopup);
+          window.removeEventListener('message', handleMessage);
+          setIsConnecting(false);
+          window.alert('OAuth connection timed out. Please try again.');
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+      
       // Listen for messages from the popup window
       const handleMessage = (event: globalThis.MessageEvent) => {
+        // Enhanced security: validate origin and message structure
         if (event.origin !== window.location.origin) {
-          return; // Ignore messages from other origins
+          debugLogger.warn('ConnectLocationButton', 'Ignoring message from different origin', event.origin);
+          return;
+        }
+        
+        // Validate message structure
+        if (!event.data || typeof event.data !== 'object') {
+          debugLogger.warn('ConnectLocationButton', 'Invalid message data structure', event.data);
+          return;
         }
         
         if (event.data?.type === 'GHL_OAUTH_SUCCESS') {
           debugLogger.info('ConnectLocationButton', 'OAuth popup success', event.data);
+          clearTimeout(timeoutId);
           popup.close();
           window.removeEventListener('message', handleMessage);
           setIsConnecting(false);
@@ -95,6 +117,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           }
         } else if (event.data?.type === 'GHL_OAUTH_ERROR') {
           debugLogger.error('ConnectLocationButton', 'OAuth popup error', event.data);
+          clearTimeout(timeoutId);
           popup.close();
           window.removeEventListener('message', handleMessage);
           setIsConnecting(false);
@@ -119,6 +142,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           
           if (currentUrl.includes('/oauth/callback') && currentUrl.includes('success=true')) {
             clearInterval(monitorPopup);
+            clearTimeout(timeoutId);
             window.removeEventListener('message', handleMessage);
             setIsConnecting(false);
             
@@ -131,6 +155,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
             debugLogger.info('ConnectLocationButton', 'OAuth success detected via URL monitoring');
           } else if (currentUrl.includes('/oauth/callback') && currentUrl.includes('error=')) {
             clearInterval(monitorPopup);
+            clearTimeout(timeoutId);
             window.removeEventListener('message', handleMessage);
             setIsConnecting(false);
             popup.close();
