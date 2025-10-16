@@ -5,6 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -24,11 +25,23 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     
     try {
       // Generate OAuth URL directly to ensure it points to external GHL
-      const ghlClientId = import.meta.env.VITE_GHL_CLIENT_ID;
-      const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 'https://tulenreporting.vercel.app/oauth/callback';
+      // Get OAuth credentials from database instead of environment variables
+      const { data: credentials } = await supabase
+        .from('oauth_credentials')
+        .select('client_id, redirect_uri')
+        .eq('platform', 'goHighLevel')
+        .eq('is_active', true)
+        .single();
+      
+      if (!credentials) {
+        throw new Error('GoHighLevel OAuth credentials not found in database');
+      }
+      
+      const ghlClientId = credentials.client_id;
+      const redirectUri = credentials.redirect_uri;
       
       if (!ghlClientId) {
-        throw new Error('Missing GHL client ID in environment variables');
+        throw new Error('Missing GHL client ID in database credentials');
       }
       
       // Generate state parameter
@@ -140,7 +153,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           const currentUrl = popup.location.href;
           debugLogger.info('ConnectLocationButton', 'Monitoring popup URL:', currentUrl);
           
-          if (currentUrl.includes('/oauth/callback') && currentUrl.includes('success=true')) {
+          if ((currentUrl.includes('/oauth/callback') || currentUrl.includes('/api/leadconnector/oath')) && currentUrl.includes('success=true')) {
             clearInterval(monitorPopup);
             clearTimeout(timeoutId);
             window.removeEventListener('message', handleMessage);
@@ -153,7 +166,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
             
             popup.close();
             debugLogger.info('ConnectLocationButton', 'OAuth success detected via URL monitoring');
-          } else if (currentUrl.includes('/oauth/callback') && currentUrl.includes('error=')) {
+          } else if ((currentUrl.includes('/oauth/callback') || currentUrl.includes('/api/leadconnector/oath')) && currentUrl.includes('error=')) {
             clearInterval(monitorPopup);
             clearTimeout(timeoutId);
             window.removeEventListener('message', handleMessage);
