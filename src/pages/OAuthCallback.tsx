@@ -43,7 +43,9 @@ const OAuthCallback: React.FC = () => {
           hasCode: !!code,
           hasState: !!state,
           hasError: !!error,
-          platform: detectedPlatform
+          platform: detectedPlatform,
+          allParams: Object.fromEntries(searchParams.entries()),
+          fullUrl: window.location.href
         });
 
         if (error) {
@@ -51,6 +53,37 @@ const OAuthCallback: React.FC = () => {
         }
 
         if (!code) {
+          // For GoHighLevel, check if this is a success redirect from backend API
+          if (detectedPlatform === 'goHighLevel') {
+            const success = searchParams.get('success');
+            const locationId = searchParams.get('location');
+            const locationName = searchParams.get('location_name');
+            
+            if (success === 'true' && locationId) {
+              debugLogger.debug('🔍 GoHighLevel success redirect from backend API');
+              
+              // Send success message to parent window if this is a popup
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                  type: 'GHL_OAUTH_SUCCESS',
+                  success: true,
+                  locationId: locationId,
+                  locationName: locationName || 'GoHighLevel Location',
+                  timestamp: Date.now()
+                }, window.location.origin);
+                
+                // Close the popup after a short delay
+                setTimeout(() => {
+                  window.close();
+                }, 1000);
+              }
+              
+              setStatus('success');
+              setMessage('Successfully connected to GoHighLevel!');
+              return;
+            }
+          }
+          
           throw new Error('No authorization code received');
         }
 
@@ -86,81 +119,34 @@ const OAuthCallback: React.FC = () => {
           setStatus('success');
           setMessage('Successfully connected to Google Ads! Please configure your manager account ID.');
         } else if (detectedPlatform === 'goHighLevel') {
-          // Handle GoHighLevel OAuth
-          debugLogger.debug('🔍 Processing GoHighLevel OAuth');
+          // Handle GoHighLevel OAuth - redirect to backend API for token exchange
+          debugLogger.debug('🔍 Processing GoHighLevel OAuth - redirecting to backend API');
           
-          // Check if this is a popup window (has window.opener)
-          if (window.opener) {
-            // This is a popup window - delegate to GHLCallbackPage logic
-            debugLogger.debug('🔍 GoHighLevel OAuth in popup, delegating to GHLCallbackPage logic');
-            
-            // Import and use GoHighLevelService for proper location token handling
-            const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
-            
-            const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-            const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-            
-            if (!clientId || !clientSecret) {
-              throw new Error('Missing GoHighLevel OAuth credentials');
-            }
-            
-            // Exchange code for tokens using GoHighLevelService
-            const tokenData = await GoHighLevelService.exchangeCodeForToken(
-              code,
-              clientId,
-              clientSecret,
-              window.location.origin + '/oauth/callback'
-            );
-            
-            // Save location token to database
-            const saveSuccess = await GoHighLevelService.saveLocationToken(
-              tokenData.locationId,
-              tokenData.access_token,
-              tokenData.scope.split(' ')
-            );
-            
-            if (!saveSuccess) {
-              throw new Error('Failed to save GoHighLevel token to database');
-            }
-            
-            // Send success message to parent window with enhanced security
-            if (window.opener && !window.opener.closed) {
-              window.opener.postMessage({
-                type: 'GHL_OAUTH_SUCCESS',
-                success: true,
-                locationId: tokenData.locationId,
-                locationName: 'GoHighLevel Location',
-                timestamp: Date.now()
-              }, window.location.origin);
-            }
-            
-            // Close the popup after a short delay
-            setTimeout(() => {
-              window.close();
-            }, 1000);
-            
-            setStatus('success');
-            setMessage('Successfully connected to GoHighLevel!');
-            return; // Don't continue with normal redirect logic
-          } else {
-            // This is not a popup - use the original logic
-            const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-            const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-            
-            if (!clientId || !clientSecret) {
-              throw new Error('Missing GoHighLevel OAuth credentials');
-            }
-            
-            const tokens = await OAuthService.exchangeCodeForTokens('goHighLevel', code, state);
-            
-            await TokenManager.storeOAuthTokens('goHighLevel', tokens, {
-              id: 'ghl-user',
-              name: 'GoHighLevel User'
-            });
-
-            setStatus('success');
-            setMessage('Successfully connected to GoHighLevel!');
-          }
+          // Check what parameters GoHighLevel actually sent
+          const locationId = searchParams.get('location_id') || searchParams.get('locationId') || searchParams.get('location');
+          const clientId = searchParams.get('client_id') || searchParams.get('clientId');
+          
+          debugLogger.debug('🔍 GoHighLevel parameters:', {
+            code: !!code,
+            locationId,
+            clientId,
+            state,
+            allParams: Object.fromEntries(searchParams.entries())
+          });
+          
+          // For GoHighLevel, we need to redirect to the backend API endpoint
+          // The backend will handle the token exchange and redirect back with success parameters
+          const backendUrl = `${window.location.origin}/api/leadconnector/oath?` +
+            `code=${encodeURIComponent(code)}&` +
+            `state=${encodeURIComponent(state || '')}&` +
+            `location_id=${encodeURIComponent(locationId || '')}&` +
+            `client_id=${encodeURIComponent(clientId || '')}`;
+          
+          debugLogger.debug('🔍 Redirecting to backend API:', backendUrl);
+          
+          // Redirect to backend API
+          window.location.href = backendUrl;
+          return; // Don't continue with normal processing
         } else {
           throw new Error(`Unsupported platform: ${detectedPlatform}`);
         }

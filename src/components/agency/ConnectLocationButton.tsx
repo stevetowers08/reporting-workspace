@@ -56,9 +56,9 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         throw new Error('Invalid OAuth URL - not pointing to GoHighLevel');
       }
       
-      // Open OAuth flow in popup window (centered)
-      const width = 600;
-      const height = 700;
+      // Open OAuth flow in popup window (centered with better sizing)
+      const width = 800;  // Increased width for better UX
+      const height = 800; // Increased height for better UX
       const left = (window.innerWidth - width) / 2;
       const top = (window.innerHeight - height) / 2;
       
