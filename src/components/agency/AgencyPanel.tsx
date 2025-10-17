@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/ui/LoadingStates';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
+import { debugLogger } from '@/lib/debug';
 import { Bot, Settings, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
