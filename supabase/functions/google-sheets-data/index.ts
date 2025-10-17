@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { spreadsheetId, range } = await req.json()
+    const { spreadsheetId, range, values, operation = 'read' } = await req.json()
 
     if (!spreadsheetId) {
       return new Response(
@@ -54,12 +54,15 @@ serve(async (req) => {
     let accessToken = integrationData.config.tokens.accessToken || integrationData.config.tokens.access_token
     const refreshToken = integrationData.config.tokens.refreshToken || integrationData.config.tokens.refresh_token
 
-    // Get Google OAuth credentials from environment variables
-    const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') || Deno.env.get('VITE_GOOGLE_CLIENT_ID')
-    const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') || Deno.env.get('VITE_GOOGLE_CLIENT_SECRET')
+    // Get Google OAuth credentials from database
+    const { data: oauthCredentials, error: oauthError } = await supabaseClient
+      .from('oauth_credentials')
+      .select('client_id, client_secret')
+      .eq('platform', 'googleSheets')
+      .single()
     
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-      console.error('Google OAuth credentials not found in environment variables')
+    if (oauthError || !oauthCredentials) {
+      console.error('Google OAuth credentials not found in database:', oauthError)
       return new Response(
         JSON.stringify({ success: false, error: 'Google OAuth credentials not configured' }),
         { 
@@ -69,10 +72,17 @@ serve(async (req) => {
       )
     }
     
-    // Check if token is expired and refresh if needed
-    const expiresAt = integrationData.config.tokens.expiresAt || integrationData.config.tokens.expires_at
-    if ((!accessToken || (expiresAt && new Date(expiresAt) <= new Date())) && refreshToken) {
-      console.log('Access token is null, attempting to refresh...')
+    const GOOGLE_CLIENT_ID = oauthCredentials.client_id
+    const GOOGLE_CLIENT_SECRET = oauthCredentials.client_secret
+    
+    // CRITICAL: Check if token is expired and refresh if needed
+    // Access tokens expire after ~1 hour, refresh tokens after 7 days (testing) or never (production)
+    const tokenExpiryBuffer = 5 * 60 * 1000; // 5 minutes buffer
+    const expiresAt = integrationData.config.tokens.expiresAt || integrationData.config.tokens.expires_at;
+    const isTokenExpired = !accessToken || (expiresAt && (Date.now() >= (new Date(expiresAt).getTime() - tokenExpiryBuffer)))
+    
+    if (isTokenExpired && refreshToken) {
+      console.log('Access token expired or expiring soon, attempting refresh...')
       
       try {
         const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -118,9 +128,29 @@ serve(async (req) => {
             console.log('Successfully refreshed and updated access token')
           }
         } else {
-          console.error('Failed to refresh token:', refreshResponse.status, refreshResponse.statusText)
+          const errorText = await refreshResponse.text()
+          console.error('Failed to refresh token:', refreshResponse.status, errorText)
+          
+          // If refresh fails, the refresh token might be expired
+          if (refreshResponse.status === 400) {
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: 'Google Sheets refresh token expired. Please re-authenticate.',
+                requiresReauth: true
+              }),
+              { 
+                status: 401, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            )
+          }
+          
           return new Response(
-            JSON.stringify({ success: false, error: 'Failed to refresh Google Sheets access token' }),
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to refresh Google Sheets access token: ${refreshResponse.status}` 
+            }),
             { 
               status: 401, 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -148,58 +178,120 @@ serve(async (req) => {
         }
       )
     }
-    const rangeParam = range ? `?range=${encodeURIComponent(range)}` : ''
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values${rangeParam}`
 
-    console.log('Fetching Google Sheets data:', { spreadsheetId, range, url })
+    // Handle different operations
+    if (operation === 'write' && values) {
+      // Write operation
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`
+      
+      console.log('Writing Google Sheets data:', { spreadsheetId, range, rowCount: values.length })
 
-    // Fetch data from Google Sheets API
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values })
+      })
+
+      if (!response.ok) {
+        console.error('Google Sheets write error:', response.status, response.statusText)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Google Sheets write error: ${response.status} ${response.statusText}` 
+          }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
       }
-    })
 
-    if (!response.ok) {
-      console.error('Google Sheets API error:', response.status, response.statusText)
+      const data = await response.json()
+      
+      console.log('Successfully wrote Google Sheets data:', {
+        spreadsheetId,
+        range,
+        rowCount: values.length
+      })
+
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Google Sheets API error: ${response.status} ${response.statusText}` 
+        JSON.stringify({
+          success: true,
+          data: data,
+          metadata: {
+            spreadsheetId,
+            range,
+            rowCount: values.length,
+            timestamp: new Date().toISOString()
+          }
         }),
         { 
-          status: response.status, 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    } else {
+      // Read operation - Use batchGet endpoint which works reliably
+      const ranges = range ? [range] : ['A1:Z1000'] // Default range if none specified
+      const rangesParam = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${rangesParam}`
+
+      console.log('Fetching Google Sheets data:', { spreadsheetId, range, url })
+      console.log('Using access token:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NO TOKEN')
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Google Sheets API error:', response.status, response.statusText)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Google Sheets API error: ${response.status} ${response.statusText}` 
+          }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
+      const data = await response.json()
+      
+      // batchGet returns data in valueRanges array
+      const values = data.valueRanges?.[0]?.values || []
+      
+      console.log('Successfully fetched Google Sheets data:', {
+        spreadsheetId,
+        range,
+        rowCount: values.length
+      })
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: { values }, // Convert batchGet format to standard format
+          metadata: {
+            spreadsheetId,
+            range,
+            rowCount: values.length,
+            columnCount: values[0]?.length || 0,
+            timestamp: new Date().toISOString()
+          }
+        }),
+        { 
+          status: 200, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
-
-    const data = await response.json()
-    
-    console.log('Successfully fetched Google Sheets data:', {
-      spreadsheetId,
-      range,
-      rowCount: data.values?.length || 0
-    })
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: data,
-        metadata: {
-          spreadsheetId,
-          range,
-          rowCount: data.values?.length || 0,
-          columnCount: data.values?.[0]?.length || 0,
-          timestamp: new Date().toISOString()
-        }
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
 
   } catch (error) {
     console.error('Edge function error:', error)

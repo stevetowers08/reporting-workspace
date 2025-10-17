@@ -36,7 +36,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     const [_isEditingLogo, _setIsEditingLogo] = useState(false);
     const [clientName, setClientName] = useState(client?.name || '');
     const [clientLogo, setClientLogo] = useState(client?.logo_url || '');
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const fileInputRef = useRef<any>(null);
     
     // Debug client data
     debugLogger.info('EditClientModal', 'Client data:', client);
@@ -428,7 +428,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         }
     };
 
-    const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoUpload = async (event: React.ChangeEvent<any>) => {
         const file = event.target.files?.[0];
         if (!file) {
             return;

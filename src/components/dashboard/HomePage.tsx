@@ -362,7 +362,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                                 className="w-12 h-12 object-cover rounded-xl border border-slate-200 absolute inset-0"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
-                                  const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback') as Element;
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback') as HTMLElement;
                                   if (fallback) {
                                     fallback.style.display = 'flex';
                                   }

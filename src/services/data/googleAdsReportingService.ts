@@ -52,7 +52,9 @@ export class GoogleAdsReportingService {
    * Calculate trend percentage between current and previous values
    */
   private static calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number } {
-    if (previous === 0) return { direction: 'up', percentage: 0 };
+    if (previous === 0) {
+      return { direction: 'up', percentage: 0 };
+    }
     const percentage = ((current - previous) / previous) * 100;
     return {
       direction: percentage >= 0 ? 'up' : 'down',
@@ -64,7 +66,9 @@ export class GoogleAdsReportingService {
    * Calculate trends for all metrics
    */
   private static calculateTrends(currentMetrics: any, previousMetrics: any) {
-    if (!previousMetrics) return undefined;
+    if (!previousMetrics) {
+      return undefined;
+    }
     
     return {
       leads: this.calculateTrendPercentage(currentMetrics.leads, previousMetrics.leads),

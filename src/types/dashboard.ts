@@ -30,9 +30,45 @@ export interface FacebookAdsMetrics {
     ctr: number;
     cpc: number;
     cpm: number;
-    roas: number;
     reach: number;
     frequency: number;
+    // Demographics breakdown
+    demographics?: {
+        ageGroups: {
+            '25-34': number;
+            '35-44': number;
+            '45-54': number;
+            '55+': number;
+        };
+        gender: {
+            female: number;
+            male: number;
+        };
+    };
+    // Platform breakdown with detailed metrics
+    platformBreakdown?: {
+        facebookVsInstagram: {
+            facebook: number;
+            instagram: number;
+        };
+        adPlacements: {
+            feed: number;
+            stories: number;
+            reels: number;
+        };
+        // Detailed placement metrics (spend and leads)
+        placementMetrics?: {
+            feed: { leads: number; spend: number };
+            stories: { leads: number; spend: number };
+            reels: { leads: number; spend: number };
+        };
+        creativeBreakdown: {
+            image: number;
+            video: number;
+            carousel: number;
+            other: number;
+        };
+    };
     // Previous period data for comparison
     previousPeriod?: {
         impressions: number;
@@ -43,7 +79,6 @@ export interface FacebookAdsMetrics {
         ctr: number;
         cpc: number;
         cpm: number;
-        roas: number;
         reach: number;
         frequency: number;
     };

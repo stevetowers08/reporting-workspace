@@ -113,7 +113,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             className="w-8 h-8 object-cover rounded border border-slate-200"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
-                              const fallback = e.currentTarget.nextElementSibling as Element;
+                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                               if (fallback) {
                                 fallback.style.display = 'flex';
                               }

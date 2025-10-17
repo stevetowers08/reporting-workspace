@@ -340,7 +340,7 @@ export class InputSanitizer {
       .replace(/on\w+\s*=\s*[^"'\s>]+/gi, '')
       
       // Remove SQL injection patterns
-      .replace(/('|(\\')|(;)|(\-\-)|(\/\*)|(\*\/))/gi, '')
+      .replace(/('|(\\')|(;)|(--)|(\/\*)|(\*\/))/gi, '')
       
       // Remove potential XSS patterns (more comprehensive)
       .replace(/<iframe[^>]*>/gi, '')

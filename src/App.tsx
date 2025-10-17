@@ -6,7 +6,6 @@ import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 // Sentry will be loaded lazily to prevent SES conflicts with React
-import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
@@ -254,7 +253,6 @@ const App = () => {
                 <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                 <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                 <Route path="/google-ads" element={<GoogleAdsPage />} />
-                <Route path="/api-testing" element={<APITestingPage />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
                 <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />

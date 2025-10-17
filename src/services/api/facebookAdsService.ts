@@ -10,7 +10,6 @@ export interface FacebookAdsMetrics {
   ctr: number;
   cpc: number;
   cpm: number;
-  roas: number;
   reach: number;
   frequency: number;
   previousPeriod?: {
@@ -22,7 +21,6 @@ export interface FacebookAdsMetrics {
     ctr: number;
     cpc: number;
     cpm: number;
-    roas: number;
     reach: number;
     frequency: number;
   };
@@ -47,6 +45,12 @@ export interface FacebookAdsMetrics {
       feed: number;
       stories: number;
       reels: number;
+    };
+    creativeBreakdown: {
+      image: number;
+      video: number;
+      carousel: number;
+      other: number;
     };
   };
 }
@@ -82,9 +86,17 @@ export class FacebookAdsService {
     this.requestCache.set(key, { data, timestamp: Date.now() });
   }
 
-  // Get developer token from facebook_ads_configs table
+  // Get developer token from environment variables or integrations table (DEPRECATED - not used) - CACHE BUST
   static async getDeveloperToken(): Promise<string> {
     try {
+      // First try to get from environment variables
+      const envToken = import.meta.env.VITE_FACEBOOK_DEVELOPER_TOKEN;
+      if (envToken && envToken !== 'your_facebook_developer_token') {
+        debugLogger.debug('FacebookAdsService', 'Using Facebook developer token from environment');
+        return envToken;
+      }
+
+      // Fallback to database lookup
       const { supabase } = await import('@/lib/supabase');
       const { data, error } = await supabase
         .from('facebook_ads_configs')
@@ -94,11 +106,11 @@ export class FacebookAdsService {
 
       if (error) {
         debugLogger.error('FacebookAdsService', 'Error fetching Facebook developer token from database', error);
-        throw new Error('No Facebook developer token found in database');
+        throw new Error('No Facebook developer token found in database or environment');
       }
 
       if (!data?.developer_token) {
-        throw new Error('No Facebook developer token found in database');
+        throw new Error('No Facebook developer token found in database or environment');
       }
 
       debugLogger.debug('FacebookAdsService', 'Using Facebook developer token from database');
@@ -284,12 +296,9 @@ export class FacebookAdsService {
     return `${this.BASE_URL}/${endpoint}?${urlParams}`;
   }
 
-  // Helper method to build Facebook API headers with developer token
+  // Helper method to build Facebook API headers
   private static async buildApiHeaders(): Promise<Record<string, string>> {
-    const developerToken = await this.getDeveloperToken();
-    
     return {
-      'Authorization': `Bearer ${developerToken}`,
       'Content-Type': 'application/json',
       'User-Agent': 'Marketing-Analytics-Dashboard/1.0'
     };
@@ -298,9 +307,8 @@ export class FacebookAdsService {
   static async authenticate(accessToken?: string, _adAccountId?: string): Promise<boolean> {
     try {
       const userToken = accessToken || await this.getUserAccessToken();
-      const _developerToken = await this.getDeveloperToken();
 
-      // Validate both tokens with Facebook Graph API
+      // Validate user token with Facebook Graph API
       const headers = await this.buildApiHeaders();
       const response = await FacebookAdsService.rateLimitedFetch(
         `${this.BASE_URL}/me?access_token=${userToken}`,
@@ -325,9 +333,8 @@ export class FacebookAdsService {
   static async validateTokenScopes(): Promise<{ hasBusinessManagement: boolean; scopes: string[] }> {
     try {
       const userToken = await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
       
-      if (!userToken || !developerToken) {
+      if (!userToken) {
         return { hasBusinessManagement: false, scopes: [] };
       }
 
@@ -381,105 +388,32 @@ export class FacebookAdsService {
       debugLogger.debug('FacebookAdsService', 'No cached accounts found, fetching from Facebook API');
       
       const userToken = await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
       
-      if (!userToken || !developerToken) {
-        throw new Error('Facebook tokens not found. Please authenticate first.');
+      if (!userToken) {
+        throw new Error('Facebook access token not found. Please authenticate first.');
       }
 
       // Debug token info (without exposing the tokens)
       debugLogger.debug('FacebookAdsService', 'Facebook user token length', userToken.length);
-      debugLogger.debug('FacebookAdsService', 'Facebook developer token length', developerToken.length);
 
+      const token = userToken; // Use userToken as token for API calls
       const allAccounts: any[] = [];
 
-      // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
-      const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
-        // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`)
-          .then(response => response.ok ? response.json() : { data: [] })
-          .then(data => {
-            debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
-            return data.data || [];
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching user ad accounts', error);
-            return [];
-          }),
+      // Get all ad accounts accessible to the user (most comprehensive approach)
+      debugLogger.debug('FacebookAdsService', 'Fetching ad accounts via /me/adaccounts endpoint');
+      
+      const response = await FacebookAdsService.rateLimitedFetch(
+        `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
+      );
 
-        // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
-          .then(response => {
-            if (!response.ok) {
-              if (response.status === 403) {
-                debugLogger.warn('FacebookAdsService', 'Business Management permission not available or not granted. Skipping business accounts.');
-                return { data: [] };
-              }
-              throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
-            }
-            return response.json();
-          })
-          .then(async businessData => {
-            debugLogger.debug('FacebookAdsService', 'Business Managers found', businessData.data?.length || 0);
-
-            if (!businessData.data?.length) {return [];}
-
-            // Fetch ALL ad accounts for all Business Managers in parallel
-            // This includes both owned_ad_accounts AND client_ad_accounts
-            const businessAccountPromises = businessData.data.map(async (business: any) => {
-              try {
-                const allBusinessAccounts: any[] = [];
-                
-                // Fetch owned ad accounts with pagination support
-                const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
-                );
-                allBusinessAccounts.push(...ownedAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
-                
-                // Fetch client ad accounts (accounts managed by this business) with pagination support
-                const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
-                );
-                allBusinessAccounts.push(...clientAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
-                
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
-                return allBusinessAccounts;
-              } catch (error) {
-                debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
-                return [];
-              }
-            });
-
-            const businessAccountResults = await Promise.allSettled(businessAccountPromises);
-            return businessAccountResults
-              .filter(result => result.status === 'fulfilled')
-              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching Business Managers', error);
-            return [];
-          }),
-
-        // Get accounts via system users (additional method to ensure comprehensive coverage)
-        FacebookAdsService.fetchSystemUserAccounts(userToken)
-          .catch(error => {
-            debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
-            return [];
-          })
-      ]);
-
-      // Combine all accounts
-      if (userAccounts.status === 'fulfilled') {
-        allAccounts.push(...userAccounts.value);
+      if (!response.ok) {
+        throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
       }
-      if (businessAccounts.status === 'fulfilled') {
-        allAccounts.push(...businessAccounts.value);
-      }
-      if (systemUserAccounts.status === 'fulfilled') {
-        allAccounts.push(...systemUserAccounts.value);
-      }
+
+      const data = await response.json();
+      debugLogger.debug('FacebookAdsService', 'User ad accounts found', data.data?.length || 0);
+      
+      allAccounts.push(...(data.data || []));
 
       // Remove duplicates based on ID
       const uniqueAccounts = allAccounts.filter((account, index, self) =>
@@ -487,10 +421,7 @@ export class FacebookAdsService {
       );
 
       debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API', uniqueAccounts.length);
-      debugLogger.info('FacebookAdsService', 'Comprehensive ad account fetch completed', {
-        userAccounts: userAccounts.status === 'fulfilled' ? userAccounts.value.length : 0,
-        businessAccounts: businessAccounts.status === 'fulfilled' ? businessAccounts.value.length : 0,
-        systemUserAccounts: systemUserAccounts.status === 'fulfilled' ? systemUserAccounts.value.length : 0,
+      debugLogger.info('FacebookAdsService', 'Ad account fetch completed', {
         totalUnique: uniqueAccounts.length
       });
       
@@ -558,7 +489,7 @@ export class FacebookAdsService {
       
       // Get all businesses first
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
       );
       
       if (!businessesResponse.ok) {
@@ -1117,6 +1048,163 @@ export class FacebookAdsService {
     debugLogger.debug('FacebookAdsService', 'Cache requested (no-op for direct token)', { count: accounts.length });
   }
 
+  // Try multiple approaches to get placement data using platform_position breakdown
+  static async tryPlacementBreakdowns(accountId: string, dateRange?: { start: string; end: string }): Promise<any[]> {
+    // Try platform_position breakdown (the correct approach for placement data)
+    const approaches = [
+      // Approach 1: Standard platform_position breakdown
+      {
+        name: 'platform_position_standard',
+        fields: 'spend,impressions,clicks,actions',
+        breakdowns: 'platform_position'
+      },
+      // Approach 2: platform_position with additional fields
+      {
+        name: 'platform_position_extended',
+        fields: 'spend,impressions,clicks,actions,conversions',
+        breakdowns: 'platform_position'
+      },
+      // Approach 3: Combined publisher_platform and platform_position
+      {
+        name: 'combined_breakdown',
+        fields: 'spend,impressions,clicks,actions',
+        breakdowns: 'publisher_platform,platform_position'
+      },
+      // Approach 4: platform_position at ad level
+      {
+        name: 'platform_position_ad_level',
+        fields: 'spend,impressions,clicks,actions',
+        breakdowns: 'platform_position',
+        level: 'ad'
+      },
+      // Approach 5: platform_position at adset level
+      {
+        name: 'platform_position_adset_level',
+        fields: 'spend,impressions,clicks,actions',
+        breakdowns: 'platform_position',
+        level: 'adset'
+      }
+    ];
+    
+    for (const approach of approaches) {
+      try {
+        debugLogger.debug('FacebookAdsService', `Trying placement approach: ${approach.name}`);
+        
+        const params = new URLSearchParams({
+          access_token: await this.getAccessToken(),
+          fields: approach.fields,
+          breakdowns: approach.breakdowns,
+          limit: '1000'
+        });
+
+        if (approach.level) {
+          params.append('level', approach.level);
+        }
+
+        if (dateRange) {
+          const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+          const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+          params.append('time_range', JSON.stringify({ since, until }));
+        }
+
+        const url = `${this.BASE_URL}/${accountId}/insights?${params}`;
+        debugLogger.debug('FacebookAdsService', `Making request to: ${url}`);
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const data = await response.json();
+          debugLogger.debug('FacebookAdsService', `Placement approach ${approach.name} succeeded`, data);
+          return data.data || [];
+        } else {
+          const errorData = await response.json();
+          debugLogger.warn('FacebookAdsService', `Placement approach ${approach.name} failed`, errorData);
+        }
+      } catch (error) {
+        debugLogger.warn('FacebookAdsService', `Placement approach ${approach.name} error`, error);
+      }
+    }
+
+    debugLogger.warn('FacebookAdsService', 'All placement approaches failed, trying ad set level data');
+    
+    // Fallback: Try to get placement data from ad sets
+    try {
+      const adSetData = await this.getAdSetPlacementData(accountId, dateRange);
+      if (adSetData.length > 0) {
+        debugLogger.debug('FacebookAdsService', 'Got placement data from ad sets', adSetData);
+        return adSetData;
+      }
+    } catch (error) {
+      debugLogger.warn('FacebookAdsService', 'Ad set placement data failed', error);
+    }
+    
+    return [];
+  }
+
+  // Get placement data from ad sets (manual placement tracking)
+  static async getAdSetPlacementData(accountId: string, dateRange?: { start: string; end: string }): Promise<any[]> {
+    try {
+      const fields = [
+        'impressions',
+        'clicks', 
+        'spend',
+        'actions',
+        'name',
+        'targeting'
+      ].join(',');
+
+      const params = new URLSearchParams({
+        access_token: await this.getAccessToken(),
+        fields,
+        limit: '1000'
+      });
+
+      if (dateRange) {
+        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+        params.append('time_range', JSON.stringify({ since, until }));
+      }
+
+      const response = await fetch(`${this.BASE_URL}/${accountId}/adsets?${params}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        debugLogger.warn('FacebookAdsService', 'Ad set API error', errorData);
+        return [];
+      }
+
+      const data = await response.json();
+      debugLogger.debug('FacebookAdsService', 'Ad set data retrieved', data);
+      
+      // Process ad sets to extract placement information
+      const placementData = [];
+      
+      for (const adSet of data.data || []) {
+        if (adSet.targeting && adSet.targeting.publisher_platforms) {
+          const platforms = adSet.targeting.publisher_platforms;
+          const placements = adSet.targeting.publisher_platforms || [];
+          
+          // Extract placement info from targeting
+          const placementInfo = {
+            platform_position: platforms.join(','),
+            impressions: adSet.impressions || 0,
+            clicks: adSet.clicks || 0,
+            spend: adSet.spend || 0,
+            actions: adSet.actions || [],
+            adset_name: adSet.name
+          };
+          
+          placementData.push(placementInfo);
+        }
+      }
+      
+      return placementData;
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error fetching ad set placement data', error);
+      return [];
+    }
+  }
+
   static async getPlatformBreakdown(adAccountId?: string, dateRange?: { start: string; end: string }): Promise<FacebookAdsMetrics['platformBreakdown']> {
     try {
       const accounts = await this.getAdAccounts();
@@ -1129,18 +1217,31 @@ export class FacebookAdsService {
       // Ensure account ID has 'act_' prefix
       const formattedAccountId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
 
-      // Fetch platform breakdown data
+      // Fetch platform breakdown data - separate calls for publisher_platform and placement
       const fields = [
         'impressions',
         'clicks',
         'spend',
-        'actions'
+        'actions',
+        'conversions'
       ].join(',');
 
-      const params = new URLSearchParams({
+      // Get publisher platform data (Facebook vs Instagram)
+      const publisherParams = new URLSearchParams({
         access_token: await this.getAccessToken(),
         fields,
-        breakdowns: 'publisher_platform,platform_position',
+        breakdowns: 'publisher_platform',
+        limit: '1000'
+      });
+
+      // Try to get placement data using multiple approaches
+      const placementData = await this.tryPlacementBreakdowns(formattedAccountId, dateRange);
+      
+      // Get creative breakdown data (Image, Video, Carousel, etc.)
+      const creativeParams = new URLSearchParams({
+        access_token: await this.getAccessToken(),
+        fields,
+        breakdowns: 'ad_format_asset', // Try different breakdown
         limit: '1000'
       });
 
@@ -1149,27 +1250,44 @@ export class FacebookAdsService {
         const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
         const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
         
-        params.append('time_range', JSON.stringify({
-          since,
-          until
-        }));
+        publisherParams.append('time_range', JSON.stringify({ since, until }));
+        creativeParams.append('time_range', JSON.stringify({ since, until }));
       }
 
-      const response = await fetch(
-        `${this.BASE_URL}/${formattedAccountId}/insights?${params}`
-      );
+      // Make parallel requests for publisher platform and creative breakdown
+      const [publisherResponse, creativeResponse] = await Promise.all([
+        fetch(`${this.BASE_URL}/${formattedAccountId}/insights?${publisherParams}`),
+        fetch(`${this.BASE_URL}/${formattedAccountId}/insights?${creativeParams}`)
+      ]);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        debugLogger.error('FacebookAdsService', 'Facebook platform API error details', errorData);
-        throw new Error(`Facebook API error: ${errorData.error?.message || response.statusText}`);
+      if (!publisherResponse.ok) {
+        const errorData = await publisherResponse.json();
+        debugLogger.error('FacebookAdsService', 'Facebook publisher platform API error details', errorData);
+        throw new Error(`Facebook API error: ${errorData.error?.message || publisherResponse.statusText}`);
       }
 
-      const data = await response.json();
-      debugLogger.debug('FacebookAdsService', 'Facebook platform API response', data);
+      const publisherData = await publisherResponse.json();
+      let creativeData = { data: [] };
+      
+      if (creativeResponse.ok) {
+        creativeData = await creativeResponse.json();
+        debugLogger.debug('FacebookAdsService', 'Creative breakdown data', creativeData);
+      } else {
+        debugLogger.warn('FacebookAdsService', 'Creative breakdown failed, using empty data');
+      }
+
+      debugLogger.debug('FacebookAdsService', 'Facebook platform API responses', {
+        publisher: publisherData,
+        placement: placementData,
+        creative: creativeData
+      });
       
       // Process platform data
-      const platformBreakdown = this.processPlatformData(data.data || []);
+      const platformBreakdown = this.processPlatformData(
+        publisherData.data || [],
+        placementData,
+        creativeData.data || []
+      );
       
       return platformBreakdown;
     } catch (error) {
@@ -1323,7 +1441,7 @@ export class FacebookAdsService {
     return { ageGroups, gender };
   }
 
-  private static processPlatformData(insightsData: any[]): FacebookAdsMetrics['platformBreakdown'] {
+  private static processPlatformData(publisherData: any[], placementData: any[], creativeData: any[]): FacebookAdsMetrics['platformBreakdown'] {
     const facebookVsInstagram = {
       facebook: 0,
       instagram: 0
@@ -1337,28 +1455,140 @@ export class FacebookAdsService {
 
     let totalLeads = 0;
 
-    insightsData.forEach((insight: any) => {
+    // Process publisher platform data (Facebook vs Instagram)
+    publisherData.forEach((insight: any) => {
       const leads = FacebookAdsService.extractLeadsFromActions(insight.actions || []);
       totalLeads += leads;
 
-      // Process publisher platform (Facebook vs Instagram)
       if (insight.publisher_platform) {
-        if (insight.publisher_platform === 'facebook') {
+        const platform = insight.publisher_platform.toLowerCase();
+        if (platform === 'facebook') {
           facebookVsInstagram.facebook += leads;
-        } else if (insight.publisher_platform === 'instagram') {
+        } else if (platform === 'instagram') {
           facebookVsInstagram.instagram += leads;
         }
       }
+    });
 
-      // Process platform position (feed, stories, reels)
+    // Process placement data (Feed, Stories, Reels) using platform_position breakdown
+    // Track both leads and spend for each placement
+    const placementMetrics = {
+      feed: { leads: 0, spend: 0 },
+      stories: { leads: 0, spend: 0 },
+      reels: { leads: 0, spend: 0 }
+    };
+
+    placementData.forEach((insight: any) => {
+      const leads = FacebookAdsService.extractLeadsFromActions(insight.actions || []);
+      const spend = parseFloat(insight.spend || '0');
+
       if (insight.platform_position) {
+        // Process platform_position breakdown (the correct approach for placement data)
         const position = insight.platform_position.toLowerCase();
-        if (position.includes('feed')) {
-          adPlacements.feed += leads;
-        } else if (position.includes('story')) {
-          adPlacements.stories += leads;
-        } else if (position.includes('reel')) {
-          adPlacements.reels += leads;
+        
+        debugLogger.debug('FacebookAdsService', 'Processing platform_position', { 
+          position, 
+          leads, 
+          spend,
+          insight 
+        });
+        
+        // Map platform_position values to placements based on Facebook API documentation
+        // Feed placements
+        if (position.includes('feed') || 
+            position === 'facebook_feed' || 
+            position === 'instagram_feed' ||
+            position === 'facebook_mobile_feed' ||
+            position === 'instagram_mobile_feed') {
+          placementMetrics.feed.leads += leads;
+          placementMetrics.feed.spend += spend;
+        }
+        // Stories placements
+        else if (position.includes('story') || 
+                 position === 'instagram_story' || 
+                 position === 'instagram_stories' ||
+                 position === 'facebook_story' ||
+                 position === 'facebook_stories' ||
+                 position === 'instagram_mobile_story') {
+          placementMetrics.stories.leads += leads;
+          placementMetrics.stories.spend += spend;
+        }
+        // Reels placements
+        else if (position.includes('reel') || 
+                 position === 'instagram_reels' || 
+                 position === 'facebook_reels' ||
+                 position === 'facebook_reels_overlay' ||
+                 position === 'instagram_mobile_reels') {
+          placementMetrics.reels.leads += leads;
+          placementMetrics.reels.spend += spend;
+        }
+        // Other placements - map to closest equivalent
+        else if (position.includes('right_hand_column') || 
+                 position.includes('marketplace') ||
+                 position.includes('desktop_feed')) {
+          placementMetrics.feed.leads += leads; // Map to feed as closest equivalent
+          placementMetrics.feed.spend += spend;
+        }
+        else if (position.includes('video_feeds') ||
+                 position.includes('video')) {
+          placementMetrics.reels.leads += leads; // Map to reels as closest equivalent
+          placementMetrics.reels.spend += spend;
+        }
+        else {
+          debugLogger.debug('FacebookAdsService', 'Unknown platform_position', { position, leads, spend });
+        }
+      } else if (insight.placement) {
+        // Fallback to old placement field if available
+        const placement = insight.placement.toLowerCase();
+        if (placement === 'facebook_feed' || placement === 'instagram_feed') {
+          placementMetrics.feed.leads += leads;
+          placementMetrics.feed.spend += spend;
+        } else if (placement === 'instagram_story' || placement === 'facebook_story') {
+          placementMetrics.stories.leads += leads;
+          placementMetrics.stories.spend += spend;
+        } else if (placement === 'instagram_reels' || placement === 'facebook_reels') {
+          placementMetrics.reels.leads += leads;
+          placementMetrics.reels.spend += spend;
+        }
+      }
+    });
+
+    // Calculate percentages based on spend (more meaningful for ad placements)
+    const totalSpend = placementMetrics.feed.spend + placementMetrics.stories.spend + placementMetrics.reels.spend;
+    
+    if (totalSpend > 0) {
+      adPlacements.feed = Math.round((placementMetrics.feed.spend / totalSpend) * 100);
+      adPlacements.stories = Math.round((placementMetrics.stories.spend / totalSpend) * 100);
+      adPlacements.reels = Math.round((placementMetrics.reels.spend / totalSpend) * 100);
+    }
+
+    debugLogger.debug('FacebookAdsService', 'Placement metrics calculated', {
+      placementMetrics,
+      adPlacements,
+      totalSpend
+    });
+
+    // Process creative data (Image, Video, Carousel, etc.)
+    const creativeBreakdown = {
+      image: 0,
+      video: 0,
+      carousel: 0,
+      other: 0
+    };
+
+    creativeData.forEach((insight: any) => {
+      const leads = FacebookAdsService.extractLeadsFromActions(insight.actions || []);
+
+      if (insight.media_format) {
+        const format = insight.media_format.toLowerCase();
+        if (format === 'image') {
+          creativeBreakdown.image += leads;
+        } else if (format === 'video') {
+          creativeBreakdown.video += leads;
+        } else if (format === 'carousel') {
+          creativeBreakdown.carousel += leads;
+        } else {
+          creativeBreakdown.other += leads;
         }
       }
     });
@@ -1379,7 +1609,12 @@ export class FacebookAdsService {
       }
     }
 
-    return { facebookVsInstagram, adPlacements };
+    return { 
+      facebookVsInstagram, 
+      adPlacements, 
+      placementMetrics, // Include detailed metrics (spend and leads)
+      creativeBreakdown 
+    };
   }
 
   static async getConversionActions(adAccountId: string): Promise<any[]> {
@@ -1718,10 +1953,9 @@ export class FacebookAdsService {
         spend: previousMetrics.spend,
         leads: previousMetrics.leads,
         conversions: previousMetrics.conversions,
-        ctr: parseFloat(previousMetrics.ctr || '0') / 100, // Convert percentage to decimal
+        ctr: parseFloat(previousMetrics.ctr || '0'), // Facebook already returns CTR as percentage
         cpc: parseFloat(previousMetrics.cpc || '0'), // CPC is already in currency format
         cpm: previousMetrics.cpm,
-        roas: previousMetrics.roas,
         reach: previousMetrics.reach,
         frequency: previousMetrics.frequency
       };
@@ -1761,16 +1995,30 @@ export class FacebookAdsService {
       });
     }
 
+    // Debug CTR calculation
+    const rawCtr = insights.ctr || '0';
+    const calculatedCtr = parseFloat(rawCtr); // Facebook already returns CTR as percentage
+    const manualCtr = insights.clicks && insights.impressions ? 
+      (parseInt(insights.clicks) / parseInt(insights.impressions)) * 100 : 0;
+    
+    debugLogger.debug('FacebookAdsService', 'CTR calculation debug', {
+      rawCtr,
+      calculatedCtr,
+      manualCtr,
+      clicks: insights.clicks,
+      impressions: insights.impressions,
+      ctrField: insights.ctr
+    });
+
     const metrics = {
       impressions: parseInt(insights.impressions || '0'),
       clicks: parseInt(insights.clicks || '0'),
       spend: parseFloat(insights.spend || '0'),
       leads: parseInt(leads.toString()),
       conversions: parseInt(leads.toString()), // Using leads as conversions for now
-      ctr: parseFloat(insights.ctr || '0') / 100, // Convert percentage to decimal (Facebook returns CTR as percentage)
+      ctr: calculatedCtr, // Convert percentage to decimal (Facebook returns CTR as percentage)
       cpc: parseFloat(insights.cost_per_link_click || insights.cpc || '0'), // Use cost_per_link_click if available, fallback to cpc
       cpm: parseFloat(insights.cpm || '0'),
-      roas: parseFloat(insights.roas || '0'),
       reach: parseInt(insights.reach || '0'),
       frequency: parseFloat(insights.frequency || '0')
     };

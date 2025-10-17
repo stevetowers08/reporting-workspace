@@ -1,5 +1,5 @@
-import { API_BASE_URLS } from '@/constants/apiVersions';
 import { DevLogger } from '@/lib/logger';
+import { TokenManager } from '@/services/auth/TokenManager';
 
 export interface GoogleSheet {
   id: string;
@@ -17,161 +17,200 @@ export interface GoogleSheetsAccount {
 }
 
 export class GoogleSheetsService {
-  private static readonly API_BASE_URL = API_BASE_URLS.GOOGLE_SHEETS;
+  private static readonly API_BASE_URL = 'https://bdmcdyxjdkgitphieklb.supabase.co/functions/v1/google-sheets-data';
+  private static readonly GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4';
+  private static readonly GOOGLE_DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 
   /**
-   * Get access token for Google Sheets API with automatic refresh
+   * Get Google Sheets access token from TokenManager
    */
   static async getAccessToken(): Promise<string | null> {
     try {
-      // Use the new GoogleSheetsOAuthService
-      const { GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
-      const token = await GoogleSheetsOAuthService.getSheetsAccessToken();
+      DevLogger.debug('GoogleSheetsService', 'Getting Google Sheets access token');
+      const token = await TokenManager.getAccessToken('googleSheets');
       
       if (token) {
-        DevLogger.debug('GoogleSheetsService', 'Using Google Sheets OAuth tokens', { hasAccessToken: true });
+        DevLogger.debug('GoogleSheetsService', 'Successfully retrieved Google Sheets access token');
         return token;
       }
       
-      DevLogger.error('GoogleSheetsService', 'No Google Sheets access token available');
-      DevLogger.error('GoogleSheetsService', 'No access token available. Please connect Google Sheets first.');
+      DevLogger.warn('GoogleSheetsService', 'No Google Sheets access token available');
       return null;
     } catch (error) {
-      DevLogger.error('GoogleSheetsService', 'Failed to get access token', error);
-      DevLogger.error('GoogleSheetsService', 'Failed to get access token:', error);
+      DevLogger.error('GoogleSheetsService', 'Error getting Google Sheets access token', error);
       return null;
     }
   }
 
   /**
-   * Test Google Sheets API connection
-   */
-  static async testConnection(): Promise<boolean> {
-    try {
-      const token = await this.getAccessToken();
-      if (!token) {
-        DevLogger.error('GoogleSheetsService', 'No access token available');
-        return false;
-      }
-
-      // Test with a simple API call to get user info
-      const response = await fetch(`${this.API_BASE_URL}/spreadsheets`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      return response.ok;
-    } catch (error) {
-      DevLogger.error('GoogleSheetsService', 'Google Sheets connection test failed', error);
-      return false;
-    }
-  }
-
-  /**
-   * Get Google Sheets accounts
+   * Get available Google Sheets accounts/spreadsheets
    */
   static async getSheetsAccounts(): Promise<GoogleSheetsAccount[]> {
     try {
+      DevLogger.debug('GoogleSheetsService', 'Fetching Google Sheets accounts');
+      
       const accessToken = await this.getAccessToken();
       if (!accessToken) {
-        const errorMsg = 'No Google OAuth access token available. Please connect your Google account first.';
-        DevLogger.error('GoogleSheetsService', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error('No Google Sheets access token available');
       }
 
-      DevLogger.debug('GoogleSheetsService', 'Fetching Google Sheets accounts');
-      DevLogger.debug('GoogleSheetsService', 'Fetching Google Sheets accounts with token:', accessToken.substring(0, 20) + '...');
-
-      // Get spreadsheets using Google Drive API
-      const sheetsResponse = await fetch(`https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.spreadsheet'`, {
+      // Get spreadsheets from Google Drive
+      const driveResponse = await fetch(`${this.GOOGLE_DRIVE_API_BASE}/files?q=mimeType='application/vnd.google-apps.spreadsheet'&fields=files(id,name,modifiedTime,webViewLink)`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!sheetsResponse.ok) {
-        const errorText = await sheetsResponse.text();
-        const errorMsg = `Failed to get spreadsheets: ${sheetsResponse.status} - ${errorText}`;
-        DevLogger.error('GoogleSheetsService', errorMsg);
-        throw new Error(errorMsg);
+      if (!driveResponse.ok) {
+        const errorText = await driveResponse.text();
+        DevLogger.error('GoogleSheetsService', 'Failed to fetch spreadsheets from Google Drive', { 
+          status: driveResponse.status, 
+          error: errorText 
+        });
+        throw new Error(`Failed to fetch spreadsheets: ${driveResponse.status} - ${errorText}`);
       }
 
-      const sheetsData = await sheetsResponse.json();
-      DevLogger.debug('GoogleSheetsService', 'Got spreadsheets data', { 
-        fileCount: sheetsData.files?.length || 0 
-      });
-      DevLogger.info('GoogleSheetsService', `Found ${sheetsData.files?.length || 0} spreadsheets`);
+      const driveData = await driveResponse.json();
+      const spreadsheets = driveData.files || [];
 
-      // Get user info
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!userInfoResponse.ok) {
-        const errorText = await userInfoResponse.text();
-        DevLogger.error('GoogleSheetsService', 'Failed to get user info', { status: userInfoResponse.status, error: errorText });
-        throw new Error(`Failed to get user info: ${userInfoResponse.status} ${errorText}`);
-      }
-
-      const userInfo = await userInfoResponse.json();
-      DevLogger.info('GoogleSheetsService', 'Retrieved user info', { email: userInfo.email });
-
-      // Transform the data
-      const sheets: GoogleSheet[] = (sheetsData.files || []).map((file: { id: string; name: string; modifiedTime: string }) => ({
+      // Convert to our format
+      const sheets: GoogleSheet[] = spreadsheets.map((file: any) => ({
         id: file.id,
         name: file.name,
-        url: `https://docs.google.com/spreadsheets/d/${file.id}`,
+        url: file.webViewLink,
         lastModified: file.modifiedTime,
-        sheetCount: 1 // We'd need to fetch each sheet individually to get accurate count
+        sheetCount: 1 // We'll get actual sheet count when needed
       }));
 
+      // Create a single account with all sheets
       const account: GoogleSheetsAccount = {
-        id: userInfo.id,
-        name: userInfo.name || userInfo.email,
-        email: userInfo.email,
-        sheets: sheets
+        id: 'google-sheets-user',
+        name: 'Google Sheets Account',
+        email: 'user@example.com', // This could be fetched from user info
+        sheets
       };
 
-      DevLogger.debug('GoogleSheetsService', 'Successfully fetched Google Sheets account', {
-        accountId: account.id,
+      DevLogger.debug('GoogleSheetsService', 'Successfully fetched Google Sheets accounts', {
+        accountCount: 1,
         sheetCount: sheets.length
       });
-      DevLogger.success('GoogleSheetsService', `Successfully fetched account with ${sheets.length} sheets`);
 
       return [account];
     } catch (error) {
-      DevLogger.error('GoogleSheetsService', 'Failed to get Google Sheets accounts', error);
-      DevLogger.error('GoogleSheetsService', 'Failed to get Google Sheets accounts:', error);
-      throw error; // Re-throw to let the component handle it
+      DevLogger.error('GoogleSheetsService', 'Error fetching Google Sheets accounts', error);
+      throw error;
     }
   }
 
   /**
-   * Get specific spreadsheet data
+   * Get sheet names for a specific spreadsheet
    */
-  static async getSpreadsheetData(spreadsheetId: string, range?: string): Promise<{ values?: string[][]; range?: string } | null> {
+  static async getSheetNames(spreadsheetId: string): Promise<string[]> {
     try {
+      DevLogger.debug('GoogleSheetsService', 'Fetching sheet names', { spreadsheetId });
+      
       const accessToken = await this.getAccessToken();
       if (!accessToken) {
-        DevLogger.error('GoogleSheetsService', 'No access token available');
-        return null;
+        throw new Error('No Google Sheets access token available');
       }
 
-      const rangeParam = range ? `/${encodeURIComponent(range)}` : '';
-      const url = `${this.API_BASE_URL}/spreadsheets/${spreadsheetId}/values${rangeParam}`;
-
-      DevLogger.debug('GoogleSheetsService', 'Fetching spreadsheet data', { spreadsheetId, range });
-
-      const response = await fetch(url, {
+      const response = await fetch(`${this.GOOGLE_SHEETS_API_BASE}/spreadsheets/${spreadsheetId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        DevLogger.error('GoogleSheetsService', 'Failed to fetch sheet names', { 
+          status: response.status, 
+          error: errorText 
+        });
+        throw new Error(`Failed to fetch sheet names: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      const sheetNames = data.sheets?.map((sheet: any) => sheet.properties?.title).filter(Boolean) || [];
+
+      DevLogger.debug('GoogleSheetsService', 'Successfully fetched sheet names', {
+        spreadsheetId,
+        sheetCount: sheetNames.length
+      });
+
+      return sheetNames;
+    } catch (error) {
+      DevLogger.error('GoogleSheetsService', 'Error fetching sheet names', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update values in a Google Sheet via Supabase Edge Function
+   * Note: Direct client-side writes fail due to CORS issues
+   */
+  static async updateValues(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
+    try {
+      DevLogger.debug('GoogleSheetsService', 'Updating sheet values via Supabase Edge Function', { spreadsheetId, range });
+      
+      const response = await fetch(`${this.API_BASE_URL}/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          spreadsheetId,
+          range,
+          values
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        DevLogger.error('GoogleSheetsService', 'Failed to update sheet values via Edge Function', { 
+          status: response.status, 
+          error: errorText 
+        });
+        throw new Error(`Failed to update sheet values: ${response.status} - ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      
+      if (!responseData.success) {
+        DevLogger.error('GoogleSheetsService', 'Edge function returned error for update', responseData);
+        throw new Error('Failed to update sheet values');
+      }
+
+      DevLogger.debug('GoogleSheetsService', 'Successfully updated sheet values via Edge Function', {
+        spreadsheetId,
+        range,
+        rowCount: values.length
+      });
+    } catch (error) {
+      DevLogger.error('GoogleSheetsService', 'Error updating sheet values via Edge Function', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get specific spreadsheet data using Supabase Edge Function
+   */
+  static async getSpreadsheetData(spreadsheetId: string, range?: string): Promise<{ values?: string[][]; range?: string } | null> {
+    try {
+      DevLogger.debug('GoogleSheetsService', 'Fetching spreadsheet data via Supabase Edge Function', { spreadsheetId, range });
+
+      const response = await fetch(this.API_BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          spreadsheetId,
+          range
+        })
       });
 
       if (!response.ok) {
@@ -183,7 +222,16 @@ export class GoogleSheetsService {
         return null;
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      
+      if (!responseData.success) {
+        DevLogger.error('GoogleSheetsService', 'Edge function returned error', responseData);
+        return null;
+      }
+
+      // Extract the actual data from the response
+      const data = responseData.data;
+
       DevLogger.debug('GoogleSheetsService', 'Successfully fetched spreadsheet data', {
         spreadsheetId,
         rowCount: data.values?.length || 0

@@ -35,33 +35,32 @@ export interface LeadData {
 }
 
 export class LeadDataService {
-  private static readonly DEFAULT_SPREADSHEET_ID = '1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4';
-  private static readonly DEFAULT_SHEET_NAME = 'Wedding Leads';
-
   static async fetchLeadData(
-    spreadsheetId?: string, 
-    sheetName?: string
+    spreadsheetId: string, 
+    sheetName: string
   ): Promise<LeadData | null> {
-    const actualSpreadsheetId = spreadsheetId || this.DEFAULT_SPREADSHEET_ID;
-    const actualSheetName = sheetName || this.DEFAULT_SHEET_NAME;
+    if (!spreadsheetId || !sheetName) {
+      debugLogger.warn('LeadDataService', 'Missing required spreadsheetId or sheetName');
+      return this.getEmptyLeadData();
+    }
     
     try {
       debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
-        spreadsheetId: actualSpreadsheetId,
-        sheetName: actualSheetName
+        spreadsheetId,
+        sheetName
       });
       
       // Use direct Google Sheets API (updated architecture)
       const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
       
       debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
-        spreadsheetId: actualSpreadsheetId,
-        sheetName: actualSheetName
+        spreadsheetId,
+        sheetName
       });
 
       const data = await GoogleSheetsService.getSpreadsheetData(
-        actualSpreadsheetId, 
-        `${actualSheetName}!A:Z`
+        spreadsheetId, 
+        `${sheetName}!A:Z`
       );
 
       if (!data) {
@@ -99,24 +98,36 @@ export class LeadDataService {
       const guestRanges: { [key: string]: number } = {};
       const dayPreferences: { [key: string]: number } = {};
 
-      // Detect available columns dynamically
-      const rowHeaders = rows[0] || [];
-      const eventTypeColumnIndex = this.findEventTypeColumn(rowHeaders);
-      const guestCountColumnIndex = this.findGuestCountColumn(rowHeaders);
-      const notesColumnIndex = this.findNotesColumn(rowHeaders);
+      // Map headers to column indices for your specific structure
+      const columnMap = this.mapHeadersToColumns(headers);
+      
+      debugLogger.debug('LeadDataService', 'Column mapping results', {
+        headers: headers,
+        columnMap: columnMap
+      });
 
       rows.forEach((row: string[], index) => {
-        // Get source (column 2 - index 1)
-        const source = row[2] || '';
+        // Get source from mapped column
+        const source = columnMap.source >= 0 ? row[columnMap.source] || '' : '';
         if (source.toLowerCase().includes('facebook')) {
           facebookLeads++;
         } else if (source.toLowerCase().includes('google')) {
           googleLeads++;
         }
 
-        // Get guest count with dynamic column detection
-        const guestCountRaw = guestCountColumnIndex >= 0 ? row[guestCountColumnIndex] : row[5] || '0';
+        // Get guest count from mapped column
+        const guestCountRaw = columnMap.guestCount >= 0 ? row[columnMap.guestCount] || '0' : '0';
         const guestCount = parseInt(guestCountRaw);
+        
+        // Debug logging for first few rows
+        if (index < 5) {
+          debugLogger.debug('LeadDataService', `Row ${index} guest count processing`, {
+            guestCountRaw,
+            guestCount,
+            guestCountColumnIndex: columnMap.guestCount,
+            isValid: !isNaN(guestCount) && guestCount > 0 && guestCount <= 1000
+          });
+        }
         
         // Validate guest count (reasonable range: 1-1000)
         if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
@@ -150,8 +161,19 @@ export class LeadDataService {
         }
 
         // Hybrid event type detection
-        const eventType = this.getEventType(row, rowHeaders, eventTypeColumnIndex, guestCountForCategorization, notesColumnIndex);
+        const eventType = this.getEventType(row, headers, columnMap.eventType, guestCountForCategorization, this.findNotesColumn(headers));
         eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
+        
+        // Debug logging for first few rows
+        if (index < 5) {
+          debugLogger.debug('LeadDataService', `Row ${index} event type detection`, {
+            guestCount: guestCountForCategorization,
+            eventTypeColumnIndex: columnMap.eventType,
+            notesColumnIndex: this.findNotesColumn(headers),
+            eventType,
+            row: row.slice(0, 10) // First 10 columns
+          });
+        }
       });
 
       const totalLeads = rows.length;
@@ -226,7 +248,7 @@ export class LeadDataService {
 
   // Helper methods for hybrid event type detection
   private static findEventTypeColumn(headers: string[]): number {
-    const eventTypeKeywords = ['event type', 'event_type', 'type', 'event', 'occasion', 'event category'];
+    const eventTypeKeywords = ['event type', 'event_type', 'type of event', 'type of', 'occasion', 'event category'];
     return headers.findIndex(header => 
       eventTypeKeywords.some(keyword => 
         header.toLowerCase().includes(keyword)
@@ -235,12 +257,47 @@ export class LeadDataService {
   }
 
   private static findGuestCountColumn(headers: string[]): number {
-    const guestCountKeywords = ['guest count', 'guest_count', 'guests', 'number of guests', 'attendees'];
+    const guestCountKeywords = ['guest count', 'guest_count', 'guests', 'number of guests', 'attendees', '# guests'];
     return headers.findIndex(header => 
       guestCountKeywords.some(keyword => 
         header.toLowerCase().includes(keyword)
       )
     );
+  }
+
+  // Map your specific header structure
+  private static mapHeadersToColumns(headers: string[]): {
+    dateSubmitted: number;
+    contactId: number;
+    source: number;
+    name: number;
+    email: number;
+    eventType: number;
+    guestCount: number;
+    replied: number;
+    callBooked: number;
+    tourBooked: number;
+    dateOfEvent: number;
+    amount: number;
+    finalPaymentAmount: number;
+  } {
+    const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
+    
+    return {
+      dateSubmitted: normalizedHeaders.findIndex(h => h.includes('date submitted')),
+      contactId: normalizedHeaders.findIndex(h => h.includes('contact id')),
+      source: normalizedHeaders.findIndex(h => h.includes('source')),
+      name: normalizedHeaders.findIndex(h => h.includes('name')),
+      email: normalizedHeaders.findIndex(h => h.includes('email')),
+      eventType: normalizedHeaders.findIndex(h => h.includes('type')),
+      guestCount: normalizedHeaders.findIndex(h => h.includes('guest')),
+      replied: normalizedHeaders.findIndex(h => h.includes('replied')),
+      callBooked: normalizedHeaders.findIndex(h => h.includes('call booked')),
+      tourBooked: normalizedHeaders.findIndex(h => h.includes('tour booked')),
+      dateOfEvent: normalizedHeaders.findIndex(h => h.includes('date of event')),
+      amount: normalizedHeaders.findIndex(h => h.includes('amount') && !h.includes('final')),
+      finalPaymentAmount: normalizedHeaders.findIndex(h => h.includes('final payment amount'))
+    };
   }
 
   private static findNotesColumn(headers: string[]): number {

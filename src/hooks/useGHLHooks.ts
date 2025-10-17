@@ -48,7 +48,7 @@ export const useGHLMetrics = (locationId: string, dateRange?: { start: string; e
     } finally {
       setLoading(false);
     }
-  }, [locationId, dateRange?.start, dateRange?.end, dateRange]); // ✅ FIX: Remove 'data' dependency to prevent infinite loops
+  }, [locationId, dateRange]); // ✅ FIX: Remove 'data' dependency to prevent infinite loops
 
   useEffect(() => {
     fetchData();
@@ -107,7 +107,7 @@ export const useGHLFunnelAnalytics = (locationId: string, dateRange?: { start: s
     } finally {
       setLoading(false);
     }
-  }, [locationId, dateRange?.start, dateRange?.end, dateRange]); // ✅ FIX: Remove 'data' dependency to prevent infinite loops
+  }, [locationId, dateRange]); // ✅ FIX: Remove 'data' dependency to prevent infinite loops
 
   useEffect(() => {
     fetchData();
@@ -166,7 +166,7 @@ export const useGHLContactCount = (locationId: string, dateRange?: { start: stri
     } finally {
       setLoading(false);
     }
-  }, [locationId, dateRange?.start, dateRange?.end, dateRange]); // ✅ FIX: Remove 'count' dependency to prevent infinite loops
+  }, [locationId, dateRange]); // ✅ FIX: Remove 'count' dependency to prevent infinite loops
 
   useEffect(() => {
     fetchData();

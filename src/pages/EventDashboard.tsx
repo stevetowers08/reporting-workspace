@@ -10,7 +10,6 @@ import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
 import { usePDFExport } from '@/hooks/usePDFExport';
 import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
-import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -108,9 +107,7 @@ const LeadInfoMetricsCards = lazy(() =>
 
 // Chart.js replacements for recharts components
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
-import { SimpleChart } from '@/components/dashboard/SimpleChart';
 import { SmartChartLayout } from '@/components/dashboard/SmartChartLayout';
-import { CHART_COLORS } from '@/components/ui/chart-wrapper';
 
 interface EventDashboardProps {
   isShared?: boolean;
@@ -667,31 +664,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
             <div ref={leadsTabRef}>
-            
-            {/* Lead Info Metrics Cards - Google Sheets Data */}
-            <Suspense fallback={<ComponentLoader />}>
-              <AppErrorBoundary>
-                <LeadInfoMetricsCards 
-                  data={dashboardData} 
-                  clientData={clientData as Client | null}
-                  dateRange={getDateRange(selectedPeriod)}
-                />
-              </AppErrorBoundary>
-            </Suspense>
-            
-            {/* Top-Level Funnel Metrics - Very Top */}
-              <SimpleChart 
-                title="Funnel Metrics"
-                type="bar"
-                data={{
-                  labels: ['Leads', 'Contacts', 'Opportunities', 'Deals'],
-                  datasets: [{
-                    label: 'Count',
-                    data: [150, 120, 80, 45],
-                    backgroundColor: CHART_COLORS.palette[0],
-                  }]
-                }}
-              />
             
             {/* Smart Chart Layout - 2 columns with automatic reordering */}
             <div className="mt-6">

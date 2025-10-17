@@ -1001,11 +1001,28 @@ GET https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}
 Authorization: Bearer {ACCESS_TOKEN}
 ```
 
-#### 2. Get Sheet Values
+#### 2. Get Sheet Values (Recommended - Uses batchGet)
 ```http
-GET https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values/{RANGE}
+GET https://sheets.googleapis.com/v4/spreadsheets/{SPREADSHEET_ID}/values:batchGet?ranges={RANGE}
 Authorization: Bearer {ACCESS_TOKEN}
 ```
+
+**Response Format:**
+```json
+{
+  "valueRanges": [
+    {
+      "range": "Event Leads!A1:E5",
+      "values": [
+        ["Date", "Contact ID", "Source", "Name", "Email"],
+        ["8/27/2025", "oj3M60mqWsCvYLFucEaS", "Facebook Ads", "Carby Carbajal", "priscilla.carbajal@yahoo.com"]
+      ]
+    }
+  ]
+}
+```
+
+**⚠️ Important Note:** The `/values/{RANGE}` endpoint frequently returns 404 errors. Use `/values:batchGet` instead for reliable data access.
 
 #### 3. Update Sheet Values
 ```http
@@ -1020,6 +1037,56 @@ Content-Type: application/json
   ]
 }
 ```
+
+### Supabase Edge Function Implementation
+
+#### Edge Function: `google-sheets-data`
+
+**Endpoint:** `https://{project-ref}.supabase.co/functions/v1/google-sheets-data`
+
+**Request Format:**
+```json
+{
+  "spreadsheetId": "1YOgfl_S0W4VL5SuWXdFk2tH9naFmwwPmfIz_lPmKtPc",
+  "range": "Event Leads!A1:E5",
+  "operation": "read"
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "data": {
+    "values": [
+      ["Date", "Contact ID", "Source", "Name", "Email"],
+      ["8/27/2025", "oj3M60mqWsCvYLFucEaS", "Facebook Ads", "Carby Carbajal", "priscilla.carbajal@yahoo.com"]
+    ]
+  },
+  "metadata": {
+    "spreadsheetId": "1YOgfl_S0W4VL5SuWXdFk2tH9naFmwwPmfIz_lPmKtPc",
+    "range": "Event Leads!A1:E5",
+    "rowCount": 5,
+    "columnCount": 5,
+    "timestamp": "2025-10-17T13:25:07.546Z"
+  }
+}
+```
+
+#### Key Implementation Details
+
+**✅ Working Solution:**
+- Uses `/values:batchGet` endpoint instead of `/values/{RANGE}` (which returns 404)
+- Automatic token refresh with 5-minute expiry buffer
+- OAuth credentials retrieved from database
+- CORS-free server-side proxy
+- Handles private spreadsheets with agency-level access
+
+**🔧 Technical Fixes Applied:**
+1. **API Endpoint**: Changed from `/values/{RANGE}` to `/values:batchGet?ranges={RANGE}`
+2. **Token Management**: Automatic refresh with proper expiry detection
+3. **Credential Storage**: OAuth credentials stored in database, not environment variables
+4. **Error Handling**: Proper 404 handling and token expiration detection
 
 ### Google Sheets Data Structures
 
@@ -1046,6 +1113,81 @@ Content-Type: application/json
   ]
 }
 ```
+
+#### Lead Data Format (Production Example)
+```json
+{
+  "values": [
+    ["Date", "Contact ID", "Source", "Name", "Email"],
+    ["8/27/2025", "oj3M60mqWsCvYLFucEaS", "Facebook Ads", "Carby Carbajal", "priscilla.carbajal@yahoo.com"],
+    ["9/1/2025", "tEpt6UB1tTU4RCuJVc04", "Facebook Ads", "Pragna Dave", "pragna.prahalad@gmail.com"]
+  ]
+}
+```
+
+### Troubleshooting Google Sheets Integration
+
+#### Common Issues and Solutions
+
+**❌ Problem: 404 Not Found Error**
+```
+Google Sheets API error: 404 Not Found
+```
+
+**✅ Solution:** Use `/values:batchGet` endpoint instead of `/values/{RANGE}`
+```javascript
+// ❌ WRONG - Returns 404
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
+
+// ✅ CORRECT - Works reliably
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?ranges=${range}`;
+```
+
+**❌ Problem: Token Expired Error**
+```
+Google Sheets refresh token expired. Please re-authenticate.
+```
+
+**✅ Solution:** Implement automatic token refresh with expiry buffer
+```javascript
+const tokenExpiryBuffer = 5 * 60 * 1000; // 5 minutes buffer
+const isTokenExpired = !accessToken || (expiresAt && (Date.now() >= (new Date(expiresAt).getTime() - tokenExpiryBuffer)));
+```
+
+**❌ Problem: CORS Errors in Browser**
+```
+Access to fetch at 'https://sheets.googleapis.com/v4/spreadsheets/...' from origin '...' has been blocked by CORS policy
+```
+
+**✅ Solution:** Use Supabase Edge Function as server-side proxy
+```javascript
+// Route all Google Sheets operations through Edge Function
+const response = await fetch(`${API_BASE_URL}/google-sheets-data`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ spreadsheetId, range, operation: 'read' })
+});
+```
+
+**❌ Problem: Private Spreadsheet Access**
+```
+Google Sheets API error: 404 Not Found (for private spreadsheets)
+```
+
+**✅ Solution:** Ensure agency OAuth account has access to client spreadsheets
+- Agency account (`steve@tulenagency.com`) must have access to all client spreadsheets
+- Client-level configuration only stores spreadsheet/sheet selection
+- OAuth tokens are agency-level, not client-level
+
+#### Production Checklist
+
+- ✅ **API Endpoint**: Using `/values:batchGet` instead of `/values/{RANGE}`
+- ✅ **Token Management**: Automatic refresh with 5-minute expiry buffer
+- ✅ **Credential Storage**: OAuth credentials in database, not environment variables
+- ✅ **CORS Handling**: All operations routed through Supabase Edge Function
+- ✅ **Error Handling**: Proper 404 and token expiration detection
+- ✅ **Private Access**: Agency OAuth account has access to client spreadsheets
+- ✅ **Real Data**: Successfully reading from production spreadsheets
 
 ---
 
@@ -1125,6 +1267,193 @@ GET https://graph.facebook.com/v22.0/{AD_ACCOUNT_ID}/insights?
         {
           "action_type": "purchase",
           "value": "25"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 4. Demographics Breakdown (Age & Gender)
+```http
+GET https://graph.facebook.com/v22.0/{AD_ACCOUNT_ID}/insights?
+  fields=impressions,clicks,spend,actions&
+  breakdowns=age,gender&
+  date_preset=last_30d&
+  access_token={ACCESS_TOKEN}
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "age": "25-34",
+      "gender": "female",
+      "impressions": "50000",
+      "clicks": "1000",
+      "spend": "500.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "50"
+        }
+      ]
+    },
+    {
+      "age": "35-44",
+      "gender": "male",
+      "impressions": "30000",
+      "clicks": "600",
+      "spend": "300.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "30"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 5. Platform Breakdown (Facebook vs Instagram)
+```http
+GET https://graph.facebook.com/v22.0/{AD_ACCOUNT_ID}/insights?
+  fields=impressions,clicks,spend,actions&
+  breakdowns=publisher_platform&
+  date_preset=last_30d&
+  access_token={ACCESS_TOKEN}
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "publisher_platform": "facebook",
+      "impressions": "80000",
+      "clicks": "1600",
+      "spend": "800.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "80"
+        }
+      ]
+    },
+    {
+      "publisher_platform": "instagram",
+      "impressions": "45000",
+      "clicks": "900",
+      "spend": "450.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "45"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 6. Ad Placement Breakdown (Feed, Stories, Reels) - **WORKING SOLUTION**
+```http
+GET https://graph.facebook.com/v22.0/{AD_ACCOUNT_ID}/insights?
+  fields=spend,impressions,clicks,actions&
+  breakdowns=platform_position&
+  date_preset=last_30d&
+  access_token={ACCESS_TOKEN}
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "platform_position": "feed",
+      "impressions": "60000",
+      "clicks": "1200",
+      "spend": "600.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "60"
+        }
+      ]
+    },
+    {
+      "platform_position": "instagram_stories",
+      "impressions": "30000",
+      "clicks": "600",
+      "spend": "300.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "30"
+        }
+      ]
+    },
+    {
+      "platform_position": "instagram_reels",
+      "impressions": "35000",
+      "clicks": "700",
+      "spend": "350.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "35"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Key Implementation Details:**
+- **Breakdown Parameter**: Use `platform_position` instead of deprecated `placement`
+- **Percentage Calculation**: Calculate percentages based on spend (not leads) for more meaningful ad placement analysis
+- **Platform Position Mapping**: Map Facebook API values to user-friendly categories:
+  - `feed`, `facebook_feed`, `instagram_feed` → Feed
+  - `instagram_stories`, `facebook_story` → Stories  
+  - `instagram_reels`, `facebook_reels` → Reels
+- **Fallback Mapping**: Map other placements to closest equivalent (e.g., `marketplace` → Feed, `video_feeds` → Reels)
+
+#### 7. Creative Breakdown (Image, Video, Carousel)
+```http
+GET https://graph.facebook.com/v22.0/{AD_ACCOUNT_ID}/insights?
+  fields=impressions,clicks,spend,actions&
+  breakdowns=ad_format_asset&
+  date_preset=last_30d&
+  access_token={ACCESS_TOKEN}
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "media_format": "image",
+      "impressions": "70000",
+      "clicks": "1400",
+      "spend": "700.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "70"
+        }
+      ]
+    },
+    {
+      "media_format": "video",
+      "impressions": "55000",
+      "clicks": "1100",
+      "spend": "550.00",
+      "actions": [
+        {
+          "action_type": "lead",
+          "value": "55"
         }
       ]
     }

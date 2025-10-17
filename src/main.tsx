@@ -60,6 +60,7 @@ if (typeof window !== 'undefined') {
 
 // Import App and CSS after React is initialized to prevent TDZ issues
 import App from "./App";
+// Import CSS as a stylesheet, not as a module
 import "./index.css";
 
 const rootElement = document.getElementById("root");

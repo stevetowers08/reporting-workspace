@@ -491,8 +491,9 @@ export class EventMetricsService {
           clientAccounts.googleSheetsConfig.sheetName
         );
       } else {
-        // Fallback to default configuration
-        leadData = await LeadDataService.fetchLeadData();
+        // No Google Sheets configuration available
+        debugLogger.warn('EventMetricsService', 'No Google Sheets configuration found for client');
+        return this.getEmptyEventMetrics();
       }
       
       if (leadData) {

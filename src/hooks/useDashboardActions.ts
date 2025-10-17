@@ -76,7 +76,7 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
     try {
       const { PDFExportService } = await import('@/services/export/pdfExportService');
       await PDFExportService.exportDashboardToPDF(dashboardData, clientData);
-    } catch (error) {
+    } catch (_error) {
       // PDF export failed
       alert('Failed to export PDF');
     } finally {

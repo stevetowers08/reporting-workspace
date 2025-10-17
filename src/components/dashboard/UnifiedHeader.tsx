@@ -182,7 +182,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   };
 
   return (
-    <header className={`bg-white border-b border-slate-200 px-20 ${className}`}>
+    <header className={`bg-white border-b border-slate-200 px-20 sticky top-[73px] z-[60] ${className}`}>
       <div className="py-6">
         <div className="flex items-center justify-between">
           {/* Left: Client Branding with Date Range Text */}

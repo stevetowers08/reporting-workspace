@@ -230,7 +230,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                             className="w-10 h-10 object-cover rounded-lg border border-slate-200"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
-                              const fallback = e.currentTarget.nextElementSibling as Element;
+                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                               if (fallback) {
                                 fallback.style.display = 'flex';
                               }

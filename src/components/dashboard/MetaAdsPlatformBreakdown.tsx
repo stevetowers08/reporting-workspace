@@ -22,6 +22,13 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
     reels: 0
   };
 
+  // Get detailed placement metrics (spend and leads)
+  const placementMetrics = platformBreakdown?.placementMetrics || {
+    feed: { leads: 0, spend: 0 },
+    stories: { leads: 0, spend: 0 },
+    reels: { leads: 0, spend: 0 }
+  };
+
   return (
     <Card className="bg-white border border-slate-200 shadow-sm p-6">
       <div className="pb-4">
@@ -54,7 +61,15 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600">Feed</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs text-slate-500">
+                      ${placementMetrics.feed.spend.toFixed(2)} • {placementMetrics.feed.leads} leads
+                      {placementMetrics.feed.leads > 0 && (
+                        <span className="text-slate-400"> • ${(placementMetrics.feed.spend / placementMetrics.feed.leads).toFixed(2)} CPL</span>
+                      )}
+                    </div>
+                  </div>
                   <div className="w-24 bg-slate-200 rounded-full h-2">
                     <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${adPlacements.feed}%` }}></div>
                   </div>
@@ -63,7 +78,15 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600">Stories</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs text-slate-500">
+                      ${placementMetrics.stories.spend.toFixed(2)} • {placementMetrics.stories.leads} leads
+                      {placementMetrics.stories.leads > 0 && (
+                        <span className="text-slate-400"> • ${(placementMetrics.stories.spend / placementMetrics.stories.leads).toFixed(2)} CPL</span>
+                      )}
+                    </div>
+                  </div>
                   <div className="w-24 bg-slate-200 rounded-full h-2">
                     <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${adPlacements.stories}%` }}></div>
                   </div>
@@ -72,7 +95,15 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600">Reels</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs text-slate-500">
+                      ${placementMetrics.reels.spend.toFixed(2)} • {placementMetrics.reels.leads} leads
+                      {placementMetrics.reels.leads > 0 && (
+                        <span className="text-slate-400"> • ${(placementMetrics.reels.spend / placementMetrics.reels.leads).toFixed(2)} CPL</span>
+                      )}
+                    </div>
+                  </div>
                   <div className="w-24 bg-slate-200 rounded-full h-2">
                     <div className="bg-pink-500 h-2 rounded-full" style={{ width: `${adPlacements.reels}%` }}></div>
                   </div>

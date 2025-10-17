@@ -4,7 +4,7 @@
  */
 
 export const API_VERSIONS = {
-  FACEBOOK: 'v22.0', // Updated to latest 2025 version
+  FACEBOOK: 'v21.0', // Try older version for placement support
   GOOGLE_ADS: 'v21', // Current version in use
   GOOGLE_SHEETS: 'v4',
   GOOGLE_OAUTH: 'v2',

@@ -132,8 +132,11 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     return colorMap[eventType] || '#6B7280'; // Default gray
   };
 
-  // Prepare chart data
-  const chartData = eventTypes.map((eventType, _index) => ({
+  // Prepare chart data - sort by count and take top 6
+  const sortedEventTypes = eventTypes.sort((a, b) => b.count - a.count);
+  const top6EventTypes = sortedEventTypes.slice(0, 6);
+  
+  const chartData = top6EventTypes.map((eventType, _index) => ({
     name: eventType.type,
     value: eventType.count,
     percentage: eventType.percentage,
@@ -145,16 +148,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   return (
     <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
       <div className="pb-3">
-        <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
-        <p className="text-sm text-slate-600">
-          {dateRange ? 
-            `Event types for ${new Date(dateRange.start).toLocaleDateString()} - ${new Date(dateRange.end).toLocaleDateString()}` :
-            'What types of events customers are planning'
-          }
-        </p>
-        <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/values | Smart detection: Event type column
-        </div>
+        <h3 className="text-lg font-semibold text-slate-900">Top 6 Event Types</h3>
       </div>
       
       <div className="h-64">
@@ -172,9 +166,13 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
             />
             <Tooltip 
               formatter={(value: number, name: string, props: any) => [
-                `${value} events (${props.payload?.percentage?.toFixed(1) || '0'}%)`,
+                `${value} events (${props.payload?.percentage?.toFixed(1)}%)`,
                 'Count'
               ]}
+              labelFormatter={(label, payload) => {
+                const data = payload?.[0]?.payload;
+                return `${data?.name} - ${data?.percentage?.toFixed(1)}%`;
+              }}
               labelStyle={{ color: '#374151' }}
               contentStyle={{ 
                 backgroundColor: '#fff', 

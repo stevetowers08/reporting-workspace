@@ -178,21 +178,23 @@ export function validateClientAccountSelections(
  */
 export async function getAvailablePlatformAccounts(platform: string): Promise<PlatformAccount[]> {
   switch (platform) {
-    case 'facebookAds':
+    case 'facebookAds': {
       const facebookAccounts = await FacebookAdsService.getAdAccounts();
       return facebookAccounts.map(acc => ({
         id: acc.id,
         name: acc.name.replace(/\s*\([^)]*\)$/, ''), // Remove account ID in brackets
         platform: 'facebookAds'
       }));
+    }
 
-    case 'googleAds':
+    case 'googleAds': {
       const googleAccounts = await GoogleAdsService.getAdAccounts();
       return googleAccounts.map(acc => ({
         id: acc.id,
         name: acc.name,
         platform: 'googleAds'
       }));
+    }
 
     default:
       debugLogger.warn('IntegrationHelpers', `Unknown platform: ${platform}`);
