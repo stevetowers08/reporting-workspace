@@ -81,6 +81,7 @@ code={AUTHORIZATION_CODE}
 ```http
 GET https://graph.facebook.com/v22.0/me/adaccounts?
   fields=id,name,account_status,currency,timezone_name&
+  limit=200&
   access_token={USER_ACCESS_TOKEN}
 ```
 
@@ -106,6 +107,8 @@ GET https://graph.facebook.com/v22.0/me/adaccounts?
 }
 ```
 
+**Best Practice**: Always use `limit=200` to get maximum accounts per request. Facebook's default limit is 25, so using `limit=200` significantly reduces the number of API calls needed to fetch all accounts.
+
 #### 2. Get Business Accounts
 ```http
 GET https://graph.facebook.com/v22.0/me/businesses?
@@ -117,6 +120,7 @@ GET https://graph.facebook.com/v22.0/me/businesses?
 ```http
 GET https://graph.facebook.com/v22.0/{BUSINESS_ID}/owned_ad_accounts?
   fields=id,name,account_status,currency&
+  limit=200&
   access_token={USER_ACCESS_TOKEN}
 ```
 
@@ -124,6 +128,7 @@ GET https://graph.facebook.com/v22.0/{BUSINESS_ID}/owned_ad_accounts?
 ```http
 GET https://graph.facebook.com/v22.0/{BUSINESS_ID}/client_ad_accounts?
   fields=id,name,account_status,currency&
+  limit=200&
   access_token={USER_ACCESS_TOKEN}
 ```
 
@@ -131,6 +136,7 @@ GET https://graph.facebook.com/v22.0/{BUSINESS_ID}/client_ad_accounts?
 ```http
 GET https://graph.facebook.com/v22.0/{SYSTEM_USER_ID}/adaccounts?
   fields=id,name,account_status,currency&
+  limit=200&
   access_token={USER_ACCESS_TOKEN}
 ```
 
@@ -142,7 +148,7 @@ Our implementation fetches accounts from multiple sources to ensure complete cov
 // Parallel fetching from all sources
 const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
   // 1. Direct user accounts
-  fetchPaginatedAccounts(`${BASE_URL}/me/adaccounts?fields=id,name,account_status,currency&access_token=${userToken}`),
+  fetchPaginatedAccounts(`${BASE_URL}/me/adaccounts?fields=id,name,account_status,currency&limit=200&access_token=${userToken}`),
   
   // 2. Business-owned accounts
   fetchBusinessAccounts(userToken),

@@ -334,7 +334,7 @@ export class FacebookAdsService {
       // Try to access business management endpoint to check if permission is available
       const headers = await this.buildApiHeaders();
       const businessResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id&access_token=${userToken}`,
+        `${this.BASE_URL}/me/businesses?fields=id&access_token=${token}`,
         { headers }
       );
       const hasBusinessManagement = businessResponse.ok;
@@ -396,7 +396,7 @@ export class FacebookAdsService {
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`)
           .then(response => response.ok ? response.json() : { data: [] })
           .then(data => {
             debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
@@ -408,7 +408,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
           .then(response => {
             if (!response.ok) {
               if (response.status === 403) {
@@ -432,14 +432,14 @@ export class FacebookAdsService {
                 
                 // Fetch owned ad accounts with pagination support
                 const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
                 );
                 allBusinessAccounts.push(...ownedAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
                 // Fetch client ad accounts (accounts managed by this business) with pagination support
                 const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
                 );
                 allBusinessAccounts.push(...clientAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
@@ -558,7 +558,7 @@ export class FacebookAdsService {
       
       // Get all businesses first
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
       );
       
       if (!businessesResponse.ok) {
@@ -583,7 +583,7 @@ export class FacebookAdsService {
         try {
           // Get system users for this business
           const systemUsersResponse = await FacebookAdsService.rateLimitedFetch(
-            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${userToken}`
+            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${token}`
           );
 
           if (!systemUsersResponse.ok) {
@@ -600,7 +600,7 @@ export class FacebookAdsService {
           for (const systemUser of systemUsers) {
             try {
               const systemUserAccountsResponse = await FacebookAdsService.rateLimitedFetch(
-                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
               );
 
               if (systemUserAccountsResponse.ok) {
@@ -642,7 +642,7 @@ export class FacebookAdsService {
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`)
           .then(response => response.ok ? response.json() : { data: [] })
           .then(data => {
             debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
@@ -654,7 +654,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
           .then(response => {
             if (!response.ok) {
               if (response.status === 403) {
@@ -678,14 +678,14 @@ export class FacebookAdsService {
                 
                 // Fetch owned ad accounts with pagination support
                 const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
                 );
                 allBusinessAccounts.push(...ownedAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
                 // Fetch client ad accounts (accounts managed by this business) with pagination support
                 const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
                 );
                 allBusinessAccounts.push(...clientAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
@@ -772,7 +772,7 @@ export class FacebookAdsService {
 
       // Get all businesses
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
+        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
       );
       
       if (!businessesResponse.ok) {
@@ -810,7 +810,7 @@ export class FacebookAdsService {
       let ownedAccounts: any[] = [];
       try {
         ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-          `${this.BASE_URL}/${tulenAgency.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+          `${this.BASE_URL}/${tulenAgency.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
         );
         debugLogger.info('FacebookAdsService', 'Tulen Agency owned accounts', {
           count: ownedAccounts.length,
@@ -824,7 +824,7 @@ export class FacebookAdsService {
       let clientAccounts: any[] = [];
       try {
         clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-          `${this.BASE_URL}/${tulenAgency.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+          `${this.BASE_URL}/${tulenAgency.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
         );
         debugLogger.info('FacebookAdsService', 'Tulen Agency client accounts', {
           count: clientAccounts.length,
@@ -880,7 +880,7 @@ export class FacebookAdsService {
       // 1. Search in user accounts
       try {
         const userResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
         );
         
         if (userResponse.ok) {
@@ -902,7 +902,7 @@ export class FacebookAdsService {
       // 2. Search in business manager accounts
       try {
         const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
         );
         
         if (businessesResponse.ok) {
@@ -913,7 +913,7 @@ export class FacebookAdsService {
             try {
               // Search owned accounts
               const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
               );
               
               for (const account of ownedAccounts) {
@@ -926,7 +926,7 @@ export class FacebookAdsService {
               
               // Search client accounts
               const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
               );
               
               for (const account of clientAccounts) {
@@ -996,7 +996,7 @@ export class FacebookAdsService {
       // 1. Get user accounts
       try {
         const userResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+          `${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
         );
         
         if (userResponse.ok) {
@@ -1015,7 +1015,7 @@ export class FacebookAdsService {
       // 2. Get business managers and their accounts
       try {
         const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`
+          `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`
         );
         
         if (businessesResponse.ok) {
@@ -1031,13 +1031,13 @@ export class FacebookAdsService {
             try {
               // Get owned accounts
               const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
               );
               businessAccounts.push(...ownedAccounts);
               
               // Get client accounts
               const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
+                `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
               );
               businessAccounts.push(...clientAccounts);
               

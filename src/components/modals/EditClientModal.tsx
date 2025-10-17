@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { ConnectLocationButton } from '@/components/agency/ConnectLocationButton';
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
 import { LogoManager } from "@/components/ui/LogoManager";
@@ -14,7 +13,7 @@ import { AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { AlertCircle, Bot, CheckCircle, Edit, Upload, X } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from "react-router-dom";
 
 interface Client {
@@ -71,10 +70,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         googleSheetsConfig: client?.accounts?.googleSheetsConfig || null,
     });
     
-    // Debug form data
-    console.log('🔍 EditClientModal: Form data initialized:', formData);
-    console.log('🔍 EditClientModal: Client data:', client);
-    
     const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({
         facebookAds: false,
         googleAds: false,
@@ -82,8 +77,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         goHighLevel: false
     });
     
-    // Debug integration status
-    console.log('🔍 EditClientModal: Initial integration status:', integrationStatus);
     const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
     const [facebookAccountsLoaded, setFacebookAccountsLoaded] = useState(false);
     const [facebookAccountsLoading, setFacebookAccountsLoading] = useState(false);
@@ -119,15 +112,11 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                 };
 
                 integrations?.forEach(integration => {
-                    if (statusMap.hasOwnProperty(integration.platform)) {
+                    if (Object.prototype.hasOwnProperty.call(statusMap, integration.platform)) {
                         statusMap[integration.platform] = true;
                     }
                 });
 
-                console.log('🔍 EditClientModal: Integration status loaded:', statusMap);
-                console.log('🔍 EditClientModal: Raw integrations data:', integrations);
-                console.log('🔍 EditClientModal: Facebook Ads connected:', statusMap.facebookAds);
-                console.log('🔍 EditClientModal: Google Ads connected:', statusMap.googleAds);
                 setIntegrationStatus(statusMap);
             } catch (error) {
                 console.error('Error loading integration status', error);
@@ -342,9 +331,11 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             const clientData = {
                 name: clientName,
                 logo_url: clientLogo,
-                accounts: formData.accounts,
+                accounts: {
+                    ...formData.accounts,
+                    googleSheetsConfig: formData.googleSheetsConfig,
+                },
                 conversion_actions: formData.conversionActions,
-                googleSheetsConfig: formData.googleSheetsConfig,
             };
         
         if (client) {
@@ -385,7 +376,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     };
 
     const handleLogoSave = () => {
-        setIsEditingLogo(false);
+        _setIsEditingLogo(false);
         setFormData(prev => ({ ...prev, logo_url: clientLogo }));
     };
 
@@ -393,7 +384,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         if (e.key === 'Enter') handleLogoSave();
         if (e.key === 'Escape') {
             setClientLogo(client?.logo_url || '');
-            setIsEditingLogo(false);
+            _setIsEditingLogo(false);
         }
     };
 
@@ -408,7 +399,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             
             // Here you would typically upload to your storage service
             // For now, we'll just use the temp URL
-            console.log('File selected:', file.name);
         } catch (error) {
             console.error('Error uploading logo:', error);
         }

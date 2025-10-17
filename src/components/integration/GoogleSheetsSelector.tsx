@@ -27,7 +27,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
-    const [_loadingSheets, _setLoadingSheets] = useState(false);
+    const [loadingSheets, setLoadingSheets] = useState(false);
 
   // Don't auto-load on mount - let user trigger loading by clicking dropdown
 
@@ -223,13 +223,13 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         {/* Sheet Selection - Always visible */}
         <div className="mt-2">
           <SearchableSelect 
-            options={sheetNames.map((sheetName) => ({
+            options={loadingSheets ? [{ value: 'loading', label: 'Loading sheets...' }] : sheetNames.map((sheetName) => ({
               value: sheetName,
               label: sheetName
             }))}
             value={selectedSheet || ""} 
             onValueChange={handleSheetChange}
-            placeholder="Select a sheet"
+            placeholder={loadingSheets ? "Loading sheets..." : "Select a sheet"}
             searchPlaceholder="Search sheets..."
             className="w-full h-8 text-sm"
           />
