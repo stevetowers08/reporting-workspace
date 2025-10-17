@@ -43,7 +43,7 @@ const AgencyPanel = () => {
     const googleAdsConnected = searchParams.get('googleAds_connected');
     const managerId = searchParams.get('manager_id');
     const location = searchParams.get('location');
-    const locationName = searchParams.get('location_name');
+    const _locationName = searchParams.get('location_name');
     const clientId = searchParams.get('clientId') || routeClientId;
     
     if ((connected === 'true' || ghlConnected === 'true') && location) {
@@ -139,6 +139,8 @@ const AgencyPanel = () => {
       }, 3000);
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to add client', error);
+      // Show error message to user
+      console.error(`Failed to create client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
