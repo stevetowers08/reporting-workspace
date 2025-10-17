@@ -49,6 +49,7 @@ export const useAgencyClients = (): UseAgencyClientsReturn => {
       await AgencyService.updateClient(clientId, updates);
       // Invalidate and refetch clients
       await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+      debugLogger.info('useAgencyClients', 'Client updated and cache invalidated', { clientId, updates });
     } catch (error) {
       debugLogger.error('useAgencyClients', 'Failed to update client', error);
       throw error;

@@ -4,20 +4,8 @@ import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthServi
 import { OAuthService } from '@/services/auth/oauthService';
 import { DatabaseService } from '@/services/data/databaseService';
 import { UnifiedIntegrationService } from '@/services/integration/IntegrationService';
+import { Client, CreateClientInput } from '@/types/client';
 import { IntegrationPlatform } from '@/types/integration';
-
-export interface Client {
-  id: string;
-  name: string;
-  logo_url?: string;
-  accounts?: {
-    facebookAds?: string;
-    googleAds?: string;
-    goHighLevel?: string;
-    googleSheets?: string;
-  };
-  shareable_link: string;
-}
 
 export interface IntegrationDisplay {
   id: string;
@@ -256,20 +244,7 @@ export class AgencyService {
   /**
    * Create a new client
    */
-  static async createClient(clientData: {
-    name: string;
-    logo_url?: string;
-    accounts: {
-      facebookAds?: string;
-      googleAds?: string;
-      goHighLevel?: string;
-      googleSheets?: string;
-    };
-    conversionActions?: {
-      facebookAds?: string;
-      googleAds?: string;
-    };
-  }): Promise<void> {
+  static async createClient(clientData: CreateClientInput): Promise<void> {
     try {
       debugLogger.info('AgencyService', 'Creating client', { name: clientData.name });
       await DatabaseService.createClient(clientData);

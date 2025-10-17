@@ -1,6 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { ClientCreateSchema, ClientUpdateSchema, validateInput } from '@/lib/validation';
+import { Client, ClientRecord, CreateClientInput } from '@/types/client';
 
 // Debug helper for database operations
 const debugDatabase = {
@@ -24,7 +25,27 @@ const supabaseHelpers = {
       .order('created_at', { ascending: false });
     
     if (error) {throw error;}
-    return data || [];
+    
+    // Process each client to extract googleSheetsConfig from accounts field
+    const processedClients = (data || []).map(client => {
+      // Extract googleSheetsConfig from accounts field if it exists
+      if (client && client.accounts && client.accounts.googleSheetsConfig) {
+        debugLogger.debug('DatabaseService', `Extracting googleSheetsConfig for client ${client.name}`, {
+          clientId: client.id,
+          googleSheetsConfig: client.accounts.googleSheetsConfig
+        });
+        client.googleSheetsConfig = client.accounts.googleSheetsConfig;
+      } else {
+        debugLogger.debug('DatabaseService', `No googleSheetsConfig found for client ${client.name}`, {
+          clientId: client.id,
+          hasAccounts: !!client.accounts,
+          accountsKeys: client.accounts ? Object.keys(client.accounts) : []
+        });
+      }
+      return client;
+    });
+    
+    return processedClients;
   },
 
   async getClient(id: string): Promise<Client | null> {
@@ -182,29 +203,6 @@ const supabaseHelpers = {
   }
 };
 
-export interface Client {
-  id: string;
-  name: string;
-  logo_url?: string;
-  conversion_actions?: {
-    facebookAds?: string;
-    googleAds?: string;
-  };
-  accounts?: {
-    facebookAds?: string;
-    googleAds?: string;
-    goHighLevel?: string;
-    googleSheets?: string;
-    googleSheetsConfig?: {
-      spreadsheetId: string;
-      sheetName: string;
-    };
-  };
-  shareable_link: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Integration {
   id: string;
   platform: string;
@@ -255,28 +253,7 @@ export class DatabaseService {
     }
   }
 
-  static async createClient(clientData: {
-    name: string;
-    logo_url?: string;
-    accounts: {
-      facebookAds?: string;
-      googleAds?: string;
-      goHighLevel?: string | {
-        locationId: string;
-        locationName: string;
-        locationToken?: string;
-      };
-      googleSheets?: string;
-    };
-    conversionActions?: {
-      facebookAds?: string;
-      googleAds?: string;
-    };
-    googleSheetsConfig?: {
-      spreadsheetId: string;
-      sheetName: string;
-    };
-  }): Promise<Client> {
+  static async createClient(clientData: CreateClientInput): Promise<ClientRecord> {
     try {
       // Validate input data
       const validatedData = validateInput(ClientCreateSchema, {
@@ -327,10 +304,38 @@ export class DatabaseService {
     }
   }
 
-  static async updateClient(id: string, updates: Partial<Client>): Promise<Client> {
+  static async updateClient(id: string, updates: Partial<Client>): Promise<ClientRecord> {
     try {
+      // Handle googleSheetsConfig separately if it exists
+      let accountsWithSheetsConfig = updates.accounts;
+      if (updates.googleSheetsConfig && updates.accounts) {
+        accountsWithSheetsConfig = {
+          ...updates.accounts,
+          googleSheetsConfig: updates.googleSheetsConfig,
+          // Update googleSheets field to spreadsheetId when there's a config
+          googleSheets: updates.googleSheetsConfig.spreadsheetId
+        };
+      }
+      
+      // Also handle googleSheetsConfig if it's nested in accounts
+      if (updates.accounts?.googleSheetsConfig && !updates.googleSheetsConfig) {
+        accountsWithSheetsConfig = {
+          ...updates.accounts,
+          // Update googleSheets field to spreadsheetId when there's a config
+          googleSheets: updates.accounts.googleSheetsConfig.spreadsheetId
+        };
+      }
+      
+      // Prepare the update data
+      const updateData = {
+        ...updates,
+        accounts: accountsWithSheetsConfig,
+        // Remove googleSheetsConfig from top level since it's now in accounts
+        googleSheetsConfig: undefined
+      };
+      
       // Validate input data
-      const validatedUpdates = validateInput(ClientUpdateSchema, updates);
+      const validatedUpdates = validateInput(ClientUpdateSchema, updateData);
       
       const client = await supabaseHelpers.updateClient(id, validatedUpdates);
       debugLogger.info('DatabaseService', 'Client updated successfully in database', { id, updates: validatedUpdates });
@@ -405,7 +410,7 @@ export class DatabaseService {
       const { error } = await supabase
         .from('integrations')
         .update({ 
-          config: supabase.raw(`config || '${JSON.stringify(config)}'::jsonb`)
+          config: config
         })
         .eq('platform', platform);
 

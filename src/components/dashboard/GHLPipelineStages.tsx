@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { useGHLMetrics } from '@/hooks/useGHLHooks';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -19,16 +19,14 @@ interface PipelineStage {
 const PIPELINE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId, dateRange }) => {
+  const { data: metrics, loading, error: _error } = useGHLMetrics(locationId, dateRange);
   const [pipelineData, setPipelineData] = useState<PipelineStage[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPipelineData = async () => {
+      if (!metrics) return;
+      
       try {
-        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
-          startDate: dateRange?.start,
-          endDate: dateRange?.end
-        });
         
         // Get all contacts to analyze pipeline stages
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out
@@ -117,13 +115,11 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
         setPipelineData(pipelineStages);
       } catch (_error) {
         // Error handled by error boundary
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchPipelineData();
-  }, [dateRange]);
+  }, [metrics]);
 
   if (loading) {
     return (

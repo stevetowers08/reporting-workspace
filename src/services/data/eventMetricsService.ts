@@ -128,7 +128,7 @@ export class EventMetricsService {
         clientAccounts.goHighLevel !== 'none' && 
         (typeof clientAccounts.goHighLevel === 'string' || 
          (typeof clientAccounts.goHighLevel === 'object' && clientAccounts.goHighLevel?.locationId));
-      const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
+      const hasGoogleSheets = clientAccounts?.googleSheetsConfig;
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {
         promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod));

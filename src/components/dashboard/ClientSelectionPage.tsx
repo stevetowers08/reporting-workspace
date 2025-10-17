@@ -43,17 +43,19 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
   loading = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
 
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            client.type.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = !statusFilter || client.status.toLowerCase().includes(statusFilter.toLowerCase());
       const matchesType = !typeFilter || client.type.toLowerCase().includes(typeFilter.toLowerCase());
       
-      return matchesSearch && matchesType;
+      return matchesSearch && matchesStatus && matchesType;
     });
-  }, [clients, searchTerm, typeFilter]);
+  }, [clients, searchTerm, statusFilter, typeFilter]);
 
 
   const getPlatformIcons = (accounts: Client['accounts']) => {
@@ -67,7 +69,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
     if (accounts.goHighLevel && accounts.goHighLevel !== 'none') {
       platforms.push({ icon: 'GHL', color: 'bg-purple-100 text-purple-700', label: 'GoHighLevel' });
     }
-    if (accounts.googleSheets && accounts.googleSheets !== 'none') {
+    if (accounts.googleSheetsConfig) {
       platforms.push({ icon: 'GS', color: 'bg-green-100 text-green-700', label: 'Google Sheets' });
     }
     return platforms;
@@ -226,12 +228,21 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                             src={client.logo_url}
                             alt={`${client.name} logo`}
                             className="w-10 h-10 object-cover rounded-lg border border-slate-200"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling as Element;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
                           />
-                        ) : (
-                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
-                            <BarChart3 className="h-5 w-5 text-slate-500" />
-                          </div>
-                        )}
+                        ) : null}
+                        <div 
+                          className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200"
+                          style={{ display: client.logo_url ? 'none' : 'flex' }}
+                        >
+                          <BarChart3 className="h-5 w-5 text-slate-500" />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <CardTitle className="text-base font-semibold text-slate-900 truncate">
                             {client.name}

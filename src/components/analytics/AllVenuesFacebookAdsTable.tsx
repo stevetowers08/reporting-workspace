@@ -63,11 +63,19 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                 if (!hasFacebookAds) {continue;}
 
                 try {
+                    // Normalize client accounts to ensure goHighLevel is a string
+                    const normalizedAccounts = {
+                        ...client.accounts,
+                        goHighLevel: typeof client.accounts?.goHighLevel === 'object' 
+                            ? client.accounts.goHighLevel?.locationId || 'none'
+                            : client.accounts?.goHighLevel || 'none'
+                    };
+
                     // Get comprehensive metrics for this client
                     const metrics = await EventMetricsService.getComprehensiveMetrics(
                         client.id,
                         dateRange,
-                        client.accounts,
+                        normalizedAccounts,
                         client.conversion_actions
                     );
 
@@ -75,6 +83,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
+                        status: 'active',
                         facebookAccount: {
                             accountId: client.accounts?.facebookAds || '',
                             accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
@@ -102,6 +111,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
+                        status: 'active',
                         facebookAccount: {
                             accountId: client.accounts?.facebookAds || '',
                             accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,

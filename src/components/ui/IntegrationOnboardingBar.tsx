@@ -63,13 +63,21 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
           }
         ];
 
-        // Simple approach: Check database directly
+        // Simple approach: Check database directly with cache busting
         const { data: integrations } = await supabase
           .from('integrations')
           .select('platform')
-          .eq('connected', true);
+          .eq('connected', true)
+          .order('updated_at', { ascending: false }); // Force fresh data
 
         const connectedPlatforms = new Set(integrations?.map(i => i.platform) || []);
+        
+        // Debug logging
+        debugLogger.info('IntegrationOnboardingBar', 'Integration check results', {
+          integrations: integrations,
+          connectedPlatforms: Array.from(connectedPlatforms),
+          googleSheetsConnected: connectedPlatforms.has('googleSheets')
+        });
 
         const stepPromises = onboardingSteps.map(async (step) => {
           const completed = connectedPlatforms.has(step.platform);
@@ -92,6 +100,11 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
     };
 
     loadOnboardingStatus();
+    
+    // Refresh every 30 seconds to catch any updates
+    const interval = setInterval(loadOnboardingStatus, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {

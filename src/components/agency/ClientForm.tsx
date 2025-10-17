@@ -439,7 +439,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
             : formData.accounts.goHighLevel || 'none',
           googleSheets: googleSheetsConfig?.spreadsheetId || 'none'
         },
-        googleSheetsConfig: googleSheetsConfig
+        googleSheetsConfig: googleSheetsConfig || undefined
       };
 
       debugLogger.info('ClientForm', 'Calling onSubmit with formData', submitData);
@@ -620,51 +620,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
     debugLogger.info('ClientForm', 'Form data updated');
   };
 
-  const loadFacebookConversionActions = useCallback(async (adAccountId: string) => {
-    try {
-      debugLogger.info('ClientForm', 'Loading Facebook conversion actions', { adAccountId });
-      setConversionActionsLoading(prev => ({ ...prev, facebookAds: true }));
-      
-      // Ensure account ID has proper format
-      const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      debugLogger.info('ClientForm', 'Formatted account ID for conversion actions', { original: adAccountId, formatted: formattedAccountId });
-      
-      const actions = await FacebookAdsService.getConversionActions(formattedAccountId);
-      debugLogger.info('ClientForm', 'Facebook conversion actions loaded', { actions });
-      setConversionActions(prev => ({
-        ...prev,
-        facebookAds: actions
-      }));
-    } catch (error) {
-      debugLogger.error('ClientForm', 'Failed to load Facebook conversion actions', error);
-      // Set fallback actions on error
-      setConversionActions(prev => ({
-        ...prev,
-        facebookAds: [
-          { id: 'lead', name: 'Lead' },
-          { id: 'purchase', name: 'Purchase' },
-          { id: 'add_to_cart', name: 'Add to Cart' },
-          { id: 'view_content', name: 'View Content' },
-          { id: 'signup', name: 'Sign Up' }
-        ]
-      }));
-    } finally {
-      setConversionActionsLoading(prev => ({ ...prev, facebookAds: false }));
-    }
-  }, []);
-
-  const loadGoogleConversionActions = async (customerId: string) => {
-    try {
-      const actions = await GoogleAdsService.getConversionActions(customerId);
-      setConversionActions(prev => ({
-        ...prev,
-        googleAds: actions
-      }));
-    } catch (error) {
-      debugLogger.error('ClientForm', 'Failed to load Google Ads conversion actions', error);
-    }
-  };
-
   const getAvailableAccounts = (platform: string) => {
     const accounts = connectedAccounts.filter(account => account.platform === platform);
     debugLogger.debug('ClientForm', `getAvailableAccounts(${platform})`, { 
@@ -683,8 +638,8 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       debugLogger.info('ClientForm', `Adding current ${platform} account to available accounts`, { currentAccountId });
       
       // Create a placeholder account for the current selection
-      const currentAccount = {
-        id: currentAccountId,
+      const currentAccount: ConnectedAccount = {
+        id: typeof currentAccountId === 'string' ? currentAccountId : 'unknown',
         name: `${platform === 'googleAds' ? 'Google Ads' : platform === 'facebookAds' ? 'Facebook Ads' : platform} Account (${currentAccountId})`,
         platform: platform as 'facebookAds' | 'googleAds' | 'goHighLevel' | 'googleSheets'
       };
@@ -767,6 +722,51 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
     debugLogger.debug('ClientForm', `isIntegrationConnected(${platform}) = ${isConnected}`);
     return isConnected;
   }, [formData.accounts.goHighLevel, integrationStatus, integrationStatusLoaded]);
+
+  const loadFacebookConversionActions = useCallback(async (adAccountId: string) => {
+    try {
+      debugLogger.info('ClientForm', 'Loading Facebook conversion actions', { adAccountId });
+      setConversionActionsLoading(prev => ({ ...prev, facebookAds: true }));
+      
+      // Ensure account ID has proper format
+      const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      debugLogger.info('ClientForm', 'Formatted account ID for conversion actions', { original: adAccountId, formatted: formattedAccountId });
+      
+      const actions = await FacebookAdsService.getConversionActions(formattedAccountId);
+      debugLogger.info('ClientForm', 'Facebook conversion actions loaded', { actions });
+      setConversionActions(prev => ({
+        ...prev,
+        facebookAds: actions
+      }));
+    } catch (error) {
+      debugLogger.error('ClientForm', 'Failed to load Facebook conversion actions', error);
+      // Set fallback actions on error
+      setConversionActions(prev => ({
+        ...prev,
+        facebookAds: [
+          { id: 'lead', name: 'Lead' },
+          { id: 'purchase', name: 'Purchase' },
+          { id: 'add_to_cart', name: 'Add to Cart' },
+          { id: 'view_content', name: 'View Content' },
+          { id: 'signup', name: 'Sign Up' }
+        ]
+      }));
+    } finally {
+      setConversionActionsLoading(prev => ({ ...prev, facebookAds: false }));
+    }
+  }, []);
+
+  const loadGoogleConversionActions = async (customerId: string) => {
+    try {
+      const actions = await GoogleAdsService.getConversionActions(customerId);
+      setConversionActions(prev => ({
+        ...prev,
+        googleAds: actions
+      }));
+    } catch (error) {
+      debugLogger.error('ClientForm', 'Failed to load Google Ads conversion actions', error);
+    }
+  };
 
   // Load AI config when component mounts (for edit mode)
   useEffect(() => {
@@ -1353,7 +1353,10 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                                 };
                                 
                                 debugLogger.info('ClientForm', 'Auto-submitting client creation', clientData);
-                                await onSubmit(clientData);
+                                await onSubmit({
+                                    ...clientData,
+                                    googleSheetsConfig: clientData.googleSheetsConfig || undefined
+                                });
                               } catch (error) {
                                 debugLogger.error('ClientForm', 'Failed to auto-create client', error);
                               }

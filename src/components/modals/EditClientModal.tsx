@@ -8,35 +8,20 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from '@/lib/supabase';
+import { debugLogger } from '@/lib/debug';
+import {
+    loadAgencyIntegrationStatus,
+    loadClientAccountNames
+} from '@/lib/integrationHelpers';
 import { AIInsightsService } from "@/services/ai/aiInsightsService";
 import { FacebookAdsService } from "@/services/api/facebookAdsService";
 import { GoogleAdsService } from "@/services/api/googleAdsService";
+import { FileUploadService } from "@/services/config/fileUploadService";
+import { Client } from '@/types/client';
+import { AgencyIntegrationStatus, ClientAccountSelections } from '@/types/integrations';
 import { AlertCircle, Bot, CheckCircle, Edit, Upload, X } from "lucide-react";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from "react-router-dom";
-
-interface Client {
-    id: string;
-    name: string;
-    logo_url?: string;
-    accounts: {
-        facebookAds?: string;
-        googleAds?: string;
-        goHighLevel?: string;
-        googleSheets?: string;
-        googleSheetsConfig?: {
-            spreadsheetId: string;
-            sheetName: string;
-            spreadsheetName?: string;
-        };
-    };
-    shareable_link: string;
-    conversion_actions?: {
-        facebookAds?: string;
-        googleAds?: string;
-    };
-}
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -53,78 +38,254 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     const [clientLogo, setClientLogo] = useState(client?.logo_url || '');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     
+    // Debug client data
+    debugLogger.info('EditClientModal', 'Client data:', client);
+    debugLogger.info('EditClientModal', 'Client accounts:', client?.accounts);
+    debugLogger.info('EditClientModal', 'Client googleSheetsConfig:', client?.accounts?.googleSheetsConfig);
+    
     // Integration state
     const [formData, setFormData] = useState({
         name: clientName,
         logo_url: clientLogo,
-            accounts: {
+        accounts: {
             facebookAds: client?.accounts?.facebookAds || 'none',
             googleAds: client?.accounts?.googleAds || 'none',
             goHighLevel: client?.accounts?.goHighLevel || 'none',
             googleSheets: client?.accounts?.googleSheets || 'none',
+            googleSheetsConfig: client?.accounts?.googleSheetsConfig || null,
+        } as {
+            facebookAds: string;
+            googleAds: string;
+            goHighLevel: string;
+            googleSheets: string;
+            googleSheetsConfig: {spreadsheetId: string; sheetName: string; spreadsheetName?: string} | null;
         },
         conversionActions: {
             facebookAds: client?.conversion_actions?.facebookAds || '',
             googleAds: client?.conversion_actions?.googleAds || '',
         },
-        googleSheetsConfig: client?.accounts?.googleSheetsConfig || null,
     });
     
-    const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({
+    const [integrationStatus, setIntegrationStatus] = useState<AgencyIntegrationStatus>({
         facebookAds: false,
         googleAds: false,
         googleSheets: false,
         goHighLevel: false
     });
     
-    const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+    const [clientAccountNames, setClientAccountNames] = useState<{
+        facebookAds: string;
+        googleAds: string;
+    }>({
+        facebookAds: '',
+        googleAds: ''
+    });
+    
+    const [googleSheetsConfig, setGoogleSheetsConfig] = useState<{
+        spreadsheetId: string;
+        sheetName: string;
+        spreadsheetName?: string;
+    } | null>(null);
+    
+    // Load client-specific account names using helper function
+    useEffect(() => {
+        const loadClientAccountNamesLocal = async () => {
+            if (!client?.accounts) {
+                return;
+            }
+
+            try {
+                // Ensure all required fields are strings
+                const clientAccounts: ClientAccountSelections = {
+                    facebookAds: client.accounts.facebookAds || 'none',
+                    googleAds: client.accounts.googleAds || 'none',
+                    goHighLevel: typeof client.accounts.goHighLevel === 'string' ? client.accounts.goHighLevel : 'none',
+                    googleSheets: client.accounts.googleSheets || 'none',
+                    googleSheetsConfig: client.accounts.googleSheetsConfig || undefined
+                };
+
+                // Load actual account names
+                const accountNames = await loadClientAccountNames(clientAccounts);
+                setClientAccountNames(accountNames);
+            } catch (error) {
+                debugLogger.error('EditClientModal', 'Error loading client account names:', error);
+                // Set fallback names
+                setClientAccountNames({
+                    facebookAds: client.accounts?.facebookAds !== 'none' ? `Facebook Account (${client.accounts.facebookAds})` : '',
+                    googleAds: client.accounts?.googleAds !== 'none' ? `Google Ads Account (${client.accounts.googleAds})` : ''
+                });
+            }
+        };
+
+        loadClientAccountNamesLocal();
+    }, [client?.accounts]);
+
+    // Load Google Sheets config from client data
+    useEffect(() => {
+        if (client?.accounts?.googleSheetsConfig) {
+            setGoogleSheetsConfig(client.accounts.googleSheetsConfig);
+        }
+    }, [client?.accounts?.googleSheetsConfig]);
+    
+    const [connectedAccounts, setConnectedAccounts] = useState<Array<{id: string; name: string; platform: string}>>([]);
     const [facebookAccountsLoaded, setFacebookAccountsLoaded] = useState(false);
     const [facebookAccountsLoading, setFacebookAccountsLoading] = useState(false);
     const [googleAccountsLoaded, setGoogleAccountsLoaded] = useState(false);
     const [googleAccountsLoading, setGoogleAccountsLoading] = useState(false);
-    const [facebookConversionActions, setFacebookConversionActions] = useState<any[]>([]);
-    const [googleConversionActions, setGoogleConversionActions] = useState<any[]>([]);
+    const [facebookConversionActions, setFacebookConversionActions] = useState<Array<{id: string; name: string}>>([]);
+    const [googleConversionActions, setGoogleConversionActions] = useState<Array<{id: string; name: string}>>([]);
     const [loadingConversionActions, setLoadingConversionActions] = useState<Record<string, boolean>>({});
-    const [aiConfig, setAiConfig] = useState<any>(null);
+    const [aiConfig, setAiConfig] = useState<{id: string; clientId: string; enabled: boolean; frequency: 'daily' | 'weekly' | 'monthly'; createdAt: string; updatedAt: string} | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isEditingSheets, setIsEditingSheets] = useState(false);
+    const [isEditingFacebookAds, setIsEditingFacebookAds] = useState(false);
+    const [isEditingGoogleAds, setIsEditingGoogleAds] = useState(false);
 
     // Reset editing state when client changes
     useEffect(() => {
         setIsEditingSheets(false);
+        setIsEditingFacebookAds(false);
+        setIsEditingGoogleAds(false);
     }, [client?.id]);
 
-    // Load integration status
+    // Load agency-level integration status using helper function
     useEffect(() => {
         const loadIntegrationStatus = async () => {
             try {
-                const { data: integrations } = await supabase
-                    .from('integrations')
-                    .select('platform, connected, config')
-                    .eq('connected', true);
-
-                const statusMap: Record<string, boolean> = { 
-                    facebookAds: false, 
-                    googleAds: false, 
-                    googleSheets: false,
-                    goHighLevel: false
-                };
-
-                integrations?.forEach(integration => {
-                    if (Object.prototype.hasOwnProperty.call(statusMap, integration.platform)) {
-                        statusMap[integration.platform] = true;
-                    }
-                });
-
-                setIntegrationStatus(statusMap);
+                const status = await loadAgencyIntegrationStatus();
+                setIntegrationStatus(status);
             } catch (error) {
-                console.error('Error loading integration status', error);
+                debugLogger.error('EditClientModal', 'Error loading integration status:', error);
             }
         };
 
         loadIntegrationStatus();
     }, []);
+
+    // Load Facebook Ads conversion actions
+    const loadFacebookConversionActions = useCallback(async (accountId: string) => {
+        if (loadingConversionActions.facebookAds) {
+            return;
+        }
+        
+        setLoadingConversionActions(prev => ({ ...prev, facebookAds: true }));
+        try {
+            const actions = await FacebookAdsService.getConversionActions(accountId);
+            setFacebookConversionActions(actions);
+        } catch (error) {
+            debugLogger.error('EditClientModal', 'Error loading Facebook conversion actions:', error);
+            // Fallback to hardcoded actions
+            setFacebookConversionActions([
+                { id: 'lead', name: 'Lead' },
+                { id: 'purchase', name: 'Purchase' },
+                { id: 'add_to_cart', name: 'Add to Cart' }
+            ]);
+        } finally {
+            setLoadingConversionActions(prev => ({ ...prev, facebookAds: false }));
+        }
+    }, [loadingConversionActions.facebookAds]);
+
+    // Load Google Ads conversion actions
+    const loadGoogleConversionActions = useCallback(async (customerId: string) => {
+        if (loadingConversionActions.googleAds) {
+            return;
+        }
+        
+        setLoadingConversionActions(prev => ({ ...prev, googleAds: true }));
+        try {
+            const actions = await GoogleAdsService.getConversionActions(customerId);
+            setGoogleConversionActions(actions);
+        } catch (error) {
+            debugLogger.error('EditClientModal', 'Error loading Google Ads conversion actions:', error);
+            // Fallback to hardcoded actions
+            setGoogleConversionActions([
+                { id: 'lead', name: 'Lead' },
+                { id: 'purchase', name: 'Purchase' },
+                { id: 'add_to_cart', name: 'Add to Cart' }
+            ]);
+        } finally {
+            setLoadingConversionActions(prev => ({ ...prev, googleAds: false }));
+        }
+    }, [loadingConversionActions.googleAds]);
+
+    // Load Facebook Ads accounts
+    const loadFacebookAccounts = useCallback(async () => {
+        if (facebookAccountsLoaded || facebookAccountsLoading) {
+            return;
+        }
+        
+        setFacebookAccountsLoading(true);
+        try {
+            // Use refreshAdAccounts to bypass cache and get fresh data
+            const accounts = await FacebookAdsService.refreshAdAccounts();
+            
+            const facebookAccounts = accounts.map(account => ({
+                id: account.id,
+                name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
+                platform: 'facebookAds' as const
+            }));
+            
+            setConnectedAccounts(prev => {
+                const filtered = prev.filter(acc => acc.platform !== 'facebookAds');
+                return [...filtered, ...facebookAccounts];
+            });
+            
+            setFacebookAccountsLoaded(true);
+        } catch (error) {
+            debugLogger.error('EditClientModal', 'Error loading Facebook accounts:', error);
+            // Fallback to cached accounts
+            try {
+                const cachedAccounts = await FacebookAdsService.getAdAccounts();
+                
+                const facebookAccounts = cachedAccounts.map(account => ({
+                    id: account.id,
+                    name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
+                    platform: 'facebookAds' as const
+                }));
+                
+                setConnectedAccounts(prev => [
+                    ...prev.filter(acc => acc.platform !== 'facebookAds'),
+                    ...facebookAccounts
+                ]);
+                
+                setFacebookAccountsLoaded(true);
+            } catch (fallbackError) {
+                debugLogger.error('EditClientModal', 'Error loading cached Facebook accounts:', fallbackError);
+            }
+        } finally {
+            setFacebookAccountsLoading(false);
+        }
+    }, [facebookAccountsLoaded, facebookAccountsLoading]);
+
+    // Load Google Ads accounts
+    const loadGoogleAccounts = useCallback(async () => {
+        if (googleAccountsLoaded || googleAccountsLoading) {
+            return;
+        }
+        
+        setGoogleAccountsLoading(true);
+        try {
+            const accounts = await GoogleAdsService.getAdAccounts();
+            
+            const googleAccounts = accounts.map(account => ({
+                id: account.id,
+                name: account.name,
+                platform: 'googleAds' as const
+            }));
+            
+            setConnectedAccounts(prev => {
+                const filtered = prev.filter(acc => acc.platform !== 'googleAds');
+                return [...filtered, ...googleAccounts];
+            });
+            
+            setGoogleAccountsLoaded(true);
+        } catch (error) {
+            debugLogger.error('EditClientModal', 'Error loading Google accounts:', error);
+        } finally {
+            setGoogleAccountsLoading(false);
+        }
+    }, [googleAccountsLoaded, googleAccountsLoading]);
 
     // Load AI config for edit mode
     useEffect(() => {
@@ -142,7 +303,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         } else {
             setFacebookConversionActions([]);
         }
-    }, [formData.accounts.facebookAds]);
+    }, [formData.accounts.facebookAds, loadFacebookConversionActions]);
 
     // Load Google conversion actions when account is selected
     useEffect(() => {
@@ -151,7 +312,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         } else {
             setGoogleConversionActions([]);
         }
-    }, [formData.accounts.googleAds]);
+    }, [formData.accounts.googleAds, loadGoogleConversionActions]);
 
     // Load accounts when integration status changes
     useEffect(() => {
@@ -161,7 +322,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         if (integrationStatus.googleAds && !googleAccountsLoaded && !googleAccountsLoading) {
             loadGoogleAccounts();
         }
-    }, [integrationStatus.facebookAds, integrationStatus.googleAds, facebookAccountsLoaded, facebookAccountsLoading, googleAccountsLoaded, googleAccountsLoading]);
+    }, [integrationStatus.facebookAds, integrationStatus.googleAds, facebookAccountsLoaded, facebookAccountsLoading, googleAccountsLoaded, googleAccountsLoading, loadFacebookAccounts, loadGoogleAccounts]);
 
     // Get available accounts for a platform
     const getAvailableAccounts = (platform: string) => {
@@ -200,143 +361,16 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         return accounts;
     };
 
-    // Load Facebook Ads accounts
-    const loadFacebookAccounts = async () => {
-        if (facebookAccountsLoaded || facebookAccountsLoading) {
-            return;
-        }
-        
-        setFacebookAccountsLoading(true);
-        try {
-            // Use refreshAdAccounts to bypass cache and get fresh data
-            const accounts = await FacebookAdsService.refreshAdAccounts();
-            
-            const facebookAccounts = accounts.map(account => ({
-                id: account.id,
-                name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
-                platform: 'facebookAds' as const
-            }));
-            
-            setConnectedAccounts(prev => {
-                const filtered = prev.filter(acc => acc.platform !== 'facebookAds');
-                return [...filtered, ...facebookAccounts];
-            });
-            
-            setFacebookAccountsLoaded(true);
-        } catch (error) {
-            console.error('Error loading Facebook accounts:', error);
-            // Fallback to cached accounts
-            try {
-                const cachedAccounts = await FacebookAdsService.getAdAccounts();
-                
-                const facebookAccounts = cachedAccounts.map(account => ({
-                    id: account.id,
-                    name: `${account.name || 'Facebook Ad Account'} (${account.id})`,
-                    platform: 'facebookAds' as const
-                }));
-                
-                setConnectedAccounts(prev => [
-                    ...prev.filter(acc => acc.platform !== 'facebookAds'),
-                    ...facebookAccounts
-                ]);
-                
-                setFacebookAccountsLoaded(true);
-            } catch (fallbackError) {
-                console.error('Error loading cached Facebook accounts:', fallbackError);
-            }
-        } finally {
-            setFacebookAccountsLoading(false);
-        }
-    };
-
-    // Load Google Ads accounts
-    const loadGoogleAccounts = async () => {
-        if (googleAccountsLoaded || googleAccountsLoading) {
-            return;
-        }
-        
-        setGoogleAccountsLoading(true);
-        try {
-            const accounts = await GoogleAdsService.getAdAccounts();
-            
-            const googleAccounts = accounts.map(account => ({
-                id: account.id,
-                name: account.name,
-                platform: 'googleAds' as const
-            }));
-            
-            setConnectedAccounts(prev => {
-                const filtered = prev.filter(acc => acc.platform !== 'googleAds');
-                return [...filtered, ...googleAccounts];
-            });
-            
-            setGoogleAccountsLoaded(true);
-        } catch (error) {
-            console.error('Error loading Google accounts:', error);
-        } finally {
-            setGoogleAccountsLoading(false);
-        }
-    };
-
-    // Load Facebook Ads conversion actions
-    const loadFacebookConversionActions = async (accountId: string) => {
-        if (loadingConversionActions.facebookAds) return;
-        
-        setLoadingConversionActions(prev => ({ ...prev, facebookAds: true }));
-        try {
-            const actions = await FacebookAdsService.getConversionActions(accountId);
-            setFacebookConversionActions(actions);
-        } catch (error) {
-            console.error('Error loading Facebook conversion actions:', error);
-            // Fallback to hardcoded actions
-            setFacebookConversionActions([
-                { id: 'lead', name: 'Lead' },
-                { id: 'purchase', name: 'Purchase' },
-                { id: 'add_to_cart', name: 'Add to Cart' }
-            ]);
-        } finally {
-            setLoadingConversionActions(prev => ({ ...prev, facebookAds: false }));
-        }
-    };
-
-    // Load Google Ads conversion actions
-    const loadGoogleConversionActions = async (accountId: string) => {
-        if (loadingConversionActions.googleAds) return;
-        
-        setLoadingConversionActions(prev => ({ ...prev, googleAds: true }));
-        try {
-            const actions = await GoogleAdsService.getConversionActions(accountId);
-            setGoogleConversionActions(actions);
-        } catch (error) {
-            console.error('Error loading Google conversion actions:', error);
-            // Fallback to common Google Ads conversion actions
-            setGoogleConversionActions([
-                { id: 'conversions', name: 'Conversions' },
-                { id: 'leads', name: 'Leads' },
-                { id: 'purchase', name: 'Purchase' },
-                { id: 'sign_up', name: 'Sign Up' },
-                { id: 'add_to_cart', name: 'Add to Cart' },
-                { id: 'page_view', name: 'Page View' },
-                { id: 'phone_call', name: 'Phone Call' },
-                { id: 'email_signup', name: 'Email Signup' }
-            ]);
-        } finally {
-            setLoadingConversionActions(prev => ({ ...prev, googleAds: false }));
-        }
-    };
-
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            const clientData = {
-                name: clientName,
-                logo_url: clientLogo,
-                accounts: {
-                    ...formData.accounts,
-                    googleSheetsConfig: formData.googleSheetsConfig,
-                },
-                conversion_actions: formData.conversionActions,
-            };
+                const clientData = {
+                    name: clientName,
+                    logo_url: clientLogo,
+                    accounts: formData.accounts,
+                    conversion_actions: formData.conversionActions,
+                    googleSheetsConfig: formData.accounts.googleSheetsConfig, // ✅ ADD THIS LINE
+                };
         
         if (client) {
             await onUpdateClient(client.id, clientData);
@@ -345,20 +379,22 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             }
             onClose();
         } catch (error) {
-            console.error('Error saving client', error);
+            debugLogger.error('EditClientModal', 'Error saving client', error);
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleAIConfigSave = async () => {
-        if (!client?.id || !aiConfig) return;
+        if (!client?.id || !aiConfig) {
+            return;
+        }
         
         try {
             await AIInsightsService.createOrUpdateClientAIConfig(client.id, aiConfig);
             setHasUnsavedChanges(false);
         } catch (error) {
-            console.error('Error saving AI config', error);
+            debugLogger.error('EditClientModal', 'Error saving AI config', error);
         }
     };
 
@@ -368,7 +404,9 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     };
 
     const handleNameKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleNameSave();
+        if (e.key === 'Enter') {
+            handleNameSave();
+        }
         if (e.key === 'Escape') {
             setClientName(client?.name || '');
             setIsEditingName(false);
@@ -381,7 +419,9 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     };
 
     const _handleLogoKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleLogoSave();
+        if (e.key === 'Enter') {
+            handleLogoSave();
+        }
         if (e.key === 'Escape') {
             setClientLogo(client?.logo_url || '');
             _setIsEditingLogo(false);
@@ -390,21 +430,27 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
 
     const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+            return;
+        }
 
         try {
-            // Create a temporary URL for preview
-            const tempUrl = URL.createObjectURL(file);
-            setClientLogo(tempUrl);
+            // Upload file to Supabase Storage using FileUploadService
+            const logoUrl = await FileUploadService.uploadClientLogo(file, client?.name || 'client');
             
-            // Here you would typically upload to your storage service
-            // For now, we'll just use the temp URL
+            // Set the permanent Supabase URL
+            setClientLogo(logoUrl);
+            
+            debugLogger.info('EditClientModal', 'Logo uploaded successfully', { logoUrl });
         } catch (error) {
-            console.error('Error uploading logo:', error);
+            debugLogger.error('EditClientModal', 'Error uploading logo', error);
+            debugLogger.error('EditClientModal', 'Error uploading logo:', error);
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) {
+        return null;
+    }
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -490,31 +536,48 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                     
                                     {integrationStatus.facebookAds ? (
                                         <div className="space-y-2">
-                                            <div className="mt-3">
-                                                <SearchableSelect
-                                                    options={[
-                                                        { value: "none", label: "None" },
-                                                        ...getAvailableAccounts('facebookAds').map((account) => ({
-                                                            value: account.id,
-                                                            label: account.name.replace(/\s*\([^)]*\)$/, '') // Remove account ID in brackets
-                                                        }))
-                                                    ]}
-                                                    value={formData.accounts.facebookAds}
-                                                    onValueChange={(value) => setFormData(prev => ({
-                                                        ...prev,
-                                                        accounts: { ...prev.accounts, facebookAds: value }
-                                                    }))}
-                                                    placeholder="Select account"
-                                                    searchPlaceholder="Search Facebook accounts..."
-                                                    size="sm"
-                                                    className="w-full focus:ring-0 focus:ring-offset-0"
-                                                    onOpenChange={(open) => {
-                                                        if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
+                                            {!isEditingFacebookAds && clientAccountNames.facebookAds ? (
+                                                <div className="bg-slate-50 p-2 rounded text-xs relative mt-3">
+                                                    <div className="font-medium text-slate-700">
+                                                        {clientAccountNames.facebookAds}
+                                                    </div>
+                                                    <div className="text-slate-500">
+                                                        Facebook Ads Account
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setIsEditingFacebookAds(true)}
+                                                        className="absolute top-1 right-1 p-1 hover:bg-slate-200 rounded transition-colors"
+                                                    >
+                                                        <Edit className="h-3 w-3 text-slate-500" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-3">
+                                                    <SearchableSelect
+                                                        options={[
+                                                            { value: "none", label: "None" },
+                                                            ...getAvailableAccounts('facebookAds').map((account) => ({
+                                                                value: account.id,
+                                                                label: account.name.replace(/\s*\([^)]*\)$/, '') // Remove account ID in brackets
+                                                            }))
+                                                        ]}
+                                                        value={formData.accounts.facebookAds}
+                                                        onValueChange={(value) => setFormData(prev => ({
+                                                            ...prev,
+                                                            accounts: { ...prev.accounts, facebookAds: value }
+                                                        }))}
+                                                        placeholder="Select account"
+                                                        searchPlaceholder="Search Facebook accounts..."
+                                                        size="sm"
+                                                        className="w-full focus:ring-0 focus:ring-offset-0"
+                                                        onOpenChange={(open) => {
+                                                            if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
                                                                 loadFacebookAccounts();
                                                             }
                                                         }}
-                                                />
-                                            </div>
+                                                    />
+                                                </div>
+                                            )}
                                             
                                             {formData.accounts.facebookAds !== 'none' && (
                                                 <div className="mt-2">
@@ -530,8 +593,28 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                                         }))}
                                                         placeholder="Select action"
                                                         searchPlaceholder="Search conversion actions..."
-                                                            className="w-full h-8 text-sm focus:ring-0 focus:ring-offset-0"
+                                                        className="w-full h-8 text-sm focus:ring-0 focus:ring-offset-0"
                                                     />
+                                                </div>
+                                            )}
+                                            
+                                            {isEditingFacebookAds && (
+                                                <div className="mt-2 flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => setIsEditingFacebookAds(false)}
+                                                        className="flex-1"
+                                                    >
+                                                        Save
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setIsEditingFacebookAds(false)}
+                                                        className="flex-1"
+                                                    >
+                                                        Cancel
+                                                    </Button>
                                                 </div>
                                             )}
                                         </div>
@@ -567,30 +650,47 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                     
                                     {integrationStatus.googleAds ? (
                                         <div className="space-y-2">
-                                            <div className="mt-3">
-                                                <SearchableSelect
-                                                    options={[
-                                                        { value: "none", label: "None" },
-                                                        ...getAvailableAccounts('googleAds').map((account) => ({
-                                                            value: account.id,
-                                                            label: account.name
-                                                        }))
-                                                    ]}
-                                                    value={formData.accounts.googleAds}
-                                                    onValueChange={(value) => setFormData(prev => ({
-                                                        ...prev,
-                                                        accounts: { ...prev.accounts, googleAds: value }
-                                                    }))}
-                                                    placeholder="Select account"
-                                                    searchPlaceholder="Search Google accounts..."
+                                            {!isEditingGoogleAds && clientAccountNames.googleAds ? (
+                                                <div className="bg-slate-50 p-2 rounded text-xs relative mt-3">
+                                                    <div className="font-medium text-slate-700">
+                                                        {clientAccountNames.googleAds}
+                                                    </div>
+                                                    <div className="text-slate-500">
+                                                        Google Ads Account
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setIsEditingGoogleAds(true)}
+                                                        className="absolute top-1 right-1 p-1 hover:bg-slate-200 rounded transition-colors"
+                                                    >
+                                                        <Edit className="h-3 w-3 text-slate-500" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-3">
+                                                    <SearchableSelect
+                                                        options={[
+                                                            { value: "none", label: "None" },
+                                                            ...getAvailableAccounts('googleAds').map((account) => ({
+                                                                value: account.id,
+                                                                label: account.name
+                                                            }))
+                                                        ]}
+                                                        value={formData.accounts.googleAds}
+                                                        onValueChange={(value) => setFormData(prev => ({
+                                                            ...prev,
+                                                            accounts: { ...prev.accounts, googleAds: value }
+                                                        }))}
+                                                        placeholder="Select account"
+                                                        searchPlaceholder="Search Google accounts..."
                                                         className="w-full h-8 text-sm focus:ring-0 focus:ring-offset-0"
-                                                    onOpenChange={(open) => {
-                                                        if (open && !googleAccountsLoaded && !googleAccountsLoading) {
+                                                        onOpenChange={(open) => {
+                                                            if (open && !googleAccountsLoaded && !googleAccountsLoading) {
                                                                 loadGoogleAccounts();
                                                             }
                                                         }}
-                                                />
-                                            </div>
+                                                    />
+                                                </div>
+                                            )}
                                             
                                             {formData.accounts.googleAds !== 'none' && (
                                                 <div className="mt-2">
@@ -606,8 +706,28 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                                         }))}
                                                         placeholder="Select action"
                                                         searchPlaceholder="Search conversion actions..."
-                                                            className="w-full h-8 text-sm focus:ring-0 focus:ring-offset-0"
+                                                        className="w-full h-8 text-sm focus:ring-0 focus:ring-offset-0"
                                                     />
+                                                </div>
+                                            )}
+                                            
+                                            {isEditingGoogleAds && (
+                                                <div className="mt-2 flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => setIsEditingGoogleAds(false)}
+                                                        className="flex-1"
+                                                    >
+                                                        Save
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setIsEditingGoogleAds(false)}
+                                                        className="flex-1"
+                                                    >
+                                                        Cancel
+                                                    </Button>
                                                 </div>
                                             )}
                                         </div>
@@ -693,20 +813,20 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             />
                                             <span className="text-base font-medium text-slate-700">Google Sheets</span>
                                         </div>
-                                        {integrationStatus.googleSheets && formData.googleSheetsConfig && (
+                                        {googleSheetsConfig && (
                                             <CheckCircle className="h-4 w-4 text-green-600" />
                                         )}
                                     </div>
                                     
-                                    {integrationStatus.googleSheets ? (
+                                    {integrationStatus.googleSheets || googleSheetsConfig ? (
                                         <div className="space-y-2 overflow-hidden">
-                                            {formData.googleSheetsConfig && !isEditingSheets ? (
+                                            {googleSheetsConfig && !isEditingSheets ? (
                                                 <div className="bg-slate-50 p-2 rounded text-xs relative mt-3">
                                                     <div className="font-medium text-slate-700">
-                                                        {formData.googleSheetsConfig.spreadsheetName || 'Configured Spreadsheet'}
+                                                        {googleSheetsConfig.spreadsheetName || 'Configured Spreadsheet'}
                                                     </div>
                                                     <div className="text-slate-500">
-                                                        Sheet: {formData.googleSheetsConfig.sheetName || 'Configured Sheet'}
+                                                        Sheet: {googleSheetsConfig.sheetName || 'Configured Sheet'}
                                                     </div>
                                                     <button
                                                         onClick={() => setIsEditingSheets(true)}
@@ -717,18 +837,15 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                                 </div>
                                             ) : (
                                                 <GoogleSheetsSelector
-                                                    initialSpreadsheetId={formData.googleSheetsConfig?.spreadsheetId || ""}
-                                                    initialSheetName={formData.googleSheetsConfig?.sheetName || ""}
+                                                    initialSpreadsheetId={googleSheetsConfig?.spreadsheetId || ""}
+                                                    initialSheetName={googleSheetsConfig?.sheetName || ""}
                                                     hideSaveButton={true}
                                                     onSelectionComplete={(spreadsheetId, sheetName, spreadsheetName) => {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            googleSheetsConfig: { 
-                                                                spreadsheetId, 
-                                                                sheetName,
-                                                                spreadsheetName: spreadsheetName || 'Unknown Spreadsheet'
-                                                            }
-                                                        }));
+                                                        setGoogleSheetsConfig({
+                                                            spreadsheetId,
+                                                            sheetName,
+                                                            spreadsheetName: spreadsheetName || 'Unknown Spreadsheet'
+                                                        });
                                                         setIsEditingSheets(false);
                                                     }}
                                                 />
@@ -762,13 +879,13 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             checked={aiConfig?.enabled || false}
                                             onCheckedChange={(enabled) => {
                                                 if (aiConfig) {
-                                                    setAiConfig(prev => prev ? { ...prev, enabled } : null);
+                                                    setAiConfig((prev) => prev ? { ...prev, enabled } : null);
                                                 } else {
                                                     setAiConfig({
                                                         id: '',
                                                         clientId: client.id,
                                                         enabled,
-                                                        frequency: 'weekly',
+                                                        frequency: 'weekly' as const,
                                                         createdAt: new Date().toISOString(),
                                                         updatedAt: new Date().toISOString()
                                                     });
@@ -784,7 +901,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                                 <Select
                                                     value={aiConfig?.frequency || 'weekly'}
                                                     onValueChange={(frequency) => {
-                                                        setAiConfig(prev => prev ? { ...prev, frequency } : null);
+                                                        setAiConfig((prev) => prev ? { ...prev, frequency } : null);
                                                         setHasUnsavedChanges(true);
                                                     }}
                                                 >

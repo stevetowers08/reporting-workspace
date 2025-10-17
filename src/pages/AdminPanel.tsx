@@ -18,6 +18,11 @@ interface Client {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+      spreadsheetName?: string;
+    };
   };
   status: 'active' | 'paused' | 'inactive';
   shareable_link: string;

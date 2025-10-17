@@ -7,10 +7,14 @@ CREATE TABLE IF NOT EXISTS clients (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(100) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active' CHECK (
+        status IN ('active', 'inactive', 'pending', 'paused')
+    ),
     location VARCHAR(255) NOT NULL,
     logo_url TEXT,
     services JSONB NOT NULL DEFAULT '{}',
     accounts JSONB DEFAULT '{}',
+    conversion_actions JSONB DEFAULT '{}',
     shareable_link TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

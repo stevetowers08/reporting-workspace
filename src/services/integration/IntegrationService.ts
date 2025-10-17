@@ -203,6 +203,14 @@ export class UnifiedIntegrationService {
       );
       
       debugLogger.info('UnifiedIntegrationService', `Generated display data for ${displayData.length} platforms`);
+      
+      // Debug logging for Google Sheets specifically
+      const googleSheetsDisplay = displayData.find(d => d.platform === 'googleSheets');
+      debugLogger.info('UnifiedIntegrationService', 'Google Sheets display data', {
+        googleSheetsDisplay,
+        allDisplayData: displayData
+      });
+      
       return displayData;
     } catch (error) {
       debugLogger.error('UnifiedIntegrationService', 'Failed to get integration display data', error);

@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { useGHLMetrics } from '@/hooks/useGHLHooks';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -20,16 +20,14 @@ interface PageViewData {
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ locationId, dateRange }) => {
+  const { data: metrics, loading, error: _error } = useGHLMetrics(locationId, dateRange);
   const [pageViewData, setPageViewData] = useState<PageViewData | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPageViewData = async () => {
+      if (!metrics) return;
+      
       try {
-        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
-          startDate: dateRange?.start,
-          endDate: dateRange?.end
-        });
         
         // Extract page view data from contacts' attribution data
         // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out
@@ -163,13 +161,11 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
         });
       } catch (_error) {
         // Error handled by error boundary
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchPageViewData();
-  }, [dateRange]);
+  }, [metrics]);
 
   if (loading) {
     return (

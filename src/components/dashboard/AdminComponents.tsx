@@ -288,7 +288,7 @@ export const ClientTable: React.FC<ClientTableProps> = ({
                         <Zap className="h-3 w-3 text-white" />
                       </div>
                     )}
-                    {client.accounts.googleSheets && client.accounts.googleSheets !== 'none' && (
+                    {client.accounts.googleSheetsConfig && (
                       <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center" title="Google Sheets">
                         <FileSpreadsheet className="h-3 w-3 text-white" />
                       </div>

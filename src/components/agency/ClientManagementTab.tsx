@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
-import { Client } from '@/services/agency/agencyService';
+import { Client } from '@/types/client';
 import { BarChart3, Edit, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -25,6 +25,20 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
   onOpenClient
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Debug logging for Google Sheets config
+  React.useEffect(() => {
+    // debugLogger.info('ClientManagementTab', 'Admin ClientManagementTab - clients data:', clients);
+    clients.forEach(_client => {
+      // debugLogger.info(`Admin - Client ${client.name}:`, {
+      //   id: client.id,
+      //   hasAccounts: !!client.accounts,
+      //   googleSheetsConfig: client.googleSheetsConfig, // Check top-level
+      //   accountsGoogleSheetsConfig: client.accounts?.googleSheetsConfig, // Check accounts level
+      //   accountsKeys: client.accounts ? Object.keys(client.accounts) : []
+      // });
+    });
+  }, [clients]);
 
   const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -97,12 +111,21 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             src={client.logo_url}
                             alt={`${client.name} logo`}
                             className="w-8 h-8 object-cover rounded border border-slate-200"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling as Element;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
                           />
-                        ) : (
-                          <div className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center border border-slate-200">
-                            <BarChart3 className="h-4 w-4 text-slate-500" />
-                          </div>
-                        )}
+                        ) : null}
+                        <div 
+                          className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center border border-slate-200"
+                          style={{ display: client.logo_url ? 'none' : 'flex' }}
+                        >
+                          <BarChart3 className="h-4 w-4 text-slate-500" />
+                        </div>
                         <div className="text-sm font-medium text-slate-900">{client.name}</div>
                       </div>
                     </td>
@@ -152,8 +175,8 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                         
                         {/* Google Sheets - Always show, grey if not connected */}
                         <div 
-                          className={`flex items-center ${client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'opacity-100' : 'opacity-40'}`}
-                          title={client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
+                          className={`flex items-center ${client.googleSheetsConfig ? 'opacity-100' : 'opacity-40'}`}
+                          title={client.googleSheetsConfig ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
                         >
                           <LogoManager 
                             platform="googleSheets" 

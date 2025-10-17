@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
-import { useState } from "react";
-import React from "react";
+import React, { useState } from "react";
 
 interface AddClientModalProps {
     isOpen: boolean;
@@ -47,7 +46,9 @@ const AddClientModal = ({ isOpen, onClose, onAddClient }: AddClientModalProps) =
         onClose();
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) {
+        return null;
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

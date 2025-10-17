@@ -149,8 +149,8 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       const result = await testConnection(platform);
       return result;
     } catch (_error) {
-      console.error('AgencyPanel', `Failed to test ${platform}`, error);
-      return { success: false, message: `Test failed: ${error}` };
+      console.error('AgencyPanel', `Failed to test ${platform}`, _error);
+      return { success: false, message: `Test failed: ${_error instanceof Error ? _error.message : 'Unknown error'}` };
     } finally {
       setTesting(platform, false);
     }

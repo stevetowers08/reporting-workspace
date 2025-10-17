@@ -14,6 +14,11 @@ interface Client {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+      spreadsheetName?: string;
+    };
   };
 }
 
@@ -28,7 +33,7 @@ interface Integration {
 const HomePageWrapper = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [_integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,17 +48,27 @@ const HomePageWrapper = () => {
         DatabaseService.getIntegrations()
       ]);
       
-      // Transform clients data
+      // Transform clients data - include ALL fields from the database
       const transformedClients: Client[] = (clientsData || []).map(client => ({
         id: client.id,
         name: client.name,
+        type: client.type,
+        status: client.status,
+        location: client.location,
         logo_url: client.logo_url,
+        services: client.services,
         accounts: {
           facebookAds: client.accounts?.facebookAds,
           googleAds: client.accounts?.googleAds,
           goHighLevel: client.accounts?.goHighLevel,
-          googleSheets: client.accounts?.googleSheets
-        }
+          googleSheets: client.accounts?.googleSheets,
+          googleSheetsConfig: client.accounts?.googleSheetsConfig
+        },
+        conversion_actions: client.conversion_actions,
+        googleSheetsConfig: client.googleSheetsConfig, // Include top-level field
+        shareable_link: client.shareable_link,
+        created_at: client.created_at,
+        updated_at: client.updated_at
       }));
       
       // Transform integrations data
@@ -83,7 +98,7 @@ const HomePageWrapper = () => {
     navigate(`/dashboard/${clientId}`);
   };
 
-  const handleAddClient = () => {
+  const _handleAddClient = () => {
     navigate('/agency');
   };
 
@@ -94,9 +109,7 @@ const HomePageWrapper = () => {
   return (
     <HomePage
       clients={clients}
-      integrations={integrations}
       onClientSelect={handleClientSelect}
-      onAddClient={handleAddClient}
       onGoToAgency={handleGoToAgency}
       onRefreshClients={loadData}
       loading={loading}

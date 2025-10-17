@@ -62,11 +62,19 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                 if (!hasGoogleAds) {continue;}
 
                 try {
+                    // Normalize client accounts to ensure goHighLevel is a string
+                    const normalizedAccounts = {
+                        ...client.accounts,
+                        goHighLevel: typeof client.accounts?.goHighLevel === 'object' 
+                            ? client.accounts.goHighLevel?.locationId || 'none'
+                            : client.accounts?.goHighLevel || 'none'
+                    };
+
                     // Get comprehensive metrics for this client
                     const metrics = await EventMetricsService.getComprehensiveMetrics(
                         client.id,
                         dateRange,
-                        client.accounts,
+                        normalizedAccounts,
                         client.conversion_actions
                     );
 
@@ -74,6 +82,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
+                        status: 'active',
                         googleAccount: {
                             accountId: client.accounts?.googleAds || '',
                             accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
@@ -100,6 +109,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
+                        status: 'active',
                         googleAccount: {
                             accountId: client.accounts?.googleAds || '',
                             accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,

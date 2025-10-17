@@ -20,7 +20,7 @@
 
 This comprehensive guide covers all aspects of the Marketing Analytics Dashboard, including:
 
-- **API Integrations**: Facebook Ads, Google Ads, GoHighLevel, Google Sheets
+- **API Integrations**: Facebook Ads, Google Ads, GoHighLevel, Google Sheets, Google AI Studio
 - **Analytics Data**: Campaign metrics, conversion tracking, performance data
 - **CRM Integration**: Lead management, contact tracking, opportunity data
 - **Reporting APIs**: Dashboard data, custom reports, data export
@@ -33,6 +33,119 @@ This comprehensive guide covers all aspects of the Marketing Analytics Dashboard
 - **Lead Attribution**: Track leads from ad campaigns to CRM conversions
 - **Custom Dashboards**: Build personalized analytics views
 - **Data Export**: Export reports to Google Sheets and other formats
+
+## Service Architecture Overview
+
+### Authentication Patterns by Platform
+
+| Platform | Agency Level | Client Level | Storage Location |
+|----------|-------------|--------------|------------------|
+| **Facebook Ads** | OAuth 2.0 | OAuth 2.0 (same token) | Database (`integrations` table) |
+| **Google Ads** | OAuth 2.0 | OAuth 2.0 (same token) | Database (`integrations` table) |
+| **Google Sheets** | OAuth 2.0 | Selection from agency's sheets | Database (`clients.accounts.googleSheetsConfig`) |
+| **GoHighLevel** | API Key (env) | OAuth 2.0 per location | Database (`integrations` table) |
+| **Google AI Studio** | API Key | API Key (same key) | Database (`integrations` table) |
+
+### Service Layer Architecture
+
+```typescript
+// Unified Integration Service
+export class UnifiedIntegrationService {
+  static async getIntegration(platform: IntegrationPlatform): Promise<IntegrationRow | null>
+  static async saveIntegration(platform: IntegrationPlatform, config: IntegrationConfig): Promise<IntegrationRow>
+  static async saveOAuthTokens(platform: IntegrationPlatform, tokens: OAuthTokens, accountInfo: AccountInfo): Promise<IntegrationRow>
+  static async saveApiKey(platform: IntegrationPlatform, apiKey: ApiKeyConfig, accountInfo: AccountInfo): Promise<IntegrationRow>
+  static async isConnected(platform: IntegrationPlatform): Promise<boolean>
+  static async getToken(platform: IntegrationPlatform): Promise<string | null>
+}
+
+// Token Management Service
+export class TokenManager {
+  static async getAccessToken(platform: IntegrationPlatform, skipRefresh = false): Promise<string | null>
+  static async storeOAuthTokens(platform: IntegrationPlatform, tokens: OAuthTokens, accountInfo: AccountInfo): Promise<void>
+  static async clearOAuthTokens(platform: IntegrationPlatform): Promise<void>
+  static async refreshToken(platform: IntegrationPlatform): Promise<string | null>
+}
+
+// Platform-Specific Services
+export class FacebookAdsService {
+  static async getAdAccounts(): Promise<FacebookAdsAccount[]>
+  static async getCampaigns(accountId: string): Promise<FacebookCampaign[]>
+  static async getInsights(accountId: string, dateRange: DateRange): Promise<FacebookInsights[]>
+}
+
+export class GoogleAdsService {
+  static async getCustomerAccounts(): Promise<GoogleAdsAccount[]>
+  static async getConversionActions(customerId: string): Promise<GoogleConversionAction[]>
+  static async getCampaigns(customerId: string): Promise<GoogleCampaign[]>
+}
+
+export class GoHighLevelService {
+  // Agency operations (uses API key)
+  static async testAgencyToken(token?: string): Promise<TestResult>
+  static async getAgencyToken(): Promise<string>
+  
+  // Client operations (uses OAuth tokens)
+  static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<GHLTokenData>
+  static async getLocationToken(locationId: string): string | null
+  static async getContacts(locationId: string): Promise<GHLContact[]>
+  static async getOpportunities(locationId: string): Promise<GHLOpportunity[]>
+}
+
+export class GoogleSheetsService {
+  static async getAccessToken(): Promise<string | null>
+  static async getSheetsAccounts(): Promise<GoogleSheetsAccount[]>
+  static async getSheetNames(spreadsheetId: string): Promise<string[]>
+  static async updateValues(spreadsheetId: string, range: string, values: any[][]): Promise<void>
+}
+
+export class GoogleAiService {
+  static async generateInsights(dashboardData: any, systemPrompt: string, period: string): Promise<AIInsightsResponse>
+  static async testConnection(): Promise<boolean>
+}
+```
+
+### Database Schema
+
+#### Integrations Table
+```sql
+CREATE TABLE integrations (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  platform VARCHAR(50) NOT NULL,
+  connected BOOLEAN DEFAULT false,
+  account_id VARCHAR(255),
+  account_name VARCHAR(255),
+  last_sync TIMESTAMP WITH TIME ZONE,
+  config JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+#### Clients Table
+```sql
+CREATE TABLE clients (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  type VARCHAR(100) NOT NULL,
+  status VARCHAR(50) DEFAULT 'active',
+  location VARCHAR(255) NOT NULL,
+  logo_url TEXT,
+  services JSONB NOT NULL DEFAULT '{}',
+  accounts JSONB DEFAULT '{}',  -- Contains googleSheetsConfig
+  conversion_actions JSONB DEFAULT '{}',
+  shareable_link TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Authentication Flow Summary
+
+1. **Agency Setup**: Admin connects integrations at agency level
+2. **Client Configuration**: Clients select specific accounts/settings from agency's connected integrations
+3. **Token Management**: Centralized token storage with automatic refresh
+4. **Data Access**: Services use appropriate tokens based on operation type
 
 ---
 
@@ -405,24 +518,41 @@ private async refreshAccessToken(): Promise<string> {
 
 ## GoHighLevel Integration
 
+### Architecture Overview
+**GoHighLevel uses a hybrid authentication model:**
+- **Agency Level**: Developer API Key (stored in environment variables)
+- **Client Level**: OAuth 2.0 per location (stored in database)
+
 ### Base Configuration
-- **API Version**: `v1`
+- **API Version**: `v1` (API 2.0)
 - **Base URL**: `https://services.leadconnectorhq.com`
-- **Authentication**: OAuth 2.0
+- **Authentication**: Hybrid (API Key + OAuth 2.0)
 
-### Authentication Flow
+### Authentication Architecture
 
-#### 1. OAuth Authorization URL
+#### Agency-Level Configuration
+```typescript
+// Environment Variables
+VITE_GHL_API_KEY=your_gohighlevel_api_key_here  // Developer API Key
+VITE_GHL_CLIENT_ID=your_ghl_client_id         // OAuth Client ID  
+VITE_GHL_CLIENT_SECRET=your_ghl_client_secret  // OAuth Client Secret
+```
+
+#### Client-Level OAuth Flow
+
+##### 1. OAuth Authorization URL
 ```
 https://marketplace.leadconnectorhq.com/oauth/chooselocation?
   response_type=code&
   client_id={CLIENT_ID}&
   redirect_uri={REDIRECT_URI}&
-  scope=locations.read&
+  scope=contacts.readonly opportunities.readonly&
+  access_type=offline&
+  prompt=consent&
   state={STATE}
 ```
 
-#### 2. Exchange Code for Token
+##### 2. Exchange Code for Token
 ```http
 POST https://services.leadconnectorhq.com/oauth/token
 Content-Type: application/x-www-form-urlencoded
@@ -431,15 +561,147 @@ grant_type=authorization_code&
 client_id={CLIENT_ID}&
 client_secret={CLIENT_SECRET}&
 code={AUTHORIZATION_CODE}&
-redirect_uri={REDIRECT_URI}
+redirect_uri={REDIRECT_URI}&
+user_type=Location
+```
+
+**Response:**
+```json
+{
+  "access_token": "LOCATION_ACCESS_TOKEN",
+  "refresh_token": "LOCATION_REFRESH_TOKEN", 
+  "expires_in": 3600,
+  "token_type": "Bearer",
+  "scope": "contacts.readonly opportunities.readonly",
+  "locationId": "LOCATION_ID_123"
+}
+```
+
+### Service Architecture
+
+#### GoHighLevel Service Layer
+```typescript
+// Unified Service Interface
+export class GoHighLevelService {
+  // Agency-level operations (uses API key)
+  static async testAgencyToken(token?: string): Promise<TestResult>
+  static async getAgencyToken(): Promise<string>
+  
+  // Client-level operations (uses OAuth tokens)
+  static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<GHLTokenData>
+  static async getLocationToken(locationId: string): string | null
+  static async getAllLocationTokens(): Promise<Array<{ locationId: string; token: string }>>
+  
+  // API operations (uses appropriate token)
+  static async getLocations(): Promise<GHLLocation[]>
+  static async getContacts(locationId: string): Promise<GHLContact[]>
+  static async getOpportunities(locationId: string): Promise<GHLOpportunity[]>
+}
+```
+
+#### Authentication Service
+```typescript
+export class GoHighLevelAuthService {
+  // OAuth Methods
+  static getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): string
+  static async exchangeCodeForToken(code: string, clientId: string, clientSecret: string, redirectUri: string): Promise<GHLTokenData>
+  
+  // Token Management (DEPRECATED - Use client OAuth tokens instead)
+  static setAgencyToken(token: string): void  // Deprecated
+  static async getAgencyToken(): Promise<string>  // Returns first available location token
+  
+  // Location Token Management
+  static setCredentials(accessToken: string, locationId: string): void
+  static getLocationToken(locationId: string): string | null
+  static async getAllLocationTokens(): Promise<Array<{ locationId: string; token: string }>>
+  
+  // Token Testing
+  static async testAgencyToken(token: string): Promise<TestResult>
+}
+```
+
+### Database Storage Pattern
+
+#### Integrations Table Structure
+```sql
+-- GoHighLevel integration records (one per location)
+INSERT INTO integrations (platform, connected, account_id, config) VALUES 
+('goHighLevel', true, 'LOCATION_ID_123', '{
+  "tokens": {
+    "accessToken": "encrypted_location_token",
+    "refreshToken": "encrypted_refresh_token", 
+    "expiresAt": "2025-10-18T05:00:00.000Z",
+    "expiresIn": 3600,
+    "tokenType": "Bearer",
+    "scope": "contacts.readonly opportunities.readonly"
+  },
+  "locationId": "LOCATION_ID_123",
+  "userType": "Location",
+  "accountInfo": {
+    "id": "LOCATION_ID_123",
+    "name": "Client Business Location"
+  },
+  "connectedAt": "2025-10-17T05:00:00.000Z"
+}');
+```
+
+### Key Implementation Details
+
+#### 1. Agency vs Client Token Usage
+```typescript
+// Agency operations (uses environment API key)
+const agencyToken = process.env.VITE_GHL_API_KEY;
+
+// Client operations (uses OAuth tokens from database)
+const locationTokens = await GoHighLevelAuthService.getAllLocationTokens();
+const locationToken = GoHighLevelAuthService.getLocationToken(locationId);
+```
+
+#### 2. Token Fallback Strategy
+```typescript
+static async getAgencyToken(): Promise<string> {
+  // Get the first available location token instead of agency token
+  const locationTokens = await this.getAllLocationTokens();
+  if (locationTokens.length === 0) {
+    throw new Error('No GoHighLevel location tokens available');
+  }
+  
+  // Return the first available token
+  const firstToken = locationTokens[0];
+  debugLogger.info('GoHighLevelAuthService', 'Using location token as agency token', { 
+    locationId: firstToken.locationId 
+  });
+  return firstToken.token;
+}
+```
+
+#### 3. Location-Specific API Calls
+```typescript
+// All API calls require location-specific tokens
+static async getContacts(locationId: string): Promise<GHLContact[]> {
+  const accessToken = this.getLocationToken(locationId);
+  if (!accessToken) {
+    throw new Error(`No access token available for location ${locationId}`);
+  }
+  
+  const response = await fetch(`${this.API_BASE_URL}/contacts/`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Version': this.API_VERSION
+    }
+  });
+  
+  return response.json();
+}
 ```
 
 ### Core API Endpoints
 
-#### 1. Get Locations
+#### 1. Get Locations (Agency-level)
 ```http
 GET https://services.leadconnectorhq.com/locations/
-Authorization: Bearer {ACCESS_TOKEN}
+Authorization: Bearer {AGENCY_API_KEY}
+Version: 2021-04-15
 ```
 
 **Response:**
@@ -453,22 +715,67 @@ Authorization: Bearer {ACCESS_TOKEN}
       "city": "City",
       "state": "State",
       "zipCode": "12345",
-      "phone": "+1234567890"
+      "phone": "+1234567890",
+      "website": "https://example.com",
+      "timezone": "America/New_York"
     }
   ]
 }
 ```
 
-#### 2. Get Contacts
+#### 2. Get Contacts (Location-specific)
 ```http
 GET https://services.leadconnectorhq.com/contacts/
-Authorization: Bearer {ACCESS_TOKEN}
+Authorization: Bearer {LOCATION_ACCESS_TOKEN}
+Version: 2021-04-15
 ```
 
-#### 3. Get Opportunities
+**Response:**
+```json
+{
+  "contacts": [
+    {
+      "id": "contact_id_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john@example.com",
+      "phone": "+1234567890",
+      "source": "Facebook Ads",
+      "dateAdded": "2024-01-15T10:30:00Z",
+      "customFields": {
+        "utm_source": "facebook",
+        "utm_campaign": "summer_sale",
+        "utm_medium": "cpc"
+      }
+    }
+  ]
+}
+```
+
+#### 3. Get Opportunities (Location-specific)
 ```http
 GET https://services.leadconnectorhq.com/opportunities/
-Authorization: Bearer {ACCESS_TOKEN}
+Authorization: Bearer {LOCATION_ACCESS_TOKEN}
+Version: 2021-04-15
+```
+
+**Response:**
+```json
+{
+  "opportunities": [
+    {
+      "id": "opp_id_123",
+      "contactId": "contact_id_123",
+      "title": "Website Redesign",
+      "value": 5000.00,
+      "status": "won",
+      "source": "Facebook Ads",
+      "campaign": "summer_sale",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "closedAt": "2024-01-20T15:45:00Z"
+    }
+  ]
+}
 ```
 
 ### GoHighLevel Data Structures
@@ -488,6 +795,44 @@ Authorization: Bearer {ACCESS_TOKEN}
 }
 ```
 
+#### Contact Response
+```json
+{
+  "id": "string",
+  "firstName": "string",
+  "lastName": "string",
+  "email": "string",
+  "phone": "string",
+  "source": "string",
+  "dateAdded": "string",
+  "customFields": {
+    "utm_source": "string",
+    "utm_campaign": "string",
+    "utm_medium": "string",
+    "utm_term": "string",
+    "utm_content": "string",
+    "gclid": "string",
+    "fbclid": "string",
+    "landing_page": "string"
+  }
+}
+```
+
+#### Opportunity Response
+```json
+{
+  "id": "string",
+  "contactId": "string",
+  "title": "string",
+  "value": "number",
+  "status": "open|won|lost",
+  "source": "string",
+  "campaign": "string",
+  "createdAt": "string",
+  "closedAt": "string"
+}
+```
+
 ### Common GoHighLevel Problems & Solutions
 
 #### Problem 1: OAuth Flow Issues
@@ -497,7 +842,7 @@ Authorization: Bearer {ACCESS_TOKEN}
 ```typescript
 // Proper OAuth flow implementation
 const handleGHLConnect = async () => {
-  const authUrl = `https://marketplace.leadconnectorhq.com/oauth/chooselocation?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=locations.read&state=${state}`;
+  const authUrl = `https://marketplace.leadconnectorhq.com/oauth/chooselocation?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=contacts.readonly opportunities.readonly&access_type=offline&prompt=consent&state=${state}`;
   window.location.href = authUrl;
 };
 ```
@@ -508,8 +853,51 @@ const handleGHLConnect = async () => {
 **Solution:**
 ```typescript
 // Ensure proper scope in OAuth request
-const scope = 'locations.read contacts.read opportunities.read';
+const scope = 'contacts.readonly opportunities.readonly';
 ```
+
+#### Problem 3: Token Management Issues
+**Symptoms:** Tokens not persisting, location-specific calls failing
+
+**Solution:**
+```typescript
+// Proper token storage and retrieval
+static async storeLocationToken(locationId: string, tokenData: GHLTokenData): Promise<void> {
+  await UnifiedIntegrationService.saveOAuthTokens('goHighLevel', {
+    accessToken: tokenData.access_token,
+    refreshToken: tokenData.refresh_token,
+    expiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+    tokenType: 'Bearer',
+    scope: tokenData.scope
+  }, {
+    id: locationId,
+    name: `GHL Location ${locationId}`
+  });
+}
+```
+
+#### Problem 4: Agency vs Client Token Confusion
+**Symptoms:** Using wrong token type for API calls
+
+**Solution:**
+```typescript
+// Clear separation of agency vs client operations
+class GoHighLevelService {
+  // Agency operations (uses API key from environment)
+  static async getAgencyLocations(): Promise<GHLLocation[]> {
+    const apiKey = process.env.VITE_GHL_API_KEY;
+    // Use API key for agency-level operations
+  }
+  
+  // Client operations (uses OAuth tokens from database)
+  static async getClientContacts(locationId: string): Promise<GHLContact[]> {
+    const locationToken = this.getLocationToken(locationId);
+    // Use OAuth token for client-specific operations
+  }
+}
+```
+
+---
 
 ---
 
@@ -519,6 +907,78 @@ const scope = 'locations.read contacts.read opportunities.read';
 - **API Version**: `v4`
 - **Base URL**: `https://sheets.googleapis.com/v4/spreadsheets`
 - **Authentication**: OAuth 2.0
+
+### Data Flow Architecture
+
+#### Client Configuration Storage
+Google Sheets configuration is stored in a **hybrid structure** in the database:
+
+1. **Agency Level**: OAuth tokens stored in `integrations` table
+2. **Client Level**: Sheet selection stored in `clients.accounts.googleSheetsConfig` AND extracted to top-level `clients.googleSheetsConfig`
+
+#### Database Schema
+```sql
+-- clients table
+CREATE TABLE clients (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255),
+  accounts JSONB DEFAULT '{}',  -- Contains googleSheetsConfig
+  googleSheetsConfig JSONB,     -- Extracted to top-level for frontend
+  -- ... other fields
+);
+
+-- accounts JSONB structure
+{
+  "googleSheetsConfig": {
+    "spreadsheetId": "1ABC...",
+    "sheetName": "Sheet1",
+    "spreadsheetName": "My Report"
+  }
+}
+```
+
+#### Frontend Data Flow
+**Critical**: Both HomePage and Admin Panel must receive the **complete client data structure**:
+
+```typescript
+// ✅ CORRECT - Full client data
+const client = {
+  id: "uuid",
+  name: "Client Name",
+  accounts: {
+    googleSheetsConfig: { spreadsheetId: "...", sheetName: "..." }
+  },
+  googleSheetsConfig: { spreadsheetId: "...", sheetName: "..." } // Top-level copy
+};
+
+// ❌ WRONG - Missing googleSheetsConfig field
+const client = {
+  id: "uuid", 
+  name: "Client Name",
+  accounts: { /* missing googleSheetsConfig */ }
+};
+```
+
+#### Component Display Logic
+Both components use identical logic for Google Sheets connection status:
+
+```typescript
+// HomePage.tsx & ClientManagementTab.tsx
+<div className={`flex items-center ${client.googleSheetsConfig ? 'opacity-100' : 'opacity-40'}`}>
+  <LogoManager platform="googleSheets" />
+</div>
+```
+
+#### Data Service Pattern
+```typescript
+// DatabaseService.getClients() extracts googleSheetsConfig to top-level
+const processedClients = clients.map(client => {
+  if (client.accounts?.googleSheetsConfig) {
+    client.googleSheetsConfig = client.accounts.googleSheetsConfig;
+  }
+  return client;
+});
+```
 
 ### Authentication Flow
 
@@ -1224,6 +1684,67 @@ const requiredScopes = [
   'https://www.googleapis.com/auth/spreadsheets'
 ];
 ```
+
+### Google Sheets Data Flow Issues
+
+#### Problem: Google Sheets Connection Status Not Displaying
+**Symptoms:** 
+- Google Sheets icon shows as disconnected (faded) on HomePage
+- Google Sheets icon shows as connected on Admin Panel
+- Same client data displays differently across components
+
+**Root Cause:** Inconsistent data structure between components
+
+**Solution:**
+1. **Ensure Complete Data Structure in HomePageWrapper:**
+```typescript
+// ✅ CORRECT - Include ALL client fields
+const transformedClients: Client[] = (clientsData || []).map(client => ({
+  id: client.id,
+  name: client.name,
+  type: client.type,
+  status: client.status,
+  location: client.location,
+  logo_url: client.logo_url,
+  services: client.services,
+  accounts: {
+    facebookAds: client.accounts?.facebookAds,
+    googleAds: client.accounts?.googleAds,
+    goHighLevel: client.accounts?.goHighLevel,
+    googleSheets: client.accounts?.googleSheets,
+    googleSheetsConfig: client.accounts?.googleSheetsConfig
+  },
+  conversion_actions: client.conversion_actions,
+  googleSheetsConfig: client.googleSheetsConfig, // Critical: Top-level field
+  shareable_link: client.shareable_link,
+  created_at: client.created_at,
+  updated_at: client.updated_at
+}));
+```
+
+2. **Verify DatabaseService.getClients() Extraction:**
+```typescript
+// Ensure googleSheetsConfig is extracted to top-level
+const processedClients = clients.map(client => {
+  if (client.accounts?.googleSheetsConfig) {
+    client.googleSheetsConfig = client.accounts.googleSheetsConfig;
+  }
+  return client;
+});
+```
+
+3. **Use Consistent Display Logic:**
+```typescript
+// Both HomePage and Admin Panel should use identical logic
+<div className={`flex items-center ${client.googleSheetsConfig ? 'opacity-100' : 'opacity-40'}`}>
+  <LogoManager platform="googleSheets" />
+</div>
+```
+
+**Debug Steps:**
+1. Check browser console for client data structure
+2. Verify `client.googleSheetsConfig` exists (not just `client.accounts.googleSheetsConfig`)
+3. Compare data structure between HomePage and Admin Panel components
 
 ### Rate Limiting Issues
 

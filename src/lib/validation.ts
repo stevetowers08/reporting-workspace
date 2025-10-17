@@ -81,6 +81,16 @@ export const ClientCreateSchema = z.object({
     facebookAds: z.string().optional(),
     googleAds: z.string().optional(),
   }).optional(),
+  
+  googleSheetsConfig: z.object({
+    spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),
+    sheetName: z.string().min(1, 'Sheet name is required'),
+    spreadsheetName: z.string().optional(),
+  }).optional(),
+  
+  shareable_link: z.string()
+    .min(1, 'Shareable link is required')
+    .url('Shareable link must be a valid URL'),
 }).refine((data) => {
   // Validate that if services are enabled, corresponding accounts are provided
   if (data.services.crm && (!data.accounts?.goHighLevel || data.accounts.goHighLevel === '' || data.accounts.goHighLevel === 'none')) {
@@ -161,6 +171,17 @@ export const ClientUpdateSchema = z.object({
     facebookAds: z.string().optional(),
     googleAds: z.string().optional(),
   }).optional(),
+  
+  googleSheetsConfig: z.object({
+    spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),
+    sheetName: z.string().min(1, 'Sheet name is required'),
+    spreadsheetName: z.string().optional(),
+  }).optional(),
+  
+  shareable_link: z.string()
+    .min(1, 'Shareable link is required')
+    .url('Shareable link must be a valid URL')
+    .optional(),
 });
 
 // ============================================================================
