@@ -74,7 +74,7 @@ export const ClientCreateSchema = z.object({
   }).optional(),
 }).refine((data) => {
   // Validate that if services are enabled, corresponding accounts are provided
-  if (data.services.crm && data.accounts?.goHighLevel === '') {
+  if (data.services.crm && (!data.accounts?.goHighLevel || data.accounts.goHighLevel === '' || data.accounts.goHighLevel === 'none')) {
     return false;
   }
   return true;
