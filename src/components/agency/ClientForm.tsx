@@ -1310,8 +1310,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         .limit(1)
                         .single();
                       
-                      if (!error && recentIntegration && recentIntegration.config?.tokens) {
-                        const { locationId, locationName } = recentIntegration.config.tokens;
+                      if (!error && recentIntegration && recentIntegration.config) {
+                        const locationId = recentIntegration.config.locationId;
+                        const locationName = recentIntegration.config.accountInfo?.name || 'GoHighLevel Location';
                         
                         if (locationId) {
                           // Update form data with OAuth location information
@@ -1321,7 +1322,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                               ...prev.accounts,
                               goHighLevel: {
                                 locationId: locationId,
-                                locationName: locationName || 'GoHighLevel Location'
+                                locationName: locationName
                               }
                             }
                           }));
