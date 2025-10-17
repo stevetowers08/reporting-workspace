@@ -1294,10 +1294,36 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               <div className="text-center py-4">
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
-                  onConnected={() => {
+                  onConnected={async () => {
                     // Refresh GHL accounts to show updated connection status
                     setGhlAccountsLoaded(false);
                     loadGHLAccounts();
+                    
+                    // If editing an existing client, refresh the client data from database
+                    if (isEdit && clientId) {
+                      try {
+                        const { data: updatedClient, error } = await supabase
+                          .from('clients')
+                          .select('*')
+                          .eq('id', clientId)
+                          .single();
+                        
+                        if (!error && updatedClient) {
+                          // Update form data with fresh client data
+                          setFormData(prev => ({
+                            ...prev,
+                            ...updatedClient,
+                            accounts: {
+                              ...prev.accounts,
+                              ...(updatedClient.accounts || {}),
+                            },
+                          }));
+                          debugLogger.info('ClientForm', 'Client data refreshed after OAuth completion', updatedClient);
+                        }
+                      } catch (error) {
+                        debugLogger.error('ClientForm', 'Failed to refresh client data after OAuth', error);
+                      }
+                    }
                   }}
                 />
               </div>
