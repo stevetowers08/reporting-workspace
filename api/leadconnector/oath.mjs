@@ -22,8 +22,23 @@ export default async function handler(req, res) {
     // Check required environment variables
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-    const ghlClientId = process.env.GHL_CLIENT_ID || process.env.VITE_GHL_CLIENT_ID;
-    const ghlClientSecret = process.env.GHL_CLIENT_SECRET || process.env.VITE_GHL_CLIENT_SECRET;
+    
+    // Get OAuth credentials from database instead of environment variables
+    const { data: credentials, error: credentialsError } = await supabase
+      .from('oauth_credentials')
+      .select('client_id, client_secret')
+      .eq('platform', 'goHighLevel')
+      .eq('is_active', true)
+      .single();
+    
+    if (credentialsError || !credentials) {
+      console.error('❌ Failed to get OAuth credentials from database:', credentialsError);
+      res.status(500).json({ error: 'Failed to get OAuth credentials from database' });
+      return;
+    }
+    
+    const ghlClientId = credentials.client_id;
+    const ghlClientSecret = credentials.client_secret;
 
     if (!supabaseUrl || !supabaseKey) {
       console.error('❌ Missing Supabase environment variables');
@@ -33,9 +48,8 @@ export default async function handler(req, res) {
     }
 
     if (!ghlClientId || !ghlClientSecret) {
-      console.error('❌ Missing GoHighLevel OAuth credentials');
-      console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('GHL')));
-      res.status(500).json({ error: 'Missing GoHighLevel OAuth credentials' });
+      console.error('❌ Missing GoHighLevel OAuth credentials from database');
+      res.status(500).json({ error: 'Missing GoHighLevel OAuth credentials from database' });
       return;
     }
 
