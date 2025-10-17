@@ -8,7 +8,7 @@ This document provides a comprehensive overview of all API endpoints across the 
 
 ### Base URL
 ```
-https://graph.facebook.com/v18.0
+https://graph.facebook.com/v22.0
 ```
 
 ### Authentication Endpoints
@@ -223,7 +223,7 @@ grant_type=authorization_code&code={code}&client_id={client_id}&client_secret={c
 GET /locations
 Headers:
   Authorization: Bearer {agency_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get all accessible locations
 **Response**: Array of location objects
@@ -233,7 +233,7 @@ Headers:
 GET /locations/{location_id}
 Headers:
   Authorization: Bearer {agency_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get specific location information
 **Response**: Location object with details
@@ -245,7 +245,7 @@ Headers:
 GET /contacts/?locationId={location_id}&limit={limit}&offset={offset}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get contacts for specific location
 **Response**: Array of contact objects
@@ -255,7 +255,7 @@ Headers:
 GET /contacts/{contact_id}?locationId={location_id}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get specific contact details
 **Response**: Contact object with full details
@@ -267,7 +267,7 @@ Headers:
 GET /campaigns/?locationId={location_id}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get campaigns for specific location
 **Response**: Array of campaign objects
@@ -277,7 +277,7 @@ Headers:
 GET /campaigns/{campaign_id}?locationId={location_id}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get specific campaign details
 **Response**: Campaign object with metrics
@@ -289,7 +289,7 @@ Headers:
 GET /funnels/?locationId={location_id}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get funnels for specific location
 **Response**: Array of funnel objects
@@ -299,7 +299,7 @@ Headers:
 GET /funnels/{funnel_id}/pages?locationId={location_id}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get pages for specific funnel
 **Response**: Array of funnel page objects
@@ -311,7 +311,7 @@ Headers:
 GET /opportunities/?locationId={location_id}&limit={limit}&offset={offset}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get opportunities for specific location
 **Response**: Array of opportunity objects
@@ -323,7 +323,7 @@ Headers:
 GET /calendars/{calendar_id}/events?locationId={location_id}&startDate={start_date}&endDate={end_date}
 Headers:
   Authorization: Bearer {location_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
 ```
 **Purpose**: Get calendar events for date range
 **Response**: Array of calendar event objects
@@ -335,7 +335,7 @@ Headers:
 POST /webhooks
 Headers:
   Authorization: Bearer {agency_token}
-  Version: 2021-07-28
+  Version: 2021-04-15
   Content-Type: application/json
 Body:
 {

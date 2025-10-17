@@ -5,10 +5,10 @@
 
 export const API_VERSIONS = {
   FACEBOOK: 'v22.0', // Updated to latest 2025 version
-  GOOGLE_ADS: 'v21', // Updated to latest 2025 version
+  GOOGLE_ADS: 'v21', // Current version in use
   GOOGLE_SHEETS: 'v4',
   GOOGLE_OAUTH: 'v2',
-  GOHIGHLEVEL: '2021-07-28' // API 2.0 version header
+  GOHIGHLEVEL: '2021-04-15' // API 2.0 version header (actual version in use)
 } as const;
 
 export const API_BASE_URLS = {

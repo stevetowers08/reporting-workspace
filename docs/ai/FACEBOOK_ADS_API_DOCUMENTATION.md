@@ -8,8 +8,8 @@ The Facebook Ads API integration provides comprehensive advertising analytics an
 
 ### Core Service: `FacebookAdsService`
 - **Location**: `src/services/api/facebookAdsService.ts`
-- **API Version**: v18.0 (configurable via `API_VERSIONS.FACEBOOK`)
-- **Base URL**: `https://graph.facebook.com/v18.0`
+- **API Version**: v22.0 (configurable via `API_VERSIONS.FACEBOOK`)
+- **Base URL**: `https://graph.facebook.com/v22.0`
 
 ## Authentication
 

@@ -515,8 +515,11 @@ export class FacebookAdsService {
 
     while (nextUrl) {
       try {
-        const headers = await this.buildApiHeaders();
-        const response = await FacebookAdsService.rateLimitedFetch(nextUrl, { headers });
+        // Don't add headers if the URL already contains access_token
+        const hasAccessToken = nextUrl.includes('access_token=');
+        const options: RequestInit = hasAccessToken ? {} : { headers: await this.buildApiHeaders() };
+        
+        const response = await FacebookAdsService.rateLimitedFetch(nextUrl, options);
         
         if (!response.ok) {
           debugLogger.warn('FacebookAdsService', 'Failed to fetch paginated accounts', {
@@ -616,7 +619,7 @@ export class FacebookAdsService {
         }
       }
 
-      debugLogger.debug('FacebookAdsService', 'Total system user ad accounts', allSystemUserAccounts.length);
+        debugLogger.debug('FacebookAdsService', 'Total system user ad accounts', allSystemUserAccounts.length);
       return allSystemUserAccounts;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching system user accounts', error);

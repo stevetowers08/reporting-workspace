@@ -180,13 +180,44 @@ class SupabaseMCPServer {
     const queryLower = query.trim().toLowerCase();
     
     if (queryLower.startsWith('select')) {
-      // Extract table name from SELECT query
+      // Extract table name and columns from SELECT query
       const tableMatch = query.match(/from\s+(\w+)/i);
+      const columnMatch = query.match(/select\s+(.+?)\s+from/i);
+      
       if (tableMatch) {
         const tableName = tableMatch[1];
-        const { data, error } = await this.supabase
-          .from(tableName)
-          .select('*');
+        const columns = columnMatch ? columnMatch[1].trim() : '*';
+        
+        // Handle WHERE clause
+        const whereMatch = query.match(/where\s+(.+?)(?:\s+order\s+by|\s+limit|$)/i);
+        let queryBuilder = this.supabase.from(tableName);
+        
+        if (columns === '*') {
+          queryBuilder = queryBuilder.select('*');
+        } else {
+          // Parse column list
+          const columnList = columns.split(',').map(col => col.trim());
+          queryBuilder = queryBuilder.select(columnList.join(','));
+        }
+        
+        // Apply WHERE conditions
+        if (whereMatch) {
+          const whereClause = whereMatch[1].trim();
+          // Simple WHERE parsing - handle basic conditions
+          if (whereClause.includes('=')) {
+            const [column, value] = whereClause.split('=').map(s => s.trim());
+            const cleanValue = value.replace(/'/g, '').replace(/"/g, '');
+            if (cleanValue === 'true') {
+              queryBuilder = queryBuilder.eq(column, true);
+            } else if (cleanValue === 'false') {
+              queryBuilder = queryBuilder.eq(column, false);
+            } else {
+              queryBuilder = queryBuilder.eq(column, cleanValue);
+            }
+          }
+        }
+        
+        const { data, error } = await queryBuilder;
         
         if (error) {
           throw new Error(`Query failed: ${error.message}`);

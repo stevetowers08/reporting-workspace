@@ -106,7 +106,7 @@ const longLivedToken = await FacebookAdsService.exchangeForLongLivedToken(shortL
 
 **Request**:
 ```http
-GET https://graph.facebook.com/v18.0/oauth/access_token?
+GET https://graph.facebook.com/v22.0/oauth/access_token?
   grant_type=fb_exchange_token&
   client_id=your_app_id&
   client_secret=your_app_secret&
@@ -397,7 +397,7 @@ VITE_FACEBOOK_APP_SECRET=your_app_secret
 ```typescript
 // Exchange short-lived token for long-lived token
 const longLivedToken = await fetch(
-  `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`
+  `https://graph.facebook.com/v22.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`
 );
 ```
 

@@ -195,7 +195,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         disabled={isConnecting}
         variant="outline"
         size="sm"
-        className="w-full"
+        className="w-full !text-sm !font-normal"
       >
         {isConnecting ? (
           <>

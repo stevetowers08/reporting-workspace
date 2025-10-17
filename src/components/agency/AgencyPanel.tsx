@@ -6,7 +6,6 @@ import { LoadingState } from '@/components/ui/LoadingStates';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
-import { debugLogger } from '@/lib/debug';
 import { Bot, Settings, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -53,10 +52,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
 
   // Debug: Log when clients state changes
   React.useEffect(() => {
-    debugLogger.info('AgencyPanel', 'Clients state updated', { 
-      count: clients.length, 
-      clients: clients.map(c => ({ id: c.id, name: c.name }))
-    });
+    // Clients state updated
   }, [clients]);
 
   const {
@@ -120,8 +116,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     try {
       setDeleting(clientId, true);
       await deleteClient(clientId);
-    } catch (error) {
-      console.error('AgencyPanel', 'Failed to delete client', error);
+    } catch (_error) {
       window.alert('Failed to delete client. Please try again.');
     } finally {
       setDeleting(clientId, false);
@@ -131,8 +126,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   const handleConnectIntegration = async (platform: string) => {
     try {
       await connectIntegration(platform);
-    } catch (error) {
-      console.error('AgencyPanel', `Failed to connect ${platform}`, error);
+    } catch (_error) {
       window.alert(`Failed to connect ${platform}. Please try again.`);
     }
   };
@@ -144,8 +138,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
 
     try {
       await disconnectIntegration(platform);
-    } catch (error) {
-      console.error('AgencyPanel', `Failed to disconnect ${platform}`, error);
+    } catch (_error) {
       window.alert(`Failed to disconnect ${platform}. Please try again.`);
     }
   };
@@ -155,7 +148,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       setTesting(platform, true);
       const result = await testConnection(platform);
       return result;
-    } catch (error) {
+    } catch (_error) {
       console.error('AgencyPanel', `Failed to test ${platform}`, error);
       return { success: false, message: `Test failed: ${error}` };
     } finally {

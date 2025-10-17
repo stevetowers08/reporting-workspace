@@ -1,23 +1,24 @@
 import { LoadingSpinner } from '@/components/ui/LoadingStates';
 import { Button } from '@/components/ui/button-simple';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { debugLogger } from '@/lib/debug';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { GoogleSheetsAccount, GoogleSheetsService } from '@/services/api/googleSheetsService';
 import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 interface GoogleSheetsSelectorProps {
-  onSelectionComplete?: (_spreadsheetId: string, _sheetName: string) => void;
+  onSelectionComplete?: (_spreadsheetId: string, _sheetName: string, _spreadsheetName?: string) => void;
   initialSpreadsheetId?: string;
   initialSheetName?: string;
   hideSaveButton?: boolean;
+  onSheetSelectionChange?: (isVisible: boolean) => void;
 }
 
 export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({ 
   onSelectionComplete, 
   initialSpreadsheetId, 
   initialSheetName,
-  hideSaveButton = false
+  hideSaveButton = false,
+  onSheetSelectionChange
 }) => {
   const [accounts, setAccounts] = useState<GoogleSheetsAccount[]>([]);
   const [selectedSpreadsheet, setSelectedSpreadsheet] = useState<string>(initialSpreadsheetId || '');
@@ -25,14 +26,10 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
-  const [loadingSheets, setLoadingSheets] = useState(false);
+    const [_loadingSheets, _setLoadingSheets] = useState(false);
 
-  // Fetch Google Sheets accounts on component mount
-  useEffect(() => {
-    fetchSheetsAccounts();
-  }, []);
+  // Don't auto-load on mount - let user trigger loading by clicking dropdown
 
   // Load sheet names if initial spreadsheet is provided
   useEffect(() => {
@@ -41,40 +38,33 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     }
   }, [initialSpreadsheetId, accounts]);
 
+  // Notify parent when sheet selection is visible
+  useEffect(() => {
+    if (onSheetSelectionChange) {
+      // Sheet selection is visible when spreadsheet is selected AND sheet names are loaded
+      const isSheetSelectionVisible = !!selectedSpreadsheet && sheetNames.length > 0;
+      onSheetSelectionChange(isSheetSelectionVisible);
+    }
+  }, [selectedSpreadsheet, sheetNames.length, onSheetSelectionChange]);
+
   const fetchSheetsAccounts = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('🔍 GoogleSheetsSelector: Fetching Google Sheets accounts...');
-      debugLogger.info('GoogleSheetsSelector', 'Fetching Google Sheets accounts');
-      
-      // First check if we have access tokens
       const accessToken = await GoogleSheetsService.getAccessToken();
-      console.log('🔍 GoogleSheetsSelector: Access token check:', accessToken ? 'Found' : 'Not found');
-      console.log('🔍 GoogleSheetsSelector: Access token preview:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No Google OAuth access token found. Please connect your Google account first.');
       }
       
       const fetchedAccounts = await GoogleSheetsService.getSheetsAccounts();
-      
-      console.log('🔍 GoogleSheetsSelector: Google Sheets accounts response:', fetchedAccounts);
-      debugLogger.info('GoogleSheetsSelector', 'Fetched accounts', { 
-        accountCount: fetchedAccounts.length,
-        totalSheets: fetchedAccounts.reduce((sum, acc) => sum + acc.sheets.length, 0)
-      });
-      
       setAccounts(fetchedAccounts);
       
       if (fetchedAccounts.length === 0) {
         setError('No Google Sheets found. Please create a spreadsheet in your Google Drive.');
       }
-    } catch (error) {
-      console.error('🔍 GoogleSheetsSelector: Error fetching accounts:', error);
-      debugLogger.error('GoogleSheetsSelector', 'Failed to fetch Google Sheets accounts', error);
-      
+    } catch (_error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Google Sheets. Please check your connection.';
       setError(errorMessage);
     } finally {
@@ -82,27 +72,12 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     }
   };
 
-  // No account selection needed - we'll use the first account automatically
-
-  // Filter spreadsheets based on search term
-  const getFilteredSheets = () => {
-    if (!accounts.length) {return [];}
-    
-    const allSheets = accounts[0].sheets;
-    if (!searchTerm.trim()) {return allSheets;}
-    
-    return allSheets.filter(sheet => 
-      sheet.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
 
   const handleSpreadsheetChange = (spreadsheetId: string) => {
-    console.log('🔍 GoogleSheetsSelector: Spreadsheet changed to:', spreadsheetId);
     setSelectedSpreadsheet(spreadsheetId);
     setSelectedSheet('');
     setSheetNames([]);
     
-    // Fetch sheet names for the selected spreadsheet
     if (spreadsheetId) {
       fetchSheetNames(spreadsheetId);
     }
@@ -113,10 +88,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
     
     try {
-      console.log('🔍 GoogleSheetsSelector: Fetching sheet names for spreadsheet:', spreadsheetId);
       const accessToken = await GoogleSheetsService.getAccessToken();
-      console.log('🔍 GoogleSheetsSelector: Access token for sheet names:', accessToken ? 'Found' : 'Not found');
-      console.log('🔍 GoogleSheetsSelector: Access token preview for sheet names:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No access token available');
@@ -131,23 +103,13 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('🔍 GoogleSheetsSelector: API error:', response.status, errorText);
         throw new Error(`Failed to fetch sheet names: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       const sheets = data.sheets?.map((sheet: any) => sheet.properties?.title).filter(Boolean) || [];
       setSheetNames(sheets);
-      
-      console.log('🔍 GoogleSheetsSelector: Sheet names loaded:', sheets);
-      debugLogger.info('GoogleSheetsSelector', 'Fetched sheet names', { 
-        spreadsheetId, 
-        sheetCount: sheets.length,
-        sheetNames: sheets 
-      });
-    } catch (error) {
-      console.error('🔍 GoogleSheetsSelector: Error fetching sheet names:', error);
-      debugLogger.error('GoogleSheetsSelector', 'Failed to fetch sheet names', error);
+    } catch (_error) {
       setError(`Failed to load sheet names: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoadingSheets(false);
@@ -155,26 +117,13 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   };
 
   const handleSheetChange = (sheetName: string) => {
-    debugLogger.info('GoogleSheetsSelector', 'Sheet changed', { sheetName, selectedSpreadsheet });
-    console.log('🔍 GoogleSheetsSelector: Sheet changed to:', sheetName);
-    console.log('🔍 GoogleSheetsSelector: Selected spreadsheet:', selectedSpreadsheet);
-    console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
-    console.log('🔍 GoogleSheetsSelector: onSelectionComplete callback:', !!onSelectionComplete);
-    
     setSelectedSheet(sheetName);
     
-    // If hideSaveButton is true, automatically call onSelectionComplete when both are selected
+    const spreadsheet = accounts[0]?.sheets.find(sheet => sheet.id === selectedSpreadsheet);
+    const spreadsheetName = spreadsheet?.name || 'Unknown Spreadsheet';
+    
     if (hideSaveButton && selectedSpreadsheet && sheetName && onSelectionComplete) {
-      console.log('🔍 GoogleSheetsSelector: Auto-calling onSelectionComplete (hideSaveButton=true)');
-      console.log('🔍 GoogleSheetsSelector: Calling with:', { selectedSpreadsheet, sheetName });
-      debugLogger.info('GoogleSheetsSelector', 'Auto-calling onSelectionComplete', { selectedSpreadsheet, sheetName });
-      onSelectionComplete(selectedSpreadsheet, sheetName);
-    } else {
-      console.log('🔍 GoogleSheetsSelector: Not auto-calling onSelectionComplete');
-      console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
-      console.log('🔍 GoogleSheetsSelector: selectedSpreadsheet:', selectedSpreadsheet);
-      console.log('🔍 GoogleSheetsSelector: sheetName:', sheetName);
-      console.log('🔍 GoogleSheetsSelector: onSelectionComplete:', !!onSelectionComplete);
+      onSelectionComplete(selectedSpreadsheet, sheetName, spreadsheetName);
     }
   };
 
@@ -193,7 +142,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
 
     try {
-      // Since we only have one account, use the first one
       const account = accounts[0];
       const spreadsheet = account?.sheets.find(sheet => sheet.id === selectedSpreadsheet);
 
@@ -201,40 +149,23 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         throw new Error('Selected spreadsheet not found');
       }
 
-      // Call the completion callback with the selected spreadsheet and sheet
       if (onSelectionComplete) {
-        console.log('🔍 GoogleSheetsSelector: Calling onSelectionComplete with:', { selectedSpreadsheet, selectedSheet });
-        debugLogger.info('GoogleSheetsSelector', 'Calling onSelectionComplete callback', { selectedSpreadsheet, selectedSheet });
         onSelectionComplete(selectedSpreadsheet, selectedSheet);
-      } else {
-        console.log('🔍 GoogleSheetsSelector: No onSelectionComplete callback provided');
-        debugLogger.warn('GoogleSheetsSelector', 'No onSelectionComplete callback provided');
       }
       
-      debugLogger.info('GoogleSheetsSelector', 'Selection completed successfully', {
-        spreadsheetId: selectedSpreadsheet,
-        sheetName: selectedSheet,
-        spreadsheetName: spreadsheet.name
-      });
-      
-    } catch (error) {
-      debugLogger.error('GoogleSheetsSelector', 'Failed to save Google Sheets selection', error);
+    } catch (_error) {
       setError('Failed to save selection. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const _getSelectedSpreadsheet = () => {
-    if (!accounts.length) {return null;}
-    return accounts[0].sheets.find(sheet => sheet.id === selectedSpreadsheet);
-  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <LoadingSpinner size="md" className="mr-3" />
-        <span className="text-gray-600">Loading your Google Sheets...</span>
+      <div className="flex items-center justify-center p-4">
+        <LoadingSpinner size="sm" className="mr-2" />
+        <span className="text-sm text-gray-600">Loading...</span>
       </div>
     );
   }
@@ -256,14 +187,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Select Google Sheets</h3>
-        <Button onClick={fetchSheetsAccounts} variant="outline" size="sm" disabled={loading}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
+    <div className="space-y-4">
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -274,105 +198,42 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-2">
 
         {/* Spreadsheet Selection */}
-        {accounts.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Spreadsheet
-            </label>
-            
-            {/* Custom Searchable Dropdown */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search spreadsheets..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            
-            {/* Dropdown Results */}
-            <div className="mt-2 border border-gray-300 rounded-md max-h-52 overflow-y-auto">
-              {getFilteredSheets().map((sheet) => (
-                <button
-                  key={sheet.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSpreadsheetChange(sheet.id);
-                  }}
-                  className={`w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
-                    selectedSpreadsheet === sheet.id ? 'bg-blue-50 text-blue-700' : ''
-                  }`}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm">{sheet.name}</span>
-                    <span className="text-xs text-gray-500">{sheet.id}</span>
-                  </div>
-                </button>
-              ))}
-              {getFilteredSheets().length === 0 && searchTerm && (
-                <div className="px-3 py-2 text-sm text-gray-500">
-                  No spreadsheets found matching "{searchTerm}"
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="mt-3">
+          <SearchableSelect 
+            options={accounts.length > 0 ? accounts[0]?.sheets.map((sheet) => ({
+              value: sheet.id,
+              label: sheet.name
+            })) || [] : []}
+            value={selectedSpreadsheet || ""} 
+            onValueChange={handleSpreadsheetChange}
+            placeholder="Select a spreadsheet"
+            searchPlaceholder="Search spreadsheets..."
+            className="w-full h-8 text-sm"
+            onOpenChange={(open) => {
+              if (open && accounts.length === 0 && !loading) {
+                fetchSheetsAccounts();
+              }
+            }}
+          />
+        </div>
 
-        {/* Sheet Selection */}
-        {selectedSpreadsheet && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Sheet
-            </label>
-            {loadingSheets ? (
-              <div className="flex items-center gap-2 p-3 border border-gray-300 rounded-md">
-                <LoadingSpinner size="sm" />
-                <span className="text-sm text-gray-600">Loading sheet names...</span>
-              </div>
-            ) : sheetNames.length > 0 ? (
-              <Select value={selectedSheet} onValueChange={handleSheetChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a sheet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sheetNames.map((sheetName) => (
-                    <SelectItem key={sheetName} value={sheetName}>
-                      {sheetName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={selectedSheet}
-                  onChange={(e) => setSelectedSheet(e.target.value)}
-                  placeholder="Enter sheet name (e.g., Sheet1, Form Responses)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500">
-                  Enter the exact name of the sheet/tab within the spreadsheet
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Sheet Selection - Always visible */}
+        <div className="mt-2">
+          <SearchableSelect 
+            options={sheetNames.map((sheetName) => ({
+              value: sheetName,
+              label: sheetName
+            }))}
+            value={selectedSheet || ""} 
+            onValueChange={handleSheetChange}
+            placeholder="Select a sheet"
+            searchPlaceholder="Search sheets..."
+            className="w-full h-8 text-sm"
+          />
+        </div>
 
         {/* Save Button */}
         {!hideSaveButton && selectedSpreadsheet && selectedSheet && (

@@ -1,8 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Search } from "lucide-react";
-import * as React from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 
 interface SearchableSelectProps {
@@ -13,6 +12,7 @@ interface SearchableSelectProps {
     placeholder?: string;
     searchPlaceholder?: string;
     className?: string;
+    size?: 'sm' | 'default';
 }
 
 export function SearchableSelect({
@@ -22,7 +22,8 @@ export function SearchableSelect({
     onOpenChange,
     placeholder = "Select option...",
     searchPlaceholder = "Search...",
-    className
+    className,
+    size = 'default'
 }: SearchableSelectProps) {
     const [open, setOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState("");
@@ -34,7 +35,6 @@ export function SearchableSelect({
     );
 
     const handleSelect = (optionValue: string) => {
-        console.log('🔍 SearchableSelect: handleSelect called with:', optionValue);
         onValueChange(optionValue);
         setOpen(false);
         onOpenChange?.(false);
@@ -107,26 +107,34 @@ export function SearchableSelect({
         </div>
     );
 
+    const sizeClasses = {
+        default: "h-10 px-3 py-2",
+        sm: "h-8 px-3 py-2"
+    };
+
     return (
         <div className="relative">
-            <Button
+            <button
                 ref={buttonRef}
                 type="button"
-                variant="outline"
                 role="combobox"
                 aria-expanded={open}
-                className={cn("w-full justify-between", className)}
+                className={cn(
+                    "flex w-full items-center justify-between rounded-xl border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    sizeClasses[size],
+                    className
+                )}
                 onClick={() => {
-                    console.log('🔍 SearchableSelect: Button clicked, current open state:', open);
                     const newOpen = !open;
-                    console.log('🔍 SearchableSelect: Setting open state to:', newOpen);
                     setOpen(newOpen);
                     onOpenChange?.(newOpen);
                 }}
             >
-                {selectedOption ? selectedOption.label : placeholder}
-                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
+                <span className="line-clamp-1">
+                    {selectedOption ? selectedOption.label : placeholder}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+            </button>
 
             {open && (
                 <div

@@ -15,7 +15,7 @@ The GoHighLevel API integration provides comprehensive CRM and marketing automat
 
 ### API Configuration
 - **Base URL**: `https://services.leadconnectorhq.com`
-- **API Version**: `2021-07-28`
+- **API Version**: `2021-04-15` (API 2.0 version header)
 - **Authentication**: OAuth 2.0 + Agency Token (deprecated)
 
 ## Authentication
