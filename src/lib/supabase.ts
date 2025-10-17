@@ -41,7 +41,6 @@ export interface Database {
           type: string;
           location: string;
           logo_url?: string;
-          status: 'active' | 'paused' | 'inactive';
           services: {
             facebookAds: boolean;
             googleAds: boolean;
@@ -68,7 +67,6 @@ export interface Database {
           type: string;
           location: string;
           logo_url?: string;
-          status?: 'active' | 'paused' | 'inactive';
           services: {
             facebookAds: boolean;
             googleAds: boolean;
@@ -95,7 +93,6 @@ export interface Database {
           type?: string;
           location?: string;
           logo_url?: string;
-          status?: 'active' | 'paused' | 'inactive';
           services?: {
             facebookAds: boolean;
             googleAds: boolean;

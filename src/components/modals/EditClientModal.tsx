@@ -19,7 +19,6 @@ interface Client {
             sheetName: string;
         };
     };
-    status: 'active' | 'paused' | 'inactive';
     shareable_link: string;
     conversion_actions?: {
         facebookAds?: string;
@@ -31,38 +30,32 @@ interface EditClientModalProps {
     isOpen: boolean;
     onClose: () => void;
     onUpdateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
-    onCreateClient?: (clientData: any) => Promise<void>;
+    onCreateClient?: (clientData: Record<string, unknown>) => Promise<void>;
     client: Client | null;
 }
 
 const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, client }: EditClientModalProps) => {
-    const handleSubmit = async (formData: any) => {
-        console.log('🔍 EditClientModal: handleSubmit called with:', formData);
-        console.log('🔍 EditClientModal: formData.googleSheetsConfig:', formData.googleSheetsConfig);
-        console.log('🔍 EditClientModal: formData.accounts.googleSheets:', formData.accounts.googleSheets);
-        
+    const handleSubmit = async (formData: Record<string, unknown>) => {
         debugLogger.info('EditClientModal', 'handleSubmit called', { formData, clientId: client?.id, isCreating: !client });
         
         // Transform form data to match expected format
         const clientData = {
             name: formData.name,
             logo_url: formData.logo_url,
-            status: formData.status,
             accounts: {
-                facebookAds: formData.accounts.facebookAds,
-                googleAds: formData.accounts.googleAds,
-                goHighLevel: formData.accounts.goHighLevel,
-                googleSheets: formData.accounts.googleSheets,
+                facebookAds: formData.accounts?.facebookAds,
+                googleAds: formData.accounts?.googleAds,
+                goHighLevel: formData.accounts?.goHighLevel,
+                googleSheets: formData.accounts?.googleSheets,
                 googleSheetsConfig: formData.googleSheetsConfig,
             },
             conversion_actions: {
-                facebookAds: formData.conversionActions.facebookAds,
-                googleAds: formData.conversionActions.googleAds,
+                facebookAds: formData.conversionActions?.facebookAds,
+                googleAds: formData.conversionActions?.googleAds,
             }
         };
         
-        console.log('🔍 EditClientModal: Transformed clientData:', clientData);
-        console.log('🔍 EditClientModal: clientData.accounts.googleSheetsConfig:', clientData.accounts.googleSheetsConfig);
+        debugLogger.info('EditClientModal', 'Transformed clientData', clientData);
         
         if (client) {
             await onUpdateClient(client.id, clientData);
@@ -74,15 +67,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     };
 
     if (!isOpen) return null;
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'active': return 'bg-green-100 text-green-800';
-            case 'paused': return 'bg-yellow-100 text-yellow-800';
-            case 'inactive': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
 
     const getConnectedIntegrations = () => {
         const integrations = [];
@@ -128,13 +112,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                     
                     {client && (
                         <div className="flex items-center space-x-4 pt-2 border-t">
-                            <div className="flex items-center space-x-2">
-                                <Badge className={getStatusColor(client.status)}>
-                                    {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                                </Badge>
-                                <span className="text-sm text-gray-600">Status</span>
-                            </div>
-                            
                             {connectedIntegrations.length > 0 && (
                                 <div className="flex items-center space-x-2">
                                     <Settings className="h-4 w-4 text-gray-500" />
@@ -164,7 +141,6 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                         initialData={client ? {
                             name: client.name,
                             logo_url: client.logo_url || '',
-                            status: client.status,
                             accounts: {
                                 facebookAds: client.accounts?.facebookAds || 'none',
                                 googleAds: client.accounts?.googleAds || 'none',

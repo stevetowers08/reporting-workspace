@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS clients (
     type VARCHAR(100) NOT NULL,
     location VARCHAR(255) NOT NULL,
     logo_url TEXT,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'paused', 'inactive')),
     services JSONB NOT NULL DEFAULT '{}',
     accounts JSONB DEFAULT '{}',
     shareable_link TEXT NOT NULL,
@@ -67,7 +66,6 @@ CREATE TABLE IF NOT EXISTS metrics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients(created_at);
 CREATE INDEX IF NOT EXISTS idx_integrations_platform ON integrations(platform);
 CREATE INDEX IF NOT EXISTS idx_integrations_connected ON integrations(connected);

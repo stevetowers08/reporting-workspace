@@ -48,7 +48,6 @@ const HomePageWrapper = () => {
         id: client.id,
         name: client.name,
         logo_url: client.logo_url,
-        status: client.status as 'active' | 'paused' | 'inactive',
         accounts: {
           facebookAds: client.accounts?.facebookAds,
           googleAds: client.accounts?.googleAds,

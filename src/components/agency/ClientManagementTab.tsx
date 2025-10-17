@@ -108,7 +108,11 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' && (
+                        {/* Facebook Ads - Always show, grey if not connected */}
+                        <div 
+                          className={`flex items-center ${client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                          title={client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected'}
+                        >
                           <LogoManager 
                             platform="meta" 
                             size={18} 
@@ -116,8 +120,13 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             className="text-slate-600"
                             title="Facebook Ads"
                           />
-                        )}
-                        {client.accounts?.googleAds && client.accounts.googleAds !== 'none' && (
+                        </div>
+                        
+                        {/* Google Ads - Always show, grey if not connected */}
+                        <div 
+                          className={`flex items-center ${client.accounts?.googleAds && client.accounts.googleAds !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                          title={client.accounts?.googleAds && client.accounts.googleAds !== 'none' ? 'Google Ads - Connected' : 'Google Ads - Not Connected'}
+                        >
                           <LogoManager 
                             platform="googleAds" 
                             size={18} 
@@ -125,8 +134,13 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             className="text-slate-600"
                             title="Google Ads"
                           />
-                        )}
-                        {client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' && (
+                        </div>
+                        
+                        {/* GoHighLevel - Always show, grey if not connected */}
+                        <div 
+                          className={`flex items-center ${client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                          title={client.accounts?.goHighLevel && client.accounts.goHighLevel !== 'none' ? 'GoHighLevel - Connected' : 'GoHighLevel - Not Connected'}
+                        >
                           <LogoManager 
                             platform="goHighLevel" 
                             size={18} 
@@ -134,8 +148,13 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             className="text-slate-600"
                             title="GoHighLevel"
                           />
-                        )}
-                        {client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' && (
+                        </div>
+                        
+                        {/* Google Sheets - Always show, grey if not connected */}
+                        <div 
+                          className={`flex items-center ${client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                          title={client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
+                        >
                           <LogoManager 
                             platform="googleSheets" 
                             size={18} 
@@ -143,7 +162,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                             className="text-slate-600"
                             title="Google Sheets"
                           />
-                        )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">

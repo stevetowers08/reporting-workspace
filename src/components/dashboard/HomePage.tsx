@@ -20,7 +20,6 @@ type Client = {
   id: string;
   name: string;
   logo_url?: string;
-  status: 'active' | 'paused' | 'inactive';
   accounts: {
     facebookAds?: string;
     googleAds?: string;
@@ -58,50 +57,13 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   // Use TokenManager for proper connection status checking
-  const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
-  const [integrationStatusLoaded, setIntegrationStatusLoaded] = useState(false);
-  
-  // Load integration status using simple database check
-  React.useEffect(() => {
-    const loadIntegrationStatus = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        
-        // Simple approach: Just check if integrations exist in database
-        const { data: integrations, error } = await supabase
-          .from('integrations')
-          .select('platform')
-          .eq('connected', true);
-
-        if (error) {
-          debugLogger.error('HomePage', 'Failed to load integrations', error);
-          setIntegrationStatus({ facebookAds: false, googleAds: false, googleSheets: false });
-        } else {
-          // Set all to false first
-          const statusMap = { facebookAds: false, googleAds: false, googleSheets: false };
-          // Set to true if found in database
-          integrations?.forEach(integration => {
-            if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
-              statusMap[integration.platform] = true;
-            }
-          });
-          setIntegrationStatus(statusMap);
-        }
-        setIntegrationStatusLoaded(true);
-      } catch (_error) {
-        setIntegrationStatus({});
-        setIntegrationStatusLoaded(true);
-      }
-    };
-
-    loadIntegrationStatus();
-  }, []);
+  // Removed global integration status - now using client-specific data
 
   // Check if a client has GoHighLevel configured (client-level check)
   const isClientGHLConnected = (client: Client): boolean => {
     const hasLocationId = typeof client.accounts.goHighLevel === 'string' 
       ? client.accounts.goHighLevel && client.accounts.goHighLevel !== 'none'
-      : (client.accounts.goHighLevel as any)?.locationId && (client.accounts.goHighLevel as any)?.locationId !== 'none';
+      : (client.accounts.goHighLevel as Record<string, unknown>)?.locationId && (client.accounts.goHighLevel as Record<string, unknown>)?.locationId !== 'none';
     return Boolean(hasLocationId);
   };
 
@@ -121,7 +83,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       const basicClientData = {
         name: clientData.name,
         logo_url: '',
-        status: 'active' as const,
         accounts: {
           facebookAds: 'none',
           googleAds: 'none', 
@@ -156,7 +117,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   const handleCreateClient = async (clientData: {
     name: string;
     logo_url?: string;
-    status: 'active' | 'paused' | 'inactive';
     accounts: {
       facebookAds?: string;
       googleAds?: string;
@@ -312,8 +272,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                     <div className="flex items-center gap-1.5">
                       {/* Facebook Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.facebookAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                        title={client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected'}
                       >
                         <LogoManager 
                           platform="meta" 
@@ -325,8 +285,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${client.accounts?.googleAds && client.accounts.googleAds !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                        title={client.accounts?.googleAds && client.accounts.googleAds !== 'none' ? 'Google Ads - Connected' : 'Google Ads - Not Connected'}
                       >
                         <LogoManager 
                           platform="googleAds" 
@@ -351,8 +311,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Sheets */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleSheets ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'opacity-100' : 'opacity-40'}`}
+                        title={client.accounts?.googleSheets && client.accounts.googleSheets !== 'none' ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
                       >
                         <LogoManager 
                           platform="googleSheets" 

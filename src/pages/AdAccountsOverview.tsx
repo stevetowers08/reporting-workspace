@@ -157,7 +157,6 @@ const AdAccountsOverview = () => {
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         platforms: {
                             facebookAds: hasFacebookAds ? {
                                 accountId: client.accounts?.facebookAds || '',
@@ -210,7 +209,6 @@ const AdAccountsOverview = () => {
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         platforms: {
                             facebookAds: hasFacebookAds ? {
                                 accountId: client.accounts?.facebookAds || '',

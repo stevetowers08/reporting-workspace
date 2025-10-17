@@ -28,7 +28,6 @@ export interface Client {
   industry: string;
   logo?: string;
   logo_url?: string;
-  status: 'active' | 'paused' | 'inactive';
   monthlySpend: number;
   lastReportSent: string;
   contactEmail: string;

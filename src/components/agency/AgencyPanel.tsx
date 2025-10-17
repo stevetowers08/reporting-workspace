@@ -52,7 +52,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
 
   // Debug: Log when clients state changes
   React.useEffect(() => {
-    console.log('🔍 AgencyPanel: Clients state updated', { 
+    debugLogger.info('AgencyPanel', 'Clients state updated', { 
       count: clients.length, 
       clients: clients.map(c => ({ id: c.id, name: c.name }))
     });

@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingState } from '@/components/ui/LoadingStates';
@@ -44,28 +43,18 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
   loading = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
 
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            client.type.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = !statusFilter || client.status === statusFilter;
       const matchesType = !typeFilter || client.type.toLowerCase().includes(typeFilter.toLowerCase());
       
-      return matchesSearch && matchesStatus && matchesType;
+      return matchesSearch && matchesType;
     });
-  }, [clients, searchTerm, statusFilter, typeFilter]);
+  }, [clients, searchTerm, typeFilter]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'paused': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'inactive': return 'bg-slate-50 text-slate-600 border-slate-200';
-      default: return 'bg-slate-50 text-slate-600 border-slate-200';
-    }
-  };
 
   const getPlatformIcons = (accounts: Client['accounts']) => {
     const platforms = [];
@@ -250,9 +239,6 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                           <p className="text-sm text-slate-600 truncate">{client.type}</p>
                         </div>
                       </div>
-                      <Badge className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(client.status)}`}>
-                        {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                      </Badge>
                     </div>
                   </CardHeader>
                   

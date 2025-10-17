@@ -186,7 +186,6 @@ export interface Client {
   id: string;
   name: string;
   logo_url?: string;
-  status: 'active' | 'paused' | 'inactive';
   conversion_actions?: {
     facebookAds?: string;
     googleAds?: string;

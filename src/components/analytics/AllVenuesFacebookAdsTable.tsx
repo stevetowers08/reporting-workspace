@@ -75,7 +75,6 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         facebookAccount: {
                             accountId: client.accounts?.facebookAds || '',
                             accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,
@@ -103,7 +102,6 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         facebookAccount: {
                             accountId: client.accounts?.facebookAds || '',
                             accountName: `Facebook Ad Account (${client.accounts?.facebookAds || 'N/A'})`,

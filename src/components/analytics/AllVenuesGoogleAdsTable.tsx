@@ -74,7 +74,6 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         googleAccount: {
                             accountId: client.accounts?.googleAds || '',
                             accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,
@@ -101,7 +100,6 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         googleAccount: {
                             accountId: client.accounts?.googleAds || '',
                             accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,

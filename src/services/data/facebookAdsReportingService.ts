@@ -205,7 +205,6 @@ class FacebookAdsReportingService {
               clientId: client.id,
               venueName: client.name,
               logoUrl: client.logo_url,
-              status: client.status,
               facebookAccount: {
                 accountId: client.accounts?.facebookAds || '',
                 accountName: client.name, // Use client name as account name
@@ -239,7 +238,6 @@ class FacebookAdsReportingService {
               clientId: client.id,
               venueName: client.name,
               logoUrl: client.logo_url,
-              status: client.status,
               facebookAccount: {
                 accountId: client.accounts?.facebookAds || '',
                 accountName: client.name,

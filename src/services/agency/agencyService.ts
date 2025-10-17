@@ -16,7 +16,6 @@ export interface Client {
     goHighLevel?: string;
     googleSheets?: string;
   };
-  status: 'active' | 'paused' | 'inactive';
   shareable_link: string;
 }
 
@@ -94,7 +93,7 @@ export class AgencyService {
           break;
         }
         case 'goHighLevel': {
-          const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
+          // const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
           try {
             // ✅ FIX: Test by checking if we have valid OAuth tokens
             const integrations = await DatabaseService.getIntegrations();

@@ -214,7 +214,6 @@ interface ClientTableProps {
     id: string;
     name: string;
     logo_url?: string;
-    status: 'active' | 'paused' | 'inactive';
     accounts: {
       facebookAds?: string;
       googleAds?: string;
@@ -233,14 +232,6 @@ export const ClientTable: React.FC<ClientTableProps> = ({
   onDeleteClient,
   deleting
 }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
@@ -250,9 +241,6 @@ export const ClientTable: React.FC<ClientTableProps> = ({
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Client
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                Status
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Platforms
@@ -282,11 +270,6 @@ export const ClientTable: React.FC<ClientTableProps> = ({
                       <div className="text-sm font-semibold text-slate-900">{client.name}</div>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <Badge className={getStatusColor(client.status)}>
-                    {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                  </Badge>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">

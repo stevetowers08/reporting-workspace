@@ -1,10 +1,10 @@
 "use client";
 
+import { LoadingState } from '@/components/ui/LoadingStates';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingState } from '@/components/ui/LoadingStates';
-import { debugLogger } from '@/lib/debug';
 import { calculatePercentageChange } from '@/lib/dateUtils';
+import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
@@ -100,7 +100,6 @@ const GoogleAdsPage = () => {
                         clientId: client.id,
                         venueName: client.name,
                         logoUrl: client.logo_url,
-                        status: client.status,
                         googleAccount: {
                             accountId: client.accounts?.googleAds || '',
                             accountName: `Google Ads Account (${client.accounts?.googleAds || 'N/A'})`,

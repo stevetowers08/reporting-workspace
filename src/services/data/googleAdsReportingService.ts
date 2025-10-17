@@ -171,7 +171,6 @@ export class GoogleAdsReportingService {
               clientId: client.id,
               venueName: client.name,
               logoUrl: client.logo_url,
-              status: client.status,
               googleAccount: {
                 accountId: client.accounts?.googleAds || '',
                 accountName: client.name,
@@ -200,7 +199,6 @@ export class GoogleAdsReportingService {
               clientId: client.id,
               venueName: client.name,
               logoUrl: client.logo_url,
-              status: client.status,
               googleAccount: {
                 accountId: client.accounts?.googleAds || '',
                 accountName: client.name,
