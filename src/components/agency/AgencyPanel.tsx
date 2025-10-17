@@ -14,12 +14,14 @@ interface AgencyPanelProps {
   onBackToDashboard: () => void;
   onAddClient?: () => void;
   onEditClient?: (client: unknown) => void;
+  onRefreshClients?: () => Promise<void>;
 }
 
 export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   onBackToDashboard,
   onAddClient,
-  onEditClient
+  onEditClient,
+  onRefreshClients
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,10 +42,21 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     clients,
     loading: clientsLoading,
     deleting,
-    loadClients,
+    loadClients: internalLoadClients,
     deleteClient,
     setDeleting
   } = useAgencyClients();
+
+  // Use external refresh function if provided, otherwise use internal
+  const loadClients = onRefreshClients || internalLoadClients;
+
+  // Debug: Log when clients state changes
+  React.useEffect(() => {
+    console.log('🔍 AgencyPanel: Clients state updated', { 
+      count: clients.length, 
+      clients: clients.map(c => ({ id: c.id, name: c.name }))
+    });
+  }, [clients]);
 
   const {
     integrations,

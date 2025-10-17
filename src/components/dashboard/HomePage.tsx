@@ -1,4 +1,5 @@
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
+import AddClientModal from '@/components/modals/AddClientModal';
 import EditClientModal from '@/components/modals/EditClientModal';
 import { IntegrationOnboardingBar } from '@/components/ui/IntegrationOnboardingBar';
 import { LoadingState } from '@/components/ui/LoadingStates';
@@ -41,6 +42,7 @@ interface HomePageProps {
   clients: Array<Client>;
   onClientSelect: (clientId: string) => void;
   onGoToAgency: () => void;
+  onRefreshClients?: () => Promise<void>;
   loading?: boolean;
 }
 
@@ -48,8 +50,10 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   clients,
   onClientSelect,
   onGoToAgency,
+  onRefreshClients,
   loading = false
 }) => {
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
@@ -107,9 +111,46 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   };
 
   const handleAddClient = () => {
-    // Open the client form modal for adding a new client
-    setEditingClient(null);
-    setShowEditClientModal(true);
+    // Open the simplified add client modal
+    setShowAddClientModal(true);
+  };
+
+  const handleAddClientSubmit = async (clientData: { name: string }) => {
+    try {
+      // Create basic client with default values
+      const basicClientData = {
+        name: clientData.name,
+        logo_url: '',
+        status: 'active' as const,
+        accounts: {
+          facebookAds: 'none',
+          googleAds: 'none', 
+          goHighLevel: 'none',
+          googleSheets: 'none'
+        },
+        conversion_actions: {
+          facebookAds: '',
+          googleAds: ''
+        }
+      };
+      
+      await DatabaseService.createClient(basicClientData);
+      setShowAddClientModal(false);
+      
+      debugLogger.info('HomePage', 'Client created successfully', { name: clientData.name });
+      
+      // Refresh client data instead of hard reload
+      if (onRefreshClients) {
+        await onRefreshClients();
+        debugLogger.info('HomePage', 'Client data refreshed after creation');
+      } else {
+        // Fallback to hard reload if no refresh function provided
+        window.location.reload();
+      }
+    } catch (error) {
+      debugLogger.error('HomePage', 'Failed to create client', error);
+      throw error;
+    }
   };
 
   const handleCreateClient = async (clientData: {
@@ -145,12 +186,18 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
     try {
       await DatabaseService.updateClient(clientId, updates);
-      setShowEditClientModal(false);
-      setEditingClient(null);
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (_error) {
-      // Handle error silently or show user-friendly message
+      
+      // Refresh client data instead of hard reload
+      if (onRefreshClients) {
+        await onRefreshClients();
+        debugLogger.info('HomePage', 'Client data refreshed after update');
+      } else {
+        // Fallback to hard reload if no refresh function provided
+        window.location.reload();
+      }
+    } catch (error) {
+      debugLogger.error('HomePage', 'Failed to update client', error);
+      throw error;
     }
   };
 
@@ -335,6 +382,15 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
           onUpdateClient={handleUpdateClient}
           onCreateClient={handleCreateClient}
           client={editingClient}
+        />
+      )}
+
+      {/* Add Client Modal */}
+      {showAddClientModal && (
+        <AddClientModal
+          isOpen={showAddClientModal}
+          onClose={() => setShowAddClientModal(false)}
+          onAddClient={handleAddClientSubmit}
         />
       )}
     </div>

@@ -1,66 +1,98 @@
-import { ClientForm } from "@/components/agency/ClientForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
+import { useState } from "react";
+import React from "react";
 
 interface AddClientModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAddClient: (client: {
         name: string;
-        logo_url?: string;
-        accounts: {
-            facebookAds?: string;
-            googleAds?: string;
-            goHighLevel?: string;
-            googleSheets?: string;
-        };
-        conversionActions?: {
-            facebookAds?: string;
-            googleAds?: string;
-        };
     }) => Promise<void>;
 }
 
 const AddClientModal = ({ isOpen, onClose, onAddClient }: AddClientModalProps) => {
-    const handleSubmit = async (formData: any) => {
-        // Transform form data to match expected format
-        const clientData = {
-            name: formData.name,
-            logo_url: formData.logo_url,
-            accounts: {
-                facebookAds: formData.accounts.facebookAds,
-                googleAds: formData.accounts.googleAds,
-                goHighLevel: formData.accounts.goHighLevel,
-                googleSheets: formData.accounts.googleSheets,
-            },
-            conversionActions: {
-                facebookAds: formData.conversionActions.facebookAds,
-                googleAds: formData.conversionActions.googleAds,
-            }
-        };
+    const [clientName, setClientName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         
-        await onAddClient(clientData);
+        if (!clientName.trim()) {
+            setError('Client name is required');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
+            await onAddClient({ name: clientName.trim() });
+            setClientName('');
+            onClose();
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Failed to create client');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    if (!isOpen) {return null;}
+    const handleClose = () => {
+        setClientName('');
+        setError(null);
+        onClose();
+    };
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-3xl mx-4 max-h-[75vh] overflow-y-auto">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-lg">Add New Client</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={onClose}>
+            <Card className="w-full max-w-md mx-4">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle>Create New Client</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={handleClose}>
                         <X className="h-4 w-4" />
                     </Button>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <ClientForm
-                        onSubmit={handleSubmit}
-                        onCancel={onClose}
-                        submitLabel="Save Client"
-                        cancelLabel="Cancel"
-                    />
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <Label htmlFor="clientName">Client Name</Label>
+                            <Input
+                                id="clientName"
+                                type="text"
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                                placeholder="Enter client name"
+                                className="mt-1"
+                                disabled={isSubmitting}
+                            />
+                            {error && (
+                                <p className="text-sm text-red-500 mt-1">{error}</p>
+                            )}
+                        </div>
+                        
+                        <div className="flex justify-end space-x-2 pt-4">
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={handleClose}
+                                disabled={isSubmitting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                disabled={isSubmitting || !clientName.trim()}
+                            >
+                                {isSubmitting ? 'Creating...' : 'Create Client'}
+                            </Button>
+                        </div>
+                    </form>
                 </CardContent>
             </Card>
         </div>

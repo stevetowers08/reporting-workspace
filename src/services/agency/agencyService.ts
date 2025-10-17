@@ -41,9 +41,9 @@ export class AgencyService {
    */
   static async loadClients(): Promise<Client[]> {
     try {
-      debugLogger.info('AgencyService', 'Loading clients');
+      debugLogger.info('AgencyService', 'Loading clients from database');
       const clientsData = await DatabaseService.getAllClients();
-      debugLogger.info('AgencyService', 'Loaded clients', { count: clientsData.length });
+      debugLogger.info('AgencyService', 'Loaded clients from database', { count: clientsData.length, clients: clientsData.map(c => ({ id: c.id, name: c.name })) });
       return clientsData;
     } catch (error) {
       debugLogger.error('AgencyService', 'Failed to load clients', error);

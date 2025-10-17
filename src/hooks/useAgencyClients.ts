@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { AgencyService, Client } from '@/services/agency/agencyService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 export interface UseAgencyClientsReturn {
@@ -14,52 +15,56 @@ export interface UseAgencyClientsReturn {
 }
 
 export const useAgencyClients = (): UseAgencyClientsReturn => {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
+  const queryClient = useQueryClient();
 
-  const loadClients = useCallback(async () => {
-    try {
-      setLoading(true);
-      const clientsData = await AgencyService.loadClients();
-      setClients(clientsData);
-    } catch (error) {
-      debugLogger.error('useAgencyClients', 'Failed to load clients', error);
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Use React Query for clients data
+  const {
+    data: clients = [],
+    isLoading: loading,
+    refetch: loadClients
+  } = useQuery({
+    queryKey: ['available-clients'],
+    queryFn: async () => {
+      debugLogger.info('useAgencyClients', 'Fetching clients via React Query');
+      return await AgencyService.loadClients();
+    },
+    staleTime: 30 * 1000, // 30 seconds - shorter for more frequent updates
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   const createClient = useCallback(async (clientData: Parameters<typeof AgencyService.createClient>[0]) => {
     try {
       await AgencyService.createClient(clientData);
-      await loadClients(); // Refresh the list
+      // Invalidate and refetch clients
+      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
     } catch (error) {
       debugLogger.error('useAgencyClients', 'Failed to create client', error);
       throw error;
     }
-  }, [loadClients]);
+  }, [queryClient]);
 
   const updateClient = useCallback(async (clientId: string, updates: Partial<Client>) => {
     try {
       await AgencyService.updateClient(clientId, updates);
-      await loadClients(); // Refresh the list
+      // Invalidate and refetch clients
+      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
     } catch (error) {
       debugLogger.error('useAgencyClients', 'Failed to update client', error);
       throw error;
     }
-  }, [loadClients]);
+  }, [queryClient]);
 
   const deleteClient = useCallback(async (clientId: string) => {
     try {
       await AgencyService.deleteClient(clientId);
-      await loadClients(); // Refresh the list
+      // Invalidate and refetch clients
+      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
     } catch (error) {
       debugLogger.error('useAgencyClients', 'Failed to delete client', error);
       throw error;
     }
-  }, [loadClients]);
+  }, [queryClient]);
 
   const setDeletingState = useCallback((clientId: string, isDeleting: boolean) => {
     setDeleting(prev => ({ ...prev, [clientId]: isDeleting }));
@@ -69,7 +74,7 @@ export const useAgencyClients = (): UseAgencyClientsReturn => {
     clients,
     loading,
     deleting,
-    loadClients,
+    loadClients: loadClients as () => Promise<void>,
     createClient,
     updateClient,
     deleteClient,

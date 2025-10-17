@@ -99,6 +99,7 @@ const HomePageWrapper = () => {
       onClientSelect={handleClientSelect}
       onAddClient={handleAddClient}
       onGoToAgency={handleGoToAgency}
+      onRefreshClients={loadData}
       loading={loading}
     />
   );

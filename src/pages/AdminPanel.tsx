@@ -103,24 +103,25 @@ const AgencyPanel = () => {
 
   const handleAddClientSubmit = async (clientData: {
     name: string;
-    logo_url?: string; 
-    accounts: { 
-      facebookAds?: string; 
-      googleAds?: string; 
-      goHighLevel?: string; 
-      googleSheets?: string; 
-    }; 
-    conversionActions?: { 
-      facebookAds?: string; 
-      googleAds?: string; 
-    }; 
-    googleSheetsConfig?: {
-      spreadsheetId: string;
-      sheetName: string;
-    };
   }) => {
     try {
-      await DatabaseService.createClient(clientData);
+      // Create basic client with default values
+      const basicClientData = {
+        name: clientData.name,
+        logo_url: '',
+        accounts: {
+          facebookAds: 'none',
+          googleAds: 'none', 
+          goHighLevel: 'none',
+          googleSheets: 'none'
+        },
+        conversionActions: {
+          facebookAds: '',
+          googleAds: ''
+        }
+      };
+      
+      await DatabaseService.createClient(basicClientData);
       setShowAddClientModal(false);
       
       // Invalidate React Query cache to refresh client data
@@ -158,14 +159,18 @@ const AgencyPanel = () => {
       await queryClient.invalidateQueries({ queryKey: ['dashboard-data', clientId] });
       
       // Also refresh the local client list
+      debugLogger.info('AgencyPanel', 'Calling loadClients to refresh data');
       await loadClients();
       
-      setShowEditClientModal(false);
-      setEditingClient(null);
-      
       debugLogger.info('AgencyPanel', 'Cache invalidated and client list refreshed');
+      
+      // Force a small delay to ensure state updates
+      setTimeout(() => {
+        debugLogger.info('AgencyPanel', 'State refresh completed');
+      }, 100);
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to update client', error);
+      throw error; // Re-throw so EditClientModal can handle the error
     }
   };
 
@@ -190,6 +195,7 @@ const AgencyPanel = () => {
         onBackToDashboard={handleBackToDashboard}
         onAddClient={handleAddClient}
         onEditClient={handleEditClient}
+        onRefreshClients={loadClients}
       />
 
       {/* Modals */}
