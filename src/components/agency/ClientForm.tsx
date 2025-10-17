@@ -1299,6 +1299,44 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                     setGhlAccountsLoaded(false);
                     loadGHLAccounts();
                     
+                    // Check for the most recent GoHighLevel integration (just completed OAuth)
+                    try {
+                      const { data: recentIntegration, error } = await supabase
+                        .from('integrations')
+                        .select('*')
+                        .eq('platform', 'goHighLevel')
+                        .eq('connected', true)
+                        .order('updated_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                      
+                      if (!error && recentIntegration && recentIntegration.config?.tokens) {
+                        const { locationId, locationName } = recentIntegration.config.tokens;
+                        
+                        if (locationId) {
+                          // Update form data with OAuth location information
+                          setFormData(prev => ({
+                            ...prev,
+                            accounts: {
+                              ...prev.accounts,
+                              goHighLevel: {
+                                locationId: locationId,
+                                locationName: locationName || 'GoHighLevel Location'
+                              }
+                            }
+                          }));
+                          
+                          debugLogger.info('ClientForm', 'OAuth data linked to form', {
+                            locationId,
+                            locationName,
+                            integrationId: recentIntegration.account_id
+                          });
+                        }
+                      }
+                    } catch (error) {
+                      debugLogger.error('ClientForm', 'Failed to link OAuth data', error);
+                    }
+                    
                     // If editing an existing client, refresh the client data from database
                     if (isEdit && clientId) {
                       try {

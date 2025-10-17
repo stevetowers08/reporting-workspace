@@ -186,40 +186,47 @@ export default async function handler(req, res) {
         const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
         const clientId = decodedState.integrationPlatform || decodedState.clientId;
         
-        if (clientId && !clientId.startsWith('new_')) {
-          console.log('🔍 Updating client GoHighLevel account with locationId:', tokenData.locationId, 'for client:', clientId);
-          
-          // First get the current client data to merge accounts properly
-          const { data: currentClient, error: fetchError } = await supabase
-            .from('clients')
-            .select('accounts')
-            .eq('id', clientId)
-            .single();
-
-          if (fetchError) {
-            console.error('❌ Error fetching current client data:', fetchError);
+        if (clientId) {
+          if (clientId.startsWith('new_')) {
+            console.log('🔍 New client OAuth - storing OAuth data for later linking');
+            // For new clients, we'll store the OAuth data in the integration record
+            // The frontend will handle linking this data when the client is created
+            console.log('✅ OAuth data stored for new client - will be linked during client creation');
           } else {
-            // Merge the GoHighLevel account data with existing accounts
-            const updatedAccounts = {
-              ...currentClient.accounts,
-              goHighLevel: {
-                locationId: tokenData.locationId,
-                locationName: locationName
-              }
-            };
-
-            const { error: clientUpdateError } = await supabase
+            console.log('🔍 Updating existing client GoHighLevel account with locationId:', tokenData.locationId, 'for client:', clientId);
+            
+            // First get the current client data to merge accounts properly
+            const { data: currentClient, error: fetchError } = await supabase
               .from('clients')
-              .update({
-                accounts: updatedAccounts
-              })
-              .eq('id', clientId);
+              .select('accounts')
+              .eq('id', clientId)
+              .single();
 
-            if (clientUpdateError) {
-              console.error('❌ Error updating client GoHighLevel account:', clientUpdateError);
-              // Don't throw error here - token is saved, just client update failed
+            if (fetchError) {
+              console.error('❌ Error fetching current client data:', fetchError);
             } else {
-              console.log('✅ Client GoHighLevel account updated successfully');
+              // Merge the GoHighLevel account data with existing accounts
+              const updatedAccounts = {
+                ...currentClient.accounts,
+                goHighLevel: {
+                  locationId: tokenData.locationId,
+                  locationName: locationName
+                }
+              };
+
+              const { error: clientUpdateError } = await supabase
+                .from('clients')
+                .update({
+                  accounts: updatedAccounts
+                })
+                .eq('id', clientId);
+
+              if (clientUpdateError) {
+                console.error('❌ Error updating client GoHighLevel account:', clientUpdateError);
+                // Don't throw error here - token is saved, just client update failed
+              } else {
+                console.log('✅ Client GoHighLevel account updated successfully');
+              }
             }
           }
         }

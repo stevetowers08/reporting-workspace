@@ -1,12 +1,11 @@
 "use client";
 
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
-import { LoadingState } from '@/components/ui/LoadingStates';
+import CompactTable from "@/components/ui/CompactTable";
+import { LogoManager } from "@/components/ui/LogoManager";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import CompactTable, { TableColumn } from "@/components/ui/CompactTable";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { debugLogger } from '@/lib/debug';
-import { calculatePercentageChange } from '@/lib/dateUtils';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
@@ -85,6 +84,7 @@ const AdAccountsOverview = () => {
     const [adAccounts, setAdAccounts] = useState<AdAccountData[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState("30d");
+    const [activeTab, setActiveTab] = useState("all");
     const [clients, setClients] = useState<Array<{id: string, name: string, logo_url?: string}>>([]);
     const navigate = useNavigate();
 
@@ -276,7 +276,7 @@ const AdAccountsOverview = () => {
         };
     };
 
-    const formatCurrency = (amount: number) => {
+    const _formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
@@ -285,12 +285,24 @@ const AdAccountsOverview = () => {
         }).format(amount);
     };
 
-    const formatNumber = (num: number) => {
+    const _formatNumber = (num: number) => {
         return new Intl.NumberFormat('en-US').format(num);
     };
 
-    const formatPercentage = (num: number) => {
+    const _formatPercentage = (num: number) => {
         return `${(num * 100).toFixed(1)}%`;
+    };
+
+    const getFilteredAccounts = () => {
+        switch (activeTab) {
+            case 'facebook':
+                return adAccounts.filter(account => account.platforms.facebookAds?.connected);
+            case 'google':
+                return adAccounts.filter(account => account.platforms.googleAds?.connected);
+            case 'all':
+            default:
+                return adAccounts;
+        }
     };
 
     return (
@@ -345,29 +357,36 @@ const AdAccountsOverview = () => {
 
             <div className="px-6 pb-6">
                 <div className="max-w-7xl mx-auto">
-                    {/* Platform Navigation */}
-                    <div className="flex gap-2 mb-6">
-                        <Link to="/facebook-ads">
-                            <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
-                                    <span className="text-white font-bold text-xs">f</span>
-                                </div>
-                                Facebook Ads
-                            </Button>
-                        </Link>
-                        <Link to="/google-ads">
-                            <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
-                                    <span className="text-white font-bold text-xs">G</span>
-                                </div>
-                                Google Ads
-                            </Button>
-                        </Link>
-                    </div>
+                    {/* Platform Tabs */}
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto mb-6">
+                        <TabsList className="bg-slate-50 border border-slate-200 rounded-lg p-1 h-12 inline-flex gap-1">
+                            <TabsTrigger 
+                                value="all" 
+                                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-2"
+                            >
+                                <BarChart3 className="h-4 w-4" />
+                                <span>All Accounts</span>
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="facebook" 
+                                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-2"
+                            >
+                                <LogoManager platform="meta" size={20} context="header" />
+                                <span>Facebook Ads</span>
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="google" 
+                                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-2"
+                            >
+                                <LogoManager platform="googleAds" size={20} context="header" />
+                                <span>Google Ads</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
 
                     {/* Ad Accounts Table */}
                     <CompactTable
-                        data={adAccounts.map(account => ({
+                        data={getFilteredAccounts().map(account => ({
                             ...account,
                             venue: (
                                 <div className="flex items-center gap-3">
@@ -437,7 +456,13 @@ const AdAccountsOverview = () => {
                         ]}
                         density="compact"
                         loading={loading}
-                        emptyMessage="No clients have ad accounts connected yet."
+                        emptyMessage={
+                            activeTab === 'facebook' 
+                                ? "No clients have Facebook Ads accounts connected yet."
+                                : activeTab === 'google'
+                                ? "No clients have Google Ads accounts connected yet."
+                                : "No clients have ad accounts connected yet."
+                        }
                         emptyIcon={<BarChart3 className="h-12 w-12 text-gray-400 mx-auto" />}
                         maxRows={100}
                     />
