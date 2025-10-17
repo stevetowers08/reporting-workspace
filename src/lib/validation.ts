@@ -44,14 +44,22 @@ export const ClientCreateSchema = z.object({
   
   accounts: z.object({
     facebookAds: z.string()
-      .regex(/^(act_)?\d+$/, 'Facebook Ads account ID must be numeric or start with act_')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none'))
+      .refine((val) => {
+        if (!val || val === '' || val === 'none') {return true;}
+        return /^(act_)?\d+$/.test(val);
+      }, 'Facebook Ads account ID must be numeric or start with act_'),
     
     googleAds: z.string()
-      .regex(/^(customers\/)?\d{10}$|^\d{3}-\d{3}-\d{4}$/, 'Google Ads customer ID must be 10 digits or in format XXX-XXX-XXXX')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none'))
+      .refine((val) => {
+        if (!val || val === '' || val === 'none') {return true;}
+        return /^(customers\/)?\d{10}$|^\d{3}-\d{3}-\d{4}$/.test(val);
+      }, 'Google Ads customer ID must be 10 digits or in format XXX-XXX-XXXX'),
     
     goHighLevel: z.string()
       .optional()
@@ -60,7 +68,8 @@ export const ClientCreateSchema = z.object({
     
     googleSheets: z.string()
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none')),
     
     googleSheetsConfig: z.object({
       spreadsheetId: z.string().min(1, 'Spreadsheet ID is required'),
