@@ -140,7 +140,9 @@ const AgencyPanel = () => {
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to add client', error);
       // Show error message to user
-      console.error(`Failed to create client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      debugLogger.error('AGENCY', `Failed to create client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Re-throw the error so ClientForm knows it failed
+      throw error;
     }
   };
 

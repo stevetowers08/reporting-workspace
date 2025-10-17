@@ -54,9 +54,9 @@ export const ClientCreateSchema = z.object({
       .or(z.literal('')),
     
     goHighLevel: z.string()
-      .min(1, 'GoHighLevel location ID is required if CRM service is enabled')
       .optional()
-      .or(z.literal('')),
+      .or(z.literal(''))
+      .or(z.literal('none')),
     
     googleSheets: z.string()
       .optional()
@@ -218,7 +218,7 @@ export const ApiKeyValidationSchema = z.object({
   apiKey: z.string()
     .min(10, 'API key must be at least 10 characters')
     .max(500, 'API key must be less than 500 characters')
-    .regex(/^[a-zA-Z0-9\-_\.]+$/, 'API key contains invalid characters'),
+    .regex(/^[a-zA-Z0-9\-_.]+$/, 'API key contains invalid characters'),
   
   keyType: z.enum(['bearer', 'basic', 'api-key']).default('bearer'),
   

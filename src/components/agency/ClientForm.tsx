@@ -448,7 +448,8 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         googleSheetsConfig: submitData.googleSheetsConfig || undefined
       });
 
-      // Only show success message if onSubmit completed successfully
+      // Only show success message if onSubmit completed successfully (no exception thrown)
+      debugLogger.info('ClientForm', 'onSubmit completed successfully');
       setSubmitSuccess(`${isEdit ? 'Client updated' : 'Client created'} successfully!`);
       
       // Clear success message after 2 seconds and close modal
@@ -1332,6 +1333,34 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                             locationName,
                             integrationId: recentIntegration.account_id
                           });
+                          
+                          // If this is a new client (not editing), automatically create the client
+                          if (!isEdit && (!clientId || clientId === 'new_client')) {
+                            debugLogger.info('ClientForm', 'Auto-creating client after OAuth completion');
+                            
+                            // Check if we have a client name
+                            if (formData.name && formData.name.trim()) {
+                              try {
+                                // Prepare the client data for submission
+                                const clientData = {
+                                  ...formData,
+                                  accounts: {
+                                    ...formData.accounts,
+                                    goHighLevel: locationId, // Use the locationId from the integration
+                                    googleSheets: googleSheetsConfig?.spreadsheetId || 'none'
+                                  },
+                                  googleSheetsConfig: googleSheetsConfig
+                                };
+                                
+                                debugLogger.info('ClientForm', 'Auto-submitting client creation', clientData);
+                                await onSubmit(clientData);
+                              } catch (error) {
+                                debugLogger.error('ClientForm', 'Failed to auto-create client', error);
+                              }
+                            } else {
+                              debugLogger.info('ClientForm', 'Client name required - user must complete form manually');
+                            }
+                          }
                         }
                       }
                     } catch (error) {
