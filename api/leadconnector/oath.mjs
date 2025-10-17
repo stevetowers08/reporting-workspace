@@ -235,7 +235,7 @@ export default async function handler(req, res) {
     const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app';
     
     // Always redirect to the frontend callback page with success parameters
-    const callbackUrl = `${baseUrl}/leadconnector/oath?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
+    const callbackUrl = `${baseUrl}/oauth/callback?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
     
     console.log('🔍 Redirecting to frontend callback:', callbackUrl);
     res.redirect(302, callbackUrl);
