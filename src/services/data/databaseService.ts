@@ -291,7 +291,7 @@ export class DatabaseService {
           googleAds: !!clientData.accounts.googleAds,
           crm: !!clientData.accounts.goHighLevel && (
             typeof clientData.accounts.goHighLevel === 'string' 
-              ? clientData.accounts.goHighLevel !== 'none'
+              ? clientData.accounts.goHighLevel !== 'none' && clientData.accounts.goHighLevel !== ''
               : !!clientData.accounts.goHighLevel.locationId
           ),
           revenue: !!clientData.accounts.googleSheets,
