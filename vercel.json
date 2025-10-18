@@ -2,9 +2,6 @@
   "functions": {
     "api/leadconnector/oath.mjs": {
       "maxDuration": 30
-    },
-    "pages/api/generate-pdf-playwright.js": {
-      "maxDuration": 60
     }
   },
   "rewrites": [
