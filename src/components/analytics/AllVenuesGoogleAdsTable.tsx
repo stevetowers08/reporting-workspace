@@ -9,7 +9,7 @@ import {
     Globe,
     TrendingUp
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 
 interface GoogleAdAccountData {
@@ -31,6 +31,16 @@ interface GoogleAdAccountData {
         ctr: number;
         cpc: number;
         conversionRate: number;
+        previousPeriod?: {
+            impressions: number;
+            clicks: number;
+            cost: number;
+            leads: number;
+            conversions: number;
+            ctr: number;
+            cpc: number;
+            conversionRate: number;
+        };
     };
     shareableLink: string;
 }
@@ -45,9 +55,9 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
 
     useEffect(() => {
         loadGoogleAdsData();
-    }, [selectedPeriod]);
+    }, [selectedPeriod, loadGoogleAdsData]);
 
-    const loadGoogleAdsData = async () => {
+    const loadGoogleAdsData = useCallback(async () => {
         try {
             setLoading(true);
             const clients = await DatabaseService.getAllClients();
@@ -75,7 +85,9 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                         client.id,
                         dateRange,
                         normalizedAccounts,
-                        client.conversion_actions
+                        client.conversion_actions,
+                        undefined, // clientIntegrationEnabled
+                        true // includePreviousPeriod
                     );
 
                     const accountData: GoogleAdAccountData = {
@@ -137,7 +149,7 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedPeriod]);
 
     const getDateRange = (period: string) => {
         const end = new Date();
@@ -187,6 +199,21 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
 
     const formatPercentage = (num: number) => {
         return `${(num * 100).toFixed(1)}%`;
+    };
+
+    const calculatePercentageChange = (current: number, previous: number): number | null => {
+        if (previous === 0) {
+            return null; // Return null when previous is 0 to show dash
+        }
+        return ((current - previous) / previous) * 100;
+    };
+
+    const formatPercentageChange = (percentage: number | null): string => {
+        if (percentage === null) {
+            return '-';
+        }
+        const rounded = Math.round(percentage * 10) / 10; // Round to 1 decimal place
+        return `${rounded > 0 ? '+' : ''}${rounded}%`;
     };
 
     // Calculate totals
@@ -283,12 +310,19 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-3 px-4 font-semibold text-gray-900">Venue</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">Impressions</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">Clicks</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">CTR</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">Cost</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">CPC</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">Conversions</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-right py-3 px-4 font-semibold text-gray-900">Conv. Rate</th>
+                                        <th className="text-right py-3 px-4 font-semibold text-gray-900">vs Prev</th>
                                         <th className="text-center py-3 px-4 font-semibold text-gray-900">Actions</th>
                                     </tr>
                                 </thead>
@@ -325,10 +359,20 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                                                     {formatNumber(account.metrics.impressions)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.impressions, account.metrics.previousPeriod?.impressions || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-4 text-right">
                                                 <div className="font-medium text-gray-900 text-sm">
                                                     {formatNumber(account.metrics.clicks)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.clicks, account.metrics.previousPeriod?.clicks || 0))}
                                                 </div>
                                             </td>
 
@@ -337,10 +381,20 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                                                     {formatPercentage(account.metrics.ctr)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.ctr, account.metrics.previousPeriod?.ctr || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-4 text-right">
                                                 <div className="font-medium text-gray-900 text-sm">
                                                     {formatCurrency(account.metrics.cost)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.cost, account.metrics.previousPeriod?.cost || 0))}
                                                 </div>
                                             </td>
 
@@ -349,16 +403,31 @@ const AllVenuesGoogleAdsTable = ({ selectedPeriod }: AllVenuesGoogleAdsTableProp
                                                     {formatCurrency(account.metrics.cpc)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.cpc, account.metrics.previousPeriod?.cpc || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-4 text-right">
                                                 <div className="font-medium text-green-600 text-sm">
                                                     {formatNumber(account.metrics.conversions)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.conversions, account.metrics.previousPeriod?.conversions || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-4 text-right">
                                                 <div className="font-medium text-gray-900 text-sm">
                                                     {formatPercentage(account.metrics.conversionRate)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.conversionRate, account.metrics.previousPeriod?.conversionRate || 0))}
                                                 </div>
                                             </td>
 

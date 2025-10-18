@@ -1,4 +1,5 @@
 import { API_BASE_URLS, API_VERSIONS } from '@/constants/apiVersions';
+import { getPreviousDateRange } from '@/lib/dateUtils';
 import { debugLogger, debugService } from '@/lib/debug';
 
 export interface FacebookAdsMetrics {
@@ -347,7 +348,7 @@ export class FacebookAdsService {
       // Try to access business management endpoint to check if permission is available
       const headers = await this.buildApiHeaders();
       const businessResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id&access_token=${token}`,
+        `${this.BASE_URL}/me/businesses?fields=id&access_token=${userToken}`,
         { headers }
       );
       const hasBusinessManagement = businessResponse.ok;
@@ -520,7 +521,7 @@ export class FacebookAdsService {
         try {
           // Get system users for this business
           const systemUsersResponse = await FacebookAdsService.rateLimitedFetch(
-            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${token}`
+            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${userToken}`
           );
 
           if (!systemUsersResponse.ok) {
@@ -537,7 +538,7 @@ export class FacebookAdsService {
           for (const systemUser of systemUsers) {
             try {
               const systemUserAccountsResponse = await FacebookAdsService.rateLimitedFetch(
-                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
+                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${userToken}`
               );
 
               if (systemUserAccountsResponse.ok) {
@@ -579,7 +580,7 @@ export class FacebookAdsService {
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
         // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${userToken}`)
           .then(response => response.ok ? response.json() : { data: [] })
           .then(data => {
             debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
@@ -591,7 +592,7 @@ export class FacebookAdsService {
           }),
 
         // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${token}`)
+        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`)
           .then(response => {
             if (!response.ok) {
               if (response.status === 403) {
@@ -615,14 +616,14 @@ export class FacebookAdsService {
                 
                 // Fetch owned ad accounts with pagination support
                 const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...ownedAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
                 
                 // Fetch client ad accounts (accounts managed by this business) with pagination support
                 const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${token}`
+                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&limit=200&access_token=${userToken}`
                 );
                 allBusinessAccounts.push(...clientAccounts);
                 debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
@@ -884,7 +885,7 @@ export class FacebookAdsService {
 
       // 3. Search in system user accounts
       try {
-        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(userToken);
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
         
         for (const account of sysUserAccounts) {
           const accountNameLower = account.name?.toLowerCase() || '';
@@ -997,7 +998,7 @@ export class FacebookAdsService {
 
       // 3. Get system user accounts
       try {
-        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(userToken);
+        const sysUserAccounts = await FacebookAdsService.fetchSystemUserAccounts(token);
         systemUserAccounts.push(...sysUserAccounts);
         allAccounts.push(...systemUserAccounts);
         
@@ -1188,7 +1189,6 @@ export class FacebookAdsService {
       for (const adSet of data.data || []) {
         if (adSet.targeting && adSet.targeting.publisher_platforms) {
           const platforms = adSet.targeting.publisher_platforms;
-          const placements = adSet.targeting.publisher_platforms || [];
           
           // Extract placement info from targeting
           const placementInfo = {
@@ -1856,22 +1856,17 @@ export class FacebookAdsService {
 
   static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
-      // Clear cache if includePreviousPeriod is true to ensure fresh data
-      if (includePreviousPeriod) {
-        this.clearMetricsCache();
-      }
-      
       // Create cache key for this request
       const cacheKey = `account-metrics-${adAccountId}-${dateRange?.start}-${dateRange?.end}-${conversionAction}-${includePreviousPeriod}`;
       
-      // Check cache first (but skip cache if includePreviousPeriod is true)
-      const cachedData = this.getCachedData(cacheKey);
-      if (cachedData && !includePreviousPeriod) {
-        debugLogger.debug('FacebookAdsService', 'Using cached account metrics', { cacheKey });
-        return cachedData;
-      }
-      
-      if (cachedData && includePreviousPeriod) {
+      // Skip cache entirely if includePreviousPeriod is true to ensure fresh data
+      if (!includePreviousPeriod) {
+        const cachedData = this.getCachedData(cacheKey);
+        if (cachedData) {
+          debugLogger.debug('FacebookAdsService', 'Using cached account metrics', { cacheKey });
+          return cachedData;
+        }
+      } else {
         debugLogger.debug('FacebookAdsService', 'Skipping cache for previous period data', { cacheKey });
       }
 
@@ -2001,26 +1996,14 @@ export class FacebookAdsService {
 
   private static async getPreviousPeriodMetrics(accountId: string, currentDateRange: { start: string; end: string }, conversionAction?: string): Promise<FacebookAdsMetrics['previousPeriod']> {
     try {
-      // Calculate previous period date range
-      const currentStart = new Date(currentDateRange.start);
-      const currentEnd = new Date(currentDateRange.end);
-      const periodLength = currentEnd.getTime() - currentStart.getTime();
-      
-      const previousEnd = new Date(currentStart.getTime() - 1); // Day before current period starts
-      const previousStart = new Date(previousEnd.getTime() - periodLength);
-      
-      const previousDateRange = {
-        start: previousStart.toISOString().split('T')[0],
-        end: previousEnd.toISOString().split('T')[0]
-      };
+      // Use the existing date utility to calculate previous period
+      const previousDateRange = getPreviousDateRange('lastMonth', currentDateRange);
       
       debugLogger.debug('FacebookAdsService', 'Previous period date range calculated:', {
         currentStart: currentDateRange.start,
         currentEnd: currentDateRange.end,
-        periodLengthDays: Math.round(periodLength / (1000 * 60 * 60 * 24)),
         previousStart: previousDateRange.start,
-        previousEnd: previousDateRange.end,
-        previousPeriodLengthDays: Math.round((new Date(previousDateRange.end).getTime() - new Date(previousDateRange.start).getTime()) / (1000 * 60 * 60 * 24))
+        previousEnd: previousDateRange.end
       });
       
       debugLogger.debug('FacebookAdsService', 'Fetching previous period data', {
@@ -2075,8 +2058,8 @@ export class FacebookAdsService {
         spend: previousMetrics.spend,
         leads: previousMetrics.leads,
         conversions: previousMetrics.conversions,
-        ctr: parseFloat(previousMetrics.ctr || '0'), // Facebook already returns CTR as percentage
-        cpc: parseFloat(previousMetrics.cpc || '0'), // CPC is already in currency format
+        ctr: parseFloat(String(previousMetrics.ctr || '0')), // Facebook already returns CTR as percentage
+        cpc: parseFloat(String(previousMetrics.cpc || '0')), // CPC is already in currency format
         cpm: previousMetrics.cpm,
         reach: previousMetrics.reach,
         frequency: previousMetrics.frequency

@@ -2019,6 +2019,523 @@ class CSVExportService {
 
 ---
 
+## Comparison Data Implementation & Debugging
+
+### Overview
+The comparison data functionality provides period-over-period analysis for Facebook Ads and Google Ads metrics. This section documents the implementation, common issues, and debugging strategies learned from extensive testing and debugging.
+
+### Architecture Overview
+
+#### Core Components
+```typescript
+// Date utility functions for comparison calculations
+export function calculatePercentageChange(current: number, previous: number): number | null {
+  if (previous === 0) {
+    return null; // Return null when previous is 0 to show dash
+  }
+  return ((current - previous) / previous) * 100;
+}
+
+export function formatPercentageChange(percentage: number | null): {
+  value: string;
+  isPositive: boolean;
+  isNegative: boolean;
+} | null {
+  if (percentage === null) {
+    return null;
+  }
+  
+  const rounded = Math.round(percentage * 10) / 10; // Round to 1 decimal place
+  const isPositive = rounded > 0;
+  const isNegative = rounded < 0;
+  
+  return {
+    value: `${isPositive ? '+' : ''}${rounded}%`,
+    isPositive,
+    isNegative
+  };
+}
+
+export function getPreviousDateRange(period: string, currentDateRange?: DateRange): DateRange {
+  // If currentDateRange is provided, use it as the base for calculation
+  // Otherwise, use today's date as the base
+  const baseDate = currentDateRange ? new Date(currentDateRange.end) : new Date();
+  const endDate = new Date(baseDate);
+  const startDate = new Date(baseDate);
+  
+  switch (period) {
+    case 'lastMonth': {
+      // Previous month: e.g., if current is Sep 1-30, show Aug 1-31
+      const previousMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+      startDate.setTime(previousMonth.getTime());
+      endDate.setTime(previousMonthEnd.getTime());
+      break;
+    }
+    // ... other cases
+  }
+  
+  return {
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0]
+  };
+}
+```
+
+#### Service Layer Integration
+```typescript
+// EventMetricsService.getComprehensiveMetrics signature
+static async getComprehensiveMetrics(
+  clientId: string,
+  dateRange: DateRange,
+  accounts: any[],
+  conversionActions: any[],
+  clientIntegrationEnabled?: boolean,
+  includePreviousPeriod: boolean = false  // Critical parameter
+): Promise<ComprehensiveMetrics>
+
+// Facebook Ads Service - Previous Period Data Fetching
+async getAccountMetrics(
+  accountId: string, 
+  dateRange: DateRange, 
+  includePreviousPeriod: boolean = false
+): Promise<FacebookAccountMetrics> {
+  
+  if (includePreviousPeriod) {
+    // Skip cache entirely when fetching previous period data
+    const previousDateRange = getPreviousDateRange('lastMonth', dateRange);
+    
+    // Use date_preset for Facebook API instead of custom time_range
+    const params = new URLSearchParams({
+      access_token: userToken, // Critical: use userToken, not token
+      fields: 'impressions,clicks,spend,actions',
+      level: 'account',
+      date_preset: 'last_month' // Use preset instead of time_range
+    });
+    
+    const response = await fetch(`${this.BASE_URL}/${accountId}/insights?${params}`);
+    const data = await response.json();
+    
+    // Parse previous period metrics with proper type casting
+    const previousMetrics = {
+      impressions: parseInt(String(data.data?.[0]?.impressions || '0')),
+      clicks: parseInt(String(data.data?.[0]?.clicks || '0')),
+      spend: parseFloat(String(data.data?.[0]?.spend || '0')),
+      ctr: parseFloat(String(data.data?.[0]?.ctr || '0')),
+      cpc: parseFloat(String(data.data?.[0]?.cpc || '0')),
+      // ... other metrics
+    };
+    
+    return {
+      current: currentMetrics,
+      previousPeriod: previousMetrics
+    };
+  }
+  
+  return { current: currentMetrics };
+}
+
+// Google Ads Service - Previous Period Data Fetching
+async getAccountMetrics(
+  customerId: string,
+  dateRange: DateRange,
+  includePreviousPeriod: boolean = false
+): Promise<GoogleAccountMetrics> {
+  
+  if (includePreviousPeriod) {
+    const previousDateRange = getPreviousDateRange('lastMonth', dateRange);
+    
+    const query = `
+      SELECT 
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.ctr,
+        metrics.average_cpc
+      FROM customer 
+      WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'
+    `;
+    
+    const response = await this.searchStream(customerId, query);
+    
+    // Calculate previous period metrics
+    const previousMetrics = {
+      impressions: parseInt(response.results?.[0]?.metrics?.impressions || '0'),
+      clicks: parseInt(response.results?.[0]?.metrics?.clicks || '0'),
+      cost: parseFloat(response.results?.[0]?.metrics?.costMicros || '0') / 1e6, // Convert micros to dollars
+      conversions: parseInt(response.results?.[0]?.metrics?.conversions || '0'),
+      ctr: parseFloat(response.results?.[0]?.metrics?.ctr || '0'),
+      averageCpc: parseFloat(response.results?.[0]?.metrics?.averageCpc || '0') / 1e6
+    };
+    
+    return {
+      current: currentMetrics,
+      previousPeriod: previousMetrics
+    };
+  }
+  
+  return { current: currentMetrics };
+}
+```
+
+### Critical Implementation Details
+
+#### 1. Parameter Order in Service Calls
+**❌ Common Mistake:** Incorrect parameter order in `getComprehensiveMetrics` calls
+```typescript
+// WRONG - includePreviousPeriod gets passed as clientIntegrationEnabled
+const metrics = await EventMetricsService.getComprehensiveMetrics(
+  client.id,
+  dateRange,
+  client.accounts,
+  client.conversion_actions,
+  true // This becomes clientIntegrationEnabled, not includePreviousPeriod!
+);
+```
+
+**✅ Correct Implementation:**
+```typescript
+// CORRECT - Explicit parameter naming
+const metrics = await EventMetricsService.getComprehensiveMetrics(
+  client.id,
+  dateRange,
+  client.accounts,
+  client.conversion_actions,
+  undefined, // clientIntegrationEnabled
+  true // includePreviousPeriod
+);
+```
+
+#### 2. Facebook Ads API Parameter Issues
+**❌ Problem:** Custom `time_range` parameter causes 400 errors
+```typescript
+// WRONG - Custom time_range format
+const params = new URLSearchParams({
+  access_token: userToken,
+  fields: 'impressions,clicks,spend',
+  level: 'account',
+  time_range: JSON.stringify({
+    since: previousDateRange.start,
+    until: previousDateRange.end
+  })
+});
+```
+
+**✅ Solution:** Use `date_preset` parameter
+```typescript
+// CORRECT - Use date_preset for previous month
+const params = new URLSearchParams({
+  access_token: userToken,
+  fields: 'impressions,clicks,spend',
+  level: 'account',
+  date_preset: 'last_month'
+});
+```
+
+#### 3. Variable Name Consistency
+**❌ Problem:** Using `token` instead of `userToken` in Facebook Ads service
+```typescript
+// WRONG - undefined variable
+const response = await fetch(`${this.BASE_URL}/me/businesses?fields=id&access_token=${token}`);
+```
+
+**✅ Solution:** Use correct variable name
+```typescript
+// CORRECT - use userToken parameter
+const response = await fetch(`${this.BASE_URL}/me/businesses?fields=id&access_token=${userToken}`);
+```
+
+#### 4. Type Casting for parseFloat
+**❌ Problem:** parseFloat called on potentially non-string values
+```typescript
+// WRONG - may cause runtime errors
+ctr: parseFloat(previousMetrics.ctr || '0'),
+```
+
+**✅ Solution:** Explicit string casting
+```typescript
+// CORRECT - explicit string casting
+ctr: parseFloat(String(previousMetrics.ctr || '0')),
+```
+
+#### 5. Date Range Calculation Base
+**❌ Problem:** Using `new Date()` instead of current period for calculation
+```typescript
+// WRONG - uses today's date as base
+const baseDate = new Date(); // This causes incorrect previous period calculation
+```
+
+**✅ Solution:** Use current period's end date as base
+```typescript
+// CORRECT - use current period as base
+const baseDate = currentDateRange ? new Date(currentDateRange.end) : new Date();
+```
+
+### UI Component Implementation
+
+#### Comparison Metrics Display
+```typescript
+// PercentageChange component for displaying comparison data
+const PercentageChange: React.FC<{ percentage: number | null }> = ({ percentage }) => {
+  if (percentage === null) {
+    return <span className="text-gray-500">-</span>; // Show dash for zero previous values
+  }
+  
+  const formatted = formatPercentageChange(percentage);
+  if (!formatted) return <span className="text-gray-500">-</span>;
+  
+  return (
+    <span className={`text-sm ${formatted.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      {formatted.isPositive ? '↑' : '↓'} {formatted.value}
+    </span>
+  );
+};
+
+// Usage in metrics cards
+<div className="flex items-center justify-between">
+  <span className="text-sm text-gray-600">Impressions</span>
+  <div className="text-right">
+    <div className="font-medium">{formatNumber(current.impressions)}</div>
+    <PercentageChange percentage={calculatePercentageChange(current.impressions, previous?.impressions || 0)} />
+  </div>
+</div>
+```
+
+#### All Accounts Table Implementation
+```typescript
+// Table header with comparison columns
+<thead>
+  <tr>
+    <th className="text-left py-3 px-3 font-semibold text-slate-900">Venue</th>
+    <th className="text-right py-3 px-3 font-semibold text-slate-900">Impressions</th>
+    <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
+    <th className="text-right py-3 px-3 font-semibold text-slate-900">Clicks</th>
+    <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
+    {/* ... more metrics and comparison columns */}
+  </tr>
+</thead>
+
+// Table body with comparison data
+<tbody>
+  {accounts.map(account => (
+    <tr key={account.id}>
+      <td className="py-3 px-3 font-medium text-slate-900">{account.name}</td>
+      
+      {/* Current metric */}
+      <td className="py-3 px-3 text-right">
+        <div className="font-medium text-slate-900 text-sm">
+          {formatNumber(account.metrics.impressions)}
+        </div>
+      </td>
+      
+      {/* Comparison metric */}
+      <td className="py-3 px-3 text-right">
+        <div className="text-sm text-gray-600">
+          {formatPercentageChange(calculatePercentageChange(
+            account.metrics.impressions, 
+            account.metrics.previousPeriod?.impressions || 0
+          ))}
+        </div>
+      </td>
+      
+      {/* ... repeat for other metrics */}
+    </tr>
+  ))}
+</tbody>
+```
+
+### Common Problems & Solutions
+
+#### Problem 1: Comparison Data Not Showing
+**Symptoms:** UI shows "No comparison data" or missing comparison columns
+
+**Root Causes:**
+1. `includePreviousPeriod` parameter not passed correctly
+2. Service calls using wrong parameter order
+3. Caching preventing previous period data fetch
+
+**Solutions:**
+```typescript
+// 1. Ensure correct parameter order
+const metrics = await EventMetricsService.getComprehensiveMetrics(
+  client.id,
+  dateRange,
+  client.accounts,
+  client.conversion_actions,
+  undefined, // clientIntegrationEnabled
+  true // includePreviousPeriod - must be 6th parameter
+);
+
+// 2. Skip cache for previous period data
+if (includePreviousPeriod) {
+  // Force fresh API call, don't use cached data
+  const previousData = await this.fetchPreviousPeriodData(accountId, previousDateRange);
+}
+
+// 3. Verify service method signature
+static async getComprehensiveMetrics(
+  clientId: string,
+  dateRange: DateRange,
+  accounts: any[],
+  conversionActions: any[],
+  clientIntegrationEnabled?: boolean,
+  includePreviousPeriod: boolean = false // This parameter
+): Promise<ComprehensiveMetrics>
+```
+
+#### Problem 2: Facebook Ads API 400 Errors
+**Symptoms:** Console shows 400 Bad Request errors when fetching previous period data
+
+**Root Cause:** Facebook API rejects custom `time_range` format
+
+**Solution:**
+```typescript
+// Use date_preset instead of custom time_range
+const params = new URLSearchParams({
+  access_token: userToken,
+  fields: 'impressions,clicks,spend,actions',
+  level: 'account',
+  date_preset: 'last_month' // Use preset instead of time_range
+});
+```
+
+#### Problem 3: Incorrect Previous Period Calculation
+**Symptoms:** Previous period shows wrong dates (e.g., June 2025 when current is September 2024)
+
+**Root Cause:** Using `new Date()` instead of current period as base
+
+**Solution:**
+```typescript
+// Pass current date range to getPreviousDateRange
+const previousDateRange = getPreviousDateRange('lastMonth', currentDateRange);
+
+// In getPreviousDateRange function
+export function getPreviousDateRange(period: string, currentDateRange?: DateRange): DateRange {
+  const baseDate = currentDateRange ? new Date(currentDateRange.end) : new Date();
+  // ... rest of calculation using baseDate
+}
+```
+
+#### Problem 4: All Accounts Tables Missing Comparison Data
+**Symptoms:** Individual dashboards show comparison data, but All Accounts tables don't
+
+**Root Cause:** All Accounts components not passing `includePreviousPeriod: true`
+
+**Solution:**
+```typescript
+// Update All Accounts table service calls
+const metrics = await EventMetricsService.getComprehensiveMetrics(
+  client.id,
+  dateRange,
+  normalizedAccounts,
+  client.conversion_actions,
+  undefined, // clientIntegrationEnabled
+  true // includePreviousPeriod
+);
+
+// Add comparison columns to table headers and body
+// (See UI Component Implementation section above)
+```
+
+#### Problem 5: Percentage Calculation Issues
+**Symptoms:** Shows "+100%" for all metrics when previous period is zero
+
+**Root Cause:** `calculatePercentageChange` returning 100% when previous is 0
+
+**Solution:**
+```typescript
+// Return null for zero previous values
+export function calculatePercentageChange(current: number, previous: number): number | null {
+  if (previous === 0) {
+    return null; // Return null when previous is 0 to show dash
+  }
+  return ((current - previous) / previous) * 100;
+}
+
+// Handle null in UI components
+const PercentageChange: React.FC<{ percentage: number | null }> = ({ percentage }) => {
+  if (percentage === null) {
+    return <span className="text-gray-500">-</span>; // Show dash
+  }
+  // ... rest of component
+};
+```
+
+### Debugging Strategies
+
+#### 1. Console Logging
+```typescript
+// Add comprehensive logging to services
+console.log('FacebookAdsService: Previous period check:', {
+  includePreviousPeriod,
+  hasCurrentDateRange: !!currentDateRange,
+  currentStart: currentDateRange?.start,
+  currentEnd: currentDateRange?.end
+});
+
+console.log('FacebookAdsService: Previous period date range calculated:', {
+  currentStart: currentDateRange?.start,
+  currentEnd: currentDateRange?.end,
+  previousStart: previousDateRange.start,
+  previousEnd: previousDateRange.end
+});
+
+console.log('FacebookAdsService: Previous period insights response:', {
+  hasData: !!data.data,
+  dataCount: data.data?.length || 0,
+  firstItem: data.data?.[0]
+});
+```
+
+#### 2. Browser Network Tab Analysis
+- Check for API calls with `includePreviousPeriod: true`
+- Verify previous period date ranges in request parameters
+- Look for 400 errors in Facebook Ads API calls
+- Confirm Google Ads API calls include previous period queries
+
+#### 3. Component State Inspection
+```typescript
+// Add debugging to components
+console.log('Comparison data received:', {
+  hasCurrentData: !!currentData,
+  hasPreviousData: !!previousData,
+  currentMetrics: currentData?.metrics,
+  previousMetrics: previousData?.previousPeriod
+});
+```
+
+### Best Practices
+
+#### 1. Zero Previous Value Handling
+- Always return `null` from `calculatePercentageChange` when previous is 0
+- Display dash ("-") in UI for null percentages
+- Never show "+100%" or "New" for zero previous values
+
+#### 2. Date Range Consistency
+- Always pass current date range to `getPreviousDateRange`
+- Use `date_preset` for Facebook Ads API when possible
+- Validate date ranges before making API calls
+
+#### 3. Parameter Order Validation
+- Use explicit parameter naming in service calls
+- Verify method signatures match parameter order
+- Add TypeScript interfaces for all service methods
+
+#### 4. Error Handling
+- Implement comprehensive error handling for API calls
+- Log detailed error information for debugging
+- Provide fallback behavior for failed comparisons
+
+#### 5. Performance Optimization
+- Skip cache when fetching previous period data
+- Use parallel API calls when possible
+- Implement proper loading states for comparison data
+
+This comparison data implementation provides robust period-over-period analysis with proper error handling, zero-value management, and comprehensive debugging capabilities.
+
+---
+
 ## Common Problems & Solutions
 
 ### Authentication Issues

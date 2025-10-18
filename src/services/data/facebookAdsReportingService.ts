@@ -53,7 +53,7 @@ class FacebookAdsReportingService {
    */
   private static calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number } {
     if (previous === 0) {
-      return current > 0 ? { direction: 'up', percentage: 100 } : { direction: 'down', percentage: 0 };
+      return { direction: 'up', percentage: 0 };
     }
     
     const percentage = ((current - previous) / previous) * 100;
@@ -179,7 +179,8 @@ class FacebookAdsReportingService {
             dateRange,
             client.accounts,
             client.conversion_actions,
-            true // Include previous period data
+            undefined, // clientIntegrationEnabled
+            true // includePreviousPeriod
           );
           
           debugLogger.info('FACEBOOK_REPORTING', `Dashboard data for ${client.name}`, { 

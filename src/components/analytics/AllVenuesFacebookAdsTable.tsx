@@ -9,7 +9,7 @@ import {
     Eye,
     TrendingUp
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 
 interface FacebookAdAccountData {
@@ -32,6 +32,17 @@ interface FacebookAdAccountData {
         cpm: number;
         reach: number;
         frequency: number;
+        previousPeriod?: {
+            impressions: number;
+            clicks: number;
+            spend: number;
+            leads: number;
+            ctr: number;
+            cpc: number;
+            cpm: number;
+            reach: number;
+            frequency: number;
+        };
     };
     shareableLink: string;
 }
@@ -46,9 +57,9 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
 
     useEffect(() => {
         loadFacebookAdsData();
-    }, [selectedPeriod]);
+    }, [selectedPeriod, loadFacebookAdsData]);
 
-    const loadFacebookAdsData = async () => {
+    const loadFacebookAdsData = useCallback(async () => {
         try {
             setLoading(true);
             const clients = await DatabaseService.getAllClients();
@@ -76,7 +87,9 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                         client.id,
                         dateRange,
                         normalizedAccounts,
-                        client.conversion_actions
+                        client.conversion_actions,
+                        undefined, // clientIntegrationEnabled
+                        true // includePreviousPeriod
                     );
 
                     const accountData: FacebookAdAccountData = {
@@ -140,7 +153,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedPeriod]);
 
     const getDateRange = (period: string) => {
         const end = new Date();
@@ -190,6 +203,21 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
 
     const formatPercentage = (num: number) => {
         return `${(num * 100).toFixed(1)}%`;
+    };
+
+    const calculatePercentageChange = (current: number, previous: number): number | null => {
+        if (previous === 0) {
+            return null; // Return null when previous is 0 to show dash
+        }
+        return ((current - previous) / previous) * 100;
+    };
+
+    const formatPercentageChange = (percentage: number | null): string => {
+        if (percentage === null) {
+            return '-';
+        }
+        const rounded = Math.round(percentage * 10) / 10; // Round to 1 decimal place
+        return `${rounded > 0 ? '+' : ''}${rounded}%`;
     };
 
     // Calculate totals
@@ -284,12 +312,19 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                     <tr className="border-b border-slate-200">
                                         <th className="text-left py-3 px-3 font-semibold text-slate-900">Venue</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">Impressions</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">Clicks</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">CTR</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">Spend</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">CPC</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">Leads</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-right py-3 px-3 font-semibold text-slate-900">CPM</th>
+                                        <th className="text-right py-3 px-3 font-semibold text-slate-900">vs Prev</th>
                                         <th className="text-center py-3 px-3 font-semibold text-slate-900">Actions</th>
                                     </tr>
                                 </thead>
@@ -326,10 +361,20 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                                     {formatNumber(account.metrics.impressions)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.impressions, account.metrics.previousPeriod?.impressions || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-3 text-right">
                                                 <div className="font-medium text-slate-900 text-sm">
                                                     {formatNumber(account.metrics.clicks)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.clicks, account.metrics.previousPeriod?.clicks || 0))}
                                                 </div>
                                             </td>
 
@@ -338,10 +383,20 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                                     {formatPercentage(account.metrics.ctr)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.ctr, account.metrics.previousPeriod?.ctr || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-3 text-right">
                                                 <div className="font-medium text-slate-900 text-sm">
                                                     {formatCurrency(account.metrics.spend)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.spend, account.metrics.previousPeriod?.spend || 0))}
                                                 </div>
                                             </td>
 
@@ -350,16 +405,31 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                                                     {formatCurrency(account.metrics.cpc)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.cpc, account.metrics.previousPeriod?.cpc || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-3 text-right">
                                                 <div className="font-medium text-green-600 text-sm">
                                                     {formatNumber(account.metrics.leads)}
                                                 </div>
                                             </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.leads, account.metrics.previousPeriod?.leads || 0))}
+                                                </div>
+                                            </td>
 
                                             <td className="py-3 px-3 text-right">
                                                 <div className="font-medium text-slate-900 text-sm">
                                                     {formatCurrency(account.metrics.cpm)}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <div className="text-sm text-gray-600">
+                                                    {formatPercentageChange(calculatePercentageChange(account.metrics.cpm, account.metrics.previousPeriod?.cpm || 0))}
                                                 </div>
                                             </td>
 

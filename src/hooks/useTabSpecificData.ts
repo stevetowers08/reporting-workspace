@@ -130,6 +130,7 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         finalDateRange,
         clientAccounts,
         undefined, // clientConversionActions
+        undefined, // clientIntegrationEnabled
         true // includePreviousPeriod
       );
       

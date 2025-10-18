@@ -153,6 +153,7 @@ export class GoogleAdsReportingService {
             dateRange,
             client.accounts,
             client.conversion_actions,
+            undefined, // clientIntegrationEnabled
             true // includePreviousPeriod
           );
 

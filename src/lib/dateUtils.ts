@@ -57,9 +57,12 @@ export function getDateRange(period: string): DateRange {
 /**
  * Calculate previous period date range based on current period
  */
-export function getPreviousDateRange(period: string): DateRange {
-  const endDate = new Date();
-  const startDate = new Date();
+export function getPreviousDateRange(period: string, currentDateRange?: DateRange): DateRange {
+  // If currentDateRange is provided, use it as the base for calculation
+  // Otherwise, use today's date as the base
+  const baseDate = currentDateRange ? new Date(currentDateRange.end) : new Date();
+  const endDate = new Date(baseDate);
+  const startDate = new Date(baseDate);
   
   switch (period) {
     case '7d':
@@ -77,6 +80,14 @@ export function getPreviousDateRange(period: string): DateRange {
       endDate.setDate(endDate.getDate() - 30);
       startDate.setDate(endDate.getDate() - 30);
       break;
+    case 'lastMonth': {
+      // Previous month: e.g., if current is Sep 1-30, show Aug 1-31
+      const previousMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+      startDate.setTime(previousMonth.getTime());
+      endDate.setTime(previousMonthEnd.getTime());
+      break;
+    }
     case '90d':
       // Previous 90 days before current 90 days
       endDate.setDate(endDate.getDate() - 90);
@@ -102,9 +113,9 @@ export function getPreviousDateRange(period: string): DateRange {
 /**
  * Calculate percentage change between two values
  */
-export function calculatePercentageChange(current: number, previous: number): number {
+export function calculatePercentageChange(current: number, previous: number): number | null {
   if (previous === 0) {
-    return current > 0 ? 100 : 0;
+    return null; // Return null when previous is 0 to show dash
   }
   return ((current - previous) / previous) * 100;
 }
@@ -112,11 +123,15 @@ export function calculatePercentageChange(current: number, previous: number): nu
 /**
  * Format percentage change with appropriate styling
  */
-export function formatPercentageChange(percentage: number): {
+export function formatPercentageChange(percentage: number | null): {
   value: string;
   isPositive: boolean;
   isNegative: boolean;
-} {
+} | null {
+  if (percentage === null) {
+    return null;
+  }
+  
   const rounded = Math.round(percentage * 10) / 10; // Round to 1 decimal place
   const isPositive = rounded > 0;
   const isNegative = rounded < 0;

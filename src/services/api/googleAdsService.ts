@@ -1,3 +1,4 @@
+import { getPreviousDateRange } from '@/lib/dateUtils';
 import { debugLogger } from '@/lib/debug';
 import { GoogleAdsErrorHandler } from '@/lib/googleAdsErrorHandler';
 import { SecureLogger } from '@/lib/secureLogger';
@@ -557,17 +558,18 @@ export class GoogleAdsService {
         
         const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
         
+        // Simplified query for faster loading
+        const gaql = `
+          SELECT 
+            metrics.conversions, 
+            metrics.cost_micros, 
+            metrics.impressions, 
+            metrics.clicks 
+          FROM campaign 
+          WHERE segments.date BETWEEN '${startDate.toISOString().split('T')[0]}' AND '${endDate.toISOString().split('T')[0]}'
+        `;
+        
         try {
-              // Simplified query for faster loading
-              const gaql = `
-                SELECT 
-                  metrics.conversions, 
-                  metrics.cost_micros, 
-                  metrics.impressions, 
-                  metrics.clicks 
-                FROM campaign 
-                WHERE segments.date BETWEEN '${startDate.toISOString().split('T')[0]}' AND '${endDate.toISOString().split('T')[0]}'
-              `;
 
           debugLogger.debug('GoogleAdsService', `GAQL query for ${monthKey}`, {
             gaql,
@@ -771,8 +773,16 @@ export class GoogleAdsService {
       let previousPeriod;
       if (includePreviousPeriod) {
         try {
-          const { getPreviousDateRange } = await import('@/lib/dateUtils');
-          const previousDateRange = getPreviousDateRange('30d'); // Default to 30d for now
+      // Use the existing date utility to calculate previous period
+      const previousDateRange = getPreviousDateRange('lastMonth', dateRange);
+          
+          debugLogger.debug('GoogleAdsService', 'Previous period date range calculated:', {
+            currentStart: dateRange.start,
+            currentEnd: dateRange.end,
+            previousStart: previousDateRange.start,
+            previousEnd: previousDateRange.end,
+            previousGaql: `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'`
+          });
           
           const previousGaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'`;
           const previousBlocks = await this.makeApiRequest({
@@ -784,6 +794,14 @@ export class GoogleAdsService {
           });
 
           let prevImpressions = 0, prevClicks = 0, prevCostMicros = 0, prevConversions = 0;
+          
+          debugLogger.debug('GoogleAdsService', 'Previous period API response:', {
+            blockCount: previousBlocks.length,
+            blocks: previousBlocks.map(block => ({
+              resultsCount: (block as { results?: unknown[] }).results?.length || 0,
+              hasResults: !!(block as { results?: unknown[] }).results
+            }))
+          });
           
           for (const block of previousBlocks) {
             const results = (block as { results?: unknown[] }).results || [];
@@ -804,10 +822,21 @@ export class GoogleAdsService {
             }
           }
 
-          const prevCost = Math.round(prevCostMicros / 1e6);
+          const prevCost = prevCostMicros / 1e6;
           const prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
           const prevConversionRate = prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0;
           const prevAverageCpc = prevClicks > 0 ? prevCost / prevClicks : 0;
+
+          debugLogger.debug('GoogleAdsService', 'Previous period metrics calculated:', {
+            prevImpressions,
+            prevClicks,
+            prevCostMicros,
+            prevConversions,
+            prevCost,
+            prevCtr,
+            prevConversionRate,
+            prevAverageCpc
+          });
 
           previousPeriod = {
             impressions: prevImpressions,

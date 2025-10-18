@@ -13,8 +13,14 @@ const PercentageChange: React.FC<{ current: number; previous: number }> = ({ cur
   const percentage = calculatePercentageChange(current, previous);
   const formatted = formatPercentageChange(percentage);
   
-  if (previous === 0 && current === 0) {
-    return null; // Don't show percentage if both values are 0
+  if (!formatted) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-sm font-medium text-slate-500">
+          -
+        </span>
+      </div>
+    );
   }
   
   return (
