@@ -39,13 +39,16 @@ export const useDashboardActions = (actualClientId: string | undefined) => {
       // Create shareable URL
       const shareUrl = `${window.location.origin}/share/${actualClientId}`;
       
+      // Open URL in new window
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+      
       // Copy to clipboard
       navigator.clipboard.writeText(shareUrl).then(() => {
-        // TODO: Replace with proper toast notification system
-        alert('Share URL copied to clipboard!');
+        // Share URL copied successfully
+        alert('Share URL opened in new window and copied to clipboard!');
       }).catch((err) => {
         debugLogger.error('useDashboardActions', 'Failed to copy share URL', err);
-        alert('Failed to copy URL to clipboard');
+        alert('Share URL opened in new window, but failed to copy to clipboard');
       });
     } catch (error) {
       debugLogger.error('useDashboardActions', 'Error creating share URL', error);

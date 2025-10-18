@@ -157,6 +157,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       // Create basic client with default values
       const basicClientData = {
         name: clientData.name,
+        type: 'venue',
+        location: 'Unknown',
         logo_url: '',
         accounts: {
           facebookAds: 'none',
@@ -192,6 +194,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
 
   const handleCreateClient = async (clientData: {
     name: string;
+    type: string;
+    location: string;
     logo_url?: string;
     accounts: {
       facebookAds?: string;
@@ -207,6 +211,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       facebookAds?: string;
       googleAds?: string;
     };
+    shareable_link: string;
   }) => {
     try {
       await DatabaseService.createClient(clientData);

@@ -1,25 +1,69 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import {
+    LoadingOverlay,
+    TabLoadingIndicator
+} from "@/components/ui/LoadingIndicators";
 import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 
+// Import tab visibility fixes
+import "@/styles/tab-visibility-fixes.css";
 
+// ✅ FIX: Tab-specific error boundary to prevent tab disappearance
+const TabErrorBoundary = ({ children, tabName }: { children: React.ReactNode; tabName: string }) => {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleError = (event: Event) => {
+      // eslint-disable-next-line no-console
+      console.error(`Tab ${tabName} error:`, event.error);
+      setHasError(true);
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, [tabName]);
+
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center h-64 text-slate-500">
+        <div className="text-center">
+          <p className="text-lg font-medium">Unable to load {tabName} tab</p>
+          <p className="text-sm">Please try refreshing the page</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            size="sm"
+          >
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
+
+import { useDashboardIntegrationConfig } from '@/hooks/useDashboardIntegrationConfig';
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
 import { usePDFExport } from '@/hooks/usePDFExport';
 import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 // ✅ FIX: Safe lazy loading with proper error handling to prevent TDZ issues
 const SummaryMetricsCards = lazy(() => 
   import('@/components/dashboard/SummaryMetricsCards')
     .then(module => ({ default: module.SummaryMetricsCards }))
-    .catch(error => {
-      console.error('Failed to load SummaryMetricsCards:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -27,8 +71,8 @@ const SummaryMetricsCards = lazy(() =>
 const MetaAdsMetricsCards = lazy(() => 
   import('@/components/dashboard/MetaAdsMetricsCards')
     .then(module => ({ default: module.MetaAdsMetricsCards }))
-    .catch(error => {
-      console.error('Failed to load MetaAdsMetricsCards:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -36,8 +80,8 @@ const MetaAdsMetricsCards = lazy(() =>
 const GoogleAdsMetricsCards = lazy(() => 
   import('@/components/dashboard/GoogleAdsMetricsCards')
     .then(module => ({ default: module.GoogleAdsMetricsCards }))
-    .catch(error => {
-      console.error('Failed to load GoogleAdsMetricsCards:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -45,8 +89,8 @@ const GoogleAdsMetricsCards = lazy(() =>
 const PlatformPerformanceStatusChart = lazy(() => 
   import('@/components/dashboard/PlatformPerformanceStatusChart')
     .then(module => ({ default: module.PlatformPerformanceStatusChart }))
-    .catch(error => {
-      console.error('Failed to load PlatformPerformanceStatusChart:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -54,8 +98,8 @@ const PlatformPerformanceStatusChart = lazy(() =>
 const KeyInsights = lazy(() => 
   import('@/components/dashboard/KeyInsights')
     .then(module => ({ default: module.KeyInsights }))
-    .catch(error => {
-      console.error('Failed to load KeyInsights:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -63,8 +107,8 @@ const KeyInsights = lazy(() =>
 const MetaAdsDemographics = lazy(() => 
   import('@/components/dashboard/MetaAdsDemographics')
     .then(module => ({ default: module.MetaAdsDemographics }))
-    .catch(error => {
-      console.error('Failed to load MetaAdsDemographics:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -72,8 +116,8 @@ const MetaAdsDemographics = lazy(() =>
 const MetaAdsPlatformBreakdown = lazy(() => 
   import('@/components/dashboard/MetaAdsPlatformBreakdown')
     .then(module => ({ default: module.MetaAdsPlatformBreakdown }))
-    .catch(error => {
-      console.error('Failed to load MetaAdsPlatformBreakdown:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -81,8 +125,8 @@ const MetaAdsPlatformBreakdown = lazy(() =>
 const GoogleAdsDemographics = lazy(() => 
   import('@/components/dashboard/GoogleAdsDemographics')
     .then(module => ({ default: module.GoogleAdsDemographics }))
-    .catch(error => {
-      console.error('Failed to load GoogleAdsDemographics:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -90,23 +134,16 @@ const GoogleAdsDemographics = lazy(() =>
 const GoogleAdsCampaignBreakdown = lazy(() => 
   import('@/components/dashboard/GoogleAdsCampaignBreakdown')
     .then(module => ({ default: module.GoogleAdsCampaignBreakdown }))
-    .catch(error => {
-      console.error('Failed to load GoogleAdsCampaignBreakdown:', error);
+    .catch(_error => {
+      // Component loading failed - return fallback component
       return { default: () => <div>Failed to load component</div> };
     })
 );
 
-const LeadInfoMetricsCards = lazy(() => 
-  import('@/components/dashboard/LeadInfoMetricsCards')
-    .then(module => ({ default: module.LeadInfoMetricsCards }))
-    .catch(error => {
-      console.error('Failed to load LeadInfoMetricsCards:', error);
-      return { default: () => <div>Failed to load component</div> };
-    })
-);
 
 // Chart.js replacements for recharts components
-import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
+import { LeadByMonthChart } from '@/components/dashboard/LeadByMonthChart';
+import { ChartCard, ConditionalChart, ResponsiveChartLayout } from '@/components/dashboard/ResponsiveChartLayout';
 import { SmartChartLayout } from '@/components/dashboard/SmartChartLayout';
 
 interface EventDashboardProps {
@@ -114,7 +151,7 @@ interface EventDashboardProps {
   clientId?: string;
 }
 
-// ✅ FIX: Enhanced loading component with error boundary
+  // ✅ FIX: Enhanced loading component with error boundary
 const ComponentLoader = () => (
   <div className="flex items-center justify-center h-32">
     <LoadingSpinner size="md" />
@@ -127,11 +164,11 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
   const [errorMessage, setErrorMessage] = React.useState<string>('');
 
   React.useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
+    const handleError = (event: Event) => {
       if (event.error && event.error.message) {
         const message = event.error.message;
         if (message.includes('Cannot access') && message.includes('before initialization')) {
-          console.warn('TDZ Error in component, reloading...', message);
+          // TDZ Error detected - reloading page
           setErrorMessage(message);
           setHasError(true);
           // Reload after a short delay
@@ -139,7 +176,7 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
             window.location.reload();
           }, 1000);
         } else if (message.includes('Cannot read properties of undefined')) {
-          console.warn('Undefined property error in component, reloading...', message);
+          // Undefined property error detected - reloading page
           setErrorMessage(message);
           setHasError(true);
           // Reload after a short delay
@@ -150,11 +187,11 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
       }
     };
 
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    const handleUnhandledRejection = (event: Event) => {
       if (event.reason && event.reason.message) {
         const message = event.reason.message;
         if (message.includes('Cannot access') || message.includes('before initialization')) {
-          console.warn('TDZ Error in promise, reloading...', message);
+          // TDZ Error in promise detected - reloading page
           setErrorMessage(message);
           setHasError(true);
           setTimeout(() => {
@@ -188,21 +225,18 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
   return <>{children}</>;
 };
 
+// TabErrorBoundary is imported from @/components/error/TabErrorBoundary
+
 const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
   // ✅ FIX: Initialize ALL hooks first to prevent TDZ issues
   const { clientId: urlClientId } = useParams<{ clientId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedPeriod, setSelectedPeriod] = useState("30d");
+  const [selectedPeriod, setSelectedPeriod] = useState("lastMonth");
   const [exportingPDF, setExportingPDF] = useState(false);
   
-  // Refs for each tab content
-  const summaryTabRef = useRef<HTMLDivElement>(null);
-  const metaTabRef = useRef<HTMLDivElement>(null);
-  const googleTabRef = useRef<HTMLDivElement>(null);
-  const leadsTabRef = useRef<HTMLDivElement>(null);
   
   // PDF export hook
-  const { exportTabsToPDF, isExporting, error } = usePDFExport();
+  const { exportWithPlaywright, isExporting: _isExporting, error: _error } = usePDFExport();
   
   // Get active tab from URL params, default to "summary"
   const activeTab = searchParams.get('tab') || "summary";
@@ -229,14 +263,28 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       case '30d':
         startDate.setDate(endDate.getDate() - 30);
         break;
+      case 'lastMonth': {
+        // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
+        break;
+      }
       case '90d':
         startDate.setDate(endDate.getDate() - 90);
         break;
       case '1y':
         startDate.setDate(endDate.getDate() - 365);
         break;
-      default:
-        startDate.setDate(endDate.getDate() - 30);
+      default: {
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
+        break;
+      }
     }
     
     return {
@@ -247,7 +295,9 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Get client ID from URL params, props, or URL path
   const actualClientId = useMemo(() => {
-    if (urlClientId) {return urlClientId;}
+    if (urlClientId) {
+      return urlClientId;
+    }
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/')) {
       const urlClientId = window.location.pathname.split('/share/')[1];
       return clientId || urlClientId;
@@ -256,45 +306,11 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }, [clientId, urlClientId]);
 
   // Use React Query hooks for data fetching
-  const dateRange = getDateRange(selectedPeriod);
+  const dateRange = useMemo(() => getDateRange(selectedPeriod), [selectedPeriod, getDateRange]);
 
   // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
   const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
-
-  // Handle PDF export with tabs
-  const handleExportPDF = useCallback(async () => {
-    if (!clientData) {
-      alert('Client data not available for export');
-      return;
-    }
-
-    setExportingPDF(true);
-    try {
-      // Collect tab elements
-      const tabElements: { [key: string]: HTMLElement } = {};
-      
-      if (summaryTabRef.current) {tabElements.summary = summaryTabRef.current;}
-      if (metaTabRef.current) {tabElements.meta = metaTabRef.current;}
-      if (googleTabRef.current) {tabElements.google = googleTabRef.current;}
-      if (leadsTabRef.current) {tabElements.leads = leadsTabRef.current;}
-
-      // Export all tabs as separate pages
-      await exportTabsToPDF(tabElements, {
-        clientName: clientData.name,
-        logoUrl: clientData.logo_url,
-        dateRange: getDateRange(selectedPeriod),
-        includeAllTabs: true,
-        includeCharts: true,
-        includeDetailedMetrics: true
-      });
-    } catch (err) {
-      console.error('Export failed:', err);
-      alert('Failed to export PDF. Please try again.');
-    } finally {
-      setExportingPDF(false);
-    }
-  }, [clientData, selectedPeriod, exportTabsToPDF, getDateRange]);
 
   // ✅ FIX: Load tab-specific data AFTER all basic hooks and callbacks
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummaryTabData(
@@ -304,18 +320,32 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   
   const { data: metaData, isLoading: metaLoading, error: metaError } = useMetaTabData(
     actualClientId, 
-    dateRange
+    dateRange,
+    activeTab
   );
   
   const { data: googleData, isLoading: googleLoading, error: googleError } = useGoogleTabData(
     actualClientId, 
-    dateRange
+    dateRange,
+    activeTab
   );
   
   const { data: leadsData, isLoading: leadsLoading, error: leadsError } = useLeadsTabData(
     actualClientId, 
-    dateRange
+    dateRange,
+    activeTab
   );
+  
+  // Get client integration settings for dynamic configuration
+  const clientIntegrationEnabled = useMemo(() => {
+    if (!clientData) return undefined;
+    return (clientData as unknown as { integration_enabled?: Record<string, boolean> })?.integration_enabled || {
+      facebookAds: true,
+      googleAds: true,
+      goHighLevel: true,
+      googleSheets: true
+    };
+  }, [clientData]);
   
   // ✅ FIX: clientData already declared above to prevent TDZ
 
@@ -335,20 +365,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     }
   };
 
-  const getCurrentTabLoading = () => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryLoading;
-      case 'meta':
-        return metaLoading;
-      case 'google':
-        return googleLoading;
-      case 'leads':
-        return leadsLoading;
-      default:
-        return summaryLoading;
-    }
-  };
 
   const getCurrentTabError = () => {
     switch (activeTab) {
@@ -379,87 +395,100 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     return undefined;
   };
 
+  // Get dashboard data for integration config (needs to be after data fetching)
+  const dashboardData = getValidDashboardData(getCurrentTabData());
+  
+  // ✅ FIX: Use summary data for integration config to prevent tabs from disappearing
+  // Summary data includes all integrations, so it provides stable tab visibility
+  const stableDashboardData = getValidDashboardData(summaryData);
+  
+  // Get dynamic integration configuration BEFORE using it in callbacks
+  const integrationConfig = useDashboardIntegrationConfig(stableDashboardData, clientIntegrationEnabled);
+  
+  // ✅ FIX: Create a more stable tab configuration that doesn't change frequently
+  const stableTabConfig = useMemo(() => {
+    console.log('🔧 EventDashboard: Creating stable tab config', {
+      integrationConfig: integrationConfig.visibleTabs,
+      hasClientData: !!clientData
+    });
+    
+    return {
+      ...integrationConfig,
+      visibleTabs: {
+        summary: true, // Always show summary tab for stable UI
+        meta: integrationConfig.visibleTabs.meta,
+        google: integrationConfig.visibleTabs.google,
+        leads: integrationConfig.visibleTabs.leads,
+      }
+    };
+  }, [integrationConfig, clientData]); // Only depend on integrationConfig and clientData, not individual tab data
+
+  // Handle PDF export with tabs (moved here to avoid TDZ with integrationConfig)
+  const handleExportPDF = useCallback(async () => {
+    if (!clientData) {
+      console.warn('Client data not available for export');
+      return;
+    }
+
+    setExportingPDF(true);
+    try {
+      // Try Playwright export first (server-side rendering - perfect fidelity)
+      try {
+        await exportWithPlaywright({
+          clientName: clientData.name,
+          dateRange: `${getDateRange(selectedPeriod).start} to ${getDateRange(selectedPeriod).end}`,
+          tabs: ['summary', 'meta', 'google', 'leads'].filter(tab => 
+            integrationConfig.visibleTabs[tab as keyof typeof integrationConfig.visibleTabs]
+          )
+        });
+        return; // Success, exit early
+      } catch (playwrightError) {
+        console.error('Playwright export failed:', playwrightError);
+        console.warn('PDF export failed. Please try again or contact support if the issue persists.');
+      }
+    } catch (_err) {
+      // Export failed
+      console.warn('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  }, [clientData, selectedPeriod, exportWithPlaywright, getDateRange, integrationConfig]);
+
   // Helper function to get the best available data for Summary tab
   const getSummaryData = (): EventDashboardData | undefined => {
     // Always prioritize Summary tab data (which includes both Facebook and Google Ads)
     const summaryDataTyped = summaryData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 getSummaryData: Summary data:', {
-      summaryDataExists: !!summaryDataTyped,
-      summaryFacebookMetrics: summaryDataTyped?.facebookMetrics,
-      summaryFacebookLeads: summaryDataTyped?.facebookMetrics?.leads,
-      summaryGoogleMetrics: summaryDataTyped?.googleMetrics,
-      summaryGoogleLeads: summaryDataTyped?.googleMetrics?.leads
-    });
+    // Summary data analysis
     
     if (summaryDataTyped) {
-      // eslint-disable-next-line no-console
-      console.log('🔍 Using Summary tab data (includes both Facebook and Google Ads)');
+      // Using Summary tab data (includes both Facebook and Google Ads)
       return summaryDataTyped;
     }
     
     // Fallback to Meta tab data only if Summary tab data is not available
     const metaDataTyped = metaData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 getSummaryData: Checking Meta data as fallback:', {
-      metaDataExists: !!metaDataTyped,
-      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
-      metaFacebookLeads: metaDataTyped?.facebookMetrics?.leads
-    });
+    // Checking Meta data as fallback
     
     if (metaDataTyped && metaDataTyped.facebookMetrics && metaDataTyped.facebookMetrics.leads > 0) {
-      // eslint-disable-next-line no-console
-      console.log('🔍 Using Meta tab data as fallback (Summary data not available)');
+      // Using Meta tab data as fallback (Summary data not available)
       return metaDataTyped;
     }
     
-    // eslint-disable-next-line no-console
-    console.log('🔍 No data available for Summary tab');
+    // No data available for Summary tab
     return undefined;
   };
 
-  const dashboardData = getValidDashboardData(getCurrentTabData());
   const summaryDashboardData = getValidDashboardData(getSummaryData());
-  const dashboardLoading = getCurrentTabLoading();
   const dashboardError = getCurrentTabError();
   
-  // Debug logging
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Active tab:', activeTab);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Current tab data:', getCurrentTabData());
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Valid dashboard data:', dashboardData);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Dashboard loading:', dashboardLoading);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Dashboard error:', dashboardError);
-  
-  // Add alert for debugging
-  if (activeTab === 'summary') {
     // eslint-disable-next-line no-console
-    console.log('🔍 SUMMARY TAB DEBUG:', {
-      activeTab,
-      summaryData,
-      summaryLoading,
-      summaryError,
-      dashboardData,
-      facebookMetrics: dashboardData?.facebookMetrics,
-      totalLeads: dashboardData?.totalLeads,
-      facebookLeads: dashboardData?.facebookMetrics?.leads
+    console.log('🔧 EventDashboard: Summary tab active', {
+      summaryDataAvailable: !!summaryData,
+      metaDataAvailable: !!metaData,
+      googleDataAvailable: !!googleData,
+      leadsDataAvailable: !!leadsData,
+      stableTabConfig: stableTabConfig.visibleTabs
     });
-    
-    // Force a comparison with Meta tab data
-    const metaDataTyped = metaData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 COMPARING WITH META TAB:', {
-      metaData,
-      metaLoading,
-      metaError,
-      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
-      metaTotalLeads: metaDataTyped?.totalLeads
-    });
-  }
   
   // Transform clients for the dropdown
   const clients = (availableClients || []).map(client => ({
@@ -471,6 +500,11 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const handleShare = useCallback(() => {
     if (typeof window !== 'undefined' && actualClientId) {
       const shareUrl = `${window.location.origin}/share/${actualClientId}`;
+      
+      // Open URL in new window
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+      
+      // Copy to clipboard
       navigator.clipboard.writeText(shareUrl).then(() => {
         // Could show a toast notification here
       });
@@ -495,7 +529,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Show error state
   if (dashboardError || clientError) {
-    console.error('🔍 EventDashboard Error:', { dashboardError, clientError });
+    // EventDashboard Error occurred
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
@@ -575,6 +609,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         onPeriodChange={setSelectedPeriod}
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        visibleTabs={stableTabConfig.visibleTabs}
       />
 
       {/* Main Content */}
@@ -584,102 +619,175 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
-            <div ref={summaryTabRef}>
+            <div>
+            
+            {/* Loading indicator for summary tab */}
+            <TabLoadingIndicator 
+              tabName="Summary" 
+              isLoading={summaryLoading} 
+              className="mb-4"
+            />
             
             <LazyComponentErrorBoundary>
               <Suspense fallback={<ComponentLoader />}>
-                <SummaryMetricsCards dashboardData={summaryDashboardData} />
+                <LoadingOverlay isLoading={summaryLoading} message="Loading summary data...">
+                  <SummaryMetricsCards dashboardData={summaryDashboardData} />
+                </LoadingOverlay>
               </Suspense>
             </LazyComponentErrorBoundary>
             
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
-              <Card className="bg-white border border-slate-200 shadow-sm p-6">
-                <div className="pb-3">
-                  <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
-                </div>
-                <div className="h-64">
-                  <LazyComponentErrorBoundary>
-                    <Suspense fallback={<ComponentLoader />}>
-                      <PlatformPerformanceStatusChart data={dashboardData} />
-                    </Suspense>
-                  </LazyComponentErrorBoundary>
-                </div>
-              </Card>
+            {/* Dynamic Chart Layout - Responsive Grid */}
+            <ResponsiveChartLayout className="mt-6" minItemWidth="300px" gap="1.5rem">
+              {/* Platform Performance Chart */}
+              <ConditionalChart show={integrationConfig.chartConfig.summary.showPlatformPerformance}>
+                <ChartCard>
+                  <div className="pb-3">
+                    <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
+                  </div>
+                  <div className="h-64">
+                    <LazyComponentErrorBoundary>
+                      <Suspense fallback={<ComponentLoader />}>
+                        <PlatformPerformanceStatusChart data={dashboardData} />
+                      </Suspense>
+                    </LazyComponentErrorBoundary>
+                  </div>
+                </ChartCard>
+              </ConditionalChart>
 
-              <Card className="bg-white border border-slate-200 shadow-sm p-6">
-                <div className="pb-3">
-                  <h3 className="text-lg font-semibold text-slate-900">Leads by Day</h3>
-                </div>
-                <div className="h-64">
-                  <LeadByDayChart data={summaryDashboardData} />
-                </div>
-              </Card>
+              {/* Leads by Month Chart */}
+              <ConditionalChart show={integrationConfig.chartConfig.summary.showLeadsByDay}>
+                <ChartCard>
+        <div className="pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
+        </div>
+                  <div className="h-80">
+                    <LeadByMonthChart data={summaryDashboardData} clientId={actualClientId} />
+                  </div>
+                </ChartCard>
+              </ConditionalChart>
 
-              <Suspense fallback={<ComponentLoader />}>
-                <KeyInsights data={dashboardData} />
-              </Suspense>
-            </div>
+              {/* Key Insights Chart */}
+              <ConditionalChart show={integrationConfig.chartConfig.summary.showKeyInsights}>
+                <Suspense fallback={<ComponentLoader />}>
+                  <KeyInsights data={dashboardData} />
+                </Suspense>
+              </ConditionalChart>
+            </ResponsiveChartLayout>
             
             </div>
           </TabsContent>
 
           {/* Meta Ads Tab */}
-          <TabsContent value="meta" className="mt-6">
-            <div ref={metaTabRef}>
-            
-            <Suspense fallback={<ComponentLoader />}>
-              <MetaAdsMetricsCards data={dashboardData} />
-            </Suspense>
-            
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <MetaAdsDemographics data={dashboardData} />
-              </Suspense>
-              <Suspense fallback={<ComponentLoader />}>
-                <MetaAdsPlatformBreakdown data={dashboardData} />
-              </Suspense>
-            </div>
-            </div>
-          </TabsContent>
+          {stableTabConfig.visibleTabs.meta && (
+            <TabsContent value="meta" className="mt-6">
+              <TabErrorBoundary tabName="Meta">
+                <div>
+                
+                {/* Loading indicator for Meta tab */}
+                <TabLoadingIndicator 
+                  tabName="Meta Ads" 
+                  isLoading={metaLoading} 
+                  className="mb-4"
+                />
+                
+                <LazyComponentErrorBoundary>
+                  <Suspense fallback={<ComponentLoader />}>
+                    <LoadingOverlay isLoading={metaLoading} message="Loading Meta Ads data...">
+                      <MetaAdsMetricsCards data={dashboardData} />
+                    </LoadingOverlay>
+                  </Suspense>
+                </LazyComponentErrorBoundary>
+                
+                <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <MetaAdsDemographics data={dashboardData} />
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <MetaAdsPlatformBreakdown data={dashboardData} />
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
+                </div>
+                </div>
+              </TabErrorBoundary>
+            </TabsContent>
+          )}
 
           {/* Google Ads Tab */}
-          <TabsContent value="google" className="mt-6">
-            <div ref={googleTabRef}>
-            
-            <Suspense fallback={<ComponentLoader />}>
-              <GoogleAdsMetricsCards data={dashboardData} />
-            </Suspense>
-            
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <GoogleAdsDemographics data={dashboardData} />
-              </Suspense>
-              <Suspense fallback={<ComponentLoader />}>
-                <GoogleAdsCampaignBreakdown data={dashboardData} />
-              </Suspense>
-            </div>
-            </div>
-          </TabsContent>
+          {stableTabConfig.visibleTabs.google && (
+            <TabsContent value="google" className="mt-6">
+              <TabErrorBoundary tabName="Google">
+                <div>
+                
+                {/* Loading indicator for Google tab */}
+                <TabLoadingIndicator 
+                  tabName="Google Ads" 
+                  isLoading={googleLoading} 
+                  className="mb-4"
+                />
+                
+                <LazyComponentErrorBoundary>
+                  <Suspense fallback={<ComponentLoader />}>
+                    <LoadingOverlay isLoading={googleLoading} message="Loading Google Ads data...">
+                      <GoogleAdsMetricsCards data={dashboardData} />
+                    </LoadingOverlay>
+                  </Suspense>
+                </LazyComponentErrorBoundary>
+                
+                <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <GoogleAdsDemographics data={dashboardData} />
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <GoogleAdsCampaignBreakdown data={dashboardData} />
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
+                </div>
+                </div>
+              </TabErrorBoundary>
+            </TabsContent>
+          )}
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
-          <TabsContent value="leads" className="mt-6">
-            <div ref={leadsTabRef}>
-            
-            {/* Smart Chart Layout - 2 columns with automatic reordering */}
-            <div className="mt-6">
-              <Suspense fallback={<ComponentLoader />}>
-                <AppErrorBoundary>
-                  <SmartChartLayout 
-                    dashboardData={dashboardData}
-                    dateRange={getDateRange(selectedPeriod)}
-                    locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'}
-                  />
-                </AppErrorBoundary>
-              </Suspense>
-            </div>
-            
-            </div>
-          </TabsContent>
+          {stableTabConfig.visibleTabs.leads && (
+            <TabsContent value="leads" className="mt-6">
+              <TabErrorBoundary tabName="Leads">
+                <div>
+                
+                {/* Loading indicator for Leads tab */}
+                <TabLoadingIndicator 
+                  tabName="Lead Analytics" 
+                  isLoading={leadsLoading} 
+                  className="mb-4"
+                />
+                
+                {/* Smart Chart Layout - 2 columns with automatic reordering */}
+                <div className="mt-6">
+                  <LazyComponentErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <AppErrorBoundary>
+                        <LoadingOverlay isLoading={leadsLoading} message="Loading lead analytics data...">
+                          <SmartChartLayout 
+                            dashboardData={dashboardData}
+                            dateRange={getDateRange(selectedPeriod)}
+                            locationId={dashboardData?.clientAccounts?.goHighLevel || import.meta.env.VITE_DEFAULT_LOCATION_ID}
+                            showExtraCharts={integrationConfig.chartConfig.leads.showExtraCharts}
+                          />
+                        </LoadingOverlay>
+                      </AppErrorBoundary>
+                    </Suspense>
+                  </LazyComponentErrorBoundary>
+                </div>
+                
+                </div>
+              </TabErrorBoundary>
+            </TabsContent>
+          )}
 
         </Tabs>
         </div>

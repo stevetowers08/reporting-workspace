@@ -28,50 +28,21 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
       if (!metrics) return;
       
       try {
-        
         // Extract page view data from contacts' attribution data
-        // const allContacts = await GoHighLevelService.getAllContacts(); // Private method - commented out
+        // TODO: Implement proper API call to get contacts with attribution data
+        // Return empty data structure to avoid showing fake data
         const allContacts: any[] = [];
         
-        // Process attribution data to get page views
+        // No processing of empty contacts array - avoid fake data
         const pageViews: string[] = [];
         const landingPages: Record<string, number> = {};
         const campaigns: Record<string, number> = {};
         const sources: Record<string, number> = {};
         const referrers: Record<string, number> = {};
         
-        allContacts.forEach(contact => {
-          if (contact.attributions) {
-            contact.attributions.forEach((attribution: any) => {
-              // Extract page URL
-              if (attribution.pageUrl) {
-                pageViews.push(attribution.pageUrl);
-                
-                // Track landing pages
-                const url = attribution.pageUrl.split('?')[0]; // Remove query params
-                landingPages[url] = (landingPages[url] || 0) + 1;
-              }
-              
-              // Extract UTM campaign
-              if (attribution.utmCampaign) {
-                campaigns[attribution.utmCampaign] = (campaigns[attribution.utmCampaign] || 0) + 1;
-              }
-              
-              // Extract UTM source
-              if (attribution.utmSource) {
-                sources[attribution.utmSource] = (sources[attribution.utmSource] || 0) + 1;
-              }
-              
-              // Extract referrer
-              if (attribution.referrer) {
-                const referrer = attribution.referrer.replace(/^https?:\/\//, '').split('/')[0];
-                referrers[referrer] = (referrers[referrer] || 0) + 1;
-              }
-            });
-          }
-        });
-
-        const totalPageViews = pageViews.length;
+        const totalPageViews = 0;
+        const totalConversions = 0;
+        const averageConversionRate = 0;
         
         // Process unique pages
         const pageCounts: Record<string, number> = {};
@@ -82,7 +53,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
         
         const uniquePages = Object.entries(pageCounts)
           .map(([page, views]) => ({
-            page: page.replace('https://magnoliaterrace.tulensystems.com/', ''),
+            page: page.replace(import.meta.env.VITE_DEFAULT_DOMAIN || 'https://magnoliaterrace.tulensystems.com/', ''),
             views,
             percentage: totalPageViews > 0 ? (views / totalPageViews) * 100 : 0
           }))
@@ -92,7 +63,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
         // Process top landing pages with conversion data
         const topLandingPages = Object.entries(landingPages)
           .map(([url, views]) => {
-            const cleanUrl = url.replace('https://magnoliaterrace.tulensystems.com/', '');
+            const cleanUrl = url.replace(import.meta.env.VITE_DEFAULT_DOMAIN || 'https://magnoliaterrace.tulensystems.com/', '');
             const conversions = allContacts.filter(contact => 
               contact.attributions?.some((att: any) => att.pageUrl?.includes(url))
             ).length;

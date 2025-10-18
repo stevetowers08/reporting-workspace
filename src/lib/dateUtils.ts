@@ -24,14 +24,28 @@ export function getDateRange(period: string): DateRange {
     case '30d':
       startDate.setDate(endDate.getDate() - 30);
       break;
+    case 'lastMonth': {
+      // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
+      const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+      startDate.setTime(lastMonth.getTime());
+      endDate.setTime(lastMonthEnd.getTime());
+      break;
+    }
     case '90d':
       startDate.setDate(endDate.getDate() - 90);
       break;
     case '1y':
       startDate.setDate(endDate.getDate() - 365);
       break;
-    default:
-      startDate.setDate(endDate.getDate() - 30);
+    default: {
+      // Default to last month instead of last 30 days
+      const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+      startDate.setTime(lastMonth.getTime());
+      endDate.setTime(lastMonthEnd.getTime());
+      break;
+    }
   }
   
   return {

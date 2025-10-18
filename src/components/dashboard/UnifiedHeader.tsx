@@ -1,7 +1,6 @@
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button-simple';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
 import { ArrowLeft, BarChart3, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React from 'react';
 
@@ -126,6 +125,12 @@ interface ClientFacingHeaderProps {
   onPeriodChange: (period: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  visibleTabs?: {
+    summary: boolean;
+    meta: boolean;
+    google: boolean;
+    leads: boolean;
+  };
   className?: string;
 }
 
@@ -135,6 +140,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   onPeriodChange,
   activeTab,
   onTabChange,
+  visibleTabs = {
+    summary: true,
+    meta: true,
+    google: true,
+    leads: true,
+  },
   className = ''
 }) => {
   // Helper function to get actual date range
@@ -183,7 +194,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
 
   return (
     <header className={`bg-white border-b border-slate-200 px-20 sticky top-[73px] z-[60] ${className}`}>
-      <div className="py-6">
+      <div className="py-3">
         <div className="flex items-center justify-between">
           {/* Left: Client Branding with Date Range Text */}
           <div className="flex items-center gap-3">
@@ -192,62 +203,80 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 <img
                   src={clientData.logo_url}
                   alt={`${clientData.name} logo`}
-                  className="w-8 h-8 object-cover rounded-lg border border-slate-200"
+                  className="w-6 h-6 object-cover rounded-lg border border-slate-200"
                 />
               ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-white" />
+                <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="h-3 w-3 text-white" />
                 </div>
               )}
               <div>
-                <h2 className="text-xl font-semibold text-slate-800">
+                <h2 className="text-lg font-semibold text-slate-800">
                   {clientData?.name || 'Dashboard'}
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-slate-600">
                   {getDateRange(selectedPeriod)}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Center: Tabs */}
+          {/* Center: Minimal Tabs */}
           <div className="flex-1 max-w-2xl mx-8">
-            <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-              <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
-                <TabsTrigger 
-                  value="summary" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+            <div className="flex items-center justify-center space-x-8">
+              {visibleTabs.summary && (
+                <button
+                  onClick={() => onTabChange('summary')}
+                  className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 pb-2 border-b-2 px-1 ${
+                    activeTab === 'summary'
+                      ? 'text-slate-500 border-blue-600'
+                      : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'
+                  }`}
                 >
-                  <BarChart3 size={14} />
-                  <span className="hidden sm:inline">Summary</span>
-                  <span className="sm:hidden text-xs">S</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="meta" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  <BarChart3 size={16} />
+                  Summary
+                </button>
+              )}
+              {visibleTabs.meta && (
+                <button
+                  onClick={() => onTabChange('meta')}
+                  className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 pb-2 border-b-2 px-1 ${
+                    activeTab === 'meta'
+                      ? 'text-slate-500 border-blue-600'
+                      : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'
+                  }`}
                 >
-                  <LogoManager platform="meta" size={20} context="header" />
-                  <span className="hidden sm:inline">Meta</span>
-                  <span className="sm:hidden text-xs">M</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="google" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  <LogoManager platform="meta" size={16} context="header" />
+                  Meta
+                </button>
+              )}
+              {visibleTabs.google && (
+                <button
+                  onClick={() => onTabChange('google')}
+                  className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 pb-2 border-b-2 px-1 ${
+                    activeTab === 'google'
+                      ? 'text-slate-500 border-blue-600'
+                      : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'
+                  }`}
                 >
-                  <LogoManager platform="googleAds" size={20} context="header" />
-                  <span className="hidden sm:inline">Google</span>
-                  <span className="sm:hidden text-xs">G</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="leads" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+                  <LogoManager platform="googleAds" size={16} context="header" />
+                  Google
+                </button>
+              )}
+              {visibleTabs.leads && (
+                <button
+                  onClick={() => onTabChange('leads')}
+                  className={`flex items-center gap-2 text-sm font-medium transition-all duration-200 pb-2 border-b-2 px-1 ${
+                    activeTab === 'leads'
+                      ? 'text-slate-500 border-blue-600'
+                      : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'
+                  }`}
                 >
-                  <Users size={14} />
-                  <span className="hidden sm:inline">Lead Info</span>
-                  <span className="sm:hidden text-xs">L</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+                  <Users size={16} />
+                  Lead Info
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Right: Period Selector Dropdown */}
@@ -255,7 +284,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
             <select
               value={selectedPeriod}
               onChange={(e) => onPeriodChange(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium w-40"
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium w-40"
             >
               <option value="7d">Last 7 days</option>
               <option value="14d">Last 14 days</option>

@@ -62,6 +62,7 @@ if (typeof window !== 'undefined') {
 import App from "./App";
 // Import CSS as a stylesheet, not as a module
 import "./index.css";
+import "./styles/pdf-export.css";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

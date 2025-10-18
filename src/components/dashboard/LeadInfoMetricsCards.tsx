@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
-import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
+import { Client } from '@/types/client';
 import React, { useCallback, useMemo, useState } from 'react';
 import { GHLReconnectPrompt } from './GHLReconnectPrompt';
 

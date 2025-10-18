@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GuestCountDistributionProps {
@@ -13,6 +13,27 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ FIX: Move useMemo before conditional returns to follow Rules of Hooks
+  const chartData = useMemo(() => {
+    if (!leadData?.guestRanges) return [];
+    
+    // Sort guest ranges in ascending order by extracting the first number from the range
+    const sortedRanges = [...leadData.guestRanges].sort((a, b) => {
+      const getFirstNumber = (range: string) => {
+        const match = range.match(/(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+      };
+      return getFirstNumber(a.range) - getFirstNumber(b.range);
+    });
+    
+    return sortedRanges.map((range, index) => ({
+      name: range.range,
+      value: range.count,
+      percentage: range.percentage,
+      color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'][index % 5]
+    }));
+  }, [leadData?.guestRanges]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,8 +56,8 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
             'Event Leads' // Use Event Leads as default sheet name
           );
         } else {
-          debugLogger.debug('GuestCountDistribution', 'Using default Google Sheets config');
-          leadDataResult = await LeadDataService.fetchLeadData();
+          // No default fallback - require proper configuration
+          throw new Error('No Google Sheets configuration available');
         }
         
         debugLogger.debug('GuestCountDistribution', 'Received lead data', leadDataResult);
@@ -115,14 +136,6 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
       </Card>
     );
   }
-  
-  // Prepare chart data
-  const chartData = (leadData.guestRanges || []).map((range, index) => ({
-    name: range.range,
-    value: range.count,
-    percentage: range.percentage,
-    color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'][index % 5]
-  }));
 
   // If no guest data, show empty state
   if (chartData.length === 0) {
@@ -130,7 +143,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
       <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-          <p className="text-sm text-slate-600">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
+          <p className="text-sm text-slate-600">Average: {leadData?.averageGuestsPerLead?.toFixed(0) || 0} guests per lead</p>
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-slate-500">No guest count data available</div>
@@ -143,7 +156,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
     <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-        <p className="text-sm text-slate-600">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
+        <p className="text-sm text-slate-600">Average: {leadData?.averageGuestsPerLead?.toFixed(0) || 0} guests per lead</p>
       </div>
       
       <div className="h-64">
@@ -160,7 +173,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
               tick={{ fontSize: 12 }}
             />
             <Tooltip 
-              formatter={(value: number, name: string, props: any) => [
+              formatter={(value: number, name: string, props: { payload?: { percentage?: number } }) => [
                 `${value} leads (${props.payload?.percentage?.toFixed(1)}%)`,
                 'Count'
               ]}

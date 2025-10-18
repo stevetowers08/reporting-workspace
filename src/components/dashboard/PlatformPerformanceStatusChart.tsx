@@ -57,7 +57,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
             )}
           </div>
           <div
-            className="bg-red-500 h-5 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center"
+            className="bg-green-500 h-5 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center"
             style={{
               width: `${metrics.googleLeadsPercentage}%`,
               left: `${metrics.metaLeadsPercentage}%`
@@ -78,7 +78,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
             <span className="text-xs font-medium text-slate-700">Meta Ads</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
             <span className="text-xs font-medium text-slate-700">Google Ads</span>
           </div>
         </div>
@@ -104,7 +104,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
             )}
           </div>
           <div
-            className="bg-red-500 h-5 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center"
+            className="bg-green-500 h-5 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center"
             style={{
               width: `${metrics.googleSpendPercentage}%`,
               left: `${metrics.metaSpendPercentage}%`
@@ -125,7 +125,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
             <span className="text-xs font-medium text-slate-700">Meta Ads</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
             <span className="text-xs font-medium text-slate-700">Google Ads</span>
           </div>
         </div>

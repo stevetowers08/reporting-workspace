@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import { Client } from '@/services/data/databaseService';
+import { Client } from '@/types/client';
 import React, { useEffect, useState } from 'react';
 
 interface LandingPagePerformanceProps {
@@ -24,7 +24,8 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
             clientData.accounts.googleSheetsConfig.sheetName
           );
         } else {
-          leadDataResult = await LeadDataService.fetchLeadData();
+          // No default fallback - require proper configuration
+          throw new Error('No Google Sheets configuration available');
         }
         setLeadData(leadDataResult);
       } catch (error) {

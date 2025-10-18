@@ -17,7 +17,7 @@ export interface GoogleSheetsAccount {
 }
 
 export class GoogleSheetsService {
-  private static readonly API_BASE_URL = 'https://bdmcdyxjdkgitphieklb.supabase.co/functions/v1/google-sheets-data';
+  private static readonly API_BASE_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1/google-sheets-data';
   private static readonly GOOGLE_SHEETS_API_BASE = 'https://sheets.googleapis.com/v4';
   private static readonly GOOGLE_DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 

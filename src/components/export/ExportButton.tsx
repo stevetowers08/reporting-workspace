@@ -19,15 +19,14 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   clientName, 
   dateRange 
 }) => {
-  const { exportToPDF, isExporting, error } = usePDFExport();
+  const { exportWithPlaywright, isExporting, error } = usePDFExport();
 
   const handleExport = async () => {
     try {
-      await exportToPDF(data, {
+      await exportWithPlaywright({
         clientName,
         dateRange,
-        includeCharts: true,
-        includeDetailedMetrics: true
+        tabs: ['summary', 'meta', 'google', 'leads']
       });
     } catch (err) {
       debugLogger.error('ExportButton', 'Export failed', err);

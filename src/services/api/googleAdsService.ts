@@ -454,25 +454,39 @@ export class GoogleAdsService {
   }
 
   /**
-   * Get developer token from environment
+   * Get developer token from database or environment
    */
   private static async getDeveloperToken(): Promise<string | null> {
     try {
-      // Get developer token from environment variable
-      const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
+      // First try to get from database
+      const { data: config } = await supabase
+        .from('google_ads_configs')
+        .select('developer_token')
+        .eq('is_active', true)
+        .single();
       
-      if (!developerToken) {
-        debugLogger.warn('GoogleAdsService', 'Google Ads developer token not configured');
-        return null;
+      if (config?.developer_token && config.developer_token !== 'MISSING_DEVELOPER_TOKEN' && config.developer_token !== 'YOUR_DEVELOPER_TOKEN_HERE') {
+        debugLogger.debug('GoogleAdsService', 'Developer token retrieved from database', { 
+          hasToken: !!config.developer_token, 
+          tokenLength: config.developer_token.length 
+        });
+        return config.developer_token;
       }
 
-      debugLogger.debug('GoogleAdsService', 'Developer token retrieved from environment', { 
-        hasToken: !!developerToken, 
-        tokenLength: developerToken.length 
-      });
-      return developerToken;
+      // Fallback to environment variable
+      const envToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
+      if (envToken) {
+        debugLogger.debug('GoogleAdsService', 'Developer token retrieved from environment', { 
+          hasToken: !!envToken, 
+          tokenLength: envToken.length 
+        });
+        return envToken;
+      }
+
+      debugLogger.warn('GoogleAdsService', 'Google Ads developer token not configured in database or environment');
+      return null;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to get developer token from environment', error);
+      debugLogger.error('GoogleAdsService', 'Failed to get developer token', error);
       return null;
     }
   }
@@ -504,6 +518,140 @@ export class GoogleAdsService {
   /**
    * Get account metrics - simplified
    */
+  /**
+   * Get monthly historical metrics for the last 12 months using lead_form_run
+   */
+  static async getMonthlyHistoricalMetrics(customerId: string): Promise<Array<{ month: string; leads: number; spend: number; impressions: number; clicks: number }>> {
+    try {
+      debugLogger.debug('GoogleAdsService', 'Fetching monthly historical metrics', { customerId });
+      
+      const accessToken = await this.ensureValidToken();
+      const developerToken = await this.getDeveloperToken();
+      const managerAccountId = await this.getManagerAccountId();
+
+      debugLogger.debug('GoogleAdsService', 'Monthly historical credentials check', {
+        hasAccessToken: !!accessToken,
+        hasDeveloperToken: !!developerToken,
+        hasManagerAccountId: !!managerAccountId,
+        managerAccountId: managerAccountId,
+        customerId: customerId
+      });
+
+      if (!accessToken || !developerToken || !managerAccountId) {
+        debugLogger.warn('GoogleAdsService', 'Missing credentials for monthly historical data', {
+          accessToken: !!accessToken,
+          developerToken: !!developerToken,
+          managerAccountId: !!managerAccountId
+        });
+        return [];
+      }
+
+      // Get data for the last 12 months using monthly queries
+      const monthlyData = [];
+      const currentDate = new Date();
+      
+      for (let i = 12; i >= 1; i--) {
+        const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const startDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+        const endDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // Last day of month
+        
+        const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        try {
+              // Simplified query for faster loading
+              const gaql = `
+                SELECT 
+                  metrics.conversions, 
+                  metrics.cost_micros, 
+                  metrics.impressions, 
+                  metrics.clicks 
+                FROM campaign 
+                WHERE segments.date BETWEEN '${startDate.toISOString().split('T')[0]}' AND '${endDate.toISOString().split('T')[0]}'
+              `;
+
+          debugLogger.debug('GoogleAdsService', `GAQL query for ${monthKey}`, {
+            gaql,
+            dateRange: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
+            customerId: this.normalizeCid(customerId),
+            managerAccountId
+          });
+
+          const blocks = await this.makeApiRequest({
+            accessToken,
+            developerToken,
+            customerId: this.normalizeCid(customerId),
+            managerId: managerAccountId,
+            gaql
+          });
+
+          debugLogger.debug('GoogleAdsService', `API response for ${monthKey}`, {
+            blockCount: blocks.length,
+            blocks: blocks.map(block => ({
+              hasResults: !!(block as { results?: unknown[] }).results,
+              resultCount: (block as { results?: unknown[] }).results?.length || 0
+            }))
+          });
+
+          let leads = 0, spend = 0, impressions = 0, clicks = 0;
+          
+          for (const block of blocks) {
+            const results = (block as { results?: unknown[] }).results || [];
+            for (const result of results) {
+              const r = result as { 
+                metrics?: { 
+                  impressions?: string | number; 
+                  clicks?: string | number; 
+                  costMicros?: string | number; 
+                  conversions?: string | number;
+                } 
+              };
+              
+              if (r.metrics) {
+                leads += Number(r.metrics.conversions || 0);
+                spend += Number(r.metrics.costMicros || 0) / 1e6; // Convert micros to dollars
+                impressions += Number(r.metrics.impressions || 0);
+                clicks += Number(r.metrics.clicks || 0);
+              }
+            }
+          }
+          
+          debugLogger.debug('GoogleAdsService', `Month ${monthKey}: Aggregated data`, {
+            leads,
+            spend,
+            impressions,
+            clicks
+          });
+          
+          monthlyData.push({
+            month: monthKey,
+            leads,
+            spend,
+            impressions,
+            clicks
+          });
+          
+        } catch (error) {
+          debugLogger.warn('GoogleAdsService', `Error fetching data for ${monthKey}`, error);
+          debugLogger.debug('GoogleAdsService', `GAQL query was: ${gaql}`);
+          monthlyData.push({
+            month: monthKey,
+            leads: 0,
+            spend: 0,
+            impressions: 0,
+            clicks: 0
+          });
+        }
+      }
+
+      debugLogger.debug('GoogleAdsService', 'Processed monthly data', { monthlyData });
+      return monthlyData;
+
+    } catch (error) {
+      debugLogger.error('GoogleAdsService', 'Error fetching monthly historical metrics', error);
+      return [];
+    }
+  }
+
   static async getAccountMetrics(customerId: string, dateRange: { start: string; end: string }, includePreviousPeriod: boolean = false): Promise<{
     impressions: number;
     clicks: number;
@@ -534,7 +682,8 @@ export class GoogleAdsService {
         return this.getEmptyMetrics();
       }
 
-      const gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      // Simplified query for faster loading - only essential metrics
+      const gaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
       const blocks = await this.makeApiRequest({
         accessToken,
         developerToken,

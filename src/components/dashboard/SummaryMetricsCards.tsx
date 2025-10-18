@@ -19,7 +19,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
   return (
     <div className="mb-6">
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5 mb-4">
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="outlined" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">LEADS</p>
@@ -33,7 +33,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="outlined" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">COST PER LEAD</p>
@@ -47,7 +47,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="outlined" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">AMOUNT SPENT</p>
@@ -61,7 +61,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="outlined" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">CONV %</p>
@@ -92,7 +92,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="outlined" className="p-6 h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">WON</p>

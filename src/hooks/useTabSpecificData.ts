@@ -23,7 +23,11 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
         return {
           start: startDate.toISOString().split('T')[0], 
           end: endDate.toISOString().split('T')[0] 
@@ -68,12 +72,12 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
+    timeout: 10000, // 10 second timeout for faster failure
   });
 };
 
 // Hook for Meta/Facebook Ads tab data
-export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange, activeTab?: string) => {
   return useQuery({
     queryKey: ['meta-tab-data', clientId, dateRange, 'with-previous-period'],
     queryFn: async () => {
@@ -85,7 +89,11 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
         return {
           start: startDate.toISOString().split('T')[0], 
           end: endDate.toISOString().split('T')[0] 
@@ -127,17 +135,17 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && activeTab === 'meta',
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
+    timeout: 10000, // 10 second timeout for faster failure
   });
 };
 
 // Hook for Google Ads tab data
-export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange, activeTab?: string) => {
   return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -149,7 +157,11 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
         return {
           start: startDate.toISOString().split('T')[0], 
           end: endDate.toISOString().split('T')[0] 
@@ -174,17 +186,17 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && activeTab === 'google',
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
+    timeout: 10000, // 10 second timeout for faster failure
   });
 };
 
 // Hook for Leads tab data (GoHighLevel + Google Sheets)
-export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange, activeTab?: string) => {
   return useQuery({
     queryKey: ['leads-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -196,7 +208,11 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
         return {
           start: startDate.toISOString().split('T')[0], 
           end: endDate.toISOString().split('T')[0] 
@@ -220,29 +236,38 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
         clientAccounts
       );
       
-      // Also fetch lead data from Google Sheets
-      let leadData = null;
+      // Also fetch lead data comparison from Google Sheets
+      let leadDataComparison = null;
       try {
         if (clientData.accounts?.googleSheetsConfig) {
-          leadData = await LeadDataService.fetchLeadData(
+          leadDataComparison = await LeadDataService.fetchLeadDataComparison(
             clientData.accounts.googleSheetsConfig.spreadsheetId,
             clientData.accounts.googleSheetsConfig.sheetName
           );
         } else {
-          leadData = await LeadDataService.fetchLeadData();
+          // Fallback to regular lead data if no config
+          const leadData = await LeadDataService.fetchLeadData();
+          leadDataComparison = {
+            allTime: leadData || { totalLeads: 0, facebookLeads: 0, googleLeads: 0, totalGuests: 0, averageGuestsPerLead: 0, eventTypes: [], leadSources: [], guestRanges: [], dayPreferences: [], landingPageTypes: [], availableColumns: { hasTypeColumn: false, hasGuestCountColumn: false, hasSourceColumn: false, hasDateColumn: false } },
+            lastMonth: { totalLeads: 0, facebookLeads: 0, googleLeads: 0, totalGuests: 0, averageGuestsPerLead: 0, eventTypes: [], leadSources: [], guestRanges: [], dayPreferences: [], landingPageTypes: [], availableColumns: { hasTypeColumn: false, hasGuestCountColumn: false, hasSourceColumn: false, hasDateColumn: false } }
+          };
         }
       } catch (error) {
-        debugLogger.warn('useLeadsTabData', 'Failed to fetch lead data', error);
+        debugLogger.warn('useLeadsTabData', 'Failed to fetch lead data comparison', error);
+        leadDataComparison = {
+          allTime: { totalLeads: 0, facebookLeads: 0, googleLeads: 0, totalGuests: 0, averageGuestsPerLead: 0, eventTypes: [], leadSources: [], guestRanges: [], dayPreferences: [], landingPageTypes: [], availableColumns: { hasTypeColumn: false, hasGuestCountColumn: false, hasSourceColumn: false, hasDateColumn: false } },
+          lastMonth: { totalLeads: 0, facebookLeads: 0, googleLeads: 0, totalGuests: 0, averageGuestsPerLead: 0, eventTypes: [], leadSources: [], guestRanges: [], dayPreferences: [], landingPageTypes: [], availableColumns: { hasTypeColumn: false, hasGuestCountColumn: false, hasSourceColumn: false, hasDateColumn: false } }
+        };
       }
       
-      return { ...result, clientData, leadData };
+      return { ...result, clientData, leadDataComparison };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && activeTab === 'leads',
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
+    timeout: 10000, // 10 second timeout for faster failure
   });
 };
 
@@ -269,6 +294,6 @@ export const useGHLTabData = (locationId: string | undefined, dateRange?: DateRa
     gcTime: 15 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
+    timeout: 10000, // 10 second timeout for faster failure
   });
 };

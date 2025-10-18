@@ -27,7 +27,27 @@ interface EditClientModalProps {
     isOpen: boolean;
     onClose: () => void;
     onUpdateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
-    onCreateClient?: (clientData: Record<string, unknown>) => Promise<void>;
+    onCreateClient?: (clientData: {
+      name: string;
+      type: string;
+      location: string;
+      logo_url?: string;
+      accounts: {
+        facebookAds?: string;
+        googleAds?: string;
+        goHighLevel?: string;
+        googleSheets?: string;
+        googleSheetsConfig?: {
+          spreadsheetId: string;
+          sheetName: string;
+        };
+      };
+      conversion_actions?: {
+        facebookAds?: string;
+        googleAds?: string;
+      };
+      shareable_link: string;
+    }) => Promise<void>;
     client: Client | null;
 }
 
@@ -63,6 +83,12 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         conversionActions: {
             facebookAds: client?.conversion_actions?.facebookAds || '',
             googleAds: client?.conversion_actions?.googleAds || '',
+        },
+        integrationEnabled: {
+            facebookAds: (client as any)?.integration_enabled?.facebookAds ?? true,
+            googleAds: (client as any)?.integration_enabled?.googleAds ?? true,
+            goHighLevel: (client as any)?.integration_enabled?.goHighLevel ?? true,
+            googleSheets: (client as any)?.integration_enabled?.googleSheets ?? true,
         },
     });
     
@@ -350,7 +376,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         
         // Add current account if it's not in the list
         const currentAccountId = formData.accounts[platform as keyof typeof formData.accounts];
-        if (currentAccountId && currentAccountId !== 'none' && !accounts.find(acc => acc.id === currentAccountId)) {
+        if (currentAccountId && currentAccountId !== 'none' && typeof currentAccountId === 'string' && !accounts.find(acc => acc.id === currentAccountId)) {
             accounts.unshift({
                 id: currentAccountId,
                 name: `${platform === 'googleAds' ? 'Google Ads' : platform === 'facebookAds' ? 'Facebook Ads' : platform} Account (${currentAccountId})`,
@@ -366,10 +392,16 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         try {
                 const clientData = {
                     name: clientName,
+                    type: client?.type || 'venue',
+                    location: client?.location || 'Unknown',
                     logo_url: clientLogo,
-                    accounts: formData.accounts,
+                    accounts: {
+                        ...formData.accounts,
+                        googleSheetsConfig: formData.accounts.googleSheetsConfig || undefined
+                    },
                     conversion_actions: formData.conversionActions,
-                    googleSheetsConfig: formData.accounts.googleSheetsConfig, // ✅ ADD THIS LINE
+                    integration_enabled: formData.integrationEnabled,
+                    shareable_link: client?.shareable_link || `https://eventmetrics.com/share/${Date.now()}`
                 };
         
         if (client) {
@@ -529,9 +561,19 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             />
                                             <span className="text-base font-medium text-slate-700">Facebook Ads</span>
                                         </div>
-                                        {integrationStatus.facebookAds && formData.accounts.facebookAds !== 'none' && (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {integrationStatus.facebookAds && formData.accounts.facebookAds !== 'none' && (
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                            )}
+                                            <Switch
+                                                checked={formData.integrationEnabled.facebookAds}
+                                                onCheckedChange={(enabled) => setFormData(prev => ({
+                                                    ...prev,
+                                                    integrationEnabled: { ...prev.integrationEnabled, facebookAds: enabled }
+                                                }))}
+                                                disabled={!integrationStatus.facebookAds}
+                                            />
+                                        </div>
                                     </div>
                                     
                                     {integrationStatus.facebookAds ? (
@@ -643,9 +685,19 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             />
                                             <span className="text-base font-medium text-slate-700">Google Ads</span>
                                         </div>
-                                        {integrationStatus.googleAds && formData.accounts.googleAds !== 'none' && (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {integrationStatus.googleAds && formData.accounts.googleAds !== 'none' && (
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                            )}
+                                            <Switch
+                                                checked={formData.integrationEnabled.googleAds}
+                                                onCheckedChange={(enabled) => setFormData(prev => ({
+                                                    ...prev,
+                                                    integrationEnabled: { ...prev.integrationEnabled, googleAds: enabled }
+                                                }))}
+                                                disabled={!integrationStatus.googleAds}
+                                            />
+                                        </div>
                                     </div>
                                     
                                     {integrationStatus.googleAds ? (
@@ -756,9 +808,18 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             />
                                             <span className="text-base font-medium text-slate-700">GoHighLevel</span>
                                         </div>
-                                        {formData.accounts.goHighLevel !== 'none' && (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {formData.accounts.goHighLevel !== 'none' && (
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                            )}
+                                            <Switch
+                                                checked={formData.integrationEnabled.goHighLevel}
+                                                onCheckedChange={(enabled) => setFormData(prev => ({
+                                                    ...prev,
+                                                    integrationEnabled: { ...prev.integrationEnabled, goHighLevel: enabled }
+                                                }))}
+                                            />
+                                        </div>
                                     </div>
                                     
                                     {formData.accounts.goHighLevel !== 'none' ? (
@@ -813,9 +874,19 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                             />
                                             <span className="text-base font-medium text-slate-700">Google Sheets</span>
                                         </div>
-                                        {googleSheetsConfig && (
-                                            <CheckCircle className="h-4 w-4 text-green-600" />
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {googleSheetsConfig && (
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                            )}
+                                            <Switch
+                                                checked={formData.integrationEnabled.googleSheets}
+                                                onCheckedChange={(enabled) => setFormData(prev => ({
+                                                    ...prev,
+                                                    integrationEnabled: { ...prev.integrationEnabled, googleSheets: enabled }
+                                                }))}
+                                                disabled={!integrationStatus.googleSheets && !googleSheetsConfig}
+                                            />
+                                        </div>
                                     </div>
                                     
                                     {integrationStatus.googleSheets || googleSheetsConfig ? (
@@ -900,7 +971,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                                 <Label className="text-xs text-slate-600">Frequency</Label>
                                                 <Select
                                                     value={aiConfig?.frequency || 'weekly'}
-                                                    onValueChange={(frequency) => {
+                                                    onValueChange={(frequency: 'daily' | 'weekly' | 'monthly') => {
                                                         setAiConfig((prev) => prev ? { ...prev, frequency } : null);
                                                         setHasUnsavedChanges(true);
                                                     }}

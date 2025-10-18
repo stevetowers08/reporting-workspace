@@ -28,11 +28,23 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         googleSheets: clientData.accounts?.googleSheets
       };
       
-      // Use provided date range or default to last 30 days
+      // Extract client integration enablement settings
+      const clientIntegrationEnabled = (clientData as any)?.integration_enabled || {
+        facebookAds: true,
+        googleAds: true,
+        goHighLevel: true,
+        googleSheets: true
+      };
+      
+      // Use provided date range or default to last month
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
+        // Default to last month instead of last 30 days
+        const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        startDate.setTime(lastMonth.getTime());
+        endDate.setTime(lastMonthEnd.getTime());
         
         return {
           start: startDate.toISOString().split('T')[0], 
@@ -46,6 +58,7 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         finalDateRange,
         clientAccounts,
         undefined, // clientConversionActions
+        clientIntegrationEnabled, // clientIntegrationEnabled
         true // includePreviousPeriod
       );
       
@@ -53,8 +66,8 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
       return result;
     },
     enabled: !!clientId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce duplicate calls
-    gcTime: 30 * 60 * 1000, // 30 minutes - increased cache time
+    staleTime: 15 * 60 * 1000, // 15 minutes - increased to reduce duplicate calls
+    gcTime: 60 * 60 * 1000, // 1 hour - increased cache time
     retry: 2, // Reduced retries
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Reduced max delay
     refetchOnWindowFocus: false, // Prevent refetch on window focus
@@ -71,8 +84,8 @@ export const useClientData = (clientId: string | undefined) => {
       return await DatabaseService.getClientById(clientId);
     },
     enabled: !!clientId,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
     retry: 3,
   });
 };

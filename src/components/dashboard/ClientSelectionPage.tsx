@@ -69,7 +69,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
     if (accounts.goHighLevel && accounts.goHighLevel !== 'none') {
       platforms.push({ icon: 'GHL', color: 'bg-purple-100 text-purple-700', label: 'GoHighLevel' });
     }
-    if (accounts.googleSheetsConfig) {
+    if (accounts.googleSheets) {
       platforms.push({ icon: 'GS', color: 'bg-green-100 text-green-700', label: 'Google Sheets' });
     }
     return platforms;

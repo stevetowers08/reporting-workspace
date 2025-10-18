@@ -16,7 +16,8 @@ serve(async (req) => {
   try {
     const { spreadsheetId, range, values, operation = 'read' } = await req.json()
 
-    if (!spreadsheetId) {
+    // Allow listing spreadsheets without requiring spreadsheetId
+    if (!spreadsheetId && operation !== 'list_sheets') {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required parameter: spreadsheetId' }),
         { 
@@ -180,7 +181,51 @@ serve(async (req) => {
     }
 
     // Handle different operations
-    if (operation === 'write' && values) {
+    if (operation === 'list_sheets') {
+      // List available spreadsheets from Google Drive
+      const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.spreadsheet'&fields=files(id,name,modifiedTime,webViewLink)`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!driveResponse.ok) {
+        console.error('Google Drive API error:', driveResponse.status, driveResponse.statusText)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Google Drive API error: ${driveResponse.status} ${driveResponse.statusText}` 
+          }),
+          { 
+            status: driveResponse.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
+      const driveData = await driveResponse.json()
+      const spreadsheets = driveData.files || []
+
+      console.log('Successfully fetched spreadsheets:', {
+        count: spreadsheets.length
+      })
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: { spreadsheets },
+          metadata: {
+            count: spreadsheets.length,
+            timestamp: new Date().toISOString()
+          }
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    } else if (operation === 'write' && values) {
       // Write operation
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`
       

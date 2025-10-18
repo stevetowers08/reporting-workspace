@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="6" failures="0" errors="0" time="0.548">
+  <testsuite name="Simple API Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-18T02:26:19" time="0.409" tests="6">
+    <testcase classname="Simple API Tests should pass basic test" name="Simple API Tests should pass basic test" time="0.003">
+    </testcase>
+    <testcase classname="Simple API Tests should handle environment variables" name="Simple API Tests should handle environment variables" time="0.001">
+    </testcase>
+    <testcase classname="Simple API Tests should validate test utilities" name="Simple API Tests should validate test utilities" time="0.001">
+    </testcase>
+    <testcase classname="Simple API Tests should validate test fixtures" name="Simple API Tests should validate test fixtures" time="0.001">
+    </testcase>
+    <testcase classname="Simple API Tests should generate test data" name="Simple API Tests should generate test data" time="0.001">
+    </testcase>
+    <testcase classname="Simple API Tests should validate response schema" name="Simple API Tests should validate response schema" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,74 @@
+/* PDF Export Optimizations for Recharts */
+@media print {
+  /* Prevent page breaks inside charts */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Ensure backgrounds print */
+  .recharts-surface {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Ensure chart colors are preserved */
+  .recharts-bar,
+  .recharts-pie,
+  .recharts-line,
+  .recharts-area {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Hide unnecessary elements */
+  .no-print,
+  button,
+  .btn,
+  nav,
+  [role="tablist"],
+  .tabs-list,
+  .tab-list,
+  [role="tab"],
+  .tabs-trigger,
+  .tab-trigger,
+  .export-button,
+  .share-button,
+  .navigation,
+  .nav,
+  .controls,
+  .action-buttons,
+  .toolbar {
+    display: none !important;
+  }
+  
+  /* Show all tab content */
+  [role="tabpanel"],
+  .tabs-content > div,
+  .tab-content > div {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure cards and content are visible */
+  .card,
+  .metric-card {
+    page-break-inside: avoid;
+    border: 1px solid #e5e7eb !important;
+    background: white !important;
+  }
+  
+  /* Ensure proper spacing */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    color: #000 !important;
+    background: white !important;
+  }
+  
+  /* Override dark themes for print */
+  .dark,
+  .dark * {
+    color: #000 !important;
+    background: transparent !important;
+  }
+}

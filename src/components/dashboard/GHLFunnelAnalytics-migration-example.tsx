@@ -55,7 +55,10 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
     const fetchFunnelData = async () => {
       try {
         // OLD WAY (still works):
-        const data = await GoHighLevelService.getFunnelAnalytics(locationId, dateRange);
+        const data = await GoHighLevelService.getFunnelAnalytics(locationId, {
+          startDate: dateRange?.start,
+          endDate: dateRange?.end
+        });
         
         // NEW WAY (when ready to migrate):
         // const pageViewAnalytics = await GHLAnalytics.getPageViewAnalytics(locationId, dateRange);
@@ -68,7 +71,23 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
         //   averageConversionRate: metrics.conversionRate
         // };
         
-        setFunnelData(data);
+        // Transform the data to match FunnelData interface
+        const transformedData: FunnelData = {
+          funnels: data.map((funnel: any) => ({
+            id: funnel.id || '',
+            name: funnel.name || '',
+            status: funnel.status || 'active',
+            createdAt: funnel.createdAt || new Date().toISOString(),
+            pages: funnel.pages || [],
+            redirects: funnel.redirects || []
+          })),
+          totalFunnels: data.length,
+          totalPageViews: data.reduce((sum: number, funnel: any) => sum + (funnel.totalViews || 0), 0),
+          totalConversions: data.reduce((sum: number, funnel: any) => sum + (funnel.totalConversions || 0), 0),
+          averageConversionRate: data.length > 0 ? data.reduce((sum: number, funnel: any) => sum + (funnel.conversionRate || 0), 0) / data.length : 0
+        };
+        
+        setFunnelData(transformedData);
       } catch (error) {
         console.error('Failed to fetch funnel analytics:', error);
       } finally {

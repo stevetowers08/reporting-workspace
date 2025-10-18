@@ -1,0 +1,42 @@
+/* Tab Visibility Fixes */
+/* Ensure tabs are always visible and prevent flickering */
+
+/* Tab buttons should always be visible */
+[data-testid="tab-button"],
+button[onclick*="onTabChange"] {
+  visibility: visible !important;
+  display: inline-flex !important;
+  opacity: 1 !important;
+}
+
+/* Tab content should be properly shown/hidden */
+[role="tabpanel"],
+[data-testid="tab-content"] {
+  visibility: visible !important;
+}
+
+/* Prevent tabs from disappearing during loading */
+.tab-container {
+  min-height: 200px;
+}
+
+/* Ensure tab navigation is always visible */
+.tab-navigation {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+/* Fix for React Query loading states */
+.tab-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Error state styling */
+.tab-error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}

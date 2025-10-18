@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button-simple';
 import { BarChart3, ChevronDown, Facebook, FileDown, Settings, Share2, Users } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 interface Client {
@@ -38,6 +39,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (_selectedClientId && clients.length > 0) {
@@ -72,6 +74,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
             <div className="flex-1 max-w-xs mx-8">
               <div className="relative">
                 <button
+                  ref={buttonRef}
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="w-full flex items-center justify-between px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white hover:bg-white/20 transition-colors"
                 >
@@ -96,39 +99,57 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
 
                 {/* Dropdown */}
                 {isDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {clients.length === 0 ? (
-                      <div className="p-4 text-center text-slate-600 text-sm">
-                        No venues available
-                      </div>
-                    ) : (
-                      clients.map((client) => (
-                        <button
-                          key={client.id}
-                          onClick={() => {
-                            onClientSelect(client.id);
-                            setIsDropdownOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
-                        >
-                          {client.logo_url ? (
-                            <img
-                              src={client.logo_url}
-                              alt={`${client.name} logo`}
-                              className="w-6 h-6 object-cover rounded border border-slate-200"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 bg-slate-200 rounded flex items-center justify-center">
-                              <Users className="h-3 w-3 text-slate-600" />
-                            </div>
-                          )}
-                          <span className="text-sm font-medium text-slate-900 truncate">
-                            {client.name}
-                          </span>
-                        </button>
-                      ))
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-[60]" 
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                    
+                    {/* Portal Dropdown */}
+                    {createPortal(
+                      <div 
+                        className="fixed bg-white border border-slate-200 rounded-lg shadow-lg z-[70] max-h-60 overflow-y-auto min-w-[200px]"
+                        style={{
+                          top: buttonRef.current ? buttonRef.current.getBoundingClientRect().bottom + 4 : 0,
+                          left: buttonRef.current ? buttonRef.current.getBoundingClientRect().left : 0,
+                        }}
+                      >
+                        {clients.length === 0 ? (
+                          <div className="p-4 text-center text-slate-600 text-sm">
+                            No venues available
+                          </div>
+                        ) : (
+                          clients.map((client) => (
+                            <button
+                              key={client.id}
+                              onClick={() => {
+                                onClientSelect(client.id);
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                            >
+                              {client.logo_url ? (
+                                <img
+                                  src={client.logo_url}
+                                  alt={`${client.name} logo`}
+                                  className="w-6 h-6 object-cover rounded border border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 bg-slate-200 rounded flex items-center justify-center">
+                                  <Users className="h-3 w-3 text-slate-600" />
+                                </div>
+                              )}
+                              <span className="text-sm font-medium text-slate-900 truncate">
+                                {client.name}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>,
+                      document.body
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </div>

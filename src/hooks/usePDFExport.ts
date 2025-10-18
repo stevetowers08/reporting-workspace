@@ -1,72 +1,34 @@
-import { EventDashboardData } from '@/services/data/eventMetricsService';
-import { PDFExportOptions, TabExportOptions } from '@/services/export/pdfExportService';
+import { PDFGenerationOptions, PlaywrightPDFService } from '@/services/export/playwrightPdfService';
 import { useCallback, useState } from 'react';
 
 interface UsePDFExportReturn {
-  exportToPDF: (data: EventDashboardData, options: PDFExportOptions) => Promise<void>;
-  exportSectionToPDF: (element: HTMLElement, fileName: string, options: PDFExportOptions) => Promise<void>;
-  exportTabsToPDF: (tabElements: { [key: string]: HTMLElement }, options: TabExportOptions) => Promise<void>;
+  exportWithPlaywright: (options: PDFGenerationOptions) => Promise<void>;
   isExporting: boolean;
   error: string | null;
 }
 
 /**
- * Hook for lazy-loaded PDF export functionality
- * Only loads PDF libraries when export is triggered
+ * Hook for Playwright PDF export functionality
+ * Uses server-side rendering for perfect fidelity
  */
 export const usePDFExport = (): UsePDFExportReturn => {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const exportToPDF = useCallback(async (data: EventDashboardData, options: PDFExportOptions) => {
+  /**
+   * Export using Playwright server-side rendering
+   * This provides perfect fidelity - exactly as displayed on screen
+   */
+  const exportWithPlaywright = useCallback(async (options: PDFGenerationOptions) => {
     try {
       setIsExporting(true);
       setError(null);
       
-      // Dynamic import of PDF export service
-      const { PDFExportService } = await import('@/services/export/pdfExportService');
-      await PDFExportService.exportDashboardToPDF(data, options);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to export PDF';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsExporting(false);
-    }
-  }, []);
+      // Skip availability check - let the actual request handle any errors
 
-  const exportSectionToPDF = useCallback(async (
-    element: HTMLElement, 
-    fileName: string, 
-    options: PDFExportOptions
-  ) => {
-    try {
-      setIsExporting(true);
-      setError(null);
+      // Generate and download PDF
+      await PlaywrightPDFService.generateAndDownloadPDF(options);
       
-      // Dynamic import of PDF export service
-      const { PDFExportService } = await import('@/services/export/pdfExportService');
-      await PDFExportService.exportSectionToPDF(element, fileName, options);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to export PDF';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setIsExporting(false);
-    }
-  }, []);
-
-  const exportTabsToPDF = useCallback(async (
-    tabElements: { [key: string]: HTMLElement },
-    options: TabExportOptions
-  ) => {
-    try {
-      setIsExporting(true);
-      setError(null);
-      
-      // Dynamic import of PDF export service
-      const { PDFExportService } = await import('@/services/export/pdfExportService');
-      await PDFExportService.exportTabsToPDF(tabElements, options);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to export PDF';
       setError(errorMessage);
@@ -77,9 +39,7 @@ export const usePDFExport = (): UsePDFExportReturn => {
   }, []);
 
   return {
-    exportToPDF,
-    exportSectionToPDF,
-    exportTabsToPDF,
+    exportWithPlaywright,
     isExporting,
     error
   };

@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface EventTypesBreakdownProps {
@@ -14,19 +14,44 @@ interface EventTypesBreakdownProps {
       }>;
     };
     clientAccounts?: {
-      googleSheetsConfig?: {
-        spreadsheetId: string;
-        sheetName: string;
-      };
+      googleSheets?: string;
+      googleSheetsConfig?: { spreadsheetId: string; sheetName: string };
     };
   } | null | undefined;
   dateRange?: { start: string; end: string };
 }
 
-export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange }) => {
+export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange: _dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ FIX: Move useMemo hooks before conditional returns to follow Rules of Hooks
+  const eventTypes = useMemo(() => leadData?.eventTypes || [], [leadData?.eventTypes]);
+  
+  const getEventTypeColor = (eventType: string) => {
+    const colorMap: { [key: string]: string } = {
+      'Wedding': '#10B981',
+      'Corporate': '#3B82F6', 
+      'Birthday': '#8B5CF6',
+      'Anniversary': '#F59E0B',
+      'Holiday': '#EF4444',
+      'Other': '#6B7280'
+    };
+    return colorMap[eventType] || '#6B7280'; // Default gray
+  };
+
+  const chartData = useMemo(() => {
+    const sortedEventTypes = [...eventTypes].sort((a, b) => b.count - a.count);
+    const top6EventTypes = sortedEventTypes.slice(0, 6);
+    
+    return top6EventTypes.map((eventType, _index) => ({
+      name: eventType.type,
+      value: eventType.count,
+      percentage: eventType.percentage,
+      color: getEventTypeColor(eventType.type)
+    }));
+  }, [eventTypes]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,9 +67,15 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
             data.clientAccounts.googleSheetsConfig.spreadsheetId,
             data.clientAccounts.googleSheetsConfig.sheetName
           );
+        } else if (data?.clientAccounts?.googleSheets) {
+          debugLogger.debug('EventTypesBreakdown', 'Using client-specific Google Sheets config (legacy)', data.clientAccounts.googleSheets);
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheets,
+            'Event Leads' // Use Event Leads as default sheet name
+          );
         } else {
-          debugLogger.debug('EventTypesBreakdown', 'Using default Google Sheets config');
-          leadDataResult = await LeadDataService.fetchLeadData();
+          // No default fallback - require proper configuration
+          throw new Error('No Google Sheets configuration available');
         }
         
         debugLogger.debug('EventTypesBreakdown', 'Received lead data', leadDataResult);
@@ -105,9 +136,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     );
   }
 
-  const eventTypes = leadData.eventTypes || [];
-
-  if (eventTypes.length === 0) {
+  if (eventTypes.length === 0 || !leadData?.availableColumns?.hasTypeColumn) {
     return (
       <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
         <div className="pb-3">
@@ -115,33 +144,20 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
           <p className="text-sm text-slate-600">What types of events customers are planning</p>
         </div>
         <div className="h-64 flex items-center justify-center">
-          <div className="text-slate-500">No event type data available</div>
+          <div className="text-center text-slate-500">
+            {!leadData?.availableColumns?.hasTypeColumn ? (
+              <div>
+                <p>No 'type' column found in spreadsheet</p>
+                <p className="text-xs mt-1">Add a 'type' column to your Google Sheets to show event types</p>
+              </div>
+            ) : (
+              <p>No event type data available</p>
+            )}
+          </div>
         </div>
       </Card>
     );
   }
-
-  // Helper function to get color for event type
-  const getEventTypeColor = (eventType: string): string => {
-    const colorMap: { [key: string]: string } = {
-      'Wedding': '#10B981',      // Green
-      'Corporate Event': '#3B82F6',  // Blue
-      'Birthday Party': '#8B5CF6',   // Purple
-      'Other': '#F59E0B'         // Orange
-    };
-    return colorMap[eventType] || '#6B7280'; // Default gray
-  };
-
-  // Prepare chart data - sort by count and take top 6
-  const sortedEventTypes = eventTypes.sort((a, b) => b.count - a.count);
-  const top6EventTypes = sortedEventTypes.slice(0, 6);
-  
-  const chartData = top6EventTypes.map((eventType, _index) => ({
-    name: eventType.type,
-    value: eventType.count,
-    percentage: eventType.percentage,
-    color: getEventTypeColor(eventType.type)
-  }));
 
   const _COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
@@ -149,6 +165,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Top 6 Event Types</h3>
+        <p className="text-sm text-slate-600">Most popular event categories</p>
       </div>
       
       <div className="h-64">
@@ -165,7 +182,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
               tick={{ fontSize: 12 }}
             />
             <Tooltip 
-              formatter={(value: number, name: string, props: any) => [
+              formatter={(value: number, name: string, props: { payload?: { percentage?: number } }) => [
                 `${value} events (${props.payload?.percentage?.toFixed(1)}%)`,
                 'Count'
               ]}

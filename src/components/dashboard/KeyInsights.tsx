@@ -8,7 +8,7 @@ interface KeyInsightsProps {
 
 export const KeyInsights: React.FC<KeyInsightsProps> = ({ data }) => {
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Key Insights</h3>
       </div>

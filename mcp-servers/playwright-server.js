@@ -112,6 +112,53 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: 'generatePDF',
+        description: 'Generate a PDF of the current page or specific elements',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: {
+              type: 'string',
+              description: 'Path to save the PDF file',
+            },
+            format: {
+              type: 'string',
+              description: 'Paper format (A4, A3, Letter, etc.)',
+              default: 'A4',
+            },
+            printBackground: {
+              type: 'boolean',
+              description: 'Whether to print background colors and images',
+              default: true,
+            },
+            margin: {
+              type: 'object',
+              description: 'Page margins',
+              properties: {
+                top: { type: 'string', default: '1cm' },
+                right: { type: 'string', default: '1cm' },
+                bottom: { type: 'string', default: '1cm' },
+                left: { type: 'string', default: '1cm' },
+              },
+            },
+            selector: {
+              type: 'string',
+              description: 'CSS selector for specific element to capture (optional)',
+            },
+            waitForSelector: {
+              type: 'string',
+              description: 'CSS selector to wait for before generating PDF',
+            },
+            waitForTimeout: {
+              type: 'number',
+              description: 'Timeout in milliseconds to wait for content to load',
+              default: 2000,
+            },
+          },
+          required: ['path'],
+        },
+      },
     ],
   };
 });
@@ -134,6 +181,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await evaluate(args.script);
       case 'getContent':
         return await getContent(args.selector);
+      case 'generatePDF':
+        return await generatePDF(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -244,6 +293,68 @@ async function getContent(selector) {
       },
     ],
   };
+}
+
+async function generatePDF(args) {
+  await ensureBrowser();
+  
+  const {
+    path,
+    format = 'A4',
+    printBackground = true,
+    margin = {
+      top: '1cm',
+      right: '1cm',
+      bottom: '1cm',
+      left: '1cm'
+    },
+    selector,
+    waitForSelector,
+    waitForTimeout = 2000
+  } = args;
+
+  try {
+    // Wait for content to load if specified
+    if (waitForSelector) {
+      await page.waitForSelector(waitForSelector, { timeout: waitForTimeout });
+    } else {
+      // Default wait for content to load
+      await page.waitForTimeout(waitForTimeout);
+    }
+
+    // Generate PDF options
+    const pdfOptions = {
+      path,
+      format,
+      printBackground,
+      margin,
+    };
+
+    // If selector is provided, generate PDF for specific element
+    if (selector) {
+      const element = await page.$(selector);
+      if (!element) {
+        throw new Error(`Element with selector "${selector}" not found`);
+      }
+      
+      // Generate PDF for the specific element
+      await element.pdf(pdfOptions);
+    } else {
+      // Generate PDF for the entire page
+      await page.pdf(pdfOptions);
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `PDF generated successfully at ${path}`,
+        },
+      ],
+    };
+  } catch (error) {
+    throw new Error(`Failed to generate PDF: ${error.message}`);
+  }
 }
 
 async function cleanup() {

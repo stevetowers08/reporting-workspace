@@ -9,7 +9,7 @@ export interface Client {
   location: string;
   logo_url?: string;
   services?: Record<string, any>;
-  accounts?: {
+  accounts: {
     facebookAds?: string;
     googleAds?: string;
     goHighLevel?: string | {
@@ -22,17 +22,23 @@ export interface Client {
       spreadsheetId: string;
       sheetName: string;
       spreadsheetName?: string;
-    } | null;
+    };
   };
   conversion_actions?: {
     facebookAds?: string;
     googleAds?: string;
   };
+  integration_enabled?: {
+    facebookAds?: boolean;
+    googleAds?: boolean;
+    goHighLevel?: boolean;
+    googleSheets?: boolean;
+  };
   googleSheetsConfig?: {
     spreadsheetId: string;
     sheetName: string;
     spreadsheetName?: string;
-  } | null;
+  };
   shareable_link: string;
   created_at?: string;
   updated_at?: string;
@@ -46,8 +52,9 @@ export interface CreateClientInput {
   location: string;
   logo_url?: string;
   services?: Record<string, any>;
-  accounts?: Client['accounts'];
+  accounts: Client['accounts'];
   conversion_actions?: Client['conversion_actions'];
+  integration_enabled?: Client['integration_enabled'];
   googleSheetsConfig?: Client['accounts']['googleSheetsConfig'];
   shareable_link: string;
 }

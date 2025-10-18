@@ -32,9 +32,144 @@ export interface LeadData {
     leads: number;
     color: string;
   }>;
+  availableColumns: {
+    hasTypeColumn: boolean;
+    hasGuestCountColumn: boolean;
+    hasSourceColumn: boolean;
+    hasDateColumn: boolean;
+  };
+}
+
+export interface LeadDataComparison {
+  allTime: LeadData;
+  lastMonth: LeadData;
 }
 
 export class LeadDataService {
+  /**
+   * Fetch lead data comparison between all time and last month
+   */
+  static async fetchLeadDataComparison(
+    spreadsheetId: string, 
+    sheetName: string
+  ): Promise<LeadDataComparison | null> {
+    if (!spreadsheetId || !sheetName) {
+      debugLogger.warn('LeadDataService', 'Missing required spreadsheetId or sheetName');
+      return {
+        allTime: this.getEmptyLeadData(),
+        lastMonth: this.getEmptyLeadData()
+      };
+    }
+
+    try {
+      debugLogger.info('LeadDataService', 'Fetching lead data comparison', {
+        spreadsheetId,
+        sheetName
+      });
+
+      // Fetch all data first
+      const allTimeData = await this.fetchLeadData(spreadsheetId, sheetName);
+      
+      // Calculate last month date range
+      const endDate = new Date();
+      const lastMonthStart = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+      
+      const lastMonthData = await this.fetchLeadDataForDateRange(
+        spreadsheetId, 
+        sheetName, 
+        lastMonthStart.toISOString().split('T')[0],
+        lastMonthEnd.toISOString().split('T')[0]
+      );
+
+      return {
+        allTime: allTimeData || this.getEmptyLeadData(),
+        lastMonth: lastMonthData || this.getEmptyLeadData()
+      };
+    } catch (error) {
+      debugLogger.error('LeadDataService', 'Failed to fetch lead data comparison', error);
+      return {
+        allTime: this.getEmptyLeadData(),
+        lastMonth: this.getEmptyLeadData()
+      };
+    }
+  }
+
+  /**
+   * Fetch lead data for a specific date range
+   */
+  static async fetchLeadDataForDateRange(
+    spreadsheetId: string, 
+    sheetName: string,
+    startDate: string,
+    endDate: string
+  ): Promise<LeadData | null> {
+    if (!spreadsheetId || !sheetName) {
+      debugLogger.warn('LeadDataService', 'Missing required spreadsheetId or sheetName');
+      return this.getEmptyLeadData();
+    }
+    
+    try {
+      debugLogger.info('LeadDataService', 'Fetching lead data for date range', {
+        spreadsheetId,
+        sheetName,
+        startDate,
+        endDate
+      });
+      
+      // Use direct Google Sheets API
+      const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
+      
+      const data = await GoogleSheetsService.getSpreadsheetData(
+        spreadsheetId, 
+        `${sheetName}!A1:Z100`
+      );
+
+      if (!data || !data.values || data.values.length < 2) {
+        debugLogger.warn('LeadDataService', 'No data found in Google Sheets for date range');
+        return this.getEmptyLeadData();
+      }
+
+      const headers = data.values[0];
+      const rows = data.values.slice(1);
+      
+      // Find date column index
+      const dateColumnIndex = this.findDateColumnIndex(headers);
+      if (dateColumnIndex === -1) {
+        debugLogger.warn('LeadDataService', 'No date column found, returning all data');
+        return this.processLeadData(headers, rows);
+      }
+
+      // Filter rows by date range
+      const filteredRows = rows.filter(row => {
+        const dateValue = row[dateColumnIndex];
+        if (!dateValue) return false;
+        
+        try {
+          const rowDate = new Date(dateValue);
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          
+          return rowDate >= start && rowDate <= end;
+        } catch (error) {
+          debugLogger.warn('LeadDataService', 'Invalid date format in row', { dateValue });
+          return false;
+        }
+      });
+
+      debugLogger.info('LeadDataService', 'Filtered rows by date range', {
+        totalRows: rows.length,
+        filteredRows: filteredRows.length,
+        dateRange: { startDate, endDate }
+      });
+
+      return this.processLeadData(headers, filteredRows);
+    } catch (error) {
+      debugLogger.error('LeadDataService', 'Failed to fetch lead data for date range', error);
+      return this.getEmptyLeadData();
+    }
+  }
+
   static async fetchLeadData(
     spreadsheetId: string, 
     sheetName: string
@@ -60,7 +195,7 @@ export class LeadDataService {
 
       const data = await GoogleSheetsService.getSpreadsheetData(
         spreadsheetId, 
-        `${sheetName}!A:Z`
+        `${sheetName}!A1:Z100`
       );
 
       if (!data) {
@@ -90,160 +225,181 @@ export class LeadDataService {
         headers: headers.length
       });
 
-      // Process the actual data
-      let facebookLeads = 0;
-      let googleLeads = 0;
-      let totalGuests = 0;
-      const eventTypes: { [key: string]: number } = {};
-      const guestRanges: { [key: string]: number } = {};
-      const dayPreferences: { [key: string]: number } = {};
-
-      // Map headers to column indices for your specific structure
-      const columnMap = this.mapHeadersToColumns(headers);
-      
-      debugLogger.debug('LeadDataService', 'Column mapping results', {
-        headers: headers,
-        columnMap: columnMap
-      });
-
-      rows.forEach((row: string[], index) => {
-        // Get source from mapped column
-        const source = columnMap.source >= 0 ? row[columnMap.source] || '' : '';
-        if (source.toLowerCase().includes('facebook')) {
-          facebookLeads++;
-        } else if (source.toLowerCase().includes('google')) {
-          googleLeads++;
-        }
-
-        // Get guest count from mapped column
-        const guestCountRaw = columnMap.guestCount >= 0 ? row[columnMap.guestCount] || '0' : '0';
-        const guestCount = parseInt(guestCountRaw);
-        
-        // Debug logging for first few rows
-        if (index < 5) {
-          debugLogger.debug('LeadDataService', `Row ${index} guest count processing`, {
-            guestCountRaw,
-            guestCount,
-            guestCountColumnIndex: columnMap.guestCount,
-            isValid: !isNaN(guestCount) && guestCount > 0 && guestCount <= 1000
-          });
-        }
-        
-        // Validate guest count (reasonable range: 1-1000)
-        if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
-          totalGuests += guestCount;
-        }
-
-        // Categorize guest ranges (use all rows, not just valid guest counts)
-        const guestCountForCategorization = isNaN(guestCount) || guestCount <= 0 ? 0 : guestCount;
-        if (guestCountForCategorization <= 50) {
-          guestRanges['1-50 guests'] = (guestRanges['1-50 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 100) {
-          guestRanges['51-100 guests'] = (guestRanges['51-100 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 200) {
-          guestRanges['101-200 guests'] = (guestRanges['101-200 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 300) {
-          guestRanges['201-300 guests'] = (guestRanges['201-300 guests'] || 0) + 1;
-        } else {
-          guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
-        }
-
-        // Get event date (column 6 - index 6) and determine day of week
-        const eventDate = row[6];
-        if (eventDate) {
-          try {
-            const date = new Date(eventDate);
-            const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-            dayPreferences[dayOfWeek] = (dayPreferences[dayOfWeek] || 0) + 1;
-          } catch (e) {
-            // Skip invalid dates
-          }
-        }
-
-        // Hybrid event type detection
-        const eventType = this.getEventType(row, headers, columnMap.eventType, guestCountForCategorization, this.findNotesColumn(headers));
-        eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
-        
-        // Debug logging for first few rows
-        if (index < 5) {
-          debugLogger.debug('LeadDataService', `Row ${index} event type detection`, {
-            guestCount: guestCountForCategorization,
-            eventTypeColumnIndex: columnMap.eventType,
-            notesColumnIndex: this.findNotesColumn(headers),
-            eventType,
-            row: row.slice(0, 10) // First 10 columns
-          });
-        }
-      });
-
-      const totalLeads = rows.length;
-      const averageGuestsPerLead = totalLeads > 0 ? totalGuests / totalLeads : 0;
-
-      // Final safety check for unrealistic guest totals
-      if (totalGuests > 100000) { // More than 100k guests seems unrealistic
-        totalGuests = 10000; // Cap at reasonable number
-      }
-
-      // Convert to arrays with percentages
-      const eventTypesArray = Object.entries(eventTypes).map(([type, count]) => ({
-        type,
-        count,
-        percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
-      }));
-
-      const guestRangesArray = Object.entries(guestRanges).map(([range, count]) => ({
-        range,
-        count,
-        percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
-      }));
-
-      const dayPreferencesArray = Object.entries(dayPreferences).map(([day, count]) => ({
-        day,
-        count,
-        percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
-      }));
-
-      // Create lead sources array
-      const leadSourcesArray = [
-        { type: 'Facebook Ads', count: facebookLeads, percentage: totalLeads > 0 ? (facebookLeads / totalLeads) * 100 : 0 },
-        { type: 'Google Ads', count: googleLeads, percentage: totalLeads > 0 ? (googleLeads / totalLeads) * 100 : 0 }
-      ].filter(source => source.count > 0);
-
-      // Create landing page types (using estimated data for now)
-      const landingPageTypesArray = [
-        { type: 'Wedding Venue Tour', views: Math.floor(totalLeads * 2), leads: Math.floor(totalLeads * 0.5), color: 'bg-pink-500' },
-        { type: 'Event Planning Guide', views: Math.floor(totalLeads * 1.5), leads: Math.floor(totalLeads * 0.3), color: 'bg-blue-500' },
-        { type: 'Pricing Calculator', views: Math.floor(totalLeads * 1), leads: Math.floor(totalLeads * 0.15), color: 'bg-green-500' },
-        { type: 'Virtual Tour', views: Math.floor(totalLeads * 0.8), leads: Math.floor(totalLeads * 0.05), color: 'bg-purple-500' }
-      ].filter(page => page.views > 0);
-
-      const result: LeadData = {
-        totalLeads,
-        facebookLeads,
-        googleLeads,
-        totalGuests,
-        averageGuestsPerLead,
-        eventTypes: eventTypesArray,
-        leadSources: leadSourcesArray,
-        guestRanges: guestRangesArray,
-        dayPreferences: dayPreferencesArray,
-        landingPageTypes: landingPageTypesArray
-      };
-
-      debugLogger.info('LeadDataService', 'Successfully processed lead data', {
-        totalLeads,
-        facebookLeads,
-        googleLeads,
-        totalGuests,
-        averageGuestsPerLead
-      });
-
-      return result;
+      return this.processLeadData(headers, rows);
 
     } catch (error) {
       debugLogger.error('LeadDataService', 'Failed to fetch lead data - returning empty data', error);
       return this.getEmptyLeadData();
     }
+  }
+
+  /**
+   * Process lead data from headers and rows
+   */
+  private static processLeadData(headers: string[], rows: string[][]): LeadData {
+    // Process the actual data
+    let facebookLeads = 0;
+    let googleLeads = 0;
+    let totalGuests = 0;
+    const eventTypes: { [key: string]: number } = {};
+    const guestRanges: { [key: string]: number } = {};
+    const dayPreferences: { [key: string]: number } = {};
+
+    // Map headers to column indices for your specific structure
+    const columnMap = this.mapHeadersToColumns(headers);
+    
+    debugLogger.debug('LeadDataService', 'Column mapping results', {
+      headers: headers,
+      columnMap: columnMap
+    });
+
+    rows.forEach((row: string[], index) => {
+      // Get source from mapped column
+      const source = columnMap.source >= 0 ? row[columnMap.source] || '' : '';
+      if (source.toLowerCase().includes('facebook')) {
+        facebookLeads++;
+      } else if (source.toLowerCase().includes('google')) {
+        googleLeads++;
+      }
+
+      // Get guest count from mapped column
+      const guestCountRaw = columnMap.guestCount >= 0 ? row[columnMap.guestCount] || '0' : '0';
+      const guestCount = parseInt(guestCountRaw);
+      
+      // Debug logging for first few rows
+      if (index < 5) {
+        debugLogger.debug('LeadDataService', `Row ${index} guest count processing`, {
+          guestCountRaw,
+          guestCount,
+          guestCountColumnIndex: columnMap.guestCount,
+          isValid: !isNaN(guestCount) && guestCount > 0 && guestCount <= 1000
+        });
+      }
+      
+      // Validate guest count (reasonable range: 1-1000)
+      if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
+        totalGuests += guestCount;
+      }
+
+      // Categorize guest ranges (use all rows, not just valid guest counts)
+      const guestCountForCategorization = isNaN(guestCount) || guestCount <= 0 ? 0 : guestCount;
+      if (guestCountForCategorization <= 50) {
+        guestRanges['1-50 guests'] = (guestRanges['1-50 guests'] || 0) + 1;
+      } else if (guestCountForCategorization <= 100) {
+        guestRanges['51-100 guests'] = (guestRanges['51-100 guests'] || 0) + 1;
+      } else if (guestCountForCategorization <= 200) {
+        guestRanges['101-200 guests'] = (guestRanges['101-200 guests'] || 0) + 1;
+      } else if (guestCountForCategorization <= 300) {
+        guestRanges['201-300 guests'] = (guestRanges['201-300 guests'] || 0) + 1;
+      } else {
+        guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
+      }
+
+      // Get event date (column 6 - index 6) and determine day of week
+      const eventDate = row[6];
+      if (eventDate) {
+        try {
+          const date = new Date(eventDate);
+          const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+          dayPreferences[dayOfWeek] = (dayPreferences[dayOfWeek] || 0) + 1;
+        } catch (_e) {
+          // Skip invalid dates
+        }
+      }
+
+      // Hybrid event type detection
+      const eventType = this.getEventType(row, headers, columnMap.eventType, guestCountForCategorization, this.findNotesColumn(headers));
+      eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
+      
+      // Debug logging for first few rows
+      if (index < 5) {
+        debugLogger.debug('LeadDataService', `Row ${index} event type detection`, {
+          guestCount: guestCountForCategorization,
+          eventTypeColumnIndex: columnMap.eventType,
+          notesColumnIndex: this.findNotesColumn(headers),
+          eventType,
+          row: row.slice(0, 10) // First 10 columns
+        });
+      }
+    });
+
+    const totalLeads = rows.length;
+    const averageGuestsPerLead = totalLeads > 0 ? totalGuests / totalLeads : 0;
+
+    // Final safety check for unrealistic guest totals
+    if (totalGuests > 100000) { // More than 100k guests seems unrealistic
+      totalGuests = 10000; // Cap at reasonable number
+    }
+
+    // Convert to arrays with percentages
+    const eventTypesArray = Object.entries(eventTypes).map(([type, count]) => ({
+      type,
+      count,
+      percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
+    }));
+
+    const guestRangesArray = Object.entries(guestRanges).map(([range, count]) => ({
+      range,
+      count,
+      percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
+    }));
+
+    const dayPreferencesArray = Object.entries(dayPreferences).map(([day, count]) => ({
+      day,
+      count,
+      percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
+    }));
+
+    // Create lead sources array
+    const leadSourcesArray = [
+      { type: 'Facebook Ads', count: facebookLeads, percentage: totalLeads > 0 ? (facebookLeads / totalLeads) * 100 : 0 },
+      { type: 'Google Ads', count: googleLeads, percentage: totalLeads > 0 ? (googleLeads / totalLeads) * 100 : 0 }
+    ].filter(source => source.count > 0);
+
+    // Create landing page types - remove hardcoded estimates
+    // TODO: Implement real landing page analytics from GHL or Google Analytics
+    const landingPageTypesArray: Array<{ type: string; views: number; leads: number; color: string }> = [];
+
+    const result: LeadData = {
+      totalLeads,
+      facebookLeads,
+      googleLeads,
+      totalGuests,
+      averageGuestsPerLead,
+      eventTypes: eventTypesArray,
+      leadSources: leadSourcesArray,
+      guestRanges: guestRangesArray,
+      dayPreferences: dayPreferencesArray,
+      landingPageTypes: landingPageTypesArray,
+      availableColumns: {
+        hasTypeColumn: columnMap.eventType >= 0,
+        hasGuestCountColumn: columnMap.guestCount >= 0,
+        hasSourceColumn: columnMap.source >= 0,
+        hasDateColumn: this.findDateColumnIndex(headers) >= 0
+      }
+    };
+
+    debugLogger.info('LeadDataService', 'Successfully processed lead data', {
+      totalLeads,
+      facebookLeads,
+      googleLeads,
+      totalGuests,
+      averageGuestsPerLead
+    });
+
+    return result;
+  }
+
+  /**
+   * Find date column index in headers
+   */
+  private static findDateColumnIndex(headers: string[]): number {
+    const dateKeywords = ['date', 'event date', 'event_date', 'submission date', 'submission_date', 'created', 'timestamp'];
+    return headers.findIndex(header => 
+      dateKeywords.some(keyword => 
+        header.toLowerCase().includes(keyword)
+      )
+    );
   }
 
   // Helper methods for hybrid event type detection
@@ -381,7 +537,13 @@ export class LeadDataService {
       leadSources: [],
       guestRanges: [],
       dayPreferences: [],
-      landingPageTypes: []
+      landingPageTypes: [],
+      availableColumns: {
+        hasTypeColumn: false,
+        hasGuestCountColumn: false,
+        hasSourceColumn: false,
+        hasDateColumn: false
+      }
     };
   }
 }

@@ -80,6 +80,7 @@ export interface EventDashboardData {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: { spreadsheetId: string; sheetName: string };
   };
 
   // Time period
@@ -87,14 +88,123 @@ export interface EventDashboardData {
     start: string;
     end: string;
   };
+
+  // Integration configuration
+  clientIntegrationEnabled?: {
+    facebookAds?: boolean;
+    googleAds?: boolean;
+    goHighLevel?: boolean;
+    googleSheets?: boolean;
+  };
 }
 
 export class EventMetricsService {
+  /**
+   * Get monthly historical data for both Facebook and Google Ads
+   */
+  static async getMonthlyHistoricalData(
+    clientId: string,
+    clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } },
+    clientIntegrationEnabled?: { facebookAds?: boolean; googleAds?: boolean; goHighLevel?: boolean; googleSheets?: boolean }
+  ): Promise<Array<{ month: string; facebookLeads: number; googleLeads: number; totalLeads: number; facebookSpend: number; googleSpend: number; totalSpend: number }>> {
+    try {
+      debugLogger.debug('EventMetricsService', 'Fetching monthly historical data', { clientId, clientAccounts });
+
+      const promises = [];
+      let facebookData: Array<{ month: string; leads: number; spend: number; impressions: number; clicks: number }> = [];
+      let googleData: Array<{ month: string; leads: number; spend: number; impressions: number; clicks: number }> = [];
+
+      // Check which accounts are connected
+      const hasFacebookAds = clientAccounts?.facebookAds && 
+        clientAccounts.facebookAds !== 'none' && 
+        (clientIntegrationEnabled?.facebookAds !== false);
+      
+      const hasGoogleAds = clientAccounts?.googleAds &&
+        clientAccounts.googleAds !== 'none' &&
+        (clientIntegrationEnabled?.googleAds !== false);
+
+      // Fetch Facebook monthly data
+      if (hasFacebookAds) {
+        promises.push(
+          (async () => {
+            try {
+              const { FacebookAdsService } = await import('@/services/api/facebookAdsService');
+              facebookData = await FacebookAdsService.getMonthlyHistoricalMetrics(clientAccounts.facebookAds);
+              debugLogger.debug('EventMetricsService', 'Facebook monthly data received', facebookData);
+            } catch (error) {
+              debugLogger.error('EventMetricsService', 'Facebook monthly data error', error);
+              facebookData = [];
+            }
+          })()
+        );
+      }
+
+      // Fetch Google monthly data
+      if (hasGoogleAds) {
+        promises.push(
+          (async () => {
+            try {
+              const { GoogleAdsService } = await import('@/services/api/googleAdsService');
+              googleData = await GoogleAdsService.getMonthlyHistoricalMetrics(clientAccounts.googleAds);
+              debugLogger.debug('EventMetricsService', 'Google monthly data received', googleData);
+            } catch (error) {
+              debugLogger.error('EventMetricsService', 'Google monthly data error', error);
+              googleData = [];
+            }
+          })()
+        );
+      }
+
+      // Wait for all API calls to complete
+      await Promise.all(promises);
+
+      // Combine data by month
+      const monthlyMap = new Map<string, { facebookLeads: number; googleLeads: number; facebookSpend: number; googleSpend: number }>();
+
+      // Process Facebook data
+      facebookData.forEach(month => {
+        const existing = monthlyMap.get(month.month) || { facebookLeads: 0, googleLeads: 0, facebookSpend: 0, googleSpend: 0 };
+        existing.facebookLeads += month.leads;
+        existing.facebookSpend += month.spend;
+        monthlyMap.set(month.month, existing);
+      });
+
+      // Process Google data
+      googleData.forEach(month => {
+        const existing = monthlyMap.get(month.month) || { facebookLeads: 0, googleLeads: 0, facebookSpend: 0, googleSpend: 0 };
+        existing.googleLeads += month.leads;
+        existing.googleSpend += month.spend;
+        monthlyMap.set(month.month, existing);
+      });
+
+      // Convert to array and calculate totals
+      const monthlyData = Array.from(monthlyMap.entries())
+        .map(([month, data]) => ({
+          month,
+          facebookLeads: data.facebookLeads,
+          googleLeads: data.googleLeads,
+          totalLeads: data.facebookLeads + data.googleLeads,
+          facebookSpend: data.facebookSpend,
+          googleSpend: data.googleSpend,
+          totalSpend: data.facebookSpend + data.googleSpend
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      debugLogger.debug('EventMetricsService', 'Combined monthly data', monthlyData);
+      return monthlyData;
+
+    } catch (error) {
+      debugLogger.error('EventMetricsService', 'Error fetching monthly historical data', error);
+      return [];
+    }
+  }
+
   static async getComprehensiveMetrics(
     _clientId: string,
     dateRange: { start: string; end: string },
-    clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string },
+    clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } },
     clientConversionActions?: { facebookAds?: string; googleAds?: string },
+    clientIntegrationEnabled?: { facebookAds?: boolean; googleAds?: boolean; goHighLevel?: boolean; googleSheets?: boolean },
     includePreviousPeriod: boolean = false
   ): Promise<EventDashboardData> {
     try {
@@ -111,24 +221,32 @@ export class EventMetricsService {
         googleAdsAccountType: typeof clientAccounts?.googleAds
       });
 
-      const hasFacebookAds = clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none';
+      const hasFacebookAds = clientAccounts?.facebookAds && 
+        clientAccounts.facebookAds !== 'none' && 
+        (clientIntegrationEnabled?.facebookAds !== false);
       debugLogger.debug('EventMetricsService', 'Facebook Ads check:', {
         facebookAdsValue: clientAccounts?.facebookAds,
         hasFacebookAds,
+        clientIntegrationEnabled: clientIntegrationEnabled?.facebookAds,
         willCallFacebookAPI: hasFacebookAds && clientAccounts?.facebookAds
       });
       
       debugLogger.info('EventMetricsService', 'Facebook Ads check:', {
         facebookAdsValue: clientAccounts?.facebookAds,
         hasFacebookAds,
+        clientIntegrationEnabled: clientIntegrationEnabled?.facebookAds,
         willCallFacebookAPI: hasFacebookAds && clientAccounts?.facebookAds
       });
-      const hasGoogleAds = clientAccounts?.googleAds && clientAccounts.googleAds !== 'none';
+      const hasGoogleAds = clientAccounts?.googleAds && 
+        clientAccounts.googleAds !== 'none' && 
+        (clientIntegrationEnabled?.googleAds !== false);
       const hasGoHighLevel = clientAccounts?.goHighLevel && 
         clientAccounts.goHighLevel !== 'none' && 
+        (clientIntegrationEnabled?.goHighLevel !== false) &&
         (typeof clientAccounts.goHighLevel === 'string' || 
          (typeof clientAccounts.goHighLevel === 'object' && clientAccounts.goHighLevel?.locationId));
-      const hasGoogleSheets = clientAccounts?.googleSheetsConfig;
+      const hasGoogleSheets = (clientAccounts?.googleSheets || clientAccounts?.googleSheetsConfig) && 
+        (clientIntegrationEnabled?.googleSheets !== false);
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {
         promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod));
@@ -141,7 +259,7 @@ export class EventMetricsService {
           : clientAccounts?.goHighLevel;
         promises.push(this.getGHLMetrics(dateRange, locationId));
       }
-      if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange, clientAccounts));}
+      if (hasGoogleSheets) {promises.push(this.getEventMetrics(_clientId, dateRange, clientAccounts));}
 
       const results = await Promise.allSettled(promises);
 
@@ -350,7 +468,7 @@ export class EventMetricsService {
     }
   }
 
-  private static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
+  static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
       debugLogger.debug('EventMetricsService', 'Fetching Facebook metrics for account', { 
         adAccountId, 
@@ -378,7 +496,7 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics> {
+  static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics> {
     try {
       debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange, clientGoogleAdsAccount });
       
@@ -479,6 +597,7 @@ export class EventMetricsService {
   }
 
   private static async getEventMetrics(
+    clientId: string,
     dateRange: { start: string; end: string },
     clientAccounts?: { googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } }
   ): Promise<EventMetrics> {
@@ -492,7 +611,7 @@ export class EventMetricsService {
         );
       } else {
         // No Google Sheets configuration available
-        debugLogger.warn('EventMetricsService', 'No Google Sheets configuration found for client');
+        debugLogger.warn('EventMetricsService', 'No Google Sheets configuration found for client', { clientId });
         return this.getEmptyEventMetrics();
       }
       

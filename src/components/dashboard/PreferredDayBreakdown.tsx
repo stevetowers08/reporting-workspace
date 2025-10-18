@@ -7,15 +7,32 @@ interface PreferredDayBreakdownProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ data: _data }) => {
+export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ data }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await LeadDataService.fetchLeadData();
-        setLeadData(data);
+        // Require proper client configuration - no default fallback
+        if (!data?.clientAccounts?.googleSheetsConfig && !data?.clientAccounts?.googleSheets) {
+          throw new Error('No Google Sheets configuration available');
+        }
+        
+        let leadDataResult;
+        if (data?.clientAccounts?.googleSheetsConfig) {
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheetsConfig.spreadsheetId,
+            data.clientAccounts.googleSheetsConfig.sheetName
+          );
+        } else if (data?.clientAccounts?.googleSheets) {
+          leadDataResult = await LeadDataService.fetchLeadData(
+            data.clientAccounts.googleSheets,
+            'Event Leads'
+          );
+        }
+        
+        setLeadData(leadDataResult || null);
       } catch (error) {
         console.error('Failed to fetch lead data:', error);
       } finally {
@@ -24,7 +41,7 @@ export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ da
     };
 
     fetchData();
-  }, []);
+  }, [data]);
 
   if (loading) {
     return (

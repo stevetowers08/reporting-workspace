@@ -15,19 +15,25 @@ export const SimpleChart: React.FC<SimpleChartProps> = ({
   type = 'bar',
   height = 300 
 }) => {
-  // Default data if none provided
-  const defaultData = {
-    labels: ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4'],
-    datasets: [{
-      label: 'Sample Data',
-      data: [12, 19, 3, 5],
-      backgroundColor: CHART_COLORS.palette[0],
-      borderColor: CHART_COLORS.palette[0],
-      borderWidth: 1,
-    }]
-  };
+  // No default data - require real data to be passed
+  const chartData = data;
 
-  const chartData = data || defaultData;
+  if (!chartData) {
+    return (
+      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+        <div className="pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+          <p className="text-sm text-slate-500">Chart.js Implementation</p>
+        </div>
+        <div className="h-64 flex items-center justify-center">
+          <div className="text-center text-slate-500">
+            <p>No data available</p>
+            <p className="text-xs mt-1">Real data will be shown when available</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white border border-slate-200 shadow-sm p-6">

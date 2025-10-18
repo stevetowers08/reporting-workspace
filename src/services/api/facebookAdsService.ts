@@ -46,6 +46,12 @@ export interface FacebookAdsMetrics {
       stories: number;
       reels: number;
     };
+    // Detailed placement metrics (spend and leads)
+    placementMetrics?: {
+      feed: { leads: number; spend: number };
+      stories: { leads: number; spend: number };
+      reels: { leads: number; spend: number };
+    };
     creativeBreakdown: {
       image: number;
       video: number;
@@ -1302,6 +1308,12 @@ export class FacebookAdsService {
           feed: 0,
           stories: 0,
           reels: 0
+        },
+        creativeBreakdown: {
+          image: 0,
+          video: 0,
+          carousel: 0,
+          other: 0
         }
       };
     }
@@ -1732,6 +1744,116 @@ export class FacebookAdsService {
     }
   }
 
+  /**
+   * Get monthly historical metrics for the last 12 months using lead form insights
+   */
+  static async getMonthlyHistoricalMetrics(adAccountId?: string): Promise<Array<{ month: string; leads: number; spend: number; impressions: number; clicks: number }>> {
+    try {
+      debugLogger.debug('FacebookAdsService', 'Fetching monthly historical metrics', { adAccountId });
+      
+      // Use provided account ID or get from integration config
+      let accountId = adAccountId;
+      
+      if (!accountId) {
+        const accounts = await this.getAdAccounts();
+        accountId = accounts[0]?.id;
+      }
+
+      if (!accountId) {
+        throw new Error('No ad account found');
+      }
+
+      // Ensure account ID has 'act_' prefix
+      const formattedAccountId = accountId.startsWith('act_') ? accountId : `act_${accountId}`;
+
+      const token = await this.getAccessToken();
+      
+      // Get data for the last 12 months using monthly time ranges
+      const monthlyData = [];
+      const currentDate = new Date();
+      
+      for (let i = 12; i >= 1; i--) {
+        const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const startDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+        const endDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // Last day of month
+        
+        const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        try {
+          const params = new URLSearchParams({
+            access_token: token,
+            fields: 'impressions,clicks,spend,actions',
+            level: 'account',
+            time_range: JSON.stringify({
+              since: startDate.toISOString().split('T')[0],
+              until: endDate.toISOString().split('T')[0]
+            })
+          });
+
+          const response = await fetch(
+            `${this.BASE_URL}/${formattedAccountId}/insights?${params}`
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const insights = data.data?.[0];
+            
+            if (insights) {
+              const actions = insights.actions || [];
+              const leadAction = actions.find((action: any) => 
+                action.action_type === 'lead_gen.lead' || 
+                action.action_type === 'lead' || 
+                action.action_type === 'onsite_conversion.lead_grouped' ||
+                action.action_type === 'onsite_conversion.lead'
+              );
+              
+              monthlyData.push({
+                month: monthKey,
+                leads: leadAction ? parseInt(leadAction.value) : 0,
+                spend: parseFloat(insights.spend || 0),
+                impressions: parseInt(insights.impressions || 0),
+                clicks: parseInt(insights.clicks || 0)
+              });
+            } else {
+              monthlyData.push({
+                month: monthKey,
+                leads: 0,
+                spend: 0,
+                impressions: 0,
+                clicks: 0
+              });
+            }
+          } else {
+            debugLogger.warn('FacebookAdsService', `Failed to fetch data for ${monthKey}`, await response.text());
+            monthlyData.push({
+              month: monthKey,
+              leads: 0,
+              spend: 0,
+              impressions: 0,
+              clicks: 0
+            });
+          }
+        } catch (error) {
+          debugLogger.warn('FacebookAdsService', `Error fetching data for ${monthKey}`, error);
+          monthlyData.push({
+            month: monthKey,
+            leads: 0,
+            spend: 0,
+            impressions: 0,
+            clicks: 0
+          });
+        }
+      }
+
+      debugLogger.debug('FacebookAdsService', 'Processed monthly data', { monthlyData });
+      return monthlyData;
+
+    } catch (error) {
+      debugLogger.error('FacebookAdsService', 'Error fetching monthly historical metrics', error);
+      return [];
+    }
+  }
+
   static async getAccountMetrics(adAccountId?: string, dateRange?: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
     try {
       // Clear cache if includePreviousPeriod is true to ensure fresh data
@@ -1823,7 +1945,7 @@ export class FacebookAdsService {
         });
       }
       
-      // Fetch demographic and platform breakdown data
+      // Fetch breakdown data for demographics and platform analysis
       const demographics = await this.getDemographicBreakdown(accountId, dateRange);
       const platformBreakdown = await this.getPlatformBreakdown(accountId, dateRange);
       

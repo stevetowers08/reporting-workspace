@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
-import { AgencyService, Client } from '@/services/agency/agencyService';
+import { AgencyService } from '@/services/agency/agencyService';
+import { Client } from '@/types/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
@@ -75,7 +76,9 @@ export const useAgencyClients = (): UseAgencyClientsReturn => {
     clients,
     loading,
     deleting,
-    loadClients: loadClients as () => Promise<void>,
+    loadClients: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['agency-clients'] });
+    },
     createClient,
     updateClient,
     deleteClient,
