@@ -184,7 +184,7 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
                 size="sm"
                 className={`flex-1 ${
                   integration.platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' :
-                  integration.platform === 'google' ? 'bg-red-600 hover:bg-red-700' :
+                  integration.platform === 'google' ? 'bg-green-600 hover:bg-green-700' :
                   integration.platform === 'gohighlevel' ? 'bg-purple-600 hover:bg-purple-700' :
                   'bg-green-600 hover:bg-green-700'
                 } text-white`}
