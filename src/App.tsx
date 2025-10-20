@@ -3,6 +3,7 @@ import { PageErrorBoundary } from "@/components/error/EnhancedErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
+import { LoadingProvider as EnhancedLoadingProvider, GlobalLoadingIndicator } from "@/components/ui/EnhancedLoadingSystem";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
@@ -236,54 +237,59 @@ const App = () => {
     <PageErrorBoundary>
       <ErrorProvider>
         <LoadingProvider>
-          <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
-            <div className="app-shell">
-              <Routes>
-                <Route path="/" element={<HomePageWrapper />} />
-                <Route path="/dashboard/:clientId" element={
-                  <Suspense fallback={<DashboardSkeleton />}>
-                    <EventDashboard />
-                  </Suspense>
-                } />
-                <Route path="/agency" element={<AgencyPanel />} />
-                <Route path="/agency/clients" element={<AgencyPanel />} />
-                <Route path="/agency/integrations" element={<AgencyPanel />} />
-                <Route path="/agency/ai-insights" element={<AgencyPanel />} />
-                <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
-                <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
-                <Route path="/ad-accounts" element={<AdAccountsOverview />} />
-                <Route path="/facebook-ads" element={<FacebookAdsPage />} />
-                <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
-                <Route path="/google-ads" element={<GoogleAdsPage />} />
-                <Route path="/api-testing" element={<APITestingPage />} />
-                <Route path="/oauth/callback" element={<OAuthCallback />} />
-                <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
-                <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
-                <Route path="/share/:clientId" element={
-                  <Suspense fallback={<DashboardSkeleton />}>
-                    <EventDashboard isShared={true} />
-                  </Suspense>
-                } />
-                <Route path="/health" element={<HealthCheckPage />} />
-                {/* Fallback for unknown routes */}
-                <Route path="*" element={<Fallback />} />
-              </Routes>
+          <EnhancedLoadingProvider>
+            <QueryClientProvider client={queryClient}>
+              <BrowserRouter>
+              <div className="app-shell">
+                <Routes>
+                  <Route path="/" element={<HomePageWrapper />} />
+                  <Route path="/dashboard/:clientId" element={
+                    <Suspense fallback={<DashboardSkeleton />}>
+                      <EventDashboard />
+                    </Suspense>
+                  } />
+                  <Route path="/agency" element={<AgencyPanel />} />
+                  <Route path="/agency/clients" element={<AgencyPanel />} />
+                  <Route path="/agency/integrations" element={<AgencyPanel />} />
+                  <Route path="/agency/ai-insights" element={<AgencyPanel />} />
+                  <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
+                  <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
+                  <Route path="/ad-accounts" element={<AdAccountsOverview />} />
+                  <Route path="/facebook-ads" element={<FacebookAdsPage />} />
+                  <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
+                  <Route path="/google-ads" element={<GoogleAdsPage />} />
+                  <Route path="/api-testing" element={<APITestingPage />} />
+                  <Route path="/oauth/callback" element={<OAuthCallback />} />
+                  <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
+                  <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
+                  <Route path="/share/:clientId" element={
+                    <Suspense fallback={<DashboardSkeleton />}>
+                      <EventDashboard isShared={true} />
+                    </Suspense>
+                  } />
+                  <Route path="/health" element={<HealthCheckPage />} />
+                  {/* Fallback for unknown routes */}
+                  <Route path="*" element={<Fallback />} />
+                </Routes>
 
-              {/* Error Notifications */}
-              <ErrorNotificationContainer />
+                {/* Error Notifications */}
+                <ErrorNotificationContainer />
 
-              {/* Network Status Indicator */}
-              <NetworkStatusIndicator />
+                {/* Network Status Indicator */}
+                <NetworkStatusIndicator />
 
-              {/* Debug Panel */}
-              <DebugPanel
-                isOpen={showDebugPanel}
-                onClose={() => setShowDebugPanel(false)}
-              />
-            </div>
-          </BrowserRouter>
-        </QueryClientProvider>
+                {/* Global Loading Indicator */}
+                <GlobalLoadingIndicator />
+
+                {/* Debug Panel */}
+                <DebugPanel
+                  isOpen={showDebugPanel}
+                  onClose={() => setShowDebugPanel(false)}
+                />
+              </div>
+            </BrowserRouter>
+          </QueryClientProvider>
+          </EnhancedLoadingProvider>
         </LoadingProvider>
       </ErrorProvider>
     </PageErrorBoundary>

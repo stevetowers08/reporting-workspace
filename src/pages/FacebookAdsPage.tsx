@@ -1,7 +1,7 @@
 "use client";
 
 import { FacebookConnectionPrompt } from "@/components/connection/FacebookConnectionPrompt";
-import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
+import { EnhancedPageLoader, useLoading } from '@/components/ui/EnhancedLoadingSystem';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
@@ -20,6 +20,9 @@ const FacebookAdsPage = () => {
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState("30d");
     const [isFacebookConnected, setIsFacebookConnected] = useState(false);
+    
+    // Enhanced loading states
+    const { startLoading: _startLoading, stopLoading: _stopLoading, isLoading: _isDataLoading } = useLoading('facebook-ads');
 
     useEffect(() => {
         checkFacebookConnection();
@@ -36,8 +39,8 @@ const FacebookAdsPage = () => {
                 .single();
             
             setIsFacebookConnected(data?.connected || false);
-        } catch (error) {
-            debugLogger.error('FacebookAdsPage', 'Error checking Facebook connection', error);
+        } catch (_error) {
+            debugLogger.error('FacebookAdsPage', 'Error checking Facebook connection', _error);
             setIsFacebookConnected(false);
         }
     };
@@ -145,7 +148,11 @@ const FacebookAdsPage = () => {
             <div className="px-6 pb-6">
                 <div className="max-w-7xl mx-auto">
                     {loading ? (
-                        <PageLoader message="Loading Meta Ads data..." />
+                        <EnhancedPageLoader 
+                            message="Loading Meta Ads Analytics..." 
+                            showProgress={true}
+                            progress={75}
+                        />
                     ) : dashboardData ? (
                         <>
                             {/* Key Metrics - 2 Rows of KPI Cards */}

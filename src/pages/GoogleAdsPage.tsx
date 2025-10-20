@@ -1,6 +1,6 @@
 "use client";
 
-import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
+import { EnhancedPageLoader, useLoading } from '@/components/ui/EnhancedLoadingSystem';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculatePercentageChange } from '@/lib/dateUtils';
@@ -54,6 +54,9 @@ const GoogleAdsPage = () => {
     const [googleAccounts, setGoogleAccounts] = useState<GoogleAdAccountData[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState("30d");
+    
+    // Enhanced loading states
+    const { startLoading: _startLoading, stopLoading: _stopLoading, isLoading: _isDataLoading } = useLoading('google-ads');
 
     useEffect(() => {
         loadGoogleAdsData();
@@ -239,7 +242,11 @@ const GoogleAdsPage = () => {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <PageLoader message="Loading Google ads data..." />
+                                <EnhancedPageLoader 
+                                    message="Loading Google Ads Analytics..." 
+                                    showProgress={true}
+                                    progress={80}
+                                />
                             ) : googleAccounts.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
