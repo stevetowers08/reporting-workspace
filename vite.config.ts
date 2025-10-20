@@ -58,11 +58,6 @@ export default defineConfig(({ mode }) => {
         // Development optimizations
         ...(isDev && {
           fastRefresh: true,
-          babel: {
-            plugins: [
-              // Add development-specific babel plugins if needed
-            ],
-          },
         }),
       }),
       // Bundle analyzer - only in analyze mode

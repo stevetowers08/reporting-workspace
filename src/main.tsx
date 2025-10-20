@@ -2,11 +2,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-// Polyfill for useLayoutEffect in SSR environments
-if (typeof window === 'undefined') {
-  React.useLayoutEffect = React.useEffect;
-}
-
 // Import App and CSS after React is initialized to prevent TDZ issues
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import App from "./App";
