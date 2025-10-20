@@ -1,5 +1,18 @@
 import { API_BASE_URLS, API_VERSIONS } from '@/constants/apiVersions';
 import { debugLogger, debugService } from '@/lib/debug';
+import { 
+  FacebookApiResponse, 
+  FacebookAdAccount, 
+  FacebookBusiness, 
+  FacebookSystemUser, 
+  FacebookInsightData, 
+  FacebookConversionAction, 
+  FacebookErrorResponse,
+  CachedData,
+  MetricsData,
+  DemographicsData,
+  PlatformBreakdown
+} from '@/types/api';
 
 export interface FacebookAdsMetrics {
   impressions: number;
@@ -66,11 +79,11 @@ export interface FacebookAdsCampaign {
 export class FacebookAdsService {
   private static readonly API_VERSION = API_VERSIONS.FACEBOOK;
   private static readonly BASE_URL = API_BASE_URLS.FACEBOOK;
-  private static requestCache = new Map<string, { data: any; timestamp: number }>();
+  private static requestCache = new Map<string, CachedData<unknown>>();
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   // Cache management methods
-  private static getCachedData(key: string): any | null {
+  private static getCachedData<T>(key: string): T | null {
     const cached = this.requestCache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
@@ -78,7 +91,7 @@ export class FacebookAdsService {
     return null;
   }
 
-  private static setCachedData(key: string, data: any): void {
+  private static setCachedData<T>(key: string, data: T): void {
     this.requestCache.set(key, { data, timestamp: Date.now() });
   }
 
@@ -150,7 +163,7 @@ export class FacebookAdsService {
   private static readonly RETRY_DELAY = 1000; // 1 second base delay
 
   // Request deduplication
-  private static pendingRequests = new Map<string, Promise<any>>();
+  private static pendingRequests = new Map<string, Promise<unknown>>();
 
   // Deduplicate requests to prevent multiple identical API calls
   private static async deduplicateRequest<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
@@ -391,7 +404,7 @@ export class FacebookAdsService {
       debugLogger.debug('FacebookAdsService', 'Facebook user token length', userToken.length);
       debugLogger.debug('FacebookAdsService', 'Facebook developer token length', developerToken.length);
 
-      const allAccounts: any[] = [];
+      const allAccounts: FacebookAdAccount[] = [];
 
       // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
       const headers = await this.buildApiHeaders();

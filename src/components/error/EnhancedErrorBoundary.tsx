@@ -1,8 +1,8 @@
 // Enhanced Error Boundary Components for better error handling
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, Bug, Home, RefreshCw } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -84,7 +84,7 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   private logError = (error: Error, errorInfo: ErrorInfo) => {
-    const errorData = {
+    const _errorData = {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,

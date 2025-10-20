@@ -171,7 +171,7 @@ class DatabaseLogoService {
       const dbLogos = await this.getAllLogoMetadata();
       
       // Update local logo service with database data
-      const logoService = (await import('./logoService')).logoService;
+      const { logoService } = await import('./logoService');
       
       for (const dbLogo of dbLogos) {
         // Update local cache if needed
