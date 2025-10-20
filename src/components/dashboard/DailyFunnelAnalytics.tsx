@@ -1,3 +1,4 @@
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
@@ -105,7 +106,10 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
         <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-slate-500">Loading daily analytics...</div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading daily analytics...
+          </div>
         </div>
       </Card>
     );

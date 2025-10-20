@@ -7,7 +7,7 @@
 
 [build.environment]
   # Node.js version
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   
   # Build settings
   NPM_FLAGS = "--production=false"

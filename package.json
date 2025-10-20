@@ -8,7 +8,7 @@
     "dev": "vite",
     "dev:optimized": "bash scripts/dev-optimized.sh",
     "dev:fast": "vite --force",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -95,6 +95,6 @@
     ]
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   }
 }

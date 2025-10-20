@@ -1,3 +1,4 @@
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
@@ -50,10 +51,7 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-            <div className="animate-pulse">
-              <div className="h-4 bg-slate-200 rounded mb-2"></div>
-              <div className="h-8 bg-slate-200 rounded"></div>
-            </div>
+            <DataSkeleton />
           </Card>
         ))}
       </div>

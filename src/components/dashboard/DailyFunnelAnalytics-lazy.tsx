@@ -1,4 +1,5 @@
 import { LazyChartWrapper } from '@/components/charts/LazyChartWrapper';
+import { ChartSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
@@ -117,15 +118,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
   if (loading) {
     return (
       <Card className="p-6">
-        <div className="space-y-4">
-          <div className="h-4 w-1/4 bg-gray-200 rounded animate-pulse" />
-          <div className="h-64 w-full bg-gray-200 rounded animate-pulse" />
-          <div className="flex space-x-2">
-            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-          </div>
-        </div>
+        <ChartSkeleton />
       </Card>
     );
   }
