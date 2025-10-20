@@ -1,6 +1,6 @@
-import React from 'react';
 import { Card } from '@/components/ui/card';
-import { ChartWrapper, CHART_COLORS } from '@/components/ui/chart-wrapper';
+import React from 'react';
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface SimpleChartProps {
   title: string;
@@ -16,31 +16,52 @@ export const SimpleChart: React.FC<SimpleChartProps> = ({
   height = 300 
 }) => {
   // Default data if none provided
-  const defaultData = {
-    labels: ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4'],
-    datasets: [{
-      label: 'Sample Data',
-      data: [12, 19, 3, 5],
-      backgroundColor: CHART_COLORS.palette[0],
-      borderColor: CHART_COLORS.palette[0],
-      borderWidth: 1,
-    }]
-  };
+  const defaultData = [
+    { name: 'Sample 1', value: 12 },
+    { name: 'Sample 2', value: 19 },
+    { name: 'Sample 3', value: 3 },
+    { name: 'Sample 4', value: 5 }
+  ];
 
   const chartData = data || defaultData;
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <p className="text-sm text-slate-500">Chart.js Implementation</p>
       </div>
       <div className="h-64">
-        <ChartWrapper
-          type={type}
-          data={chartData}
-          height={height}
-        />
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart 
+            data={chartData} 
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          >
+            <XAxis 
+              dataKey="name"
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip 
+              formatter={(value: number, name: string) => [
+                `${value}`,
+                'Value'
+              ]}
+              labelStyle={{ color: '#374151' }}
+              contentStyle={{ 
+                backgroundColor: '#fff', 
+                border: '1px solid #E2E8F0',
+                borderRadius: '6px'
+              }}
+            />
+            <Bar 
+              dataKey="value" 
+              fill="#3B82F6"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </Card>
   );

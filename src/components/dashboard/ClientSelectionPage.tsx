@@ -134,7 +134,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -184,7 +184,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                   setStatusFilter('');
                   setTypeFilter('');
                 }}
-                className="text-sm text-slate-500 hover:text-slate-700"
+                className="text-sm text-slate-500"
               >
                 Clear filters
               </button>
@@ -226,7 +226,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
               return (
                 <Card 
                   key={client.id} 
-                  className="cursor-pointer hover:shadow-md hover:border-slate-300 transition-all duration-200 group"
+                  className="cursor-pointer group"
                   onClick={() => onClientSelect(client.id)}
                 >
                   <CardHeader className="pb-4">
@@ -284,7 +284,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
                     
                     {/* Action Button */}
                     <Button 
-                      className="w-full h-9 text-sm group-hover:bg-slate-700"
+                      className="w-full h-9 text-sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         onClientSelect(client.id);

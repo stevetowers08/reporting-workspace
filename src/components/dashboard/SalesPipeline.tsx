@@ -17,7 +17,7 @@ export const SalesPipeline: React.FC<SalesPipelineProps> = ({ data }) => {
   const bookedEvents = Math.floor(totalLeads * 0.1); // 10% booked events
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm">
+    <Card className="bg-white border border-slate-200">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold text-slate-900">Lead Pipeline</CardTitle>
       </CardHeader>

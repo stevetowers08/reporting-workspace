@@ -2,6 +2,7 @@ import DebugPanel from "@/components/DebugPanel";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
 import { ErrorProvider } from "@/contexts/ErrorContext";
+import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
@@ -11,6 +12,7 @@ import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
 // ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
+import { MarketingDashboardSkeleton } from "@/components/ui/LoadingSystem";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
@@ -110,7 +112,7 @@ const HealthCheckPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">System Health Check</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -234,13 +236,14 @@ const App = () => {
   return (
     <AppErrorBoundary>
       <ErrorProvider>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+        <LoadingProvider>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
             <div className="app-shell">
               <Routes>
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={
-                  <Suspense fallback={<div>Loading dashboard...</div>}>
+                  <Suspense fallback={<MarketingDashboardSkeleton />}>
                     <EventDashboard />
                   </Suspense>
                 } />
@@ -259,7 +262,7 @@ const App = () => {
                 <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={
-                  <Suspense fallback={<div>Loading dashboard...</div>}>
+                  <Suspense fallback={<MarketingDashboardSkeleton />}>
                     <EventDashboard isShared={true} />
                   </Suspense>
                 } />
@@ -282,6 +285,7 @@ const App = () => {
             </div>
           </BrowserRouter>
         </QueryClientProvider>
+        </LoadingProvider>
       </ErrorProvider>
     </AppErrorBoundary>
   );

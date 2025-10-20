@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
+import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
-import { Client } from '@/services/data/databaseService';
 import React, { useEffect, useState } from 'react';
 
 interface LandingPagePerformanceProps {
@@ -39,7 +39,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
@@ -57,7 +57,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
 
   if (!leadData) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="text-center text-slate-500">Failed to load landing page data</div>
       </Card>
     );
@@ -66,7 +66,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
   const landingPageViews = data?.ghlMetrics?.totalContacts || 0; // Using dashboard data
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Landing Page Performance</h3>
         <p className="text-sm text-slate-500">Total Views: {landingPageViews.toLocaleString()}</p>

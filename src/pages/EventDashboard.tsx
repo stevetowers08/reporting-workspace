@@ -107,10 +107,9 @@ const LeadInfoMetricsCards = lazy(() =>
 );
 
 // Chart.js replacements for recharts components
+import { EventTypesBreakdown } from '@/components/dashboard/EventTypesBreakdown';
+import { GuestCountDistribution } from '@/components/dashboard/GuestCountDistribution';
 import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
-import { SimpleChart } from '@/components/dashboard/SimpleChart';
-import { SmartChartLayout } from '@/components/dashboard/SmartChartLayout';
-import { CHART_COLORS } from '@/components/ui/chart-wrapper';
 
 interface EventDashboardProps {
   isShared?: boolean;
@@ -534,7 +533,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <h1 className="text-3xl font-bold text-slate-900 mb-8">Select a Client</h1>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {availableClients?.map((client) => (
-              <Card key={client.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+              <Card key={client.id} className="cursor-pointer transition-shadow">
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">{client.name}</h3>
                   <p className="text-sm text-slate-600 mb-4">{client.type}</p>
@@ -596,7 +595,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             </LazyComponentErrorBoundary>
             
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
-              <Card className="bg-white border border-slate-200 shadow-sm p-6">
+              <Card className="bg-white border border-slate-200 p-6">
                 <div className="pb-3">
                   <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
                 </div>
@@ -609,7 +608,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                 </div>
               </Card>
 
-              <Card className="bg-white border border-slate-200 shadow-sm p-6">
+              <Card className="bg-white border border-slate-200 p-6">
                 <div className="pb-3">
                   <h3 className="text-lg font-semibold text-slate-900">Leads by Day</h3>
                 </div>
@@ -679,29 +678,26 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
               </AppErrorBoundary>
             </Suspense>
             
-            {/* Top-Level Funnel Metrics - Very Top */}
-              <SimpleChart 
-                title="Funnel Metrics"
-                type="bar"
-                data={{
-                  labels: ['Leads', 'Contacts', 'Opportunities', 'Deals'],
-                  datasets: [{
-                    label: 'Count',
-                    data: [150, 120, 80, 45],
-                    backgroundColor: CHART_COLORS.palette[0],
-                  }]
-                }}
-              />
-            
-            {/* Smart Chart Layout - 2 columns with automatic reordering */}
+            {/* Event Types and Guest Count Charts Only */}
             <div className="mt-6">
               <Suspense fallback={<ComponentLoader />}>
                 <AppErrorBoundary>
-                  <SmartChartLayout 
-                    dashboardData={dashboardData}
-                    dateRange={getDateRange(selectedPeriod)}
-                    locationId={dashboardData?.clientAccounts?.goHighLevel || 'V7bzEjKiigXzh8r6sQq0'}
-                  />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Event Types Chart */}
+                    <div className="min-h-[300px]">
+                      <EventTypesBreakdown 
+                        data={dashboardData}
+                        dateRange={getDateRange(selectedPeriod)}
+                      />
+                    </div>
+                    
+                    {/* Guest Count Distribution Chart */}
+                    <div className="min-h-[300px]">
+                      <GuestCountDistribution 
+                        data={dashboardData}
+                      />
+                    </div>
+                  </div>
                 </AppErrorBoundary>
               </Suspense>
             </div>

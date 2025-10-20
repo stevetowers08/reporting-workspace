@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GHLPipelineStagesProps {
   locationId: string;
@@ -127,7 +127,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">GHL Sales Pipeline</h3>
         </div>
@@ -140,7 +140,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
 
   if (!pipelineData.length) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">GHL Sales Pipeline</h3>
         </div>
@@ -152,25 +152,22 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
   }
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">GHL Sales Pipeline</h3>
-        <p className="text-sm text-slate-600">Lead progression through sales stages</p>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pipeline Bar Chart */}
         <div className="h-64">
-          <h4 className="text-sm font-medium text-slate-700 mb-3">Pipeline Distribution</h4>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={pipelineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+            <BarChart 
+              data={pipelineData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
               <XAxis 
                 dataKey="stage" 
-                tick={{ fontSize: 10 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
+                tick={{ fontSize: 12 }}
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
@@ -192,7 +189,6 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
 
         {/* Pipeline Pie Chart */}
         <div className="h-64">
-          <h4 className="text-sm font-medium text-slate-700 mb-3">Stage Distribution</h4>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

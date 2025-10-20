@@ -1,65 +1,119 @@
-# Documentation Overview
+# Marketing Analytics Dashboard Documentation
 
-## Current Documentation Structure
+**Last Updated:** January 20, 2025  
+**Version:** 1.0.0  
+**Maintained by:** Tulen Agency
 
-The documentation has been cleaned up and consolidated into essential, up-to-date files:
+## Overview
 
-### Core API Documentation (`docs/ai/`)
-- **FACEBOOK_ADS_API_DOCUMENTATION.md** - Complete Facebook Ads API integration guide
-- **GOOGLE_ADS_API_DOCUMENTATION.md** - Complete Google Ads API integration guide  
-- **GOHIGHLEVEL_API_DOCUMENTATION.md** - Complete GoHighLevel API integration guide
-- **SUPABASE_DATABASE_DOCUMENTATION.md** - Complete database schema and operations guide
-- **OAUTH_IMPLEMENTATION_GUIDE.md** - Comprehensive OAuth 2.0 implementation guide
-- **API_ENDPOINTS_OVERVIEW.md** - Complete endpoint reference for all platforms
+The Marketing Analytics Dashboard is a unified platform for managing marketing analytics across multiple platforms including Facebook Ads, Google Ads, GoHighLevel CRM, and Google Sheets. Built with React, TypeScript, and Supabase.
 
-### UI/UX Documentation (`docs/ai/`)
-- **DESIGN_SYSTEM.md** - Design system and component guidelines
-- **SHARED_REPORT_LAYOUT.md** - Shared report layout documentation
+## Architecture
 
-### Development Setup (`docs/setup/`)
-- **MCP_GUIDE.md** - Model Context Protocol server setup for Cursor IDE
-- **MCP_SERVER_README.md** - MCP server configuration and usage
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS
+- **Backend:** Supabase (PostgreSQL + Edge Functions)
+- **State Management:** React Query + Zustand
+- **Authentication:** OAuth 2.0 + Supabase Auth
+- **Deployment:** Vercel (Frontend) + Supabase (Backend)
 
-## Removed Documentation
+---
 
-The following files were removed as they contained:
-- **Duplicate information** covered in the comprehensive API docs
-- **Outdated implementation details** no longer relevant
-- **Testing documentation** not needed for production
-- **Troubleshooting guides** with outdated solutions
-- **Archive files** with old troubleshooting information
+## Service Documentation
 
-### Removed Files:
-- `docs/ai/GHL_API_GUIDE.md` (duplicate of GOHIGHLEVEL_API_DOCUMENTATION.md)
-- `docs/ai/GHL_OAUTH_API_IMPLEMENTATION.md` (outdated implementation)
-- `docs/ai/API_TESTING_GUIDE.md` (testing documentation)
-- `docs/ai/TESTING.md` (testing documentation)
-- `docs/ai/TROUBLESHOOTING_GUIDE.md` (outdated troubleshooting)
-- `docs/ai/TOKEN_ENCRYPTION_TROUBLESHOOTING.md` (outdated troubleshooting)
-- `docs/ai/INTEGRATIONS_GUIDE.md` (duplicate information)
-- `docs/ai/APP_OVERVIEW.md` (outdated project overview)
-- `docs/ai/ARCHITECTURE.md` (outdated architecture)
-- `docs/ai/DEVELOPMENT_GUIDE.md` (outdated development guide)
-- `docs/ai/PROJECT_STATUS.md` (outdated project status)
-- `docs/API_DOCUMENTATION.md` (duplicate of API_ENDPOINTS_OVERVIEW.md)
-- `docs/GOOGLE_SHEETS_INTEGRATION.md` (outdated integration info)
-- `docs/setup/OAUTH_SETUP.md` (duplicate of OAUTH_IMPLEMENTATION_GUIDE.md)
-- `docs/archive/` (entire directory with outdated troubleshooting)
+### 📊 [Facebook Ads Integration](./docs/services/facebook-ads.md)
+- Official API Documentation
+- Current Implementation
+- Authentication Flow
+- Available Endpoints
+- Data Models
 
-## Documentation Quality
+### 🔍 [Google Ads Integration](./docs/services/google-ads.md)
+- Official API Documentation
+- Current Implementation
+- Authentication Flow
+- Available Endpoints
+- Data Models
 
-All remaining documentation:
-- ✅ **Up-to-date** with current implementation
-- ✅ **Comprehensive** covering all aspects of each service
-- ✅ **Accurate** with correct endpoints, authentication, and data structures
-- ✅ **Well-organized** with clear sections and examples
-- ✅ **Production-ready** focused on essential information for developers
+### 🏢 [GoHighLevel CRM Integration](./docs/services/gohighlevel.md)
+- Official API Documentation
+- Current Implementation
+- Authentication Flow
+- Available Endpoints
+- Data Models
 
-## Usage
+### 📈 [Google Sheets Integration](./docs/services/google-sheets.md)
+- Official API Documentation
+- Current Implementation
+- Authentication Flow
+- Available Endpoints
+- Data Models
 
-- **API Integration**: Use the platform-specific API documentation files
-- **Database Operations**: Reference SUPABASE_DATABASE_DOCUMENTATION.md
-- **Authentication**: Follow OAUTH_IMPLEMENTATION_GUIDE.md
-- **Endpoint Reference**: Use API_ENDPOINTS_OVERVIEW.md for quick lookup
-- **UI Development**: Reference DESIGN_SYSTEM.md and SHARED_REPORT_LAYOUT.md
-- **Development Setup**: Use MCP_GUIDE.md for Cursor IDE configuration
+### 🔧 [Supabase Backend](./docs/services/supabase.md)
+- Edge Functions
+- Database Schema
+- Authentication
+- Real-time Features
+
+---
+
+## Documentation Structure
+
+- **[Current Setup](./docs/setup/current-setup.md)** - Current implementation details and endpoints
+- **[Development Guide](./docs/setup/development.md)** - How to set up and run the project
+
+---
+
+## Development Setup
+
+### Prerequisites
+- Node.js 18+
+- Supabase CLI
+- Git
+
+### Environment Variables
+```bash
+# Supabase
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Facebook Ads
+VITE_FACEBOOK_APP_ID=your_facebook_app_id
+VITE_FACEBOOK_APP_SECRET=your_facebook_app_secret
+
+# Google Ads
+VITE_GOOGLE_ADS_CLIENT_ID=your_google_ads_client_id
+VITE_GOOGLE_ADS_CLIENT_SECRET=your_google_ads_client_secret
+
+# GoHighLevel
+VITE_GHL_CLIENT_ID=your_ghl_client_id
+VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
+
+# Google Sheets
+VITE_GOOGLE_SHEETS_CLIENT_ID=your_google_sheets_client_id
+VITE_GOOGLE_SHEETS_CLIENT_SECRET=your_google_sheets_client_secret
+```
+
+### Installation
+```bash
+npm install
+npm run dev
+```
+
+---
+
+## Contributing
+
+1. Follow TypeScript strict mode
+2. Use existing code patterns
+3. Write tests for new features
+4. Update documentation for API changes
+5. Follow the established naming conventions
+
+---
+
+## Support
+
+For technical support or questions:
+- **Email:** steve@tulenagency.com
+- **Documentation:** See individual service docs
+- **Issues:** Create GitHub issues for bugs/features

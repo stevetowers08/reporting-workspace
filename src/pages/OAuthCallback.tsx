@@ -149,7 +149,7 @@ const OAuthCallback: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-6">
+      <div className="max-w-md w-full bg-white rounded-lg p-6">
         <div className="text-center">
           {status === 'loading' && (
             <>

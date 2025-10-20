@@ -28,7 +28,7 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
@@ -46,7 +46,7 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
 
   if (!leadData) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="text-center text-slate-500">Failed to load lead source data</div>
       </Card>
     );
@@ -73,7 +73,7 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
   ].filter(source => source.count > 0);
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Lead Source Breakdown</h3>
         <p className="text-sm text-slate-500">Where leads are coming from</p>

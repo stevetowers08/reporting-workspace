@@ -173,7 +173,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">GHL Page Views Analytics</h3>
         </div>
@@ -186,7 +186,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
 
   if (!pageViewData) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">GHL Page Views Analytics</h3>
         </div>
@@ -198,10 +198,9 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
   }
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200  p-6">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">GHL Page Views Analytics</h3>
-        <p className="text-sm text-slate-600">Traffic sources and landing page performance</p>
       </div>
       
       {/* Total Page Views */}

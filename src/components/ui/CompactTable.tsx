@@ -127,7 +127,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
 
   if (loading) {
     return (
-      <Card className="border border-slate-200 shadow-sm">
+      <Card className="border border-slate-200">
         <CardContent className="p-6">
           <LoadingState message="Loading data..." />
         </CardContent>
@@ -137,7 +137,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
 
   if (error) {
     return (
-      <Card className="border border-red-200 shadow-sm">
+      <Card className="border border-red-200">
         <CardContent className="p-6">
           <div className="text-center">
             <div className="text-red-600 mb-4">{error}</div>
@@ -156,7 +156,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
 
   if (!data || data.length === 0) {
     return (
-      <Card className="border border-slate-200 shadow-sm">
+      <Card className="border border-slate-200">
         <CardContent className="p-6">
           <div className="text-center">
             {emptyIcon && <div className="text-slate-400 mb-4">{emptyIcon}</div>}
@@ -171,7 +171,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
   const displayData = data.slice(0, maxRows);
 
   return (
-    <Card className="border border-slate-200 shadow-sm p-0">
+    <Card className="border border-slate-200 p-0">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -203,7 +203,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
                 return (
                   <React.Fragment key={rowId}>
                     <tr 
-                      className={`hover:bg-slate-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                      className={`transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
                       onClick={() => onRowClick?.(row)}
                     >
                       {columns.map((column) => (

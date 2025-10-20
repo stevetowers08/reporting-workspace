@@ -57,7 +57,7 @@ export function SearchableSelect({
 
     const dropdownContent = open && (
         <div
-            className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[9999]"
+            className="fixed bg-white border border-gray-200 rounded-md z-[9999]"
             style={{
                 top: position.top,
                 left: position.left,
@@ -84,7 +84,7 @@ export function SearchableSelect({
                             key={option.value}
                             type="button"
                             className={cn(
-                                "w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center",
+                                "w-full text-left px-3 py-2 text-sm flex items-center",
                                 value === option.value && "bg-blue-50 text-blue-600"
                             )}
                             onClick={() => handleSelect(option.value)}

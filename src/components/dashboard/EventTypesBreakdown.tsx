@@ -70,7 +70,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
@@ -88,10 +88,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
 
   if (error) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
+      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
-          <p className="text-sm text-slate-600">What types of events customers are planning</p>
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-center">
@@ -109,10 +108,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
 
   if (eventTypes.length === 0) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
+      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
-          <p className="text-sm text-slate-600">What types of events customers are planning</p>
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-slate-500">No event type data available</div>
@@ -143,18 +141,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   const _COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
+    <Card className="bg-white border border-slate-200 p-6 w-full">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
-        <p className="text-sm text-slate-600">
-          {dateRange ? 
-            `Event types for ${new Date(dateRange.start).toLocaleDateString()} - ${new Date(dateRange.end).toLocaleDateString()}` :
-            'What types of events customers are planning'
-          }
-        </p>
-        <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/values | Smart detection: Event type column
-        </div>
       </div>
       
       <div className="h-64">

@@ -1,3 +1,4 @@
+import { SkeletonMetricCard } from '@/components/ui/LoadingSystem';
 import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { Client } from '@/services/data/databaseService';
@@ -60,12 +61,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   if (isLoading) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-          <div className="animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-            <div className="h-8 bg-slate-200 rounded w-1/2"></div>
-          </div>
-        </Card>
+        <SkeletonMetricCard />
       </div>
     );
   }
@@ -73,7 +69,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   if (!data) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="text-center text-slate-500">Failed to load dashboard data</div>
         </Card>
       </div>
@@ -81,39 +77,10 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   }
 
   return (
-    <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
+    <div className="mb-6">
       {ghlConnectionStatus.shouldShowReconnectPrompt && (
         <GHLReconnectPrompt onReconnect={handleGHLReconnect} />
       )}
-      <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-2">Total Contacts</p>
-            {ghlConnectionStatus.isGHLConnected ? (
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-slate-900">
-                  {totalContacts > 0 ? totalContacts.toLocaleString() : '—'}
-                </p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-blue-600 font-medium">GHL</span>
-                  <span className="text-xs text-slate-500">(All Time)</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <p className="text-lg font-medium text-slate-400">Not Connected</p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-slate-400 font-medium">GHL</span>
-                  <span className="text-xs text-slate-400">(Setup Required)</span>
-                </div>
-              </div>
-            )}
-            <div className="text-xs text-slate-400 mt-1">
-              {ghlConnectionStatus.isGHLConnected ? 'API: POST /contacts/search' : 'GoHighLevel integration not configured'}
-            </div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 });

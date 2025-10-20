@@ -195,7 +195,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
             <Button 
               onClick={handleAddClient}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Venue
@@ -214,7 +214,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                 </p>
                 <Button 
                   onClick={handleAddClient}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 text-white"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Venue
@@ -226,7 +226,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
               {clients.map((client) => (
                 <Card 
                   key={client.id} 
-                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.01] border-slate-200 relative group"
+                  className="cursor-pointer border-slate-200 relative group"
                   onClick={() => onClientSelect(client.id)}
                 >
                   <CardContent className="p-3">
@@ -234,7 +234,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute top-2 right-2 h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      className="absolute top-2 right-2 h-6 w-6 p-0 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         handleEditClient(client);
@@ -248,10 +248,10 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                         <img
                           src={client.logo_url}
                           alt={`${client.name} logo`}
-                          className="w-8 h-8 object-cover rounded-lg border border-slate-200 shadow-sm"
+                          className="w-8 h-8 object-cover rounded-lg border border-slate-200"
                         />
                       ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                           <BarChart3 className="h-4 w-4 text-white" />
                         </div>
                       )}

@@ -99,12 +99,12 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
-        <div className="h-80 flex items-center justify-center">
+        <div className="h-64 flex items-center justify-center">
           <div className="animate-pulse text-slate-500">Loading daily analytics...</div>
         </div>
       </Card>
@@ -113,12 +113,12 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
 
   if (error) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
-        <div className="h-80 flex items-center justify-center">
+        <div className="h-64 flex items-center justify-center">
           <div className="text-red-500">Error: {error}</div>
         </div>
       </Card>
@@ -127,12 +127,12 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
 
   if (dailyData.length === 0) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
-        <div className="h-80 flex items-center justify-center">
+        <div className="h-64 flex items-center justify-center">
           <div className="text-center">
             <div className="text-slate-500 mb-2">No funnel data available</div>
             <div className="text-xs text-slate-400">
@@ -148,7 +148,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
   }
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
+    <Card className="bg-white border border-slate-200  p-6 w-full">
       <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
         <p className="text-sm text-slate-600">
@@ -162,7 +162,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
         </div>
       </div>
       
-      <div className="h-80">
+      <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={dailyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <XAxis 

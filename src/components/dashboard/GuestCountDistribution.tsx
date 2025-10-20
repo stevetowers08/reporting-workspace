@@ -1,9 +1,9 @@
 import { Card } from '@/components/ui/card';
-import { ChartWrapper } from '@/components/ui/chart-wrapper';
 import { debugLogger } from '@/lib/debug';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
+import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GuestCountDistributionProps {
   data: EventDashboardData | null | undefined;
@@ -62,7 +62,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200 p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
@@ -80,10 +80,9 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (error) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
-        <div className="pb-4">
+      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
+        <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-          <p className="text-sm text-slate-500">Average: 88 guests per lead</p>
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-center">
@@ -99,10 +98,9 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (!leadData) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full md:w-full">
-        <div className="pb-4">
+      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
+        <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-          <p className="text-sm text-slate-500">Average: 88 guests per lead</p>
         </div>
         <div className="h-64 flex items-center justify-center">
           <div className="text-center">
@@ -125,41 +123,45 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
   }));
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6 w-full">
-      <div className="pb-4">
+    <Card className="bg-white border border-slate-200 p-6 w-full">
+      <div className="pb-3">
         <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-        <p className="text-sm text-slate-500">Average: {leadData.averageGuestsPerLead.toFixed(0)} guests per lead</p>
-        <div className="text-xs text-slate-400 mt-1">
-          API: GET /spreadsheets/values | Guest count analysis
-        </div>
       </div>
       
       <div className="h-64">
-        <ChartWrapper
-          type="bar"
-          data={{
-            labels: chartData.map(item => item.name),
-            datasets: [{
-              label: 'Leads',
-              data: chartData.map(item => item.value),
-              backgroundColor: '#10B981',
-              borderColor: '#10B981',
-              borderWidth: 1,
-            }]
-          }}
-          options={{
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    const percentage = chartData[context.dataIndex]?.percentage?.toFixed(1) || '0';
-                    return `${context.parsed.y} leads (${percentage}%)`;
-                  }
-                }
-              }
-            }
-          }}
-        />
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart 
+            data={chartData} 
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          >
+            <XAxis 
+              dataKey="name"
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+            />
+            <Tooltip 
+              formatter={(value: number, name: string, props: any) => [
+                `${value} leads (${props.payload?.percentage?.toFixed(1) || '0'}%)`,
+                'Count'
+              ]}
+              labelStyle={{ color: '#374151' }}
+              contentStyle={{ 
+                backgroundColor: '#fff', 
+                border: '1px solid #E2E8F0',
+                borderRadius: '6px'
+              }}
+            />
+            <Bar 
+              dataKey="value" 
+              fill="#10B981"
+              radius={[4, 4, 0, 0]}
+            >
+              <LabelList dataKey="value" position="top" style={{ fontSize: '12px', fill: '#374151' }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </Card>
   );

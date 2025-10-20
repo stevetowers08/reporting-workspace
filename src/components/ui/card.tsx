@@ -3,12 +3,12 @@ import React, { forwardRef } from "react";
 
 const Card = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { variant?: 'default' | 'elevated' | 'outlined' | 'glass' | 'compact' | 'spacious' }>(({ className, variant = 'default', ...props }, ref) => {
   const variants = {
-    default: "rounded-2xl border border-border bg-card text-card-foreground shadow-sm p-6",
-    elevated: "rounded-2xl border border-border bg-card text-card-foreground shadow-md hover:shadow-lg transition-shadow p-6",
-    outlined: "rounded-2xl border border-border bg-card text-card-foreground shadow-sm p-6",
-    glass: "rounded-2xl border border-border bg-white/70 backdrop-blur-md text-card-foreground shadow-sm p-6",
-    compact: "rounded-xl border border-border bg-card text-card-foreground shadow-sm p-4",
-    spacious: "rounded-3xl border border-border bg-card text-card-foreground shadow-sm p-8"
+    default: "rounded-2xl border border-border bg-card text-card-foreground p-6",
+    elevated: "rounded-2xl border border-border bg-card text-card-foreground p-6",
+    outlined: "rounded-2xl border border-border bg-card text-card-foreground p-6",
+    glass: "rounded-2xl border border-border bg-white/70 backdrop-blur-md text-card-foreground p-6",
+    compact: "rounded-xl border border-border bg-card text-card-foreground p-4",
+    spacious: "rounded-3xl border border-border bg-card text-card-foreground p-8"
   };
   
   return (

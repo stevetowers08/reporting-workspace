@@ -101,11 +101,11 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Funnel Analytics</h3>
         </div>
-        <div className="h-80 flex items-center justify-center">
+        <div className="h-64 flex items-center justify-center">
           <div className="animate-pulse text-slate-500">Loading funnel analytics...</div>
         </div>
       </Card>
@@ -114,11 +114,11 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
 
   if (!funnelData || funnelData.totalFunnels === 0) {
     return (
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Funnel Analytics</h3>
         </div>
-        <div className="h-80 flex items-center justify-center">
+        <div className="h-64 flex items-center justify-center">
           <div className="text-slate-500">No funnel data available</div>
         </div>
       </Card>
@@ -171,16 +171,15 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
   return (
     <div className="space-y-6">
       {/* Funnel Performance Chart */}
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Funnel Performance</h3>
-          <p className="text-sm text-slate-600">Page views and conversions by funnel</p>
           <div className="text-xs text-slate-400 mt-1">
             Source: GoHighLevel API | Endpoint: GET /funnels/funnel/list | Data: Real Funnel List + Estimated Views/Conversions | Status: Working
           </div>
         </div>
         
-        <div className="h-80">
+        <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={funnelPerformanceData}>
               <XAxis 
@@ -216,13 +215,12 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
       </Card>
 
       {/* Top Performing Pages */}
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Top Performing Pages</h3>
-          <p className="text-sm text-slate-600">Pages with highest conversion rates</p>
         </div>
         
-        <div className="h-80">
+        <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -254,10 +252,9 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
       </Card>
 
       {/* Funnel Details Table */}
-      <Card className="bg-white border border-slate-200 shadow-sm p-6">
+      <Card className="bg-white border border-slate-200  p-6">
         <div className="pb-3">
           <h3 className="text-lg font-semibold text-slate-900">Funnel Details</h3>
-          <p className="text-sm text-slate-600">Detailed breakdown of each funnel</p>
         </div>
         
         <div className="overflow-x-auto">

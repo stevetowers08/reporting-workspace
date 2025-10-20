@@ -1,3 +1,4 @@
+import { SkeletonChart } from '@/components/ui/LoadingSystem';
 import { Card } from '@/components/ui/card';
 import { calculatePercentageChange, formatPercentageChange } from '@/lib/dateUtils';
 import { debugLogger } from '@/lib/debug';
@@ -39,16 +40,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
   if (!data) {
     return (
       <div className="mb-6">
-        <Card className="bg-white border border-slate-200 shadow-sm p-8">
-          <div className="text-center">
-            <div className="animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-3/4 mx-auto mb-4"></div>
-              <div className="h-8 bg-slate-200 rounded w-1/2 mx-auto mb-2"></div>
-              <div className="h-4 bg-slate-200 rounded w-1/4 mx-auto"></div>
-            </div>
-            <p className="text-sm text-slate-500 mt-4">Loading Facebook Ads data...</p>
-          </div>
-        </Card>
+        <SkeletonChart height="h-32" />
       </div>
     );
   }
@@ -66,7 +58,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
   if (!hasData) {
     return (
       <div className="mb-6">
-        <Card className="bg-white border border-slate-200 shadow-sm p-8">
+        <Card className="bg-white border border-slate-200 p-8">
           <div className="text-center">
             <div className="text-slate-400 mb-4">
               <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +83,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
   if (!hasData) {
     return (
       <div className="mb-6">
-        <Card className="bg-white border border-slate-200 shadow-sm p-8">
+        <Card className="bg-white border border-slate-200 p-8">
           <div className="text-center">
             <div className="text-slate-400 mb-4">
               <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,7 +108,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
     <div className="mb-6">
       {/* First Row - 4 Cards */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Leads</p>
@@ -135,7 +127,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Lead</p>
@@ -156,7 +148,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Conversion Rate</p>
@@ -177,7 +169,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
@@ -199,7 +191,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
 
       {/* Second Row - 4 Cards */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Impressions</p>
@@ -216,7 +208,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Link Clicks</p>
@@ -233,7 +225,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">Cost Per Link Click</p>
@@ -250,7 +242,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
           </div>
         </Card>
 
-        <Card className="bg-white border border-slate-200 shadow-sm p-5 h-24">
+        <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 mb-2">CTR</p>

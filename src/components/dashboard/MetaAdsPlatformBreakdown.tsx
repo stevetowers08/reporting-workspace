@@ -23,7 +23,7 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
   };
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm p-6">
+    <Card className="bg-white border border-slate-200 p-6">
       <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Platform Breakdown</h3>
       </div>
