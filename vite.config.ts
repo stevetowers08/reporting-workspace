@@ -89,6 +89,8 @@ export default defineConfig(({ mode }) => {
         'lucide-react',
         '@radix-ui/react-slot',
         '@radix-ui/react-primitive',
+        // Ensure recharts dependency is optimized and available during build
+        'react-is',
       ],
       exclude: ['@vite/client', '@vite/env'],
       // Force optimization to prevent React conflicts
@@ -112,9 +114,11 @@ export default defineConfig(({ mode }) => {
       // Ensure React is always resolved consistently
       'react/jsx-runtime': path.resolve('./node_modules/react/jsx-runtime'),
       'react/jsx-dev-runtime': path.resolve('./node_modules/react/jsx-dev-runtime'),
+      // Help Rollup/Vite resolve transitive dependency from recharts
+      'react-is': path.resolve('./node_modules/react-is'),
     },
     mainFields: ['browser', 'module', 'jsnext:main', 'main'],
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'react-is'],
     // Prevent circular dependencies
     preserveSymlinks: false,
     // Ensure consistent module resolution
@@ -131,7 +135,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
-      minify: false, // Disable minification entirely to prevent TDZ issues
+      minify: 'esbuild', // Use esbuild for faster builds
       rollupOptions: {
         // Ensure React is NOT externalized - it must be bundled
         external: [],
@@ -151,10 +155,48 @@ export default defineConfig(({ mode }) => {
           warn(warning);
         },
         output: {
-          // ✅ ULTRA-AGGRESSIVE TDZ FIX: Single chunk strategy to prevent TDZ issues
+          // Aggressive chunking to reduce individual chunk sizes
           manualChunks: (id) => {
-            // Put EVERYTHING in a single chunk to prevent TDZ issues
-            return 'main';
+            // Split large vendor libraries
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'react';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              if (id.includes('chart.js') || id.includes('recharts')) {
+                return 'charts';
+              }
+              if (id.includes('@radix-ui')) {
+                return 'radix';
+              }
+              if (id.includes('@tanstack')) {
+                return 'tanstack';
+              }
+              if (id.includes('axios') || id.includes('lodash')) {
+                return 'utils';
+              }
+              return 'vendor';
+            }
+            // Split app code into smaller chunks
+            if (id.includes('src/pages/')) {
+              const pageName = id.split('/').pop()?.replace('.tsx', '') || 'page';
+              return `page-${pageName}`;
+            }
+            if (id.includes('src/components/dashboard/')) {
+              return 'dashboard';
+            }
+            if (id.includes('src/components/agency/')) {
+              return 'agency';
+            }
+            if (id.includes('src/services/api/')) {
+              return 'api-services';
+            }
+            if (id.includes('src/services/auth/')) {
+              return 'auth-services';
+            }
+            return 'app';
           },
           // Prevent variable name conflicts in minified code
           format: 'es',
@@ -167,8 +209,8 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name]-[hash].js',
         },
       },
-      // Increase chunk size warning limit
-      chunkSizeWarningLimit: 2000,
+      // Reduce chunk size warning limit to force optimization
+      chunkSizeWarningLimit: 1000,
       // Prevent TDZ issues in production
       commonjsOptions: {
         include: [/node_modules/],
