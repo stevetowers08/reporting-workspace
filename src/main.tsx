@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 
 // Import App and CSS after React is initialized to prevent TDZ issues
 import App from "./App";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import "./index.css";
 
 // Initialize performance monitoring
@@ -16,7 +16,7 @@ if (!rootElement) {
 
 const root = createRoot(rootElement);
 root.render(
-  <ErrorBoundary>
+  <AppErrorBoundary>
     <App />
-  </ErrorBoundary>
+  </AppErrorBoundary>
 );
