@@ -20,7 +20,10 @@
     "analyze": "cross-env ANALYZE=true npm run build",
     "build:analyze": "npm run analyze",
     "env:validate": "node -r dotenv/config -e \"console.log('Environment validation:', process.env.VITE_SUPABASE_URL ? '✅ Valid' : '❌ Missing VITE_SUPABASE_URL')\"",
-    "env:check": "node -r dotenv/config -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\""
+    "env:check": "node -r dotenv/config -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\"",
+    "netlify:deploy": "bash scripts/netlify-deploy.sh",
+    "netlify:build": "npm run build",
+    "netlify:preview": "npm run build && netlify dev"
   },
   "keywords": [
     "mcp",
