@@ -19,6 +19,7 @@ import {
     Zap
 } from 'lucide-react';
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 interface AgencyHeaderProps {
   onBackToDashboard: () => void;

@@ -10,6 +10,7 @@ import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 // New modular imports (when ready to migrate)
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Card } from '@/components/ui/card';
 
 interface GHLFunnelAnalyticsProps {
   locationId: string;

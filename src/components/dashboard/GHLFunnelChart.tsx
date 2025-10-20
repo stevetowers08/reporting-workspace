@@ -2,6 +2,7 @@ import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { Cell, Funnel, FunnelChart, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
+import { Card } from '@/components/ui/card';
 
 interface GHLFunnelChartProps {
   locationId: string;

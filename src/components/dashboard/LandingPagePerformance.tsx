@@ -3,6 +3,7 @@ import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
 
 interface LandingPagePerformanceProps {
   data: EventDashboardData | null | undefined;

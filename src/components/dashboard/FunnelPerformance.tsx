@@ -1,6 +1,7 @@
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { useGHLContactCount, useGHLFunnelAnalytics } from '@/hooks/useGHLHooks';
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 interface FunnelPerformanceProps {
   data: {

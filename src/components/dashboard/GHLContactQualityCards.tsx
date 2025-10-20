@@ -2,6 +2,7 @@ import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { useGHLContactCount } from '@/hooks/useGHLHooks';
 import { Calendar, TrendingUp, UserPlus, Users } from 'lucide-react';
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 interface GHLContactQualityCardsProps {
   locationId: string;

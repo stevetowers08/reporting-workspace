@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 interface ChartCardProps {
   title: string;

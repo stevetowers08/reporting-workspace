@@ -4,6 +4,7 @@ import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Card } from '@/components/ui/card';
 
 interface GuestCountDistributionProps {
   data: EventDashboardData | null | undefined;
