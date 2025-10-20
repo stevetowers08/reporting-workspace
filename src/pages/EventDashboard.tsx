@@ -1,7 +1,7 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
-import { LoadingSpinner, LoadingState } from "@/components/ui/LoadingStates";
+import { LoadingState } from "@/components/ui/LoadingStates";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
@@ -109,18 +109,16 @@ const LeadInfoMetricsCards = lazy(() =>
 // Chart.js replacements for recharts components
 import { EventTypesBreakdown } from '@/components/dashboard/EventTypesBreakdown';
 import { GuestCountDistribution } from '@/components/dashboard/GuestCountDistribution';
-import { LeadByDayChart } from '@/components/dashboard/LeadByDayChart';
+import { LeadByMonthChart } from '@/components/dashboard/LeadByDayChart';
 
 interface EventDashboardProps {
   isShared?: boolean;
   clientId?: string;
 }
 
-// ✅ FIX: Enhanced loading component with error boundary
+// Simple component loader for lazy-loaded components
 const ComponentLoader = () => (
-  <div className="flex items-center justify-center h-32">
-    <LoadingSpinner size="md" />
-  </div>
+  <div className="h-32 bg-slate-50 rounded-lg animate-pulse"></div>
 );
 
 // ✅ COMPREHENSIVE Error boundary for lazy loaded components and TDZ errors
@@ -204,7 +202,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const leadsTabRef = useRef<HTMLDivElement>(null);
   
   // PDF export hook
-  const { exportTabsToPDF, isExporting, error } = usePDFExport();
+  const { exportTabsToPDF, isExporting: _isExporting, error: _error } = usePDFExport();
   
   // Get active tab from URL params, default to "summary"
   const activeTab = searchParams.get('tab') || "summary";
@@ -490,9 +488,22 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     window.location.href = `/dashboard/${clientId}`;
   };
 
-  // Show loading state - only require client data, allow dashboard to show with partial data
-  if (clientLoading) {
-    return <LoadingState message="Loading dashboard..." fullScreen />;
+  // Show loading state while any critical data is loading
+  if (clientLoading || dashboardLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative mb-6">
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 bg-blue-600 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Loading Analytics</h2>
+          <p className="text-slate-600">Fetching your marketing data...</p>
+        </div>
+      </div>
+    );
   }
 
   // Show error state
@@ -608,12 +619,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
                 </div>
               </Card>
 
-              <Card className="bg-white border border-slate-200 p-6">
-                <div className="pb-3">
-                  <h3 className="text-lg font-semibold text-slate-900">Leads by Day</h3>
+              <Card className="bg-white border border-slate-200 p-5">
+                <div className="pb-2">
+                  <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
                 </div>
-                <div className="h-64">
-                  <LeadByDayChart data={summaryDashboardData} />
+                <div className="h-64 -mx-1">
+                  <LeadByMonthChart data={summaryDashboardData} />
                 </div>
               </Card>
 

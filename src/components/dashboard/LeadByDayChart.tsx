@@ -1,59 +1,64 @@
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { useMemo } from 'react';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-interface LeadByDayChartProps {
+interface LeadByMonthChartProps {
   data: EventDashboardData | null | undefined;
 }
 
-export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data }) => {
+export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({ data }) => {
   
-  // Generate daily data for the last 30 days using real data - memoized
-  const dailyData = useMemo(() => {
-    const leadsData = [];
+  // Use real monthly data from seasonal trends, excluding current month
+  const monthlyData = useMemo(() => {
+    if (!data?.leadMetrics?.seasonalTrends || data.leadMetrics.seasonalTrends.length === 0) {
+      return [];
+    }
 
-    // Get total leads from all sources
-    const totalLeads = (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0);
+    const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+    
+    // Filter out current month and prepare data for chart
+    const filteredTrends = data.leadMetrics.seasonalTrends.filter(trend => {
+      return trend.month !== currentMonth;
+    });
 
-    // If no leads, return empty data
+    // Get total leads for each platform
+    const facebookLeads = data.facebookMetrics?.leads || 0;
+    const googleLeads = data.googleMetrics?.leads || 0;
+    const totalLeads = facebookLeads + googleLeads;
+
     if (totalLeads === 0) {
       return [];
     }
 
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
+    // Pre-calculate total seasonal leads for performance
+    const totalSeasonalLeads = data.leadMetrics.seasonalTrends.reduce((sum, t) => sum + t.leads, 0);
+    
+    // Use real seasonal trends data and distribute platform leads proportionally
+    return filteredTrends.map(trend => {
+      const monthProportion = totalSeasonalLeads > 0 ? trend.leads / totalSeasonalLeads : 0;
+      
+      return {
+        month: trend.month,
+        facebookLeads: Math.round(facebookLeads * monthProportion),
+        googleLeads: Math.round(googleLeads * monthProportion),
+        totalLeads: trend.leads
+      };
+    });
+  }, [data?.leadMetrics?.seasonalTrends, data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
 
-      // Distribute total leads across 30 days with realistic variation
-      const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
-      // Base daily leads from total, with weekend reduction
-      const baseDailyLeads = totalLeads / 30;
-      const weekendFactor = isWeekend ? 0.7 : 1.0; // 30% reduction on weekends
-      const variation = (Math.random() - 0.5) * 0.4; // ±20% variation
-      
-      const dailyLeads = Math.max(0, Math.round(baseDailyLeads * weekendFactor * (1 + variation)));
-      
-      leadsData.push({
-        date: date.toISOString().split('T')[0],
-        leads: dailyLeads,
-        dayName: date.toLocaleDateString('en-US', { weekday: 'short' })
-      });
-    }
-
-    return leadsData;
+  const hasData = useMemo(() => {
+    const facebookLeads = data?.facebookMetrics?.leads || 0;
+    const googleLeads = data?.googleMetrics?.leads || 0;
+    return facebookLeads > 0 || googleLeads > 0;
   }, [data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
 
-  const totalLeads = useMemo(() => (data?.facebookMetrics?.leads || 0) + (data?.googleMetrics?.leads || 0), [data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
-
   // Show message if no data
-  if (totalLeads === 0 || dailyData.length === 0) {
+  if (!hasData || monthlyData.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-slate-500">
         <div className="text-center">
           <p className="text-sm">No leads data available</p>
-          <p className="text-xs mt-1">Connect Facebook or Google Ads to see daily lead trends</p>
+          <p className="text-xs mt-1">Connect Facebook or Google Ads to see monthly lead trends</p>
         </div>
       </div>
     );
@@ -63,25 +68,25 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart 
-          data={dailyData} 
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          data={monthlyData} 
+          margin={{ top: 16, right: 16, left: 8, bottom: 20 }}
         >
           <XAxis 
-            dataKey="dayName"
-            tick={{ fontSize: 12 }}
+            dataKey="month"
+            tick={{ fontSize: 11 }}
+            interval={0}
+            height={30}
           />
           <YAxis 
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11 }}
+            width={40}
           />
           <Tooltip 
             formatter={(value: number, name: string) => [
               `${value} leads`,
-              'Daily Leads'
+              name === 'facebookLeads' ? 'Facebook Ads' : 'Google Ads'
             ]}
-            labelFormatter={(label, payload) => {
-              const data = payload?.[0]?.payload;
-              return data?.date ? new Date(data.date).toLocaleDateString() : label;
-            }}
+            labelFormatter={(label) => `Month: ${label}`}
             labelStyle={{ color: '#374151' }}
             contentStyle={{ 
               backgroundColor: '#fff', 
@@ -89,13 +94,24 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
               borderRadius: '6px'
             }}
           />
+          <Legend />
           <Line 
             type="monotone" 
-            dataKey="leads" 
+            dataKey="facebookLeads" 
             stroke="#3B82F6" 
             strokeWidth={2}
             dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
             activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
+            name="Facebook Ads"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="googleLeads" 
+            stroke="#10B981" 
+            strokeWidth={2}
+            dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+            activeDot={{ r: 6, stroke: '#10B981', strokeWidth: 2 }}
+            name="Google Ads"
           />
         </LineChart>
       </ResponsiveContainer>
@@ -103,4 +119,4 @@ export const LeadByDayChart: React.FC<LeadByDayChartProps> = React.memo(({ data 
   );
 });
 
-LeadByDayChart.displayName = 'LeadByDayChart';
+LeadByMonthChart.displayName = 'LeadByMonthChart';

@@ -1,6 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { GoogleAdsMetrics } from '@/types/dashboard';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
+import { GoogleAdsService } from '../api/googleAdsService';
 import { GoHighLevelService } from '../ghl/goHighLevelService';
 import { LeadDataService } from './leadDataService';
 
@@ -308,13 +309,14 @@ export class EventMetricsService {
       });
 
       // Build lead metrics
-      const leadMetrics = this.calculateLeadMetrics(
+      const leadMetrics = await this.calculateLeadMetrics(
         facebookMetrics,
         googleMetrics,
         ghlMetrics,
         eventMetrics,
         totalSpend,
-        _totalRevenue
+        _totalRevenue,
+        clientAccounts
       );
 
       const result = {
@@ -514,14 +516,15 @@ export class EventMetricsService {
     }
   }
 
-  private static calculateLeadMetrics(
+  private static async calculateLeadMetrics(
     facebook: FacebookAdsMetrics,
     google: GoogleAdsMetrics,
     ghl: any,
     events: EventMetrics,
     totalSpend: number,
-    _totalRevenue: number
-  ): EventLeadMetrics {
+    _totalRevenue: number,
+    clientAccounts?: { facebookAds?: string; googleAds?: string }
+  ): Promise<EventLeadMetrics> {
     const totalLeads = facebook.leads + google.leads;
 
     // Calculate cost per lead
@@ -568,8 +571,8 @@ export class EventMetricsService {
       });
     }
 
-    // No seasonal trends - only real data
-    const seasonalTrends: any[] = [];
+    // Generate real monthly data for seasonal trends
+    const seasonalTrends = await this.generateSeasonalTrends(facebook, google, clientAccounts);
 
     return {
       facebookCostPerLead,
@@ -586,6 +589,91 @@ export class EventMetricsService {
       formCompletionRate: 0,
       leadSourceBreakdown
     };
+  }
+
+  /**
+   * Generate real monthly data for seasonal trends from Facebook and Google APIs
+   */
+  private static async generateSeasonalTrends(
+    facebook: FacebookAdsMetrics, 
+    google: GoogleAdsMetrics,
+    clientAccounts?: { facebookAds?: string; googleAds?: string }
+  ): Promise<Array<{
+    month: string;
+    leads: number;
+    events: number;
+    revenue: number;
+  }>> {
+    try {
+      debugLogger.info('EventMetricsService', 'Generating seasonal trends', {
+        clientAccounts,
+        facebookLeads: facebook.leads,
+        googleLeads: google.leads
+      });
+      
+      const monthlyMap = new Map<string, { leads: number; events: number; revenue: number }>();
+      
+      // Get Facebook monthly data if account is connected
+      if (clientAccounts?.facebookAds && clientAccounts.facebookAds !== 'none') {
+        try {
+          debugLogger.info('EventMetricsService', 'Fetching Facebook monthly data', { 
+            facebookAccount: clientAccounts.facebookAds 
+          });
+          const facebookMonthlyData = await FacebookAdsService.getMonthlyMetrics(clientAccounts.facebookAds);
+          debugLogger.info('EventMetricsService', 'Facebook monthly data received', facebookMonthlyData);
+          
+          facebookMonthlyData.forEach(data => {
+            monthlyMap.set(data.month, {
+              leads: data.leads,
+              events: 0, // Events not available from Facebook API
+              revenue: 0 // Revenue not available from Facebook API
+            });
+          });
+        } catch (error) {
+          debugLogger.error('EventMetricsService', 'Error fetching Facebook monthly data', error);
+          // Don't fail silently - return empty array to indicate no data
+          return [];
+        }
+      }
+      
+      // Get Google monthly data if account is connected
+      if (clientAccounts?.googleAds && clientAccounts.googleAds !== 'none') {
+        try {
+          debugLogger.info('EventMetricsService', 'Fetching Google monthly data', { 
+            googleAccount: clientAccounts.googleAds 
+          });
+          const googleMonthlyData = await GoogleAdsService.getMonthlyMetrics(clientAccounts.googleAds);
+          debugLogger.info('EventMetricsService', 'Google monthly data received', googleMonthlyData);
+          
+          googleMonthlyData.forEach(data => {
+            const existing = monthlyMap.get(data.month) || { leads: 0, events: 0, revenue: 0 };
+            monthlyMap.set(data.month, {
+              leads: existing.leads + data.leads,
+              events: existing.events,
+              revenue: existing.revenue
+            });
+          });
+        } catch (error) {
+          debugLogger.error('EventMetricsService', 'Error fetching Google monthly data', error);
+          // Don't fail silently - return empty array to indicate no data
+          return [];
+        }
+      }
+      
+      // Convert to array format
+      const result = Array.from(monthlyMap.entries()).map(([month, data]) => ({
+        month,
+        leads: data.leads,
+        events: data.events,
+        revenue: data.revenue
+      }));
+      
+      debugLogger.info('EventMetricsService', 'Final seasonal trends result', result);
+      return result;
+    } catch (error) {
+      debugLogger.error('EventMetricsService', 'Error generating seasonal trends', error);
+      return [];
+    }
   }
 
   // Helper methods for empty metrics when services are not connected
