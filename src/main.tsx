@@ -1,9 +1,15 @@
 // ✅ ULTRA-AGGRESSIVE TDZ FIX: Set up error handling BEFORE any imports
+import React from "react";
 import { createRoot } from "react-dom/client";
 
+// Polyfill for useLayoutEffect in SSR environments
+if (typeof window === 'undefined') {
+  React.useLayoutEffect = React.useEffect;
+}
+
 // Import App and CSS after React is initialized to prevent TDZ issues
-import App from "./App";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import App from "./App";
 import "./index.css";
 
 // Initialize performance monitoring
