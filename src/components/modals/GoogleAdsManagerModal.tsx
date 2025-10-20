@@ -39,7 +39,6 @@ export const GoogleAdsManagerModal: React.FC<GoogleAdsManagerModalProps> = ({
       onClose();
     } catch (error) {
       setError('Failed to save manager account ID. Please try again.');
-      console.error('Error saving manager account ID:', error);
     } finally {
       setLoading(false);
     }

@@ -110,7 +110,6 @@ export class DatabaseService {
     try {
       return await supabaseHelpers.getIntegrations();
     } catch (error) {
-      console.error('Error fetching integrations:', error);
       // Fallback to localStorage
       return this.getIntegrationsFromLocalStorage();
     }
@@ -120,7 +119,6 @@ export class DatabaseService {
     try {
       return await supabaseHelpers.getIntegration(platform);
     } catch (error) {
-      console.error('Error fetching integration:', error);
       // Fallback to localStorage
       return this.getIntegrationFromLocalStorage(platform);
     }
@@ -152,7 +150,6 @@ export class DatabaseService {
       return integration;
     } catch (error) {
       debugDatabase.error('UPSERT', 'integrations', error);
-      console.error('Error saving integration:', error);
       // Fallback to localStorage
       return this.saveIntegrationToLocalStorage(platform, integrationData);
     }
@@ -165,7 +162,6 @@ export class DatabaseService {
       // Also remove from localStorage
       this.deleteIntegrationFromLocalStorage(platform);
     } catch (error) {
-      console.error('Error deleting integration:', error);
       // Fallback to localStorage
       this.deleteIntegrationFromLocalStorage(platform);
     }
@@ -176,7 +172,6 @@ export class DatabaseService {
     try {
       return await supabaseHelpers.getMetrics(clientId, platform, dateRange);
     } catch (error) {
-      console.error('Error fetching metrics:', error);
       return [];
     }
   }
@@ -190,7 +185,6 @@ export class DatabaseService {
         metrics
       });
     } catch (error) {
-      console.error('Error saving metrics:', error);
       throw error;
     }
   }
@@ -213,7 +207,6 @@ export class DatabaseService {
       const clients = localStorage.getItem('clients');
       return clients ? JSON.parse(clients) : [];
     } catch (error) {
-      console.error('Error reading clients from localStorage:', error);
       return [];
     }
   }
@@ -299,7 +292,6 @@ export class DatabaseService {
         updated_at: new Date().toISOString()
       }));
     } catch (error) {
-      console.error('Error reading integrations from localStorage:', error);
       return [];
     }
   }
@@ -328,7 +320,6 @@ export class DatabaseService {
       existingConfig[platform] = data;
       localStorage.setItem('integrationConfig', JSON.stringify(existingConfig));
     } catch (error) {
-      console.error('Error updating integration config in localStorage:', error);
     }
 
     return integration;
@@ -340,7 +331,6 @@ export class DatabaseService {
       delete existingConfig[platform];
       localStorage.setItem('integrationConfig', JSON.stringify(existingConfig));
     } catch (error) {
-      console.error('Error deleting integration from localStorage:', error);
     }
   }
 
@@ -355,7 +345,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data || [];
     } catch (error) {
-      console.error('Error fetching Google Ads configs:', error);
       return this.getGoogleAdsConfigsFromLocalStorage();
     }
   }
@@ -383,7 +372,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error saving Google Ads config:', error);
       return this.saveGoogleAdsConfigToLocalStorage(config);
     }
   }
@@ -414,7 +402,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error updating Google Ads config:', error);
       return this.updateGoogleAdsConfigInLocalStorage(id, updates);
     }
   }
@@ -426,7 +413,6 @@ export class DatabaseService {
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all records
     } catch (error) {
-      console.error('Error deactivating Google Ads configs:', error);
       this.deactivateAllGoogleAdsConfigsInLocalStorage();
     }
   }
@@ -441,7 +427,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return true;
     } catch (error) {
-      console.error('Error deleting Google Ads config:', error);
       return this.deleteGoogleAdsConfigFromLocalStorage(id);
     }
   }
@@ -452,7 +437,6 @@ export class DatabaseService {
       const configs = localStorage.getItem('googleAdsConfigs');
       return configs ? JSON.parse(configs) : [];
     } catch (error) {
-      console.error('Error reading Google Ads configs from localStorage:', error);
       return [];
     }
   }
@@ -505,7 +489,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error fetching user Google Ads auth:', error);
       return this.getUserGoogleAdsAuthFromLocalStorage(userId);
     }
   }
@@ -541,7 +524,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error saving user Google Ads auth:', error);
       return this.saveUserGoogleAdsAuthToLocalStorage(userAuth);
     }
   }
@@ -573,7 +555,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error updating user Google Ads auth:', error);
       return this.updateUserGoogleAdsAuthInLocalStorage(userAuth);
     }
   }
@@ -588,7 +569,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return true;
     } catch (error) {
-      console.error('Error deleting user Google Ads auth:', error);
       return this.deleteUserGoogleAdsAuthFromLocalStorage(userId);
     }
   }
@@ -604,7 +584,6 @@ export class DatabaseService {
       if (error) {throw error;}
       return data;
     } catch (error) {
-      console.error('Error fetching active Google Ads config:', error);
       return null;
     }
   }
@@ -616,7 +595,6 @@ export class DatabaseService {
       const authList = auths ? JSON.parse(auths) : [];
       return authList.find((auth: any) => auth.userId === userId) || null;
     } catch (error) {
-      console.error('Error reading user Google Ads auth from localStorage:', error);
       return null;
     }
   }
@@ -643,7 +621,6 @@ export class DatabaseService {
       localStorage.setItem('userGoogleAdsAuths', JSON.stringify(authList));
       return authData;
     } catch (error) {
-      console.error('Error saving user Google Ads auth to localStorage:', error);
       return null;
     }
   }
@@ -666,7 +643,6 @@ export class DatabaseService {
       
       return null;
     } catch (error) {
-      console.error('Error updating user Google Ads auth in localStorage:', error);
       return null;
     }
   }
@@ -680,7 +656,6 @@ export class DatabaseService {
       localStorage.setItem('userGoogleAdsAuths', JSON.stringify(filteredList));
       return true;
     } catch (error) {
-      console.error('Error deleting user Google Ads auth from localStorage:', error);
       return false;
     }
   }

@@ -36,13 +36,11 @@ class DatabaseLogoService {
         .single();
 
       if (error) {
-        console.error('Error fetching logo metadata:', error);
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error('Error in getLogoMetadata:', error);
       return null;
     }
   }
@@ -59,13 +57,11 @@ class DatabaseLogoService {
         .order('name');
 
       if (error) {
-        console.error('Error fetching all logo metadata:', error);
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getAllLogoMetadata:', error);
       return [];
     }
   }
@@ -87,13 +83,11 @@ class DatabaseLogoService {
         .eq('platform', platform);
 
       if (error) {
-        console.error('Error updating logo metadata:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error in updateLogoMetadata:', error);
       return false;
     }
   }
@@ -108,13 +102,11 @@ class DatabaseLogoService {
         .insert(logoData);
 
       if (error) {
-        console.error('Error adding logo metadata:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error in addLogoMetadata:', error);
       return false;
     }
   }
@@ -133,13 +125,11 @@ class DatabaseLogoService {
         .eq('platform', platform);
 
       if (error) {
-        console.error('Error deprecating logo:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error in deprecateLogo:', error);
       return false;
     }
   }
@@ -187,7 +177,6 @@ class DatabaseLogoService {
         // Update local cache if needed
       }
     } catch (error) {
-      console.error('Error syncing logo metadata:', error);
     }
   }
 }

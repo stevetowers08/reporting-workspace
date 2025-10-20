@@ -112,7 +112,6 @@ class EnvConfigManager {
     }
 
     if (errors.length > 0) {
-      console.error('❌ Environment validation failed:', errors);
       // Don't throw in production to prevent app crashes
       if (this.config!.appEnv === 'development') {
         throw new Error(`Missing required environment variables: ${errors.join(', ')}`);

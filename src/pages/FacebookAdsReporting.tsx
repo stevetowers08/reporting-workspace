@@ -50,7 +50,6 @@ const FacebookAdsReporting: React.FC = () => {
         logo_url: client.logo_url
       })));
     } catch (error) {
-      console.error('Error loading clients:', error);
     }
   };
 

@@ -20,7 +20,6 @@ const SummaryMetricsCards = lazy(() =>
   import('@/components/dashboard/SummaryMetricsCards')
     .then(module => ({ default: module.SummaryMetricsCards }))
     .catch(error => {
-      console.error('Failed to load SummaryMetricsCards:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -29,7 +28,6 @@ const MetaAdsMetricsCards = lazy(() =>
   import('@/components/dashboard/MetaAdsMetricsCards')
     .then(module => ({ default: module.MetaAdsMetricsCards }))
     .catch(error => {
-      console.error('Failed to load MetaAdsMetricsCards:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -38,7 +36,6 @@ const GoogleAdsMetricsCards = lazy(() =>
   import('@/components/dashboard/GoogleAdsMetricsCards')
     .then(module => ({ default: module.GoogleAdsMetricsCards }))
     .catch(error => {
-      console.error('Failed to load GoogleAdsMetricsCards:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -47,7 +44,6 @@ const PlatformPerformanceStatusChart = lazy(() =>
   import('@/components/dashboard/PlatformPerformanceStatusChart')
     .then(module => ({ default: module.PlatformPerformanceStatusChart }))
     .catch(error => {
-      console.error('Failed to load PlatformPerformanceStatusChart:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -56,7 +52,6 @@ const KeyInsights = lazy(() =>
   import('@/components/dashboard/KeyInsights')
     .then(module => ({ default: module.KeyInsights }))
     .catch(error => {
-      console.error('Failed to load KeyInsights:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -65,7 +60,6 @@ const MetaAdsDemographics = lazy(() =>
   import('@/components/dashboard/MetaAdsDemographics')
     .then(module => ({ default: module.MetaAdsDemographics }))
     .catch(error => {
-      console.error('Failed to load MetaAdsDemographics:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -74,7 +68,6 @@ const MetaAdsPlatformBreakdown = lazy(() =>
   import('@/components/dashboard/MetaAdsPlatformBreakdown')
     .then(module => ({ default: module.MetaAdsPlatformBreakdown }))
     .catch(error => {
-      console.error('Failed to load MetaAdsPlatformBreakdown:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -83,7 +76,6 @@ const GoogleAdsDemographics = lazy(() =>
   import('@/components/dashboard/GoogleAdsDemographics')
     .then(module => ({ default: module.GoogleAdsDemographics }))
     .catch(error => {
-      console.error('Failed to load GoogleAdsDemographics:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -92,7 +84,6 @@ const GoogleAdsCampaignBreakdown = lazy(() =>
   import('@/components/dashboard/GoogleAdsCampaignBreakdown')
     .then(module => ({ default: module.GoogleAdsCampaignBreakdown }))
     .catch(error => {
-      console.error('Failed to load GoogleAdsCampaignBreakdown:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -101,7 +92,6 @@ const LeadInfoMetricsCards = lazy(() =>
   import('@/components/dashboard/LeadInfoMetricsCards')
     .then(module => ({ default: module.LeadInfoMetricsCards }))
     .catch(error => {
-      console.error('Failed to load LeadInfoMetricsCards:', error);
       return { default: () => <div>Failed to load component</div> };
     })
 );
@@ -135,7 +125,6 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
       if (event.error && event.error.message) {
         const message = event.error.message;
         if (message.includes('Cannot access') && message.includes('before initialization')) {
-          console.warn('TDZ Error in component, reloading...', message);
           setErrorMessage(message);
           setHasError(true);
           // Reload after a short delay
@@ -143,7 +132,6 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
             window.location.reload();
           }, 1000);
         } else if (message.includes('Cannot read properties of undefined')) {
-          console.warn('Undefined property error in component, reloading...', message);
           setErrorMessage(message);
           setHasError(true);
           // Reload after a short delay
@@ -158,7 +146,6 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
       if (event.reason && event.reason.message) {
         const message = event.reason.message;
         if (message.includes('Cannot access') || message.includes('before initialization')) {
-          console.warn('TDZ Error in promise, reloading...', message);
           setErrorMessage(message);
           setHasError(true);
           setTimeout(() => {
@@ -293,7 +280,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         includeDetailedMetrics: true
       });
     } catch (err) {
-      console.error('Export failed:', err);
       alert('Failed to export PDF. Please try again.');
     } finally {
       setExportingPDF(false);
@@ -449,7 +435,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Show error state
   if (dashboardError || clientError) {
-    console.error('🔍 EventDashboard Error:', { dashboardError, clientError });
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">

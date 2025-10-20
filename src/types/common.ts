@@ -1,6 +1,8 @@
 // Additional TypeScript interfaces for better type safety
 // This file contains interfaces to replace 'any' types throughout the application
 
+import React from 'react';
+
 // Google Ads Account Types
 export interface GoogleAdsAccount {
   id: string;

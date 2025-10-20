@@ -32,7 +32,6 @@ const EventDashboard = lazy(() =>
   import("@/pages/EventDashboard")
     .then(module => ({ default: module.default }))
     .catch(error => {
-      console.error('Failed to load EventDashboard:', error);
       return { default: () => <div>Failed to load dashboard</div> };
     })
 );

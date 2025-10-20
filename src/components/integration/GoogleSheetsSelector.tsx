@@ -68,7 +68,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         setError('No Google Sheets found. Please create a spreadsheet in your Google Drive.');
       }
     } catch (error) {
-      console.error('🔍 GoogleSheetsSelector: Error fetching accounts:', error);
       debugLogger.error('GoogleSheetsSelector', 'Failed to fetch Google Sheets accounts', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Google Sheets. Please check your connection.';
@@ -123,7 +122,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('🔍 GoogleSheetsSelector: API error:', response.status, errorText);
         throw new Error(`Failed to fetch sheet names: ${response.status} - ${errorText}`);
       }
 
@@ -137,7 +135,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
         sheetNames: sheets 
       });
     } catch (error) {
-      console.error('🔍 GoogleSheetsSelector: Error fetching sheet names:', error);
       debugLogger.error('GoogleSheetsSelector', 'Failed to fetch sheet names', error);
       setError(`Failed to load sheet names: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {

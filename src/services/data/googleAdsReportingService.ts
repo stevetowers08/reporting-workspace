@@ -2,6 +2,7 @@ import { GoogleMetricsWithTrends, TrendResult } from '@/types';
 import { DatabaseService } from '@/services/data/databaseService';
 import { EventMetricsService } from '@/services/data/eventMetricsService';
 import { BaseReportingService } from '@/services/base/BaseService';
+import { debugLogger } from '@/lib/debug';
 
 export interface GoogleAdsReportingData {
   clientId: string;

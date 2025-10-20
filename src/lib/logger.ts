@@ -42,7 +42,6 @@ export class DevLogger {
     if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'warn');
-    console.warn(formattedMessage, data || '');
   }
 
   // Error level logging
@@ -50,7 +49,6 @@ export class DevLogger {
     if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'error');
-    console.error(formattedMessage, error || '');
   }
 
   // Success level logging

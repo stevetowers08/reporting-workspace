@@ -74,7 +74,6 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
       setAvailableCharts(sortedCharts);
       setError(null);
     } catch (error) {
-      console.error('SmartChartLayout error:', error);
       setError('Failed to initialize charts');
       setAvailableCharts([]);
     }

@@ -247,6 +247,13 @@ export class DatabaseService {
 
   static async getClientById(id: string): Promise<Client | null> {
     try {
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(id)) {
+        debugLogger.warn('DatabaseService', 'Invalid UUID format for client ID', { id });
+        return null;
+      }
+      
       const client = await supabaseHelpers.getClient(id);
       debugLogger.info('DatabaseService', 'Client fetched successfully from database', { id });
       return client;

@@ -1,6 +1,7 @@
 import { FacebookMetricsWithTrends, TrendResult } from '@/types';
 import { DatabaseService } from './databaseService';
 import { EventMetricsService } from './eventMetricsService';
+import { debugLogger } from '@/lib/debug';
 
 export interface FacebookAdsReportingData {
   clientId: string;

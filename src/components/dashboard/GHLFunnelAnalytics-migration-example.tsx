@@ -71,7 +71,6 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
         
         setFunnelData(data);
       } catch (error) {
-        console.error('Failed to fetch funnel analytics:', error);
       } finally {
         setLoading(false);
       }

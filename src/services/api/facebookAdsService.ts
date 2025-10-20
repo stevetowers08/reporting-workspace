@@ -1704,7 +1704,6 @@ export class FacebookAdsService {
             hasPreviousPeriod: !!metrics.previousPeriod
           });
         } catch (error) {
-          console.error('🔍 FacebookAdsService: Failed to fetch previous period data:', error);
           debugLogger.warn('FacebookAdsService', 'Failed to fetch previous period data', error);
           // Continue without previous period data
         }
@@ -1773,11 +1772,11 @@ export class FacebookAdsService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('🔍 Facebook Previous Period API Error:', {
+        const errorData = {
           status: response.status,
           statusText: response.statusText,
           error: errorText
-        });
+        };
         throw new Error(`Previous period API error: ${response.statusText}`);
       }
 

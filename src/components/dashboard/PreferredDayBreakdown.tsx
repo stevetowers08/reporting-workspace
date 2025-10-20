@@ -18,7 +18,6 @@ export const PreferredDayBreakdown: React.FC<PreferredDayBreakdownProps> = ({ da
         const data = await LeadDataService.fetchLeadData();
         setLeadData(data);
       } catch (error) {
-        console.error('Failed to fetch lead data:', error);
       } finally {
         setLoading(false);
       }

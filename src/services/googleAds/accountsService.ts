@@ -38,7 +38,6 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
       } else {
       }
     } catch (error) {
-      console.warn(`GoogleAdsService: Could not get accounts for manager account ${managerAccountId}:`, error);
     }
 
     // Remove duplicates based on ID and create a Map for better performance
@@ -55,7 +54,6 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
     
     return uniqueAccounts;
   } catch (error) {
-    console.error('GoogleAdsService: Error in listAccessibleCustomers:', error);
     throw error;
   }
 }
@@ -81,8 +79,6 @@ async function getCustomerClientAccounts(
     const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
     
     if (!developerToken || developerToken === 'your-google-ads-developer-token') {
-      console.error('🔍 GoogleAdsService: Google Ads Developer Token not configured!');
-      console.error('🔍 GoogleAdsService: Please run setup-google-ads-env.sh to configure your Google Ads API credentials');
       throw new Error('Google Ads Developer Token not configured. Please run setup-google-ads-env.sh to configure your Google Ads API credentials.');
     }
 
@@ -101,7 +97,6 @@ async function getCustomerClientAccounts(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🔍 GoogleAdsService: API error response:', errorText);
       // This might not be a manager account, return empty array
       return [];
     }
@@ -124,7 +119,6 @@ async function getCustomerClientAccounts(
 
     return accounts;
   } catch (error) {
-    console.warn(`GoogleAdsService: Error getting customer_client accounts for ${managerCustomerId}:`, error);
     return [];
   }
 }
@@ -160,7 +154,6 @@ async function _getAccountDetails(
     );
 
     if (!response.ok) {
-      console.error(`GoogleAdsService: Failed to get details for ${customerId}:`, response.status, response.statusText);
       return null;
     }
 
@@ -168,7 +161,6 @@ async function _getAccountDetails(
     const customer = data.results?.[0]?.customer;
 
     if (!customer) {
-      console.warn(`GoogleAdsService: No customer data for ${customerId}`);
       return null;
     }
 
@@ -179,7 +171,6 @@ async function _getAccountDetails(
       name: customer.descriptiveName,
     };
   } catch (error) {
-    console.error(`GoogleAdsService: Error getting account details for ${customerId}:`, error);
     return null;
   }
 }

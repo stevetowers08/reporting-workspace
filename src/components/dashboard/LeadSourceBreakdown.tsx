@@ -18,7 +18,6 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
         const data = await LeadDataService.fetchLeadData();
         setLeadData(data);
       } catch (error) {
-        console.error('Failed to fetch lead data:', error);
       } finally {
         setLoading(false);
       }

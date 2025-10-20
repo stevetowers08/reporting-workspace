@@ -20,7 +20,6 @@ export abstract class BaseService {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     // Log error (you can integrate with your logging system here)
-    console.error(`[${this.serviceName}] Error:`, errorMessage, context);
     
     return {
       success: false,

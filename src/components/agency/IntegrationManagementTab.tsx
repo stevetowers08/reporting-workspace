@@ -321,7 +321,6 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                               setShowGoogleSheetsSelector(false);
                             } catch (_error) {
                               // Failed to save Google Sheets selection
-                              console.error('Failed to save Google Sheets selection. Please try again.');
                             }
                           }}
                         />

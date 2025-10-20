@@ -107,7 +107,6 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       setDeleting(clientId, true);
       await deleteClient(clientId);
     } catch (error) {
-      console.error('AgencyPanel', 'Failed to delete client', error);
       window.alert('Failed to delete client. Please try again.');
     } finally {
       setDeleting(clientId, false);
@@ -118,7 +117,6 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     try {
       await connectIntegration(platform);
     } catch (error) {
-      console.error('AgencyPanel', `Failed to connect ${platform}`, error);
       window.alert(`Failed to connect ${platform}. Please try again.`);
     }
   };
@@ -131,7 +129,6 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     try {
       await disconnectIntegration(platform);
     } catch (error) {
-      console.error('AgencyPanel', `Failed to disconnect ${platform}`, error);
       window.alert(`Failed to disconnect ${platform}. Please try again.`);
     }
   };
@@ -142,7 +139,6 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       const result = await testConnection(platform);
       return result;
     } catch (error) {
-      console.error('AgencyPanel', `Failed to test ${platform}`, error);
       return { success: false, message: `Test failed: ${error}` };
     } finally {
       setTesting(platform, false);

@@ -18,7 +18,6 @@ export const EventTypeBreakdown: React.FC<EventTypeBreakdownProps> = ({ data: _d
         const data = await LeadDataService.fetchLeadData();
         setLeadData(data);
       } catch (error) {
-        console.error('Failed to fetch lead data:', error);
       } finally {
         setLoading(false);
       }

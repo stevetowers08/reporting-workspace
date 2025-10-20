@@ -2,6 +2,7 @@ import { TroubleshootingCheck, TroubleshootingDetails, AccountFetchResult, Googl
 import { supabase } from '@/lib/supabase';
 import { GoogleAdsService } from '@/services/api/googleAdsService';
 import { OAuthService } from '@/services/auth/oauthService';
+import { debugLogger } from '@/lib/debug';
 
 export class GoogleAdsTroubleshoot {
   static async runFullDiagnostic(): Promise<{

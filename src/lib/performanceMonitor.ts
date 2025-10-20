@@ -13,6 +13,14 @@ declare global {
     disconnect(): void;
   }
   
+  interface PerformanceObserverEntryList {
+    getEntries(): PerformanceObserverEntry[];
+  }
+  
+  interface Window {
+    gtag?: (command: string, eventName: string, parameters: LogContext) => void;
+  }
+  
   const PerformanceObserver: {
     new(callback: (list: PerformanceObserverEntryList) => void): PerformanceObserver;
   };
