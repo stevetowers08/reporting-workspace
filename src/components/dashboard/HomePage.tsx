@@ -1,11 +1,10 @@
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import EditClientModal from '@/components/modals/EditClientModal';
-import { IntegrationOnboardingBar } from '@/components/ui/IntegrationOnboardingBar';
-import { LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { debugLogger } from '@/lib/debug';
+import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { DatabaseService } from '@/services/data/databaseService';
 import {
     BarChart3,
@@ -53,46 +52,9 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  // Use TokenManager for proper connection status checking
-  const [integrationStatus, setIntegrationStatus] = useState<Record<string, boolean>>({});
-  const [integrationStatusLoaded, setIntegrationStatusLoaded] = useState(false);
+  // Use shared integration status hook instead of local state and direct database calls
+  const { data: integrationStatus, isLoading: integrationStatusLoading } = useIntegrationStatus();
   
-  // Load integration status using simple database check
-  React.useEffect(() => {
-    const loadIntegrationStatus = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        
-        // Simple approach: Just check if integrations exist in database
-        const { data: integrations, error } = await supabase
-          .from('integrations')
-          .select('platform')
-          .eq('connected', true);
-
-        if (error) {
-          debugLogger.error('HomePage', 'Failed to load integrations', error);
-          setIntegrationStatus({ facebookAds: false, googleAds: false, googleSheets: false });
-        } else {
-          // Set all to false first
-          const statusMap = { facebookAds: false, googleAds: false, googleSheets: false };
-          // Set to true if found in database
-          integrations?.forEach(integration => {
-            if (integration.platform === 'facebookAds' || integration.platform === 'googleAds' || integration.platform === 'googleSheets') {
-              statusMap[integration.platform] = true;
-            }
-          });
-          setIntegrationStatus(statusMap);
-        }
-        setIntegrationStatusLoaded(true);
-      } catch (_error) {
-        setIntegrationStatus({});
-        setIntegrationStatusLoaded(true);
-      }
-    };
-
-    loadIntegrationStatus();
-  }, []);
-
   // Check if a client has GoHighLevel configured (client-level check)
   const isClientGHLConnected = (client: Client): boolean => {
     const hasLocationId = typeof client.accounts.goHighLevel === 'string' 
@@ -156,7 +118,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
 
 
   if (loading) {
-    return <LoadingState message="Loading dashboard..." fullScreen />;
+    return <PageLoader message="Loading dashboard..." />;
   }
 
   return (
@@ -179,10 +141,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
         showVenueSelector={true}
       />
 
-      {/* Integration Onboarding Progress */}
-      <div className="px-20 py-6 bg-slate-50 border-b border-slate-200">
-        <IntegrationOnboardingBar />
-      </div>
 
       <div className="px-20 py-12">
         {/* Venue Selection - Moved to Top */}
@@ -265,8 +223,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                     <div className="flex items-center gap-1.5">
                       {/* Facebook Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.facebookAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.facebookAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={!integrationStatusLoading ? (integrationStatus?.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="meta" 
@@ -278,8 +236,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Ads */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.googleAds ? 'opacity-100' : 'opacity-40'}`}
+                        title={!integrationStatusLoading ? (integrationStatus?.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="googleAds" 
@@ -304,8 +262,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Sheets */}
                       <div 
-                        className={`flex items-center ${integrationStatusLoaded && integrationStatus.googleSheets ? 'opacity-100' : 'opacity-40'}`}
-                        title={integrationStatusLoaded ? (integrationStatus.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.googleSheets ? 'opacity-100' : 'opacity-40'}`}
+                        title={!integrationStatusLoading ? (integrationStatus?.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected') : 'Loading...'}
                       >
                         <LogoManager 
                           platform="googleSheets" 

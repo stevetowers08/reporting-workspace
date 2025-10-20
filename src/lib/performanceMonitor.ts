@@ -5,6 +5,18 @@
 
 import { envConfig } from '@/lib/envConfig';
 
+// Declare PerformanceObserver for TypeScript
+declare global {
+  interface PerformanceObserver {
+    observe(options: { entryTypes: string[] }): void;
+    disconnect(): void;
+  }
+  
+  const PerformanceObserver: {
+    new(callback: (list: PerformanceObserverEntryList) => void): PerformanceObserver;
+  };
+}
+
 interface PerformanceMetrics {
   fcp?: number; // First Contentful Paint
   lcp?: number; // Largest Contentful Paint

@@ -17,18 +17,11 @@ interface Client {
   };
 }
 
-interface Integration {
-  id: string;
-  name: string;
-  platform: string;
-  status: 'connected' | 'not connected' | 'error';
-  clientsUsing: number;
-}
+// Removed unused Integration interface - integration status is now handled by useIntegrationStatus hook
 
 const HomePageWrapper = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,10 +31,8 @@ const HomePageWrapper = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [clientsData, integrationsData] = await Promise.all([
-        DatabaseService.getAllClients(),
-        DatabaseService.getIntegrations()
-      ]);
+      // Only fetch clients data - integration status is handled by useIntegrationStatus hook
+      const clientsData = await DatabaseService.getAllClients();
       
       // Transform clients data
       const transformedClients: Client[] = (clientsData || []).map(client => ({
@@ -57,24 +48,10 @@ const HomePageWrapper = () => {
         }
       }));
       
-      // Transform integrations data
-      const transformedIntegrations: Integration[] = (integrationsData || []).map(integration => ({
-        id: integration.id,
-        name: integration.platform === 'facebookAds' ? 'Facebook Ads' :
-              integration.platform === 'googleAds' ? 'Google Ads' :
-              integration.platform === 'goHighLevel' ? 'GoHighLevel' :
-              integration.platform === 'googleSheets' ? 'Google Sheets' : integration.platform,
-        platform: integration.platform,
-        status: integration.connected ? 'connected' : 'not connected',
-        clientsUsing: 0 // This would need to be calculated
-      }));
-      
       setClients(transformedClients);
-      setIntegrations(transformedIntegrations);
     } catch (error) {
-      debugLogger.error('HomePageWrapper', 'Failed to load homepage data', error);
+      debugLogger.error('HomePageWrapper', 'Failed to load clients data', error);
       setClients([]);
-      setIntegrations([]);
     } finally {
       setLoading(false);
     }
@@ -95,7 +72,6 @@ const HomePageWrapper = () => {
   return (
     <HomePage
       clients={clients}
-      integrations={integrations}
       onClientSelect={handleClientSelect}
       onAddClient={handleAddClient}
       onGoToAgency={handleGoToAgency}

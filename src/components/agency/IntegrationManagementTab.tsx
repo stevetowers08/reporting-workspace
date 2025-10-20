@@ -1,6 +1,6 @@
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
-import { LoadingSpinner, LoadingState } from '@/components/ui/LoadingStates';
 import { LogoManager } from '@/components/ui/LogoManager';
+import { PageLoader, Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button-simple';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label-simple';
@@ -206,7 +206,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
   };
 
   if (loading) {
-    return <LoadingState message="Loading integrations..." />;
+    return <PageLoader message="Loading integrations..." />;
   }
 
   return (
@@ -368,7 +368,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                         >
                           {testing[integration.platform] ? (
                             <>
-                              <LoadingSpinner size="xs" className="mr-1" />
+                              <Spinner size="sm" className="mr-1" />
                               Testing...
                             </>
                           ) : (

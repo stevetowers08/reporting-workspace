@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -132,7 +132,10 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
           <h3 className="text-lg font-semibold text-slate-900">GHL Sales Pipeline</h3>
         </div>
         <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-slate-500">Loading pipeline data...</div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading pipeline data...
+          </div>
         </div>
       </Card>
     );

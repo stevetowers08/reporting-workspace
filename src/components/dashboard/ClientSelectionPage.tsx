@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import {
     BarChart3,
     Calendar,
@@ -85,7 +85,7 @@ export const ClientSelectionPage: React.FC<ClientSelectionPageProps> = ({
   };
 
   if (loading) {
-    return <LoadingState message="Loading clients..." fullScreen />;
+    return <PageLoader message="Loading clients..." />;
   }
 
   return (

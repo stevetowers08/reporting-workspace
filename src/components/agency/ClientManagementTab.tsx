@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Client } from '@/services/agency/agencyService';
 import { BarChart3, Edit, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
@@ -33,7 +33,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
 
 
   if (loading) {
-    return <LoadingState message="Loading venues..." />;
+    return <PageLoader message="Loading venues..." />;
   }
 
   return (

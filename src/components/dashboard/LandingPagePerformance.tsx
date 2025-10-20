@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
@@ -40,17 +40,7 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
   if (loading) {
     return (
       <Card className="bg-white border border-slate-200 p-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <DataSkeleton />
       </Card>
     );
   }

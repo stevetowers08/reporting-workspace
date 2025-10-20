@@ -2,8 +2,7 @@ import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import { FacebookAdsReportingTable } from '@/components/reporting/FacebookAdsReportingTable';
 import { GoogleAdsReportingTable } from '@/components/reporting/GoogleAdsReportingTable';
 import { UnifiedReportingTable } from '@/components/reporting/UnifiedReportingTable';
-import { LogoManager } from '@/components/ui/LogoManager';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { REPORTING_TABS, StandardizedTabs } from '@/components/ui/StandardizedTabs';
 import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from '@/services/data/databaseService';
 import { FacebookAdsReportingData, facebookAdsReportingService } from '@/services/data/facebookAdsReportingService';
@@ -18,7 +17,6 @@ const FacebookAdsReporting: React.FC = () => {
   const [googleReportingData, setGoogleReportingData] = useState<GoogleAdsReportingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(true);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [activeTab, setActiveTab] = useState('meta');
@@ -27,9 +25,20 @@ const FacebookAdsReporting: React.FC = () => {
   const periods = facebookAdsReportingService.getAvailablePeriods();
 
   useEffect(() => {
-    fetchReportingData();
-    fetchGoogleReportingData();
-    loadClients();
+    const loadAllData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchReportingData(),
+          fetchGoogleReportingData(),
+          loadClients()
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadAllData();
   }, [selectedPeriod]);
 
   const loadClients = async () => {
@@ -51,7 +60,6 @@ const FacebookAdsReporting: React.FC = () => {
 
   const fetchReportingData = async () => {
     try {
-      setLoading(true);
       setError(null);
       
       debugLogger.info('FACEBOOK_REPORTING_PAGE', 'Fetching reporting data', { period: selectedPeriod });
@@ -67,14 +75,11 @@ const FacebookAdsReporting: React.FC = () => {
     } catch (err) {
       debugLogger.error('FACEBOOK_REPORTING_PAGE', 'Error fetching reporting data', err);
       setError('Failed to load Facebook Ads reporting data. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchGoogleReportingData = async () => {
     try {
-      setGoogleLoading(true);
       setGoogleError(null);
       
       debugLogger.info('GOOGLE_REPORTING_PAGE', 'Fetching Google reporting data', { period: selectedPeriod });
@@ -132,30 +137,12 @@ const FacebookAdsReporting: React.FC = () => {
         {/* Tabs and Period Selector */}
         <div className="mb-8 flex items-center justify-between">
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-            <TabsList className="bg-slate-50 border border-slate-200 rounded-lg p-1 h-12 inline-flex gap-1">
-              <TabsTrigger 
-                value="meta" 
-                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                <LogoManager platform="meta" size={20} context="header" />
-                <span>Meta Ads</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="google" 
-                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                <LogoManager platform="googleAds" size={20} context="header" />
-                <span>Google Ads</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="combination" 
-                className="text-sm font-medium px-6 py-3 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                <span>Combined</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <StandardizedTabs 
+            value={activeTab} 
+            onValueChange={setActiveTab} 
+            tabs={REPORTING_TABS}
+            className="w-auto"
+          />
 
           {/* Period Selector */}
           <div className="flex items-center gap-3">
@@ -186,7 +173,7 @@ const FacebookAdsReporting: React.FC = () => {
         {activeTab === 'google' && (
           <GoogleAdsReportingTable
             data={googleReportingData}
-            loading={googleLoading}
+            loading={loading}
             error={googleError}
           />
         )}
@@ -195,7 +182,7 @@ const FacebookAdsReporting: React.FC = () => {
           <UnifiedReportingTable
             facebookData={reportingData}
             googleData={googleReportingData}
-            loading={loading || googleLoading}
+            loading={loading}
             error={error || googleError}
           />
         )}

@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { Cell, Funnel, FunnelChart, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
@@ -70,7 +70,10 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
           <h3 className="text-lg font-semibold text-slate-900">GHL Conversion Funnel</h3>
         </div>
         <div className="h-80 flex items-center justify-center">
-          <div className="animate-pulse text-slate-500">Loading funnel data...</div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading funnel data...
+          </div>
         </div>
       </Card>
     );

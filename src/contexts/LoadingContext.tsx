@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
-import { LoadingOverlay, ModernSpinner } from '../components/ui/LoadingSystem';
+import { Spinner } from '../components/ui/UnifiedLoadingSystem';
 
 // Types for loading state management
 export interface LoadingTask {
@@ -184,11 +184,14 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <LoadingContext.Provider value={contextValue}>
       {children}
-      <LoadingOverlay 
-        isLoading={hasActiveTasks}
-        progress={overallProgress}
-        message={currentMessage}
-      />
+      {hasActiveTasks && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <Spinner size="md" />
+            <span className="text-slate-700">{currentMessage}</span>
+          </div>
+        </div>
+      )}
     </LoadingContext.Provider>
   );
 };
@@ -247,7 +250,7 @@ export const withLoading = <P extends object>(
     if (isLoading) {
       const LoadingComponent = loadingComponent || (() => (
         <div className="flex items-center justify-center p-8">
-          <ModernSpinner size="lg" />
+          <Spinner size="lg" />
           <span className="ml-3 text-slate-600">{loadingMessage || 'Loading...'}</span>
         </div>
       ));
@@ -283,7 +286,7 @@ export const LoadingButton: React.FC<{
     >
       {isLoading ? (
         <>
-          <ModernSpinner size="sm" className="mr-2" />
+          <Spinner size="sm" className="mr-2" />
           {loadingText}
         </>
       ) : (

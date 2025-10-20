@@ -1,22 +1,22 @@
-# GoHighLevel MCP Server
+# Marketing Analytics Dashboard
 
-A Model Context Protocol (MCP) server for integrating with the GoHighLevel API. This server provides tools to interact with GoHighLevel's CRM, marketing automation, and lead management features.
+A comprehensive marketing analytics dashboard that integrates with Facebook Ads, Google Ads, and GoHighLevel APIs to provide unified reporting and analytics for marketing campaigns.
 
 ## Features
 
-- **Contact Management**: Create, read, update, and delete contacts
-- **Campaign Management**: Retrieve campaign information and status
-- **Opportunity Tracking**: Access sales opportunities and pipeline data
-- **Pipeline Management**: Get pipeline and stage information
-- **Webhook Management**: Manage webhooks for real-time updates
-- **Location Management**: Access location and sub-account data
+- **Multi-Platform Integration**: Connect Facebook Ads, Google Ads, and GoHighLevel accounts
+- **Real-time Analytics**: View campaign performance metrics in real-time
+- **Unified Dashboard**: Single interface for all your marketing data
+- **Client Management**: Manage multiple clients and their marketing accounts
+- **Export Capabilities**: Export reports and data in various formats
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
 
 ## Installation
 
 1. Clone this repository:
 ```bash
 git clone <repository-url>
-cd gohighlevel-mcp-server
+cd marketing-analytics-dashboard
 ```
 
 2. Install dependencies:

@@ -1,8 +1,8 @@
 {
-  "name": "gohighlevel-mcp-server",
+  "name": "marketing-analytics-dashboard",
   "version": "1.0.0",
-  "description": "MCP server for GoHighLevel API integration",
-  "main": "dist/index.js",
+  "description": "Marketing Analytics Dashboard for Facebook Ads, Google Ads, and GoHighLevel integration",
+  "main": "dist/index.html",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,16 +26,18 @@
     "netlify:preview": "npm run build && netlify dev"
   },
   "keywords": [
-    "mcp",
+    "marketing",
+    "analytics",
+    "dashboard",
+    "facebook-ads",
+    "google-ads",
     "gohighlevel",
-    "api",
-    "crm",
-    "marketing"
+    "react",
+    "typescript"
   ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
     "@playwright/test": "^1.55.1",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-progress": "^1.1.7",

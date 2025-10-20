@@ -4,7 +4,7 @@
  * This shows how to gradually migrate from the old service to new modules
  */
 
-import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 // Old import (still works)
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 // New modular imports (when ready to migrate)
@@ -83,7 +83,10 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
     return (
       <Card className="p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading funnel analytics...
+          </div>
         </div>
       </Card>
     );

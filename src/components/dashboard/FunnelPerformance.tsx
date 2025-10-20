@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { useGHLContactCount, useGHLFunnelAnalytics } from '@/hooks/useGHLHooks';
 import React from 'react';
 
@@ -41,7 +41,10 @@ export const FunnelPerformance: React.FC<FunnelPerformanceProps> = ({ data, date
           </p>
         </div>
         <div className="h-80 flex items-center justify-center">
-          <div className="animate-pulse text-slate-500">Loading funnel performance...</div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading funnel performance...
+          </div>
         </div>
       </Card>
     );

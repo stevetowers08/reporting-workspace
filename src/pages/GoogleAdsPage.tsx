@@ -1,10 +1,10 @@
 "use client";
 
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingState } from '@/components/ui/LoadingStates';
-import { debugLogger } from '@/lib/debug';
 import { calculatePercentageChange } from '@/lib/dateUtils';
+import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
@@ -239,7 +239,7 @@ const GoogleAdsPage = () => {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <LoadingState message="Loading Google ads data..." />
+                                <PageLoader message="Loading Google ads data..." />
                             ) : googleAccounts.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">

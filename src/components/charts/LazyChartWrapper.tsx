@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ChartSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import React, { ComponentType, Suspense, lazy, forwardRef } from 'react';
 
 interface LazyChartWrapperProps {
@@ -19,15 +19,7 @@ export const LazyChartWrapper: React.FC<LazyChartWrapperProps> = ({
 }) => {
   const defaultFallback = (
     <Card className="p-6">
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-1/4" />
-        <Skeleton className="h-64 w-full" />
-        <div className="flex space-x-2">
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      </div>
+      <ChartSkeleton />
     </Card>
   );
 

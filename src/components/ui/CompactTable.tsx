@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoadingState } from "@/components/ui/LoadingStates";
+import { TableSkeleton } from "@/components/ui/UnifiedLoadingSystem";
 import { ChevronDown, ChevronUp, TrendingDown, TrendingUp } from "lucide-react";
 import React, { useState } from "react";
 
@@ -129,7 +129,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
     return (
       <Card className="border border-slate-200">
         <CardContent className="p-6">
-          <LoadingState message="Loading data..." />
+          <TableSkeleton rows={5} />
         </CardContent>
       </Card>
     );

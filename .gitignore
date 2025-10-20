@@ -143,3 +143,5 @@ ENV/
 requirements.txt
 activate_venv.bat
 current_packages_backup.txt
+# Local Netlify folder
+.netlify

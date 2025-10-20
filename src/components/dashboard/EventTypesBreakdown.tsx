@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { debugLogger } from '@/lib/debug';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
@@ -71,17 +71,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   if (loading) {
     return (
       <Card className="bg-white border border-slate-200 p-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                <div className="h-2 bg-slate-200 rounded w-full md:w-full"></div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <DataSkeleton />
       </Card>
     );
   }

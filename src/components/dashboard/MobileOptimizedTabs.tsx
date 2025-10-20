@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StandardizedTabs } from '@/components/ui/StandardizedTabs';
 import { FileDown, Settings, Share2 } from 'lucide-react';
 import React from 'react';
 
@@ -21,27 +21,20 @@ export const MobileOptimizedTabs: React.FC<MobileOptimizedTabsProps> = ({
   children
 }) => {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
+    <div className="space-y-6">
       {/* Mobile-First Tab Navigation */}
       <div className="flex items-center justify-center">
-        <TabsList className="w-full max-w-4xl bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
-          {tabs.map((tab) => (
-            <TabsTrigger 
-              key={tab.value}
-              value={tab.value} 
-              className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden text-xs">{tab.label.split(' ')[0]}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <StandardizedTabs 
+          value={activeTab} 
+          onValueChange={onTabChange} 
+          tabs={tabs}
+          className="w-full max-w-4xl"
+        />
       </div>
 
       {/* Tab Content */}
       {children}
-    </Tabs>
+    </div>
   );
 };
 

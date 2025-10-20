@@ -1,4 +1,4 @@
-import { LoadingSpinner } from '@/components/ui/LoadingStates';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import React, { useCallback, useState } from 'react';
 
 interface OptimizedImageProps {
@@ -40,7 +40,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     <div className={`relative ${className}`}>
       {isLoading && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse rounded-lg flex items-center justify-center">
-          <LoadingSpinner size="sm" className="border-gray-400 border-t-gray-400" />
+          <Spinner size="sm" className="border-gray-400 border-t-gray-400" />
         </div>
       )}
       <img

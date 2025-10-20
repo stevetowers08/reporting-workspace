@@ -1,6 +1,6 @@
 import { ConnectLocationButton } from '@/components/agency/ConnectLocationButton';
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
-import { LoadingSpinner } from "@/components/ui/LoadingStates";
+import { Spinner } from "@/components/ui/UnifiedLoadingSystem";
 import { LogoManager } from "@/components/ui/LogoManager";
 import { Button } from "@/components/ui/button-simple";
 import { Input } from "@/components/ui/input";
@@ -1004,7 +1004,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         <Label className="text-xs font-medium text-gray-600">Conversion Action</Label>
                         {conversionActionsLoading.facebookAds ? (
                           <div className="flex items-center gap-2 mt-1 p-2 border border-gray-200 rounded">
-                            <LoadingSpinner size="sm" />
+                            <Spinner size="sm" />
                             <span className="text-sm text-gray-500">Loading conversion actions...</span>
                           </div>
                         ) : (
@@ -1158,7 +1158,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                       />
                       {googleAccountsLoading && (
                         <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                          <LoadingSpinner size="sm" />
+                          <Spinner size="sm" />
                           Loading Google Ads accounts...
                         </div>
                       )}
@@ -1516,7 +1516,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         >
           {isSubmitting ? (
             <div className="flex items-center gap-2">
-              <LoadingSpinner size="sm" />
+              <Spinner size="sm" />
               <span>Saving...</span>
             </div>
           ) : (

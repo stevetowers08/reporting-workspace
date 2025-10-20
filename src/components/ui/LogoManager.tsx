@@ -50,7 +50,9 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
       'goHighLevel': '/logos/goHighLevel-official.png',
       'googleSheets': '/logos/googleSheets-real.svg',
       'googleAI': '/logos/googleAI-official.svg',
-      'google-ai': '/logos/googleAI-official.svg'
+      'google-ai': '/logos/googleAI-official.svg',
+      'tulenAgency': '/logos/tulen-favicon-32x32.png',
+      'tulen': '/logos/tulen-favicon-32x32.png'
     };
     
     return logoMap[platform] || '';
@@ -95,6 +97,10 @@ export const LogoManager: React.FC<LogoManagerProps> = ({
 // Convenience components for each platform
 export const MetaLogo: React.FC<Omit<LogoManagerProps, 'platform'>> = (props) => (
   <LogoManager platform="meta" {...props} />
+);
+
+export const TulenAgencyLogo: React.FC<Omit<LogoManagerProps, 'platform'>> = (props) => (
+  <LogoManager platform="tulenAgency" {...props} />
 );
 
 export const GoogleAdsLogo: React.FC<Omit<LogoManagerProps, 'platform'>> = (props) => (

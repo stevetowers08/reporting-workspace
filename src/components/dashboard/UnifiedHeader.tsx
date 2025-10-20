@@ -1,7 +1,6 @@
-import { LogoManager } from '@/components/ui/LogoManager';
+import { DASHBOARD_TABS, StandardizedTabs } from '@/components/ui/StandardizedTabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button-simple';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
 import { ArrowLeft, BarChart3, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React from 'react';
 
@@ -47,12 +46,14 @@ export const InternalAgencyHeader: React.FC<InternalAgencyHeaderProps> = ({
             </Button>
             
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-white" />
-              </div>
+              <img
+                src="/logos/tulen-favicon-32x32.png"
+                alt="Tulen Agency logo"
+                className="w-8 h-8 object-contain"
+              />
               <div>
-                <h1 className="text-sm font-semibold text-white">Internal Dashboard</h1>
-                <p className="text-xs text-slate-400">Agency View</p>
+                <h1 className="text-sm font-semibold text-white">Tulen Agency</h1>
+                <p className="text-xs text-slate-400">Internal Dashboard</p>
               </div>
             </div>
           </div>
@@ -212,46 +213,15 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
 
           {/* Center: Tabs */}
           <div className="flex-1 max-w-2xl mx-8">
-            <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-              <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
-                <TabsTrigger 
-                  value="summary" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-                >
-                  <BarChart3 size={14} />
-                  <span className="hidden sm:inline">Summary</span>
-                  <span className="sm:hidden text-xs">S</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="meta" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-                >
-                  <LogoManager platform="meta" size={20} context="header" />
-                  <span className="hidden sm:inline">Meta</span>
-                  <span className="sm:hidden text-xs">M</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="google" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-                >
-                  <LogoManager platform="googleAds" size={20} context="header" />
-                  <span className="hidden sm:inline">Google</span>
-                  <span className="sm:hidden text-xs">G</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="leads" 
-                  className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-                >
-                  <Users size={14} />
-                  <span className="hidden sm:inline">Lead Info</span>
-                  <span className="sm:hidden text-xs">L</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <StandardizedTabs 
+              value={activeTab} 
+              onValueChange={onTabChange} 
+              tabs={DASHBOARD_TABS}
+            />
           </div>
 
           {/* Right: Period Selector Dropdown */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <select
               value={selectedPeriod}
               onChange={(e) => onPeriodChange(e.target.value)}
@@ -264,6 +234,16 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
               <option value="90d">Last 90 days</option>
               <option value="1y">Last year</option>
             </select>
+            
+            {/* Tulen Agency branding */}
+            <div className="flex items-center gap-2 opacity-60">
+              <img
+                src="/logos/tulen-favicon-32x32.png"
+                alt="Tulen Agency"
+                className="w-6 h-6 object-contain"
+              />
+              <span className="text-xs text-slate-500 font-medium">Tulen Agency</span>
+            </div>
           </div>
         </div>
       </div>

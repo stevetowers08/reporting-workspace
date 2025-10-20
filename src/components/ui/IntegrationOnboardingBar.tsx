@@ -1,8 +1,7 @@
 import { LogoManager } from '@/components/ui/LogoManager';
-import { debugLogger } from '@/lib/debug';
-import { supabase } from '@/lib/supabase';
+import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { AlertCircle, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 interface IntegrationOnboardingBarProps {
   className?: string;
@@ -23,76 +22,48 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
   className = '',
   compact = false
 }) => {
-  const [steps, setSteps] = useState<OnboardingStep[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use shared integration status hook instead of local state and direct database calls
+  const { data: integrationStatus, isLoading: loading } = useIntegrationStatus();
 
-  useEffect(() => {
-    const loadOnboardingStatus = async () => {
-      try {
-        const { TokenManager: _TokenManager } = await import('@/services/auth/TokenManager');
-        const { GoogleSheetsOAuthService: _GoogleSheetsOAuthService } = await import('@/services/auth/googleSheetsOAuthService');
-        
-        const onboardingSteps = [
-          { 
-            id: 'facebookAds', 
-            name: 'Facebook Ads', 
-            platform: 'facebookAds', 
-            logo: 'meta',
-            description: 'Connect Facebook Marketing API'
-          },
-          { 
-            id: 'googleAds', 
-            name: 'Google Ads', 
-            platform: 'googleAds', 
-            logo: 'googleAds',
-            description: 'Connect Google Ads API'
-          },
-          { 
-            id: 'googleSheets', 
-            name: 'Google Sheets', 
-            platform: 'googleSheets', 
-            logo: 'googleSheets',
-            description: 'Connect Google Sheets API'
-          },
-          { 
-            id: 'google-ai', 
-            name: 'Google AI Studio', 
-            platform: 'google-ai', 
-            logo: 'google-ai',
-            description: 'Connect Google AI Studio'
-          }
-        ];
-
-        // Simple approach: Check database directly
-        const { data: integrations } = await supabase
-          .from('integrations')
-          .select('platform')
-          .eq('connected', true);
-
-        const connectedPlatforms = new Set(integrations?.map(i => i.platform) || []);
-
-        const stepPromises = onboardingSteps.map(async (step) => {
-          const completed = connectedPlatforms.has(step.platform);
-          
-          return {
-            ...step,
-            completed,
-            loading: false
-          };
-        });
-
-        const results = await Promise.all(stepPromises);
-        setSteps(results);
-      } catch (error) {
-        debugLogger.error('IntegrationOnboardingBar', 'Failed to load onboarding status', error);
-        setSteps([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadOnboardingStatus();
-  }, []);
+  // Define onboarding steps
+  const onboardingSteps: OnboardingStep[] = [
+    { 
+      id: 'facebookAds', 
+      name: 'Facebook Ads', 
+      platform: 'facebookAds', 
+      logo: 'meta',
+      description: 'Connect Facebook Marketing API',
+      completed: integrationStatus?.facebookAds || false,
+      loading: false
+    },
+    { 
+      id: 'googleAds', 
+      name: 'Google Ads', 
+      platform: 'googleAds', 
+      logo: 'googleAds',
+      description: 'Connect Google Ads API',
+      completed: integrationStatus?.googleAds || false,
+      loading: false
+    },
+    { 
+      id: 'googleSheets', 
+      name: 'Google Sheets', 
+      platform: 'googleSheets', 
+      logo: 'googleSheets',
+      description: 'Connect Google Sheets API',
+      completed: integrationStatus?.googleSheets || false,
+      loading: false
+    },
+    { 
+      id: 'google-ai', 
+      name: 'Google AI Studio', 
+      platform: 'google-ai', 
+      logo: 'google-ai',
+      description: 'Connect Google AI Studio',
+      completed: integrationStatus?.googleAi || false,
+      loading: false
+    }
+  ];
 
   if (loading) {
     return (
@@ -103,15 +74,15 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
     );
   }
 
-  const completedSteps = steps.filter(s => s.completed).length;
-  const totalSteps = steps.length;
+  const completedSteps = onboardingSteps.filter(s => s.completed).length;
+  const totalSteps = onboardingSteps.length;
   const progressPercentage = (completedSteps / totalSteps) * 100;
 
   if (compact) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <div className="flex items-center gap-1">
-          {steps.map((step, index) => (
+          {onboardingSteps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
                 className={`p-1.5 rounded-lg border-2 ${
@@ -127,7 +98,7 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
                   className={step.completed ? 'opacity-100' : 'opacity-60'}
                 />
               </div>
-              {index < steps.length - 1 && (
+              {index < onboardingSteps.length - 1 && (
                 <ArrowRight className="h-3 w-3 text-slate-300" />
               )}
             </React.Fragment>
@@ -167,7 +138,7 @@ export const IntegrationOnboardingBar: React.FC<IntegrationOnboardingBarProps> =
 
       {/* Steps */}
       <div className="grid grid-cols-2 gap-3">
-        {steps.map((step) => (
+        {onboardingSteps.map((step) => (
           <div
             key={step.id}
             className={`flex items-center gap-3 p-3 rounded-lg border ${

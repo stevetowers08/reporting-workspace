@@ -1,4 +1,4 @@
-import { LoadingSpinner } from '@/components/ui/LoadingStates';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button-simple';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { debugLogger } from '@/lib/debug';
@@ -233,7 +233,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <LoadingSpinner size="md" className="mr-3" />
+        <Spinner size="md" className="mr-3" />
         <span className="text-gray-600">Loading your Google Sheets...</span>
       </div>
     );
@@ -341,7 +341,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
             </label>
             {loadingSheets ? (
               <div className="flex items-center gap-2 p-3 border border-gray-300 rounded-md">
-                <LoadingSpinner size="sm" />
+                <Spinner size="sm" />
                 <span className="text-sm text-gray-600">Loading sheet names...</span>
               </div>
             ) : sheetNames.length > 0 ? (
@@ -385,7 +385,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
             >
               {saving ? (
                 <>
-                  <LoadingSpinner size="sm" className="mr-2" />
+                  <Spinner size="sm" className="mr-2" />
                   Saving...
                 </>
               ) : (

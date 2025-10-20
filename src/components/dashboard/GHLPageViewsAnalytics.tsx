@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -178,7 +178,10 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
           <h3 className="text-lg font-semibold text-slate-900">GHL Page Views Analytics</h3>
         </div>
         <div className="h-64 flex items-center justify-center">
-          <div className="animate-pulse text-slate-500">Loading page view data...</div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Spinner size="sm" />
+            Loading page view data...
+          </div>
         </div>
       </Card>
     );

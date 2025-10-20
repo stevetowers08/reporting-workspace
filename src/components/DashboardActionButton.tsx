@@ -1,4 +1,4 @@
-import { LoadingSpinner } from '@/components/ui/LoadingStates';
+import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button';
 import { LucideIcon } from 'lucide-react';
 import React from 'react';
@@ -40,7 +40,7 @@ export const DashboardActionButton: React.FC<DashboardActionButtonProps> = ({
     >
       {loading ? (
         <>
-          <LoadingSpinner size="xs" className="mr-2" />
+          <Spinner size="sm" className="mr-2" />
           {loadingText || 'Loading...'}
         </>
       ) : (

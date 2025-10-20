@@ -1,7 +1,7 @@
 "use client";
 
 import { FacebookConnectionPrompt } from "@/components/connection/FacebookConnectionPrompt";
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { debugLogger } from '@/lib/debug';
@@ -145,7 +145,7 @@ const FacebookAdsPage = () => {
             <div className="px-6 pb-6">
                 <div className="max-w-7xl mx-auto">
                     {loading ? (
-                        <LoadingState message="Loading Meta Ads data..." />
+                        <PageLoader message="Loading Meta Ads data..." />
                     ) : dashboardData ? (
                         <>
                             {/* Key Metrics - 2 Rows of KPI Cards */}

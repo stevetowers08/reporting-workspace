@@ -2,11 +2,11 @@ import { AIInsightsTab } from '@/components/agency/AIInsightsTab';
 import { ClientManagementTab } from '@/components/agency/ClientManagementTab';
 import { IntegrationManagementTab } from '@/components/agency/IntegrationManagementTab';
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
-import { LoadingState } from '@/components/ui/LoadingStates';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AGENCY_TABS, StandardizedTabs } from '@/components/ui/StandardizedTabs';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
-import { Bot, Settings, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -152,7 +152,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   const loading = clientsLoading || integrationsLoading;
 
   if (loading) {
-    return <LoadingState message="Loading agency panel..." fullScreen />;
+    return <PageLoader message="Loading agency panel..." />;
   }
 
   return (
@@ -174,34 +174,12 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
 
       <div className="px-20 py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          {/* Tab Navigation - Matching Dashboard Style */}
-          <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
-            <TabsTrigger 
-              value="clients" 
-              className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-            >
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Venue Management</span>
-              <span className="sm:hidden text-xs">V</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="integrations" 
-              className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-            >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Service Integrations</span>
-              <span className="sm:hidden text-xs">I</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="ai-insights" 
-              data-testid="ai-insights-tab"
-              className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 text-slate-600 hover:text-slate-800 hover:bg-white/50 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
-            >
-              <Bot className="h-4 w-4" />
-              <span className="hidden sm:inline">AI Insights</span>
-              <span className="sm:hidden text-xs">A</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Tab Navigation - Using Standardized Component */}
+          <StandardizedTabs 
+            value={activeTab} 
+            onValueChange={handleTabChange} 
+            tabs={AGENCY_TABS}
+          />
 
           {/* Client Management Tab */}
           <TabsContent value="clients" className="mt-0">

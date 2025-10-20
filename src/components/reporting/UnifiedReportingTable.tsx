@@ -1,4 +1,4 @@
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { FacebookAdsReportingData } from '@/services/data/facebookAdsReportingService';
 import { GoogleAdsReportingData } from '@/services/data/googleAdsReportingService';
@@ -147,7 +147,7 @@ export const UnifiedReportingTable: React.FC<UnifiedReportingTableProps> = ({
   if (loading) {
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-8">
-        <LoadingState message="Loading combined reporting data..." />
+        <DataSkeleton />
       </div>
     );
   }
@@ -184,6 +184,20 @@ export const UnifiedReportingTable: React.FC<UnifiedReportingTableProps> = ({
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      {/* Agency branding header */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <img
+            src="/logos/tulen-favicon-32x32.png"
+            alt="Tulen Agency"
+            className="w-5 h-5 object-contain"
+          />
+          <span className="text-xs font-medium text-slate-600">Powered by Tulen Agency</span>
+        </div>
+        <div className="text-xs text-slate-500">
+          Marketing Analytics Report
+        </div>
+      </div>
       <div className="overflow-x-auto">
            <table className="w-full border-collapse">
              <thead className="bg-slate-50 border-b border-slate-200">

@@ -1,4 +1,4 @@
-import { SkeletonMetricCard } from '@/components/ui/LoadingSystem';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { Client } from '@/services/data/databaseService';
@@ -61,7 +61,7 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
   if (isLoading) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">
-        <SkeletonMetricCard />
+        <DataSkeleton />
       </div>
     );
   }

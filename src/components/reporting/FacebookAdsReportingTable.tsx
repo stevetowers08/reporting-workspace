@@ -1,4 +1,4 @@
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { FacebookAdsReportingData } from '@/services/data/facebookAdsReportingService';
 import { BarChart3 } from 'lucide-react';
 import React from 'react';
@@ -18,7 +18,7 @@ export const FacebookAdsReportingTable: React.FC<FacebookAdsReportingTableProps>
   if (loading) {
     return (
       <div className="bg-white border border-slate-200 shadow-sm rounded-lg p-8">
-        <LoadingState message="Loading Facebook Ads data..." />
+        <DataSkeleton />
       </div>
     );
   }

@@ -32,22 +32,30 @@
       #root {
         min-height: 100vh;
       }
-      /* Loading state */
+      /* Loading state - matches PageLoader component */
       .loading-container {
         display: flex;
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background-color: #f9fafb;
+        background-color: #f1f5f9;
       }
       .loading-spinner {
-        width: 48px;
-        height: 48px;
-        border: 2px solid #dbeafe;
+        width: 24px;
+        height: 24px;
+        border: 2px solid #cbd5e1;
         border-top: 2px solid #2563eb;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin: 0 auto 16px;
+        margin: 0 auto 12px;
+      }
+      .loading-text {
+        margin-top: 12px;
+        color: #64748b;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
       }
       @keyframes spin {
         0% { transform: rotate(0deg); }
@@ -57,11 +65,11 @@
   </head>
   <body>
     <div id="root">
-      <!-- Fallback loading state -->
+      <!-- Fallback loading state - matches PageLoader component -->
       <div class="loading-container">
         <div>
           <div class="loading-spinner"></div>
-          <p style="margin-top: 16px; color: #6b7280; text-align: center;">Loading Tulen Reporting...</p>
+          <p class="loading-text">Loading...</p>
         </div>
       </div>
     </div>

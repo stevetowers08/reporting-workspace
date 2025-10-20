@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { useGHLContactCount } from '@/hooks/useGHLHooks';
 import { Calendar, TrendingUp, UserPlus, Users } from 'lucide-react';
 import React from 'react';
@@ -25,10 +25,7 @@ export const GHLContactQualityCards: React.FC<GHLContactQualityCardsProps> = ({ 
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="bg-white border border-slate-200 shadow-sm p-5 h-24">
-            <div className="animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-slate-200 rounded w-1/2"></div>
-            </div>
+            <DataSkeleton />
           </Card>
         ))}
       </div>

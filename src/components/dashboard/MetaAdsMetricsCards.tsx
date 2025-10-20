@@ -1,4 +1,4 @@
-import { SkeletonChart } from '@/components/ui/LoadingSystem';
+import { ChartSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { calculatePercentageChange, formatPercentageChange } from '@/lib/dateUtils';
 import { debugLogger } from '@/lib/debug';
@@ -40,7 +40,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
   if (!data) {
     return (
       <div className="mb-6">
-        <SkeletonChart height="h-32" />
+        <ChartSkeleton />
       </div>
     );
   }

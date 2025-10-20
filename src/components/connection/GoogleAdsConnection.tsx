@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingSpinner } from "@/components/ui/LoadingStates";
+import { Spinner } from "@/components/ui/UnifiedLoadingSystem";
 import { debugLogger } from '@/lib/debug';
 import { OAuthService } from "@/services/auth/oauthService";
 import { UnifiedIntegrationService } from "@/services/integration/IntegrationService";
@@ -81,7 +81,7 @@ const GoogleAdsConnection = ({ onConnectionChange }: GoogleAdsConnectionProps) =
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingSpinner />
+          <Spinner />
         </CardContent>
       </Card>
     );

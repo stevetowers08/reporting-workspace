@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { debugLogger } from '@/lib/debug';
 import { GoogleAdsConfigService } from "@/services/config/googleAdsConfigService";
 import { AlertCircle, ArrowLeft, CheckCircle, Plus, Settings, Trash2 } from "lucide-react";
@@ -210,7 +210,7 @@ const GoogleAdsConfigPage = () => {
 
           {/* Configurations List */}
           {loading ? (
-            <LoadingState message="Loading configurations..." />
+            <PageLoader message="Loading configurations..." />
           ) : configs.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">

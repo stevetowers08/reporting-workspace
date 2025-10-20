@@ -58,12 +58,14 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
         <div className="flex items-center justify-between">
           {/* Left: Branding */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <BarChart3 className="h-4 w-4 text-white" />
-            </div>
+            <img
+              src="/logos/tulen-favicon-32x32.png"
+              alt="Tulen Agency logo"
+              className="w-8 h-8 object-contain"
+            />
             <div>
-              <h1 className="text-sm font-semibold text-white">Marketing Analytics</h1>
-              <p className="text-xs text-slate-300">Agency Dashboard</p>
+              <h1 className="text-sm font-semibold text-white">Tulen Agency</h1>
+              <p className="text-xs text-slate-300">Marketing Analytics</p>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoadingState } from "@/components/ui/LoadingStates";
+import { DataSkeleton } from "@/components/ui/UnifiedLoadingSystem";
 import { debugLogger } from '@/lib/debug';
 import { DatabaseService } from "@/services/data/databaseService";
 import { EventMetricsService } from "@/services/data/eventMetricsService";
@@ -260,7 +260,7 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <LoadingState message="Loading Facebook ads data..." />
+                        <DataSkeleton />
                     ) : facebookAccounts.length === 0 ? (
                         <div className="text-center py-12">
                             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">

@@ -12,7 +12,7 @@ import AdAccountsOverview from "@/pages/AdAccountsOverview";
 import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
 // ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
-import { MarketingDashboardSkeleton } from "@/components/ui/LoadingSystem";
+import { DashboardSkeleton } from "@/components/ui/UnifiedLoadingSystem";
 import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
@@ -243,7 +243,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<HomePageWrapper />} />
                 <Route path="/dashboard/:clientId" element={
-                  <Suspense fallback={<MarketingDashboardSkeleton />}>
+                  <Suspense fallback={<DashboardSkeleton />}>
                     <EventDashboard />
                   </Suspense>
                 } />
@@ -262,7 +262,7 @@ const App = () => {
                 <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                 <Route path="/share/:clientId" element={
-                  <Suspense fallback={<MarketingDashboardSkeleton />}>
+                  <Suspense fallback={<DashboardSkeleton />}>
                     <EventDashboard isShared={true} />
                   </Suspense>
                 } />

@@ -1,7 +1,7 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
-import { LoadingState } from "@/components/ui/LoadingStates";
+import { PageLoader } from "@/components/ui/UnifiedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
@@ -118,7 +118,11 @@ interface EventDashboardProps {
 
 // Simple component loader for lazy-loaded components
 const ComponentLoader = () => (
-  <div className="h-32 bg-slate-50 rounded-lg animate-pulse"></div>
+  <div className="h-32 bg-slate-50 rounded-lg">
+    <div className="h-full flex items-center justify-center">
+      <div className="h-4 w-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+    </div>
+  </div>
 );
 
 // ✅ COMPREHENSIVE Error boundary for lazy loaded components and TDZ errors
@@ -490,20 +494,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Show loading state while any critical data is loading
   if (clientLoading || dashboardLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative mb-6">
-            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 bg-blue-600 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">Loading Analytics</h2>
-          <p className="text-slate-600">Fetching your marketing data...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Loading Analytics..." />;
   }
 
   // Show error state
@@ -524,7 +515,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   // Show client selection if no client ID
   if (!actualClientId) {
     if (clientsLoading) {
-      return <LoadingState message="Loading clients..." fullScreen />;
+      return <PageLoader message="Loading clients..." />;
     }
 
     if (clientsError) {

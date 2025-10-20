@@ -1,5 +1,5 @@
 import { MetricTableCell } from '@/components/reporting/MetricTableCell';
-import { LoadingState } from '@/components/ui/LoadingStates';
+import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { GoogleAdsReportingData } from '@/services/data/googleAdsReportingService';
 import React from 'react';
 
@@ -17,7 +17,7 @@ export const GoogleAdsReportingTable: React.FC<GoogleAdsReportingTableProps> = (
   if (loading) {
     return (
       <div className="bg-white border border-slate-200 shadow-sm rounded-lg p-8">
-        <LoadingState message="Loading Google Ads reporting data..." />
+        <DataSkeleton />
       </div>
     );
   }
