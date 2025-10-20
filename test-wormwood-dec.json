@@ -1,3 +1,0 @@
-{
-  "query": "SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM customer WHERE segments.date BETWEEN '2024-12-01' AND '2024-12-31'"
-}

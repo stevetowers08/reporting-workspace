@@ -1,3 +1,0 @@
-{
-  "query": "SELECT metrics.clicks, metrics.impressions, metrics.ctr, metrics.average_cpc, metrics.cost_micros, metrics.conversions, metrics.cost_per_conversion FROM customer WHERE segments.date BETWEEN '2025-09-01' AND '2025-10-09'"
-}
