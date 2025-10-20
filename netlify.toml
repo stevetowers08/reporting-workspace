@@ -4,9 +4,6 @@
   
   # Directory to publish (Vite outputs to 'dist')
   publish = "dist"
-  
-  # Environment variables
-  environment = { NODE_VERSION = "18" }
 
 [build.environment]
   # Node.js version
