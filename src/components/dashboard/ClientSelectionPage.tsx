@@ -1,6 +1,5 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import {
     BarChart3,
@@ -14,8 +13,8 @@ import {
     X
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
-import { Card } from '@/components/ui/card';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface Client {
   id: string;
   name: string;

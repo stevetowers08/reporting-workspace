@@ -185,7 +185,6 @@ class DatabaseLogoService {
       
       for (const dbLogo of dbLogos) {
         // Update local cache if needed
-        console.log(`Synced logo metadata for ${dbLogo.platform}`);
       }
     } catch (error) {
       console.error('Error syncing logo metadata:', error);

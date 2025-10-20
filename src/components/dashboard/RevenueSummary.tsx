@@ -1,8 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React from 'react';
-import { Card } from '@/components/ui/card';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface RevenueSummaryProps {
   data: EventDashboardData | null | undefined;
 }

@@ -27,7 +27,6 @@ export class DevLogger {
     if (DEBUG_CONFIG.logLevel === 'error' || DEBUG_CONFIG.logLevel === 'warn') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'debug');
-    console.log(formattedMessage, data || '');
   }
 
   // Info level logging
@@ -36,7 +35,6 @@ export class DevLogger {
     if (DEBUG_CONFIG.logLevel === 'error') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'info');
-    console.log(formattedMessage, data || '');
   }
 
   // Warning level logging
@@ -61,7 +59,6 @@ export class DevLogger {
     if (DEBUG_CONFIG.logLevel === 'error') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'success');
-    console.log(formattedMessage, data || '');
   }
 
   // Performance timing
@@ -86,7 +83,6 @@ export class DevLogger {
     const statusEmoji = status ? (status >= 200 && status < 300 ? '✅' : '❌') : '🔄';
     const message = `${statusEmoji} ${method.toUpperCase()} ${url}${status ? ` (${status})` : ''}`;
     const formattedMessage = this.formatMessage(platform, message, 'info');
-    console.log(formattedMessage);
   }
 
   // Token logging (with masking for security)
@@ -96,7 +92,6 @@ export class DevLogger {
     const maskedToken = token ? `${token.substring(0, 8)}...${token.substring(token.length - 4)}` : 'undefined';
     const message = `${action}: ${maskedToken}`;
     const formattedMessage = this.formatMessage(platform, message, 'debug');
-    console.log(formattedMessage);
   }
 
   // Cache logging
@@ -106,7 +101,6 @@ export class DevLogger {
     const hitEmoji = hit !== undefined ? (hit ? '✅' : '❌') : '🔄';
     const message = `${hitEmoji} ${action}: ${key}`;
     const formattedMessage = this.formatMessage(platform, message, 'debug');
-    console.log(formattedMessage);
   }
 
   // Group logging for related operations
@@ -124,7 +118,6 @@ export class DevLogger {
   static table(platform: string, title: string, data: any, debugPlatform?: DebugPlatform) {
     if (!this.shouldLog(debugPlatform)) {return;}
     
-    console.log(`📊 ${platform}: ${title}`);
     console.table(data);
   }
 

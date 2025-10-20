@@ -211,7 +211,6 @@ export class GoogleAdsTroubleshoot {
 
     const hasFailures = results.some(r => r.status === 'fail');
     const hasWarnings = results.some(r => r.status === 'warning');
-    console.log('Google Ads troubleshooting completed', { hasWarnings });
 
     return {
       success: !hasFailures,

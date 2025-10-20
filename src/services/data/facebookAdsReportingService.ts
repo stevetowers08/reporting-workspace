@@ -116,23 +116,10 @@ class FacebookAdsReportingService {
       }
 
       // Filter clients that have Facebook ads integration
-      const facebookClients = clients.filter(client => 
+      const facebookClients = clients.filter(client =>
         client.accounts?.facebookAds && 
         client.accounts.facebookAds !== 'none'
       );
-
-      console.log('🔍 Facebook Reporting: All clients:', clients.map(c => ({
-        id: c.id,
-        name: c.name,
-        facebookAds: c.accounts?.facebookAds,
-        services: c.services
-      })));
-
-      console.log('🔍 Facebook Reporting: Filtered Facebook clients:', facebookClients.map(c => ({
-        id: c.id,
-        name: c.name,
-        facebookAds: c.accounts?.facebookAds
-      })));
 
       // Fetch metrics for each client
       const reportingData: FacebookAdsReportingData[] = [];

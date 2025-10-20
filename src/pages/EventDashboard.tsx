@@ -387,38 +387,18 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const getSummaryData = (): EventDashboardData | undefined => {
     // Always prioritize Summary tab data (which includes both Facebook and Google Ads)
     const summaryDataTyped = summaryData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 getSummaryData: Summary data:', {
-      summaryDataExists: !!summaryDataTyped,
-      summaryFacebookMetrics: summaryDataTyped?.facebookMetrics,
-      summaryFacebookLeads: summaryDataTyped?.facebookMetrics?.leads,
-      summaryGoogleMetrics: summaryDataTyped?.googleMetrics,
-      summaryGoogleLeads: summaryDataTyped?.googleMetrics?.leads
-    });
     
     if (summaryDataTyped) {
-      // eslint-disable-next-line no-console
-      console.log('🔍 Using Summary tab data (includes both Facebook and Google Ads)');
       return summaryDataTyped;
     }
     
     // Fallback to Meta tab data only if Summary tab data is not available
     const metaDataTyped = metaData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 getSummaryData: Checking Meta data as fallback:', {
-      metaDataExists: !!metaDataTyped,
-      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
-      metaFacebookLeads: metaDataTyped?.facebookMetrics?.leads
-    });
     
     if (metaDataTyped && metaDataTyped.facebookMetrics && metaDataTyped.facebookMetrics.leads > 0) {
-      // eslint-disable-next-line no-console
-      console.log('🔍 Using Meta tab data as fallback (Summary data not available)');
       return metaDataTyped;
     }
     
-    // eslint-disable-next-line no-console
-    console.log('🔍 No data available for Summary tab');
     return undefined;
   };
 
@@ -428,41 +408,11 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const dashboardError = getCurrentTabError();
   
   // Debug logging
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Active tab:', activeTab);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Current tab data:', getCurrentTabData());
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Valid dashboard data:', dashboardData);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Dashboard loading:', dashboardLoading);
-  // eslint-disable-next-line no-console
-  console.log('🔍 EventDashboard: Dashboard error:', dashboardError);
   
   // Add alert for debugging
   if (activeTab === 'summary') {
-    // eslint-disable-next-line no-console
-    console.log('🔍 SUMMARY TAB DEBUG:', {
-      activeTab,
-      summaryData,
-      summaryLoading,
-      summaryError,
-      dashboardData,
-      facebookMetrics: dashboardData?.facebookMetrics,
-      totalLeads: dashboardData?.totalLeads,
-      facebookLeads: dashboardData?.facebookMetrics?.leads
-    });
-    
     // Force a comparison with Meta tab data
     const metaDataTyped = metaData as EventDashboardData | undefined;
-    // eslint-disable-next-line no-console
-    console.log('🔍 COMPARING WITH META TAB:', {
-      metaData,
-      metaLoading,
-      metaError,
-      metaFacebookMetrics: metaDataTyped?.facebookMetrics,
-      metaTotalLeads: metaDataTyped?.totalLeads
-    });
   }
   
   // Transform clients for the dropdown

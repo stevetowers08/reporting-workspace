@@ -107,7 +107,6 @@ class PerformanceMonitor {
   }
 
   private logMetric(name: string, value: number) {
-    console.log(`📊 ${name}: ${value.toFixed(2)}ms`);
     
     // Send to analytics service
     if (envConfig.getConfig().enableAnalytics) {

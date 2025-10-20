@@ -121,14 +121,6 @@ const AdAccountsOverview = () => {
             const clients = await DatabaseService.getAllClients();
             const dateRange = getDateRange(selectedPeriod);
 
-            console.log('🔍 AdAccountsOverview: Loaded clients:', clients.length);
-            console.log('🔍 AdAccountsOverview: Clients data:', clients.map(c => ({
-                id: c.id,
-                name: c.name,
-                facebookAds: c.accounts?.facebookAds,
-                googleAds: c.accounts?.googleAds
-            })));
-
             const accountsData: AdAccountData[] = [];
 
             for (const client of clients) {
@@ -136,7 +128,6 @@ const AdAccountsOverview = () => {
                 const hasFacebookAds = client.accounts?.facebookAds && client.accounts.facebookAds !== 'none';
                 const hasGoogleAds = client.accounts?.googleAds && client.accounts.googleAds !== 'none';
 
-                console.log(`🔍 AdAccountsOverview: Client ${client.name} - Facebook: ${hasFacebookAds}, Google: ${hasGoogleAds}`);
 
                 if (!hasFacebookAds && !hasGoogleAds) {continue;}
 

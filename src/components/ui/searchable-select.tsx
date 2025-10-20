@@ -34,7 +34,6 @@ export function SearchableSelect({
     );
 
     const handleSelect = (optionValue: string) => {
-        console.log('🔍 SearchableSelect: handleSelect called with:', optionValue);
         onValueChange(optionValue);
         setOpen(false);
         onOpenChange?.(false);
@@ -117,9 +116,7 @@ export function SearchableSelect({
                 aria-expanded={open}
                 className={cn("w-full justify-between", className)}
                 onClick={() => {
-                    console.log('🔍 SearchableSelect: Button clicked, current open state:', open);
                     const newOpen = !open;
-                    console.log('🔍 SearchableSelect: Setting open state to:', newOpen);
                     setOpen(newOpen);
                     onOpenChange?.(newOpen);
                 }}

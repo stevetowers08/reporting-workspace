@@ -3,7 +3,6 @@ import EditClientModal from '@/components/modals/EditClientModal';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { DatabaseService } from '@/services/data/databaseService';
 import {
@@ -13,8 +12,8 @@ import {
     Users
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/card';
 
+import { Card, CardContent } from '@/components/ui/card';
 type Client = {
   id: string;
   name: string;

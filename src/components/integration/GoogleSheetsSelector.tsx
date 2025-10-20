@@ -46,13 +46,10 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
     
     try {
-      console.log('🔍 GoogleSheetsSelector: Fetching Google Sheets accounts...');
       debugLogger.info('GoogleSheetsSelector', 'Fetching Google Sheets accounts');
       
       // First check if we have access tokens
       const accessToken = await GoogleSheetsService.getAccessToken();
-      console.log('🔍 GoogleSheetsSelector: Access token check:', accessToken ? 'Found' : 'Not found');
-      console.log('🔍 GoogleSheetsSelector: Access token preview:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No Google OAuth access token found. Please connect your Google account first.');
@@ -60,7 +57,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
       
       const fetchedAccounts = await GoogleSheetsService.getSheetsAccounts();
       
-      console.log('🔍 GoogleSheetsSelector: Google Sheets accounts response:', fetchedAccounts);
       debugLogger.info('GoogleSheetsSelector', 'Fetched accounts', { 
         accountCount: fetchedAccounts.length,
         totalSheets: fetchedAccounts.reduce((sum, acc) => sum + acc.sheets.length, 0)
@@ -97,7 +93,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   };
 
   const handleSpreadsheetChange = (spreadsheetId: string) => {
-    console.log('🔍 GoogleSheetsSelector: Spreadsheet changed to:', spreadsheetId);
     setSelectedSpreadsheet(spreadsheetId);
     setSelectedSheet('');
     setSheetNames([]);
@@ -113,10 +108,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     setError(null);
     
     try {
-      console.log('🔍 GoogleSheetsSelector: Fetching sheet names for spreadsheet:', spreadsheetId);
       const accessToken = await GoogleSheetsService.getAccessToken();
-      console.log('🔍 GoogleSheetsSelector: Access token for sheet names:', accessToken ? 'Found' : 'Not found');
-      console.log('🔍 GoogleSheetsSelector: Access token preview for sheet names:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
       
       if (!accessToken) {
         throw new Error('No access token available');
@@ -139,7 +131,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
       const sheets = data.sheets?.map((sheet: any) => sheet.properties?.title).filter(Boolean) || [];
       setSheetNames(sheets);
       
-      console.log('🔍 GoogleSheetsSelector: Sheet names loaded:', sheets);
       debugLogger.info('GoogleSheetsSelector', 'Fetched sheet names', { 
         spreadsheetId, 
         sheetCount: sheets.length,
@@ -156,25 +147,14 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
   const handleSheetChange = (sheetName: string) => {
     debugLogger.info('GoogleSheetsSelector', 'Sheet changed', { sheetName, selectedSpreadsheet });
-    console.log('🔍 GoogleSheetsSelector: Sheet changed to:', sheetName);
-    console.log('🔍 GoogleSheetsSelector: Selected spreadsheet:', selectedSpreadsheet);
-    console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
-    console.log('🔍 GoogleSheetsSelector: onSelectionComplete callback:', !!onSelectionComplete);
     
     setSelectedSheet(sheetName);
     
     // If hideSaveButton is true, automatically call onSelectionComplete when both are selected
     if (hideSaveButton && selectedSpreadsheet && sheetName && onSelectionComplete) {
-      console.log('🔍 GoogleSheetsSelector: Auto-calling onSelectionComplete (hideSaveButton=true)');
-      console.log('🔍 GoogleSheetsSelector: Calling with:', { selectedSpreadsheet, sheetName });
       debugLogger.info('GoogleSheetsSelector', 'Auto-calling onSelectionComplete', { selectedSpreadsheet, sheetName });
       onSelectionComplete(selectedSpreadsheet, sheetName);
     } else {
-      console.log('🔍 GoogleSheetsSelector: Not auto-calling onSelectionComplete');
-      console.log('🔍 GoogleSheetsSelector: hideSaveButton:', hideSaveButton);
-      console.log('🔍 GoogleSheetsSelector: selectedSpreadsheet:', selectedSpreadsheet);
-      console.log('🔍 GoogleSheetsSelector: sheetName:', sheetName);
-      console.log('🔍 GoogleSheetsSelector: onSelectionComplete:', !!onSelectionComplete);
     }
   };
 
@@ -203,11 +183,9 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
       // Call the completion callback with the selected spreadsheet and sheet
       if (onSelectionComplete) {
-        console.log('🔍 GoogleSheetsSelector: Calling onSelectionComplete with:', { selectedSpreadsheet, selectedSheet });
         debugLogger.info('GoogleSheetsSelector', 'Calling onSelectionComplete callback', { selectedSpreadsheet, selectedSheet });
         onSelectionComplete(selectedSpreadsheet, selectedSheet);
       } else {
-        console.log('🔍 GoogleSheetsSelector: No onSelectionComplete callback provided');
         debugLogger.warn('GoogleSheetsSelector', 'No onSelectionComplete callback provided');
       }
       

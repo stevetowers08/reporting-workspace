@@ -13,34 +13,25 @@ interface GoogleAdsAccount {
  */
 export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
   try {
-    console.log('🔍 GoogleAdsService: Starting listAccessibleCustomers...');
     
     // Get access token using existing TokenManager
     const accessToken = await TokenManager.getAccessToken('googleAds');
-    console.log('🔍 GoogleAdsService: Access token check:', accessToken ? 'Found' : 'Not found');
-    console.log('🔍 GoogleAdsService: Access token preview:', accessToken ? accessToken.substring(0, 20) + '...' : 'null');
     
     if (!accessToken) {
       throw new Error('Google Ads not connected - no access token found');
     }
 
     // Get manager account ID from database configuration
-    console.log('🔍 GoogleAdsService: Getting integrations from database...');
     const integrations = await DatabaseService.getIntegrations();
-    console.log('🔍 GoogleAdsService: Integrations found:', integrations.length);
     
     const googleAdsIntegration = integrations.find(integration => integration.platform === 'googleAds');
-    console.log('🔍 GoogleAdsService: Google Ads integration found:', !!googleAdsIntegration);
-    console.log('🔍 GoogleAdsService: Google Ads config:', googleAdsIntegration?.config);
     
     if (!googleAdsIntegration?.config?.manager_account_id) {
       throw new Error('Google Ads manager account ID not configured. Please set up the manager account ID in agency integrations.');
     }
 
     const managerAccountId = googleAdsIntegration.config.manager_account_id;
-    console.log(`🔍 GoogleAdsService: Manager account ID: ${managerAccountId}`);
     
-    console.log(`🔍 GoogleAdsService: Got access token, fetching accounts ONLY from manager account ${managerAccountId}...`);
 
     // Step 1: Get all sub-accounts from the configured manager account only
     const allAccounts: GoogleAdsAccount[] = [];
@@ -49,10 +40,8 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
       // Get customer_client data from the configured manager account
       const subAccounts = await getCustomerClientAccounts(managerAccountId, accessToken);
       if (subAccounts.length > 0) {
-        console.log(`GoogleAdsService: Found ${subAccounts.length} sub-accounts for manager account ${managerAccountId}`);
         allAccounts.push(...subAccounts);
       } else {
-        console.log(`GoogleAdsService: No sub-accounts found for manager account ${managerAccountId}`);
       }
     } catch (error) {
       console.warn(`GoogleAdsService: Could not get accounts for manager account ${managerAccountId}:`, error);
@@ -69,8 +58,6 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
     
     const uniqueAccounts = Array.from(accountMap.values());
 
-    console.log(`GoogleAdsService: Successfully fetched manager account ${managerAccountId} accounts:`, uniqueAccounts.length);
-    console.log('GoogleAdsService: Final accounts:', uniqueAccounts);
     
     return uniqueAccounts;
   } catch (error) {
@@ -87,7 +74,6 @@ async function getCustomerClientAccounts(
   accessToken: string
 ): Promise<GoogleAdsAccount[]> {
   try {
-    console.log(`🔍 GoogleAdsService: Getting customer client accounts for manager ${managerCustomerId}`);
     
     const query = `
       SELECT
@@ -99,8 +85,6 @@ async function getCustomerClientAccounts(
     `;
 
     const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
-    console.log('🔍 GoogleAdsService: Developer token check:', developerToken ? 'Found' : 'Not found');
-    console.log('🔍 GoogleAdsService: Developer token preview:', developerToken ? developerToken.substring(0, 10) + '...' : 'null');
     
     if (!developerToken || developerToken === 'your-google-ads-developer-token') {
       console.error('🔍 GoogleAdsService: Google Ads Developer Token not configured!');
@@ -109,7 +93,6 @@ async function getCustomerClientAccounts(
     }
 
     const url = `https://googleads.googleapis.com/v21/customers/${managerCustomerId}/googleAds:search`;
-    console.log('🔍 GoogleAdsService: API URL:', url);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -121,8 +104,6 @@ async function getCustomerClientAccounts(
       body: JSON.stringify({ query }),
     });
 
-    console.log('🔍 GoogleAdsService: API response status:', response.status);
-    console.log('🔍 GoogleAdsService: API response ok:', response.ok);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -132,14 +113,11 @@ async function getCustomerClientAccounts(
     }
 
     const data = await response.json();
-    console.log('🔍 GoogleAdsService: API response data:', data);
     const results = data.results || [];
-    console.log('🔍 GoogleAdsService: Results count:', results.length);
     
     // Convert to our interface format
             const accounts: GoogleAdsAccount[] = results.map((row: any) => {
               const customerClient = row.customerClient;
-              console.log('🔍 GoogleAdsService: Processing customer client:', customerClient);
               // Extract just the customer ID number from the resource name
               const customerId = customerClient.clientCustomer.replace('customers/', '');
               return {
@@ -150,7 +128,6 @@ async function getCustomerClientAccounts(
               };
             });
 
-    console.log('🔍 GoogleAdsService: Converted accounts:', accounts);
     return accounts;
   } catch (error) {
     console.warn(`GoogleAdsService: Error getting customer_client accounts for ${managerCustomerId}:`, error);
