@@ -16,7 +16,7 @@ export abstract class BaseService {
   /**
    * Handle service errors consistently
    */
-  protected handleError(error: unknown, context?: LogContext): ServiceResponse<never> {
+  protected handleError(error: unknown, _context?: LogContext): ServiceResponse<never> {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     // Log error (you can integrate with your logging system here)
@@ -175,7 +175,7 @@ export class ServiceUtils {
     func: T,
     wait: number
   ): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
     return (...args: Parameters<T>) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);

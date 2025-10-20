@@ -1772,7 +1772,7 @@ export class FacebookAdsService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        const errorData = {
+        const _errorData = {
           status: response.status,
           statusText: response.statusText,
           error: errorText

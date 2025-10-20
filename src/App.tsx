@@ -1,5 +1,5 @@
 import DebugPanel from "@/components/DebugPanel";
-import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
+import { PageErrorBoundary } from "@/components/error/EnhancedErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
@@ -31,7 +31,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 const EventDashboard = lazy(() => 
   import("@/pages/EventDashboard")
     .then(module => ({ default: module.default }))
-    .catch(error => {
+    .catch(_error => {
       return { default: () => <div>Failed to load dashboard</div> };
     })
 );
@@ -233,7 +233,7 @@ const App = () => {
   }, []);
 
   return (
-    <AppErrorBoundary>
+    <PageErrorBoundary>
       <ErrorProvider>
         <LoadingProvider>
           <QueryClientProvider client={queryClient}>
@@ -286,7 +286,7 @@ const App = () => {
         </QueryClientProvider>
         </LoadingProvider>
       </ErrorProvider>
-    </AppErrorBoundary>
+    </PageErrorBoundary>
   );
 };
 

@@ -63,7 +63,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   private logErrorToService = (error: Error, errorInfo: ErrorInfo) => {
     // In production, you would send this to an error tracking service
     // like Sentry, LogRocket, or Bugsnag
-    const errorData = {
+    const _errorData = {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
