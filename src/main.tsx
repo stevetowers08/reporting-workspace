@@ -7,7 +7,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 
 // Initialize performance monitoring
-import "./lib/performanceMonitor";
+import "@/lib/performanceMonitor";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
