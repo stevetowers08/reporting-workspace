@@ -1,6 +1,7 @@
-import { debugLogger } from '@/lib/debug';
+import { GoogleMetricsWithTrends, TrendResult } from '@/types';
 import { DatabaseService } from '@/services/data/databaseService';
 import { EventMetricsService } from '@/services/data/eventMetricsService';
+import { BaseReportingService } from '@/services/base/BaseService';
 
 export interface GoogleAdsReportingData {
   clientId: string;
@@ -43,27 +44,15 @@ export interface GoogleAdsReportingResponse {
   totalLeads: number;
 }
 
-export class GoogleAdsReportingService {
+export class GoogleAdsReportingService extends BaseReportingService {
   constructor() {
-    // No instance needed - using static methods
-  }
-
-  /**
-   * Calculate trend percentage between current and previous values
-   */
-  private static calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number } {
-    if (previous === 0) return { direction: 'up', percentage: 0 };
-    const percentage = ((current - previous) / previous) * 100;
-    return {
-      direction: percentage >= 0 ? 'up' : 'down',
-      percentage: Math.abs(percentage)
-    };
+    super('GoogleAdsReportingService');
   }
 
   /**
    * Calculate trends for all metrics
    */
-  private static calculateTrends(currentMetrics: any, previousMetrics: any) {
+  private static calculateTrends(currentMetrics: GoogleMetricsWithTrends, previousMetrics: GoogleMetricsWithTrends | undefined): TrendResult | undefined {
     if (!previousMetrics) return undefined;
     
     return {

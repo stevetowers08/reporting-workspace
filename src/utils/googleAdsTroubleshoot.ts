@@ -1,4 +1,4 @@
-import { debugLogger } from '@/lib/debug';
+import { TroubleshootingCheck, TroubleshootingDetails, AccountFetchResult, GoogleAdsAccount } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { GoogleAdsService } from '@/services/api/googleAdsService';
 import { OAuthService } from '@/services/auth/oauthService';
@@ -10,14 +10,14 @@ export class GoogleAdsTroubleshoot {
       test: string;
       status: 'pass' | 'fail' | 'warning';
       message: string;
-      details?: any;
+      details?: TroubleshootingDetails;
     }>;
   }> {
     const results: Array<{
       test: string;
       status: 'pass' | 'fail' | 'warning';
       message: string;
-      details?: any;
+      details?: TroubleshootingDetails;
     }> = [];
 
     // Test 1: Environment Variables
@@ -220,7 +220,7 @@ export class GoogleAdsTroubleshoot {
 
   static async testAccountFetching(): Promise<{
     success: boolean;
-    accounts: any[];
+    accounts: GoogleAdsAccount[];
     error?: string;
   }> {
     try {

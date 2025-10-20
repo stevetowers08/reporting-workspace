@@ -4,6 +4,7 @@
  */
 
 import { envConfig } from '@/lib/envConfig';
+import { PerformanceEntry, PerformanceObserverEntry, LogContext } from '@/types';
 
 // Declare PerformanceObserver for TypeScript
 declare global {
@@ -78,8 +79,8 @@ class PerformanceMonitor {
       let clsValue = 0;
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value;
+          if (!(entry as PerformanceObserverEntry).hadRecentInput) {
+            clsValue += (entry as PerformanceObserverEntry).value;
           }
         }
         this.metrics.cls = clsValue;
@@ -96,7 +97,7 @@ class PerformanceMonitor {
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'navigation') {
-            this.metrics.ttfb = (entry as any).responseStart - (entry as any).requestStart;
+            this.metrics.ttfb = (entry as PerformanceObserverEntry).responseStart - (entry as PerformanceObserverEntry).requestStart;
             this.logMetric('TTFB', this.metrics.ttfb);
           }
         }
@@ -118,7 +119,7 @@ class PerformanceMonitor {
   private sendToAnalytics(name: string, value: number) {
     // Example: Send to Google Analytics
     if (typeof window !== 'undefined' && 'gtag' in window) {
-      (window as any).gtag('event', 'web_vitals', {
+      (window as Window & { gtag?: (command: string, eventName: string, parameters: LogContext) => void }).gtag?.('event', 'web_vitals', {
         event_category: 'Performance',
         event_label: name,
         value: Math.round(value),

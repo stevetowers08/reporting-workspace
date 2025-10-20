@@ -1,4 +1,4 @@
-import { debugLogger } from '@/lib/debug';
+import { FacebookMetricsWithTrends, TrendResult } from '@/types';
 import { DatabaseService } from './databaseService';
 import { EventMetricsService } from './eventMetricsService';
 
@@ -66,7 +66,7 @@ class FacebookAdsReportingService {
   /**
    * Calculate trends for all metrics
    */
-  private static calculateTrends(currentMetrics: any, previousMetrics: any) {
+  private static calculateTrends(currentMetrics: FacebookMetricsWithTrends, previousMetrics: FacebookMetricsWithTrends | undefined): TrendResult | undefined {
     if (!previousMetrics) {
       return undefined;
     }

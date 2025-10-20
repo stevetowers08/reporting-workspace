@@ -1,12 +1,6 @@
 import { TokenManager } from '@/services/auth/TokenManager';
 import { DatabaseService } from '@/services/data/databaseService';
-
-interface GoogleAdsAccount {
-  resourceName: string;
-  id: string;
-  name?: string;
-  descriptiveName?: string;
-}
+import { GoogleAdsAccount, GoogleAdsApiRow } from '@/types';
 
 /**
  * Lists customer accounts ONLY from the configured manager account
@@ -116,7 +110,7 @@ async function getCustomerClientAccounts(
     const results = data.results || [];
     
     // Convert to our interface format
-            const accounts: GoogleAdsAccount[] = results.map((row: any) => {
+            const accounts: GoogleAdsAccount[] = results.map((row: GoogleAdsApiRow) => {
               const customerClient = row.customerClient;
               // Extract just the customer ID number from the resource name
               const customerId = customerClient.clientCustomer.replace('customers/', '');
