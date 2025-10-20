@@ -25,18 +25,22 @@ export default defineConfig(({ mode }) => {
   
   // Development optimizations
   const isDev = mode === 'development';
+  const devPort = Number(_env.VITE_DEV_PORT || 5174);
+  const hmrPort = Number(_env.VITE_HMR_PORT || devPort);
   
   return {
     base: '/',
     server: {
       host: "0.0.0.0",
-      port: 5173,
+      port: devPort,
       strictPort: true,
       open: true,
       // Optimize for development
       hmr: {
         overlay: true,
-        port: 5173,
+        host: 'localhost',
+        port: hmrPort,
+        clientPort: hmrPort,
       },
       // Faster file watching
       watch: {

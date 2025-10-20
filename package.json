@@ -5,10 +5,12 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "predev": "npx kill-port 5174 5173 4173 3000 || true",
+    "dev": "vite --port 5174 --strictPort",
     "dev:optimized": "bash scripts/dev-optimized.sh",
     "dev:fast": "vite --force",
     "build": "vite build",
+    "build:prod": "NODE_ENV=production vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -20,7 +22,10 @@
     "analyze": "cross-env ANALYZE=true npm run build",
     "build:analyze": "npm run analyze",
     "env:validate": "node -r dotenv/config -e \"console.log('Environment validation:', process.env.VITE_SUPABASE_URL ? '✅ Valid' : '❌ Missing VITE_SUPABASE_URL')\"",
-    "env:check": "node -r dotenv/config -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\""
+    "env:check": "node -r dotenv/config -e \"console.log('Supabase URL:', process.env.VITE_SUPABASE_URL || 'Not set'); console.log('Anon Key:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Not set')\"",
+    "health": "curl -f http://localhost:5173/api/health || exit 1",
+    "deploy": "npm run build && vercel --prod",
+    "deploy:preview": "npm run build && vercel"
   },
   "keywords": [
     "mcp",
@@ -58,6 +63,7 @@
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.3.1",
+    "react-is": "^19.2.0",
     "react-router-dom": "^7.9.3",
     "recharts": "^3.2.1",
     "tailwind-merge": "^3.3.1",
@@ -92,6 +98,7 @@
     ]
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

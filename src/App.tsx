@@ -24,17 +24,13 @@ import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
 import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-// ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
-const EventDashboard = lazy(() => 
-  import("@/pages/EventDashboard")
-    .then(module => ({ default: module.default }))
-    .catch(error => {
-      console.error('Failed to load EventDashboard:', error);
-      return { default: () => <div>Failed to load dashboard</div> };
-    })
+// ✅ Best practice: resilient lazy loading with retry for transient chunk failures
+const EventDashboard = lazyWithRetry(() =>
+  import("@/pages/EventDashboard").then((module) => ({ default: module.default }))
 );
 
 // Health Check Page Component
