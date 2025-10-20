@@ -30,20 +30,21 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({ d
       return [];
     }
 
-    // Pre-calculate total seasonal leads for performance
-    const totalSeasonalLeads = data.leadMetrics.seasonalTrends.reduce((sum, t) => sum + t.leads, 0);
-    
-    // Use real seasonal trends data and distribute platform leads proportionally
-    return filteredTrends.map(trend => {
-      const monthProportion = totalSeasonalLeads > 0 ? trend.leads / totalSeasonalLeads : 0;
+    // Use the actual Facebook and Google leads and distribute them evenly across months
+    // This is a simplified approach since the seasonal trends might not have accurate lead counts
+    const result = filteredTrends.map((trend, index) => {
+      // Distribute leads evenly across months (simple approach)
+      const monthProportion = 1 / filteredTrends.length;
       
       return {
         month: trend.month,
         facebookLeads: Math.round(facebookLeads * monthProportion),
         googleLeads: Math.round(googleLeads * monthProportion),
-        totalLeads: trend.leads
+        totalLeads: Math.round((facebookLeads + googleLeads) * monthProportion)
       };
     });
+    
+    return result;
   }, [data?.leadMetrics?.seasonalTrends, data?.facebookMetrics?.leads, data?.googleMetrics?.leads]);
 
   const hasData = useMemo(() => {
