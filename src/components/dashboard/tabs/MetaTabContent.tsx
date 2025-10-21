@@ -34,7 +34,7 @@ interface MetaTabContentProps {
   dateRange: { start: string; end: string };
 }
 
-export const MetaTabContent: React.FC<MetaTabContentProps> = ({
+export const MetaTabContent: React.FC<MetaTabContentProps> = React.memo(({
   clientId,
   dateRange
 }) => {
@@ -71,4 +71,4 @@ export const MetaTabContent: React.FC<MetaTabContentProps> = ({
       </LoadingOverlay>
     </div>
   );
-};
+});

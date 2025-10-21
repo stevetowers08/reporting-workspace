@@ -2,7 +2,7 @@
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
 import { Card } from "@/components/ui/card";
-import { useIndependentSummaryData } from '@/hooks/useIndependentSummaryData';
+import { useSummaryTabData } from '@/hooks/useTabSpecificData';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -43,11 +43,11 @@ interface SummaryTabContentProps {
   dateRange: { start: string; end: string };
 }
 
-export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
+export const SummaryTabContent: React.FC<SummaryTabContentProps> = React.memo(({
   clientId,
   dateRange
 }) => {
-  const { data, isLoading, error } = useIndependentSummaryData(clientId, dateRange);
+  const { data, isLoading, error } = useSummaryTabData(clientId, dateRange);
 
   if (error) {
     return (
@@ -84,10 +84,12 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             <div className="pb-4">
               <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
             </div>
-            <div className="h-64 ">
-              <LeadByMonthChart 
-                clientId={clientId}
-              />
+            <div className="h-64">
+              <Suspense fallback={<ComponentLoader />}>
+                <LeadByMonthChart 
+                  clientId={clientId}
+                />
+              </Suspense>
             </div>
           </Card>
 
@@ -99,4 +101,4 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
       </LoadingOverlay>
     </div>
   );
-};
+});

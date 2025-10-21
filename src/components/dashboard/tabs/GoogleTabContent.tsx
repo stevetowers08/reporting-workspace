@@ -34,7 +34,7 @@ interface GoogleTabContentProps {
   dateRange: { start: string; end: string };
 }
 
-export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
+export const GoogleTabContent: React.FC<GoogleTabContentProps> = React.memo(({
   clientId,
   dateRange
 }) => {
@@ -71,4 +71,4 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
       </LoadingOverlay>
     </div>
   );
-};
+});

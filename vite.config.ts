@@ -150,17 +150,17 @@ export default defineConfig(({ mode }) => {
           warn(warning);
         },
         output: {
-          // Aggressive chunking to reduce individual chunk sizes
+          // Optimized chunking for better performance
           manualChunks: (id) => {
             // Split large vendor libraries
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is')) {
                 return 'react';
               }
               if (id.includes('@supabase')) {
                 return 'supabase';
               }
-              if (id.includes('chart.js') || id.includes('recharts')) {
+              if (id.includes('chart.js') || id.includes('recharts') || id.includes('d3')) {
                 return 'charts';
               }
               if (id.includes('@radix-ui')) {
@@ -169,8 +169,12 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@tanstack')) {
                 return 'tanstack';
               }
-              if (id.includes('axios') || id.includes('lodash')) {
+              if (id.includes('axios') || id.includes('lodash') || id.includes('clsx') || id.includes('tailwind-merge')) {
                 return 'utils';
+              }
+              // Split remaining vendor into smaller chunks
+              if (id.includes('lucide-react')) {
+                return 'icons';
               }
               return 'vendor';
             }

@@ -1,4 +1,6 @@
 // ✅ ULTRA-AGGRESSIVE TDZ FIX: Set up error handling BEFORE any imports
+// Import React polyfills first
+import "@/polyfills/react-polyfill";
 import React from "react";
 import { createRoot } from "react-dom/client";
 

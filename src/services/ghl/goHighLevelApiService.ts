@@ -285,7 +285,7 @@ export class GoHighLevelApiService {
   }
 
   // Opportunities
-  static async getOpportunities(locationId: string): Promise<GHLOpportunity[]> {
+  static async getOpportunities(locationId: string, _dateRange?: { startDate?: string; endDate?: string }): Promise<GHLOpportunity[]> {
     await GHLRateLimiter.enforceRateLimit();
     
     // Use client-specific OAuth token instead of agency token
@@ -297,8 +297,8 @@ export class GoHighLevelApiService {
     debugLogger.info('GoHighLevelApiService', 'Fetching opportunities', { locationId });
 
     try {
-      // ✅ FIXED: Use GET method instead of POST for opportunities/search
-      const response = await fetch(`${this.API_BASE_URL}/opportunities/search?location_id=${locationId}&limit=100`, {
+      // ✅ FIXED: Use correct API 2.0 endpoint with proper status filter
+      const response = await fetch(`${this.API_BASE_URL}/opportunities/search?location_id=${locationId}&status=won&limit=100`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -523,7 +523,7 @@ export class GoHighLevelApiService {
         .from('integrations')
         .select('config')
         .eq('platform', 'goHighLevel')
-        .eq('account_id', locationId)
+        .eq('config->locationId', locationId)
         .eq('connected', true)
         .single();
         

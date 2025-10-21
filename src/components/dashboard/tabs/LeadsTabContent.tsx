@@ -35,7 +35,7 @@ interface LeadsTabContentProps {
   dateRange: { start: string; end: string };
 }
 
-export const LeadsTabContent: React.FC<LeadsTabContentProps> = ({
+export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
   clientId,
   dateRange
 }) => {
@@ -94,4 +94,4 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = ({
       </LoadingOverlay>
     </div>
   );
-};
+});

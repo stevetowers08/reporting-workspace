@@ -53,8 +53,8 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
       return result;
     },
     enabled: !!clientId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce duplicate calls
-    gcTime: 30 * 60 * 1000, // 30 minutes - increased cache time
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
     retry: 2, // Reduced retries
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Reduced max delay
     refetchOnWindowFocus: false, // Prevent refetch on window focus
@@ -71,8 +71,8 @@ export const useClientData = (clientId: string | undefined) => {
       return await DatabaseService.getClientById(clientId);
     },
     enabled: !!clientId,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
     retry: 3,
   });
 };
@@ -84,8 +84,8 @@ export const useAvailableClients = () => {
     queryFn: async (): Promise<Client[]> => {
       return await DatabaseService.getAllClients();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
     retry: 3,
   });
 };

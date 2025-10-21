@@ -88,11 +88,11 @@ class SmartCache {
       this.invalidationTriggers.get(dep)!.add(key);
     });
     
-    debugLogger.debug('SmartCache', `Cached data for ${key}`, { 
-      dependencies, 
-      version: this.version,
-      cacheSize: this.cache.size
-    });
+    // debugLogger.debug('SmartCache', `Cached data for ${key}`, { 
+    //   dependencies, 
+    //   version: this.version,
+    //   cacheSize: this.cache.size
+    // });
   }
 
   get<T>(key: string, maxAge: number = 5 * 60 * 1000): T | null {
@@ -101,7 +101,7 @@ class SmartCache {
     
     const age = Date.now() - entry.timestamp;
     if (age > maxAge) {
-      debugLogger.debug('SmartCache', `Cache expired for ${key}`, { age, maxAge });
+      // debugLogger.debug('SmartCache', `Cache expired for ${key}`, { age, maxAge });
       this.cache.delete(key);
       this.accessCounts.delete(key);
       return null;
@@ -111,11 +111,11 @@ class SmartCache {
     const currentCount = this.accessCounts.get(key) || 0;
     this.accessCounts.set(key, currentCount + 1);
     
-    debugLogger.debug('SmartCache', `Cache hit for ${key}`, { 
-      age, 
-      version: entry.version,
-      accessCount: currentCount + 1
-    });
+    // debugLogger.debug('SmartCache', `Cache hit for ${key}`, { 
+    //   age, 
+    //   version: entry.version,
+    //   accessCount: currentCount + 1
+    // });
     return entry.data;
   }
 
@@ -360,35 +360,35 @@ export class AnalyticsOrchestrator {
       // Only call Facebook API if Facebook account is connected
       if (clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none') {
         promises.push(this.getFacebookData(clientId, dateRange, clientData));
-      } else {
-        promises.push(Promise.resolve(undefined));
       }
       
       // Only call Google Ads API if Google account is connected
       if (clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none') {
         promises.push(this.getGoogleData(clientId, dateRange, clientData));
-      } else {
-        promises.push(Promise.resolve(undefined));
       }
       
       // Only call GoHighLevel API if GHL account is connected
       if (clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none') {
         promises.push(this.getGoHighLevelData(clientId, dateRange, clientData));
-      } else {
-        promises.push(Promise.resolve(undefined));
       }
       
       // Only call Lead Data API if Google Sheets is connected
       if (clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none') {
         promises.push(this.getLeadData(clientId, dateRange, clientData));
-      } else {
-        promises.push(Promise.resolve(undefined));
       }
       
       // Always fetch monthly leads data if we have connected accounts
       promises.push(this.getMonthlyLeadsData(clientId, clientData));
       
-      const [facebookData, googleData, ghlData, leadData, monthlyLeadsData] = await Promise.allSettled(promises);
+      const results = await Promise.allSettled(promises);
+
+      // Extract results based on what promises were added
+      let resultIndex = 0;
+      const facebookData = clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Facebook account' };
+      const googleData = clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Google account' };
+      const ghlData = clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No GHL account' };
+      const leadData = clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Sheets account' };
+      const monthlyLeadsData = results[resultIndex++]; // Always present
 
       // Normalize and combine data - BEST PRACTICE: Simple, explicit handling
       const dashboardData: Partial<EventDashboardData> = {

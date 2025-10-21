@@ -4,9 +4,8 @@
  * Uses the same Supabase and API calls as V1, but with orchestration
  */
 
-import { debugLogger } from '@/lib/debug';
+import { useClientData } from '@/hooks/useDashboardQueries';
 import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
-import { DatabaseService } from '@/services/data/databaseService';
 import { useQuery } from '@tanstack/react-query';
 
 interface DateRange {
@@ -14,38 +13,11 @@ interface DateRange {
   end: string;
 }
 
-// Client data cache (separate from other cache)
-const clientDataCache = new Map<string, { data: any; timestamp: number }>();
-const CLIENT_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
-
-// Helper function to get cached client data
-export async function getCachedClientData(clientId: string) {
-  const now = Date.now();
-  const cached = clientDataCache.get(clientId);
-  
-  if (cached && (now - cached.timestamp) < CLIENT_CACHE_DURATION) {
-    debugLogger.debug('useTabSpecificData', 'Using cached client data', { clientId });
-    return cached.data;
-  }
-  
-  debugLogger.debug('useTabSpecificData', 'Fetching fresh client data', { clientId });
-  const clientData = await DatabaseService.getClientById(clientId);
-  clientDataCache.set(clientId, { data: clientData, timestamp: now });
-  
-  return clientData;
-}
-
-// Function to invalidate client data cache
-export function invalidateClientDataCache(clientId?: string) {
-  if (clientId) {
-    clientDataCache.delete(clientId);
-  } else {
-    clientDataCache.clear();
-  }
-}
-
 // Hook for Summary tab data
 export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+  // Use React Query for client data
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  
   return useQuery({
     queryKey: ['summary-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -53,7 +25,6 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         throw new Error('Client ID is required');
       }
       
-      const clientData = await getCachedClientData(clientId);
       if (!clientData) {
         throw new Error('Client not found');
       }
@@ -68,15 +39,16 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         };
       })();
       
-      debugLogger.info('useSummaryTabData', 'Fetching summary data', { 
-        clientId, 
-        finalDateRange,
-        clientAccounts: {
-          facebookAds: clientData.accounts?.facebookAds,
-          facebookAdsType: typeof clientData.accounts?.facebookAds,
-          facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
-        }
-      });
+      // Only log errors in production, remove debug info logging
+      // debugLogger.info('useSummaryTabData', 'Fetching summary data', { 
+      //   clientId, 
+      //   finalDateRange,
+      //   clientAccounts: {
+      //     facebookAds: clientData.accounts?.facebookAds,
+      //     facebookAdsType: typeof clientData.accounts?.facebookAds,
+      //     facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
+      //   }
+      // });
       
       // Only fetch essential metrics for summary
       const clientAccounts = {
@@ -86,10 +58,7 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         googleSheets: clientData.accounts?.googleSheets
       };
       
-      debugLogger.info('useSummaryTabData', 'Calling AnalyticsOrchestrator with:', {
-        clientAccounts,
-        willCallFacebook: clientAccounts.facebookAds && clientAccounts.facebookAds !== 'none'
-      });
+      // Removed debug logging for production performance
       
       // Use AnalyticsOrchestrator with direct API calls
       const result = await AnalyticsOrchestrator.getDashboardData(
@@ -99,16 +68,20 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!clientData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
 // Hook for Meta tab data
 export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+  // Use React Query for client data
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  
   return useQuery({
     queryKey: ['meta-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -116,7 +89,6 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         throw new Error('Client ID is required');
       }
       
-      const clientData = await getCachedClientData(clientId);
       if (!clientData) {
         throw new Error('Client not found');
       }
@@ -131,7 +103,7 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         };
       })();
       
-      debugLogger.info('useMetaTabData', 'Fetching meta data', { clientId, finalDateRange });
+      // debugLogger.info('useMetaTabData', 'Fetching meta data', { clientId, finalDateRange });
       
       // Use AnalyticsOrchestrator with direct API calls
       const result = await AnalyticsOrchestrator.getDashboardData(
@@ -141,16 +113,20 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!clientData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
 // Hook for Google tab data
 export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+  // Use React Query for client data
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  
   return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -158,7 +134,6 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
         throw new Error('Client ID is required');
       }
       
-      const clientData = await getCachedClientData(clientId);
       if (!clientData) {
         throw new Error('Client not found');
       }
@@ -173,7 +148,7 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
         };
       })();
       
-      debugLogger.info('useGoogleTabData', 'Fetching google data', { clientId, finalDateRange });
+      // debugLogger.info('useGoogleTabData', 'Fetching google data', { clientId, finalDateRange });
       
       // Use AnalyticsOrchestrator with direct API calls
       const result = await AnalyticsOrchestrator.getDashboardData(
@@ -183,16 +158,20 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!clientData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
 // Hook for Leads tab data
 export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+  // Use React Query for client data
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  
   return useQuery({
     queryKey: ['leads-tab-data', clientId, dateRange],
     queryFn: async () => {
@@ -200,7 +179,6 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
         throw new Error('Client ID is required');
       }
       
-      const clientData = await getCachedClientData(clientId);
       if (!clientData) {
         throw new Error('Client not found');
       }
@@ -215,7 +193,7 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
         };
       })();
       
-      debugLogger.info('useLeadsTabData', 'Fetching leads data', { clientId, finalDateRange });
+      // debugLogger.info('useLeadsTabData', 'Fetching leads data', { clientId, finalDateRange });
       
       // Use AnalyticsOrchestrator with direct API calls
       const result = await AnalyticsOrchestrator.getDashboardData(
@@ -225,11 +203,12 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
       
       return { ...result, clientData };
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!clientData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 

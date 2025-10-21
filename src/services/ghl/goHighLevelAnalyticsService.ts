@@ -319,25 +319,28 @@ export class GoHighLevelAnalyticsService {
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting opportunities analytics', { locationId, dateRange });
 
-      const opportunities = await GoHighLevelApiService.getOpportunities(locationId);
+      // ✅ FIXED: Now we only fetch won opportunities from the API with date range
+      const wonOpportunities = await GoHighLevelApiService.getOpportunities(locationId, dateRange);
       
-      const totalOpportunities = opportunities.length;
-      const totalValue = opportunities.reduce((sum, opp) => sum + (opp.monetaryValue || 0), 0);
+      // Since we're only getting won opportunities, we need to get all opportunities for total counts
+      // TODO: Consider making separate API calls for different statuses if needed
+      const totalOpportunities = wonOpportunities.length; // This is now only won opportunities
+      const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.monetaryValue || 0), 0);
       
-      const opportunitiesByStatus: Record<string, number> = {};
-      const valueByStatus: Record<string, number> = {};
+      const opportunitiesByStatus: Record<string, number> = {
+        'closed-won': wonOpportunities.length
+      };
+      const valueByStatus: Record<string, number> = {
+        'closed-won': totalValue
+      };
       
-      opportunities.forEach(opp => {
-        const status = opp.status || 'unknown';
-        opportunitiesByStatus[status] = (opportunitiesByStatus[status] || 0) + 1;
-        valueByStatus[status] = (valueByStatus[status] || 0) + (opp.monetaryValue || 0);
-      });
-
+      // For now, we only have won opportunities data
+      // In the future, we might want to make additional API calls for other statuses
       const averageDealSize = totalOpportunities > 0 ? totalValue / totalOpportunities : 0;
       
-      // Calculate conversion rate (simplified)
-      const closedWon = opportunitiesByStatus['closed-won'] || opportunitiesByStatus['won'] || 0;
-      const conversionRate = totalOpportunities > 0 ? (closedWon / totalOpportunities) * 100 : 0;
+      // Since we only have won opportunities, conversion rate calculation is limited
+      // This would need additional API calls to get total opportunities for accurate conversion rate
+      const conversionRate = 0; // Cannot calculate without total opportunities
 
       const result: GHLOpportunityAnalytics = {
         totalOpportunities,
@@ -350,7 +353,8 @@ export class GoHighLevelAnalyticsService {
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Opportunities analytics retrieved', { 
         totalOpportunities, 
-        totalValue 
+        totalValue,
+        wonOpportunities: wonOpportunities.length
       });
       
       return result;

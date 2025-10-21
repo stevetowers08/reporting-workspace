@@ -1,4 +1,4 @@
-import { getCachedClientData } from '@/hooks/useTabSpecificData';
+import { useClientData } from '@/hooks/useDashboardQueries';
 import { debugLogger } from '@/lib/debug';
 import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
 import React, { useEffect, useState } from 'react';
@@ -23,6 +23,9 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
   const [chartData, setChartData] = useState<MonthlyLeadsData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use React Query for client data instead of manual fetching
+  const { data: client, isLoading: clientLoading } = useClientData(clientId);
 
   useEffect(() => {
     const fetchMonthlyLeads = async () => {
@@ -30,8 +33,6 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
         setIsLoading(true);
         setError(null);
 
-        // Fetch client data efficiently
-        const client = await getCachedClientData(clientId);
         if (!client) {
           setError('Client not found');
           return;
@@ -65,13 +66,15 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
       }
     };
 
-    fetchMonthlyLeads();
-  }, [clientId]);
+    if (client) {
+      fetchMonthlyLeads();
+    }
+  }, [clientId, client]);
 
   const hasData = chartData.length > 0 && chartData.some(month => month.totalLeads > 0);
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || clientLoading) {
     return (
       <div className="h-64 flex items-center justify-center text-slate-500">
         <div className="text-center">

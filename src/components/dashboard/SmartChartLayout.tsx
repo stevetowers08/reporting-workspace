@@ -2,7 +2,7 @@ import { ChartErrorWrapper } from '@/components/charts/ChartErrorWrapper';
 import { ConditionalGHLChart } from '@/components/charts/ConditionalGHLChart';
 import { useChartError } from '@/hooks/useChartError';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DailyFunnelAnalytics } from './DailyFunnelAnalytics';
 import { EventTypesBreakdown } from './EventTypesBreakdown';
 import { GHLOpportunityMetricsCard } from './GHLOpportunityMetricsCard';
@@ -37,59 +37,59 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
     window.location.reload();
   });
 
+  // Memoize chart configuration to prevent recreation on every render
+  const chartsConfig = useMemo(() => [
+    {
+      id: 'ghl-opportunity-metrics',
+      component: GHLOpportunityMetricsCard,
+      props: { data: dashboardData },
+      priority: 1,
+      hasData: true,
+      endpoint: 'GoHighLevel API - Opportunities',
+      errorType: 'api'
+    },
+    {
+      id: 'daily-funnel',
+      component: DailyFunnelAnalytics,
+      props: { locationId, dateRange },
+      priority: 2,
+      hasData: true,
+      endpoint: 'GoHighLevel API - Funnel Analytics',
+      errorType: 'api'
+    },
+    {
+      id: 'event-types',
+      component: EventTypesBreakdown,
+      props: { data: dashboardData, dateRange },
+      priority: 3,
+      hasData: true,
+      endpoint: 'Lead Data Service',
+      errorType: 'api'
+    },
+    {
+      id: 'guest-count',
+      component: GuestCountDistribution,
+      props: { data: dashboardData },
+      priority: 4,
+      hasData: true,
+      endpoint: 'Lead Data Service',
+      errorType: 'api'
+    },
+    {
+      id: 'opportunity-stages',
+      component: OpportunityStagesChart,
+      props: { data: dashboardData, dateRange },
+      priority: 5,
+      hasData: true,
+      endpoint: 'GoHighLevel API - Opportunity Stages',
+      errorType: 'api'
+    }
+  ], [dashboardData, dateRange, locationId]);
+
   useEffect(() => {
     try {
-      const charts: ChartConfig[] = [
-        {
-          id: 'ghl-opportunity-metrics',
-          component: GHLOpportunityMetricsCard,
-          props: { data: dashboardData },
-          priority: 1,
-          hasData: true,
-          endpoint: 'GoHighLevel API - Opportunities',
-          errorType: 'api'
-        },
-        {
-          id: 'daily-funnel',
-          component: DailyFunnelAnalytics,
-          props: { locationId, dateRange },
-          priority: 2,
-          hasData: true,
-          endpoint: 'GoHighLevel API - Funnel Analytics',
-          errorType: 'api'
-        },
-        {
-          id: 'event-types',
-          component: EventTypesBreakdown,
-          props: { data: dashboardData, dateRange },
-          priority: 3,
-          hasData: true,
-          endpoint: 'Lead Data Service',
-          errorType: 'api'
-        },
-        {
-          id: 'guest-count',
-          component: GuestCountDistribution,
-          props: { data: dashboardData },
-          priority: 4,
-          hasData: true,
-          endpoint: 'Lead Data Service',
-          errorType: 'api'
-        },
-        {
-          id: 'opportunity-stages',
-          component: OpportunityStagesChart,
-          props: { data: dashboardData, dateRange },
-          priority: 5,
-          hasData: true,
-          endpoint: 'GoHighLevel API - Opportunity Stages',
-          errorType: 'api'
-        }
-      ];
-
       // Sort by priority - show all charts, let components handle empty data
-      const sortedCharts = charts.sort((a, b) => a.priority - b.priority);
-
+      const sortedCharts = chartsConfig.sort((a, b) => a.priority - b.priority);
       setAvailableCharts(sortedCharts);
       setError(null);
     } catch (err) {
@@ -103,7 +103,7 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
       });
       setAvailableCharts([]);
     }
-  }, [dashboardData, dateRange, locationId]);
+  }, [chartsConfig]);
 
   // Create pairs for 2-column layout
   const chartPairs: ChartConfig[][] = [];
