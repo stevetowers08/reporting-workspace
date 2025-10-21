@@ -3,7 +3,6 @@
 
 import React from 'react';
 
-// Google Ads Account Types
 export interface GoogleAdsAccount {
   id: string;
   name: string;
@@ -24,11 +23,22 @@ export interface GoogleAdsCustomerClient {
   testAccount: boolean;
   payPerConversionEligibilityFailureReasons: string[];
   status: string;
+  clientCustomer: string; // e.g., "customers/1234567890"
+  level: number;
 }
 
 // Google Ads API Row Response
 export interface GoogleAdsApiRow {
   customerClient: GoogleAdsCustomerClient;
+}
+
+// Base Metrics Interface
+export interface MetricsBase {
+  impressions: number;
+  clicks: number;
+  leads: number;
+  ctr: number;
+  cpc: number;
 }
 
 // Metrics Types for Trend Calculations
@@ -67,33 +77,45 @@ export interface GoogleMetricsWithTrends {
 
 // Trend Calculation Result
 export interface TrendResult {
-  leads?: {
-    change: number;
+  leads: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  spend?: {
-    change: number;
+  costPerLead: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  cost?: {
-    change: number;
+  conversionRate: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  impressions?: {
-    change: number;
+  spent: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  clicks?: {
-    change: number;
+  impressions: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  ctr?: {
-    change: number;
+  clicks: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
   };
-  cpc?: {
-    change: number;
+  costPerClick: {
+    direction: 'up' | 'down';
     percentage: number;
+    change: number;
+  };
+  ctr: {
+    direction: 'up' | 'down';
+    percentage: number;
+    change: number;
   };
 }
 
@@ -137,15 +159,15 @@ export interface PerformanceObserverEntry {
 }
 
 // DOM Types for better type safety
-export interface DOMElement extends HTMLElement {
+export interface DOMElement extends React.ElementType {
   [key: string]: unknown;
 }
 
-export interface DOMButtonElement extends HTMLButtonElement {
+export interface DOMButtonElement extends React.ElementType {
   [key: string]: unknown;
 }
 
-export interface DOMDivElement extends HTMLDivElement {
+export interface DOMDivElement extends React.ElementType {
   [key: string]: unknown;
 }
 
@@ -181,6 +203,12 @@ export interface ComponentProps {
   children?: React.ReactNode;
   [key: string]: unknown;
 }
+
+// React Ref Types
+export type Ref<T extends React.ElementType> = React.Ref<T>;
+export type ButtonRef = Ref<'button'>;
+export type DivRef = Ref<'div'>;
+export type InputRef = Ref<'input'>;
 
 // API Response Types
 export interface ApiResponse<T = unknown> {

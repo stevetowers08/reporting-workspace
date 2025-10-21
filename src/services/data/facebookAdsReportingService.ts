@@ -1,7 +1,7 @@
+import { debugLogger } from '@/lib/debug';
 import { FacebookMetricsWithTrends, TrendResult } from '@/types';
 import { DatabaseService } from './databaseService';
 import { EventMetricsService } from './eventMetricsService';
-import { debugLogger } from '@/lib/debug';
 
 export interface FacebookAdsReportingData {
   clientId: string;
@@ -67,7 +67,7 @@ class FacebookAdsReportingService {
   /**
    * Calculate trends for all metrics
    */
-  private static calculateTrends(currentMetrics: FacebookMetricsWithTrends, previousMetrics: FacebookMetricsWithTrends | undefined): TrendResult | undefined {
+  private calculateTrends(currentMetrics: FacebookMetricsWithTrends, previousMetrics: FacebookMetricsWithTrends | undefined): TrendResult | undefined {
     if (!previousMetrics) {
       return undefined;
     }
@@ -187,7 +187,7 @@ class FacebookAdsReportingService {
             const costPerClick = metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0;
 
             // Calculate trends if previous period data is available
-            const trends = FacebookAdsReportingService.calculateTrends(metrics, metrics.previousPeriod);
+            const trends = this.calculateTrends(metrics, metrics.previousPeriod);
 
             const clientData: FacebookAdsReportingData = {
               clientId: client.id,

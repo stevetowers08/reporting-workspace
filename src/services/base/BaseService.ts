@@ -1,7 +1,7 @@
 // Base Service Classes for better architecture
 // This file provides base classes and utilities for service modularization
 
-import { ServiceResponse, LogContext } from '@/types';
+import { LogContext, ServiceResponse } from '@/types';
 
 /**
  * Base class for all services with common functionality
@@ -59,17 +59,19 @@ export abstract class BaseReportingService extends BaseService {
   /**
    * Calculate trend percentage between current and previous values
    */
-  protected calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number } {
+  protected calculateTrendPercentage(current: number, previous: number): { direction: 'up' | 'down'; percentage: number; change: number } {
     if (previous === 0) {
-      return { direction: 'up', percentage: current > 0 ? 100 : 0 };
+      return { direction: 'up', percentage: current > 0 ? 100 : 0, change: current };
     }
     
-    const percentage = ((current - previous) / previous) * 100;
+    const change = current - previous;
+    const percentage = (change / previous) * 100;
     const direction = percentage >= 0 ? 'up' : 'down';
     
     return {
       direction,
-      percentage: Math.abs(percentage)
+      percentage: Math.abs(percentage),
+      change
     };
   }
 
@@ -215,7 +217,7 @@ export class ServiceUtils {
     return {
       get(key: string): T | null {
         const entry = cache.get(key);
-        if (!entry) return null;
+        if (!entry) {return null;}
         
         if (Date.now() - entry.timestamp > ttl) {
           cache.delete(key);

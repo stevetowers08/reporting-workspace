@@ -1,8 +1,8 @@
-import { GoogleMetricsWithTrends, TrendResult } from '@/types';
+import { debugLogger } from '@/lib/debug';
+import { BaseReportingService } from '@/services/base/BaseService';
 import { DatabaseService } from '@/services/data/databaseService';
 import { EventMetricsService } from '@/services/data/eventMetricsService';
-import { BaseReportingService } from '@/services/base/BaseService';
-import { debugLogger } from '@/lib/debug';
+import { GoogleMetricsWithTrends, TrendResult } from '@/types';
 
 export interface GoogleAdsReportingData {
   clientId: string;
@@ -53,8 +53,8 @@ export class GoogleAdsReportingService extends BaseReportingService {
   /**
    * Calculate trends for all metrics
    */
-  private static calculateTrends(currentMetrics: GoogleMetricsWithTrends, previousMetrics: GoogleMetricsWithTrends | undefined): TrendResult | undefined {
-    if (!previousMetrics) return undefined;
+  private calculateTrends(currentMetrics: GoogleMetricsWithTrends, previousMetrics: GoogleMetricsWithTrends | undefined): TrendResult | undefined {
+    if (!previousMetrics) {return undefined;}
     
     return {
       leads: this.calculateTrendPercentage(currentMetrics.leads, previousMetrics.leads),
@@ -142,7 +142,7 @@ export class GoogleAdsReportingService extends BaseReportingService {
             const costPerClick = metrics.clicks > 0 ? metrics.cost / metrics.clicks : 0;
 
             // Calculate trends if previous period data is available
-            const trends = GoogleAdsReportingService.calculateTrends(metrics, metrics.previousPeriod);
+            const trends = this.calculateTrends(metrics, metrics.previousPeriod);
 
             const clientData: GoogleAdsReportingData = {
               clientId: client.id,
