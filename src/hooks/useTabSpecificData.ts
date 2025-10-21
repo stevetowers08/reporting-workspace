@@ -10,6 +10,36 @@ interface DateRange {
   end: string;
 }
 
+// Shared client data cache to prevent repeated API calls
+const clientDataCache = new Map<string, { data: any; timestamp: number }>();
+const CLIENT_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
+// Helper function to get cached client data
+async function getCachedClientData(clientId: string) {
+  const now = Date.now();
+  const cached = clientDataCache.get(clientId);
+  
+  if (cached && (now - cached.timestamp) < CLIENT_CACHE_DURATION) {
+    debugLogger.debug('useTabSpecificData', 'Using cached client data', { clientId });
+    return cached.data;
+  }
+  
+  debugLogger.debug('useTabSpecificData', 'Fetching fresh client data', { clientId });
+  const clientData = await DatabaseService.getClientById(clientId);
+  clientDataCache.set(clientId, { data: clientData, timestamp: now });
+  
+  return clientData;
+}
+
+// Function to invalidate client data cache
+export function invalidateClientDataCache(clientId?: string) {
+  if (clientId) {
+    clientDataCache.delete(clientId);
+  } else {
+    clientDataCache.clear();
+  }
+}
+
 // Hook for Summary tab data (minimal data needed for overview)
 export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
@@ -17,7 +47,7 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
     queryFn: async () => {
       if (!clientId) {throw new Error('Client ID is required');}
       
-      const clientData = await DatabaseService.getClientById(clientId);
+      const clientData = await getCachedClientData(clientId);
       if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
@@ -79,7 +109,7 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
     queryFn: async () => {
       if (!clientId) {throw new Error('Client ID is required');}
       
-      const clientData = await DatabaseService.getClientById(clientId);
+      const clientData = await getCachedClientData(clientId);
       if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
@@ -143,7 +173,7 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
     queryFn: async () => {
       if (!clientId) {throw new Error('Client ID is required');}
       
-      const clientData = await DatabaseService.getClientById(clientId);
+      const clientData = await getCachedClientData(clientId);
       if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
@@ -190,7 +220,7 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
     queryFn: async () => {
       if (!clientId) {throw new Error('Client ID is required');}
       
-      const clientData = await DatabaseService.getClientById(clientId);
+      const clientData = await getCachedClientData(clientId);
       if (!clientData) {throw new Error('Client not found');}
       
       const finalDateRange = dateRange || (() => {
