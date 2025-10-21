@@ -1,22 +1,48 @@
 import { TokenManager } from '@/services/auth/TokenManager';
 import { DatabaseService } from '@/services/data/databaseService';
-import { GoogleAdsAccount, GoogleAdsApiRow } from '@/types';
+import { CommonGoogleAdsAccount, GoogleAdsApiRow, Integration } from '@/types';
+import { debugLogger } from '@/lib/debug';
+
+// Simple cache for integrations to prevent repeated API calls
+let integrationsCache: Integration[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Helper function to get cached integrations
+async function getCachedIntegrations() {
+  const now = Date.now();
+  
+  // Return cached data if it's still valid
+  if (integrationsCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    return integrationsCache;
+  }
+  
+  // Fetch fresh data and update cache
+  integrationsCache = await DatabaseService.getIntegrations();
+  cacheTimestamp = now;
+  
+  return integrationsCache;
+}
+
+// Function to invalidate cache when integrations are updated
+export function invalidateIntegrationsCache() {
+  integrationsCache = null;
+  cacheTimestamp = 0;
+}
 
 /**
  * Lists customer accounts ONLY from the configured manager account
  */
-export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
-  try {
-    
-    // Get access token using existing TokenManager
-    const accessToken = await TokenManager.getAccessToken('googleAds');
-    
-    if (!accessToken) {
-      throw new Error('Google Ads not connected - no access token found');
-    }
+export async function listAccessibleCustomers(): Promise<CommonGoogleAdsAccount[]> {
+  // Get access token using existing TokenManager
+  const accessToken = await TokenManager.getAccessToken('googleAds');
+  
+  if (!accessToken) {
+    throw new Error('Google Ads not connected - no access token found');
+  }
 
-    // Get manager account ID from database configuration
-    const integrations = await DatabaseService.getIntegrations();
+  // Get manager account ID from database configuration
+  const integrations = await getCachedIntegrations();
     
     const googleAdsIntegration = integrations.find(integration => integration.platform === 'googleAds');
     
@@ -28,7 +54,7 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
     
 
     // Step 1: Get all sub-accounts from the configured manager account only
-    const allAccounts: GoogleAdsAccount[] = [];
+    const allAccounts: CommonGoogleAdsAccount[] = [];
     
     try {
       // Get customer_client data from the configured manager account
@@ -36,12 +62,14 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
       if (subAccounts.length > 0) {
         allAccounts.push(...subAccounts);
       } else {
+        // No sub-accounts found
       }
-    } catch (error) {
+    } catch (_error) {
+      // Handle error silently - continue with empty accounts list
     }
 
     // Remove duplicates based on ID and create a Map for better performance
-    const accountMap = new Map<string, GoogleAdsAccount>();
+    const accountMap = new Map<string, CommonGoogleAdsAccount>();
     
     for (const account of allAccounts) {
       if (!accountMap.has(account.id)) {
@@ -53,9 +81,6 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
 
     
     return uniqueAccounts;
-  } catch (error) {
-    throw error;
-  }
 }
 
 /**
@@ -64,7 +89,7 @@ export async function listAccessibleCustomers(): Promise<GoogleAdsAccount[]> {
 async function getCustomerClientAccounts(
   managerCustomerId: string,
   accessToken: string
-): Promise<GoogleAdsAccount[]> {
+): Promise<CommonGoogleAdsAccount[]> {
   try {
     
     const query = `
@@ -97,6 +122,7 @@ async function getCustomerClientAccounts(
 
     if (!response.ok) {
       const errorText = await response.text();
+      debugLogger.error('Google Ads API error:', errorText);
       // This might not be a manager account, return empty array
       return [];
     }
@@ -105,7 +131,7 @@ async function getCustomerClientAccounts(
     const results = data.results || [];
     
     // Convert to our interface format
-            const accounts: GoogleAdsAccount[] = results.map((row: GoogleAdsApiRow) => {
+            const accounts: CommonGoogleAdsAccount[] = results.map((row: GoogleAdsApiRow) => {
               const customerClient = row.customerClient;
               // Extract just the customer ID number from the resource name
               const customerId = customerClient.clientCustomer.replace('customers/', '');
@@ -118,7 +144,7 @@ async function getCustomerClientAccounts(
             });
 
     return accounts;
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 }
@@ -129,7 +155,7 @@ async function getCustomerClientAccounts(
 async function _getAccountDetails(
   customerId: string,
   accessToken: string
-): Promise<GoogleAdsAccount | null> {
+): Promise<CommonGoogleAdsAccount | null> {
   try {
     const query = `
       SELECT
@@ -170,7 +196,8 @@ async function _getAccountDetails(
       descriptiveName: customer.descriptiveName,
       name: customer.descriptiveName,
     };
-  } catch (error) {
-    return null;
-  }
+    } catch (_error) {
+      // Handle error silently
+      return null;
+    }
 }
