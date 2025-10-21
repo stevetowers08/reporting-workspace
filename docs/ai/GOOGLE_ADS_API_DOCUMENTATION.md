@@ -1,15 +1,25 @@
 # Google Ads API Documentation
 
+**Last Updated:** January 20, 2025  
+**Version:** 2.0.0  
+**Status:** 🔄 **V2 IMPLEMENTATION PENDING**
+
 ## Overview
 
-The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. This service handles OAuth authentication, account discovery, metrics retrieval, and campaign data processing using Google Ads API v21.
+The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. The V2 implementation is planned to use direct API calls with smart caching, following the same pattern as the successful Facebook Ads V2 implementation.
 
-## Service Architecture
+## V2 Service Architecture (Planned)
 
-### Core Service: `GoogleAdsService`
-- **Location**: `src/services/api/googleAdsService.ts`
-- **API Version**: v21
+### 🔄 **AnalyticsOrchestratorV2** - Planned Implementation
+- **Location**: `src/services/data/analyticsOrchestratorV2.ts`
+- **API Version**: v21 (upgrade from v14)
 - **Base URL**: `https://googleads.googleapis.com/v21`
+- **Features**: Direct API calls, smart caching, request deduplication, error isolation
+
+### Current Service: `GoogleAdsService` (V1)
+- **Location**: `src/services/api/googleAdsService.ts`
+- **API Version**: v14
+- **Status**: Active, will be replaced by V2 orchestrator
 
 ### Supporting Services
 - **Token Management**: `TokenManager` from `@/services/auth/TokenManager`

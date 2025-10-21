@@ -141,7 +141,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
         showVenueSelector={true}
       />
 
-
       <div className="px-20 py-12">
         {/* Venue Selection - Moved to Top */}
         <div className="mb-8">

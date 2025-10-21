@@ -1,10 +1,11 @@
+import { ConditionalGHLChart } from '@/components/charts/ConditionalGHLChart';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { useEffect, useState } from 'react';
 import { DailyFunnelAnalytics } from './DailyFunnelAnalytics';
 import { EventTypesBreakdown } from './EventTypesBreakdown';
+import { GHLOpportunityMetricsCard } from './GHLOpportunityMetricsCard';
 import { GuestCountDistribution } from './GuestCountDistribution';
 import { OpportunityStagesChart } from './OpportunityStagesChart';
-import { GHLOpportunityMetricsCard } from './GHLOpportunityMetricsCard';
 
 interface SmartChartLayoutProps {
   dashboardData: EventDashboardData | null | undefined;
@@ -108,11 +109,24 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
         <div key={pairIndex} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {pair.map((chart) => {
             const ChartComponent = chart.component;
+            
+            // Wrap GHL components with conditional loading
+            if (chart.id.includes('ghl') || chart.id.includes('opportunity')) {
+              return (
+                <div key={chart.id} className="min-h-[300px]">
+                  <ConditionalGHLChart 
+                    locationId={locationId}
+                    hasGHLAccount={!!dashboardData?.clientData?.accounts?.goHighLevel}
+                  >
+                    <ChartComponent {...chart.props} />
+                  </ConditionalGHLChart>
+                </div>
+              );
+            }
+            
             return (
               <div key={chart.id} className="min-h-[300px]">
-                <ChartComponent
-                  {...chart.props}
-                />
+                <ChartComponent {...chart.props} />
               </div>
             );
           })}

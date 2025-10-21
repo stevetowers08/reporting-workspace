@@ -1,15 +1,13 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
+import { GoogleTabContent, LeadsTabContent, MetaTabContent, SummaryTabContent } from "@/components/dashboard/tabs";
 import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingSystem";
-import { SummaryTabContent, MetaTabContent, GoogleTabContent, LeadsTabContent } from "@/components/dashboard/tabs";
 import { Button } from "@/components/ui/button-simple";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
 import { usePDFExport } from '@/hooks/usePDFExport';
-import { useGoogleTabData, useLeadsTabData, useMetaTabData, useSummaryTabData } from '@/hooks/useTabSpecificData';
-import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -20,14 +18,21 @@ interface EventDashboardProps {
 
 // Global type declarations
 declare global {
-  interface ErrorEvent {
+  interface ErrorEvent extends Event {
     error: Error;
     message: string;
+    filename?: string;
+    lineno?: number;
+    colno?: number;
   }
-  interface PromiseRejectionEvent {
+  interface PromiseRejectionEvent extends Event {
+    promise: Promise<any>;
     reason: Error;
   }
-  interface HTMLElement {
+  interface Window {
+    alert: (message: string) => void;
+  }
+  interface HTMLElement extends Element {
     // HTMLElement is already defined globally
   }
   interface HTMLDivElement {
@@ -209,121 +214,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       setExportingPDF(false);
     }
   }, [clientData, selectedPeriod, exportTabsToPDF, getDateRange]);
-
-  // ✅ FIX: Load tab-specific data AFTER all basic hooks and callbacks
-  const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummaryTabData(
-    actualClientId, 
-    dateRange
-  );
-  
-  const { data: metaData, isLoading: metaLoading, error: metaError } = useMetaTabData(
-    actualClientId, 
-    dateRange
-  );
-  
-  const { data: googleData, isLoading: googleLoading, error: googleError } = useGoogleTabData(
-    actualClientId, 
-    dateRange
-  );
-  
-  const { data: leadsData, isLoading: leadsLoading, error: leadsError } = useLeadsTabData(
-    actualClientId, 
-    dateRange
-  );
-  
-  // ✅ FIX: clientData already declared above to prevent TDZ
-
-  // Get current tab data based on active tab
-  const getCurrentTabData = () => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryData;
-      case 'meta':
-        return metaData;
-      case 'google':
-        return googleData;
-      case 'leads':
-        return leadsData;
-      default:
-        return summaryData;
-    }
-  };
-
-  const getCurrentTabLoading = () => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryLoading;
-      case 'meta':
-        return metaLoading;
-      case 'google':
-        return googleLoading;
-      case 'leads':
-        return leadsLoading;
-      default:
-        return summaryLoading;
-    }
-  };
-
-  const getCurrentTabError = () => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryError;
-      case 'meta':
-        return metaError;
-      case 'google':
-        return googleError;
-      case 'leads':
-        return leadsError;
-      default:
-        return summaryError;
-    }
-  };
-
-  // Helper function to ensure we have valid dashboard data
-  const getValidDashboardData = (data: unknown): EventDashboardData | undefined => {
-    if (!data || typeof data !== 'object') {
-      return undefined;
-    }
-    // Check if we have the required structure, even if values are 0
-    if (Object.prototype.hasOwnProperty.call(data, 'totalLeads') && 
-        Object.prototype.hasOwnProperty.call(data, 'facebookMetrics') && 
-        Object.prototype.hasOwnProperty.call(data, 'googleMetrics')) {
-      return data as EventDashboardData;
-    }
-    return undefined;
-  };
-
-  // Helper function to get the best available data for Summary tab
-  const getSummaryData = (): EventDashboardData | undefined => {
-    // Always prioritize Summary tab data (which includes both Facebook and Google Ads)
-    const summaryDataTyped = summaryData as EventDashboardData | undefined;
-    
-    if (summaryDataTyped) {
-      return summaryDataTyped;
-    }
-    
-    // Fallback to Meta tab data only if Summary tab data is not available
-    const metaDataTyped = metaData as EventDashboardData | undefined;
-    
-    if (metaDataTyped && metaDataTyped.facebookMetrics && metaDataTyped.facebookMetrics.leads > 0) {
-      return metaDataTyped;
-    }
-    
-    return undefined;
-  };
-
-  const dashboardData = getValidDashboardData(getCurrentTabData());
-  const summaryDashboardData = getValidDashboardData(getSummaryData());
-  const dashboardLoading = getCurrentTabLoading();
-  const dashboardError = getCurrentTabError();
-  
-  // Debug logging
-  
-  // Add alert for debugging
-  if (activeTab === 'summary') {
-    // Force a comparison with Meta tab data
-    const _metaDataTyped = metaData as EventDashboardData | undefined;
-  }
   
   // Transform clients for the dropdown
   const clients = (availableClients || []).map(client => ({
@@ -353,21 +243,21 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   };
 
   // Show loading state while any critical data is loading
-  if (clientLoading || dashboardLoading) {
+  if (clientLoading) {
     return <EnhancedPageLoader 
       message="Loading Analytics Dashboard..." 
       showProgress={true}
-      progress={clientLoading ? 30 : dashboardLoading ? 70 : 100}
+      progress={clientLoading ? 30 : 100}
     />;
   }
 
   // Show error state
-  if (dashboardError || clientError) {
+  if (clientError) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-600 mb-4">
-            {dashboardError?.message || clientError?.message || 'Failed to load dashboard'}
+            {clientError?.message || 'Failed to load dashboard'}
           </div>
           <Button onClick={() => window.location.reload()}>Retry</Button>
         </div>
@@ -456,39 +346,32 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
             <SummaryTabContent
-              summaryLoading={summaryLoading}
-              summaryDashboardData={summaryDashboardData}
-              dashboardData={dashboardData}
-              summaryTabRef={summaryTabRef}
+              clientId={actualClientId}
+              dateRange={getDateRange(selectedPeriod)}
             />
           </TabsContent>
 
           {/* Meta Ads Tab */}
           <TabsContent value="meta" className="mt-6">
             <MetaTabContent
-              metaLoading={metaLoading}
-              dashboardData={dashboardData}
-              metaTabRef={metaTabRef}
+              clientId={actualClientId}
+              dateRange={getDateRange(selectedPeriod)}
             />
           </TabsContent>
 
           {/* Google Ads Tab */}
           <TabsContent value="google" className="mt-6">
             <GoogleTabContent
-              googleLoading={googleLoading}
-              dashboardData={dashboardData}
-              googleTabRef={googleTabRef}
+              clientId={actualClientId}
+              dateRange={getDateRange(selectedPeriod)}
             />
           </TabsContent>
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
           <TabsContent value="leads" className="mt-6">
             <LeadsTabContent
-              leadsLoading={leadsLoading}
-              dashboardData={dashboardData}
-              clientData={clientData}
+              clientId={actualClientId}
               dateRange={getDateRange(selectedPeriod)}
-              leadsTabRef={leadsTabRef}
             />
           </TabsContent>
 

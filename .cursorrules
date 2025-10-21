@@ -62,6 +62,21 @@ This is a **Marketing Analytics Dashboard** built with React, TypeScript, and mo
 - **Bundle Size**: Keep bundle size optimized
 - **Caching**: Implement proper caching strategies with React Query
 
+### Reporting Architecture (CRITICAL)
+- **Centralized Data Service**: Use `AnalyticsDataService` pattern for all data fetching
+- **Chart Registry Pattern**: Implement chart registry for easy extensibility
+- **Platform Adapter Pattern**: Use adapters for different data sources (Facebook, Google, etc.)
+- **Smart Cache Invalidation**: Invalidate cache when data changes, not on time intervals
+- **Request Deduplication**: Prevent duplicate API calls using request deduplication
+- **Optimistic Updates**: Implement optimistic updates for better UX
+- **Dynamic Chart Loading**: Load charts based on data availability, not hardcoded lists
+- **React Query Best Practices**: Use proper `staleTime`, `gcTime`, and invalidation patterns
+- **Lazy Loading**: Implement lazy loading for chart components
+- **Error Boundaries**: Wrap chart components in error boundaries
+- **Performance Monitoring**: Track chart render times and API call performance
+- **Security**: Implement role-based access control for chart data
+- **Audit Trails**: Log data access and changes for compliance
+
 ### Accessibility
 - **ARIA Labels**: Include proper ARIA labels and roles
 - **Keyboard Navigation**: Ensure full keyboard accessibility
@@ -237,6 +252,7 @@ try {
 
 ### Documentation
 - **Project Docs**: See `docs/ai/` directory for complete documentation
+- **Reporting Architecture**: See `docs/ai/REPORTING_ARCHITECTURE_BEST_PRACTICES.md` for detailed patterns
 - **External Docs**: React, TypeScript, Supabase, Facebook/Google APIs
 - **AI Help**: Use Cursor AI for code generation and debugging
 

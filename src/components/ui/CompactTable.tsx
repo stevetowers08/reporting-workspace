@@ -66,7 +66,7 @@ const CompactTable: React.FC<CompactTableProps> = ({
   };
 
   const formatValue = (value: any, format?: string): string => {
-    if (value === null || value === undefined) return '-';
+    if (value === null || value === undefined) {return '-';}
     
     switch (format) {
       case 'currency':
@@ -86,18 +86,18 @@ const CompactTable: React.FC<CompactTableProps> = ({
   };
 
   const calculatePercentageChange = (current: number, previous: number): number => {
-    if (previous === 0) return current > 0 ? 100 : 0;
+    if (previous === 0) {return current > 0 ? 100 : 0;}
     return ((current - previous) / previous) * 100;
   };
 
   const renderTrendIndicator = (current: number, previous: number, _format?: string) => {
-    if (previous === undefined || previous === null) return null;
+    if (previous === undefined || previous === null) {return null;}
     
     const change = calculatePercentageChange(current, previous);
     const isPositive = change > 0;
     const isNegative = change < 0;
     
-    if (Math.abs(change) < 0.1) return null; // Don't show trend for very small changes
+    if (Math.abs(change) < 0.1) {return null;} // Don't show trend for very small changes
     
     return (
       <div className={`flex items-center gap-1 text-xs ${

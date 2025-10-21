@@ -1,8 +1,8 @@
-import { TroubleshootingCheck, TroubleshootingDetails, AccountFetchResult, GoogleAdsAccount } from '@/types';
+import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { GoogleAdsService } from '@/services/api/googleAdsService';
 import { OAuthService } from '@/services/auth/oauthService';
-import { debugLogger } from '@/lib/debug';
+import { CommonGoogleAdsAccount, TroubleshootingDetails } from '@/types';
 
 export class GoogleAdsTroubleshoot {
   static async runFullDiagnostic(): Promise<{
@@ -211,7 +211,7 @@ export class GoogleAdsTroubleshoot {
     }
 
     const hasFailures = results.some(r => r.status === 'fail');
-    const hasWarnings = results.some(r => r.status === 'warning');
+    const _hasWarnings = results.some(r => r.status === 'warning');
 
     return {
       success: !hasFailures,
@@ -221,7 +221,7 @@ export class GoogleAdsTroubleshoot {
 
   static async testAccountFetching(): Promise<{
     success: boolean;
-    accounts: GoogleAdsAccount[];
+    accounts: CommonGoogleAdsAccount[];
     error?: string;
   }> {
     try {

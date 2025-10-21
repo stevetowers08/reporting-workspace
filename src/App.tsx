@@ -1,9 +1,9 @@
 import DebugPanel from "@/components/DebugPanel";
 import { PageErrorBoundary } from "@/components/error/EnhancedErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
+import { LoadingProvider as EnhancedLoadingProvider, GlobalLoadingIndicator } from "@/components/ui/EnhancedLoadingSystem";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
-import { LoadingProvider as EnhancedLoadingProvider, GlobalLoadingIndicator } from "@/components/ui/EnhancedLoadingSystem";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
@@ -27,6 +27,10 @@ import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+// V2 Components - New Architecture
+import { V2Navigation } from "@/components/dashboard/V2Navigation";
+import { GoogleTabContentV2Wrapper, LeadsTabContentV2Wrapper, MetaTabContentV2Wrapper, SummaryTabContentV2Wrapper } from "@/components/dashboard/tabs/V2RouteWrappers";
 
 // ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
 const EventDashboard = lazy(() => 
@@ -248,6 +252,13 @@ const App = () => {
                       <EventDashboard />
                     </Suspense>
                   } />
+                  
+                  {/* V2 Routes - New Architecture Testing */}
+                  <Route path="/dashboard/v2/:clientId" element={<V2Navigation />} />
+                  <Route path="/dashboard/v2/summary/:clientId" element={<SummaryTabContentV2Wrapper />} />
+                  <Route path="/dashboard/v2/meta/:clientId" element={<MetaTabContentV2Wrapper />} />
+                  <Route path="/dashboard/v2/google/:clientId" element={<GoogleTabContentV2Wrapper />} />
+                  <Route path="/dashboard/v2/leads/:clientId" element={<LeadsTabContentV2Wrapper />} />
                   <Route path="/agency" element={<AgencyPanel />} />
                   <Route path="/agency/clients" element={<AgencyPanel />} />
                   <Route path="/agency/integrations" element={<AgencyPanel />} />

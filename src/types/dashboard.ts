@@ -14,6 +14,17 @@ export interface EventDashboardData {
     // Combined insights
     leadMetrics: EventLeadMetrics;
 
+    // Client data
+    clientData?: Client;
+
+    // Client accounts
+    clientAccounts?: {
+        facebookAds?: string;
+        googleAds?: string;
+        goHighLevel?: string;
+        googleSheets?: string;
+    };
+
     // Time period
     dateRange: {
         start: string;
@@ -87,6 +98,32 @@ export interface GoHighLevelMetrics {
     avgDealSize: number;
     conversionRate: number;
     responseTime: number;
+    wonRevenue?: number;
+}
+
+export interface FacebookMetricsWithTrends {
+    leads: number;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    costPerLead: number;
+    ctr: number;
+    demographics?: any;
+    platformBreakdown?: any;
+}
+
+export interface GoogleMetricsWithTrends {
+    leads: number;
+    cost: number;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    conversionRate: number;
+    ctr: number;
+    demographics?: any;
+    campaignBreakdown?: any;
 }
 
 export interface EventMetrics {
@@ -116,6 +153,7 @@ export interface EventLeadMetrics {
     leadToOpportunityRate: number;
     opportunityToWinRate: number;
     averageEventValue: number;
+    totalOpportunities: number;
 
     // Event-specific metrics
     averageGuestsPerEvent: number;

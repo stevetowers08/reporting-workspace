@@ -2,7 +2,7 @@
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
 import { Card } from "@/components/ui/card";
-import { useV2SummaryTabData } from '@/hooks/useV2TabSpecificData';
+import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -39,33 +39,24 @@ const KeyInsights = lazy(() =>
 );
 
 interface SummaryTabContentProps {
-  clientId: string;
-  dateRange: { start: string; end: string };
+  summaryLoading: boolean;
+  summaryDashboardData?: EventDashboardData;
+  dashboardData?: EventDashboardData;
+  summaryTabRef: React.RefObject<HTMLDivElement>;
 }
 
 export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
-  clientId,
-  dateRange
+  summaryLoading,
+  summaryDashboardData,
+  dashboardData,
+  summaryTabRef
 }) => {
-  const { data, isLoading, error } = useV2SummaryTabData(clientId, dateRange);
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center text-red-600">
-          <h3 className="text-lg font-semibold mb-2">Error Loading Summary Data</h3>
-          <p>{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <LoadingOverlay isLoading={isLoading} message="Loading summary data...">
+    <div ref={summaryTabRef}>
+      <LoadingOverlay isLoading={summaryLoading} message="Loading summary data...">
         
         <Suspense fallback={<ComponentLoader />}>
-          <SummaryMetricsCards dashboardData={data} />
+          <SummaryMetricsCards dashboardData={summaryDashboardData} />
         </Suspense>
         
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
@@ -75,7 +66,7 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             </div>
             <div className="h-64">
               <Suspense fallback={<ComponentLoader />}>
-                <PlatformPerformanceStatusChart data={data} />
+                <PlatformPerformanceStatusChart data={dashboardData} />
               </Suspense>
             </div>
           </Card>
@@ -85,12 +76,12 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
               <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
             </div>
             <div className="h-64 -mx-1">
-              <LeadByMonthChart data={data} />
+              <LeadByMonthChart data={summaryDashboardData} />
             </div>
           </Card>
 
           <Suspense fallback={<ComponentLoader />}>
-            <KeyInsights data={data} />
+            <KeyInsights data={dashboardData} />
           </Suspense>
         </div>
         

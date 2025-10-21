@@ -4,26 +4,25 @@
  */
 
 import { envConfig } from '@/lib/envConfig';
-import { PerformanceEntry, PerformanceObserverEntry, LogContext } from '@/types';
+import { LogContext } from '@/types';
 
 // Declare PerformanceObserver for TypeScript
 declare global {
   interface PerformanceObserver {
-    observe(options: { entryTypes: string[] }): void;
+    observe(options?: PerformanceObserverInit): void;
     disconnect(): void;
+    takeRecords(): PerformanceEntry[];
   }
-  
+
   interface PerformanceObserverEntryList {
-    getEntries(): PerformanceObserverEntry[];
+    getEntries(): PerformanceEntry[];
+    getEntriesByType(type: string): PerformanceEntry[];
+    getEntriesByName(name: string, type?: string): PerformanceEntry[];
   }
-  
+
   interface Window {
-    gtag?: (command: string, eventName: string, parameters: LogContext) => void;
+    gtag?: (command: string, eventName: string, parameters: any) => void;
   }
-  
-  const PerformanceObserver: {
-    new(callback: (list: PerformanceObserverEntryList) => void): PerformanceObserver;
-  };
 }
 
 interface PerformanceMetrics {
@@ -87,8 +86,10 @@ class PerformanceMonitor {
       let clsValue = 0;
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          if (!(entry as PerformanceObserverEntry).hadRecentInput) {
-            clsValue += (entry as PerformanceObserverEntry).value;
+          // Type assertion for layout shift entries
+          const layoutShiftEntry = entry as any;
+          if (!layoutShiftEntry.hadRecentInput) {
+            clsValue += layoutShiftEntry.value || 0;
           }
         }
         this.metrics.cls = clsValue;
@@ -105,7 +106,9 @@ class PerformanceMonitor {
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'navigation') {
-            this.metrics.ttfb = (entry as PerformanceObserverEntry).responseStart - (entry as PerformanceObserverEntry).requestStart;
+            // Type assertion for navigation entries
+            const navEntry = entry as any;
+            this.metrics.ttfb = navEntry.responseStart - navEntry.requestStart;
             this.logMetric('TTFB', this.metrics.ttfb);
           }
         }

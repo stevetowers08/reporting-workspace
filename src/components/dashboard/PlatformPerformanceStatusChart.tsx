@@ -7,10 +7,10 @@ interface PlatformPerformanceStatusChartProps {
 
 export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStatusChartProps>(({ data }) => {
   const metrics = useMemo(() => {
-    const metaLeads = data?.facebookMetrics?.leads || 234;
-    const metaSpend = data?.facebookMetrics?.spend || 6200;
-    const googleLeads = data?.googleMetrics?.leads || 190;
-    const googleSpend = data?.googleMetrics?.cost || 6550;
+    const metaLeads = data?.facebookMetrics?.leads || 0;
+    const metaSpend = data?.facebookMetrics?.spend || 0;
+    const googleLeads = data?.googleMetrics?.leads || 0;
+    const googleSpend = data?.googleMetrics?.cost || 0;
     
     const totalLeads = metaLeads + googleLeads;
     const totalSpend = metaSpend + googleSpend;

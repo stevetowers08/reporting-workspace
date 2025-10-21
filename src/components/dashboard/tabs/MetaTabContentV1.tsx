@@ -1,7 +1,7 @@
 // Meta Ads Tab Content Component
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
-import { useMetaTabDataV2 } from '@/hooks/charts/useChartDataV2';
+import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -30,41 +30,30 @@ const MetaAdsPlatformBreakdown = lazy(() =>
 );
 
 interface MetaTabContentProps {
-  clientId: string;
-  dateRange: { start: string; end: string };
+  metaLoading: boolean;
+  dashboardData?: EventDashboardData;
+  metaTabRef: React.RefObject<HTMLDivElement>;
 }
 
 export const MetaTabContent: React.FC<MetaTabContentProps> = ({
-  clientId,
-  dateRange
+  metaLoading,
+  dashboardData,
+  metaTabRef
 }) => {
-  const { data, isLoading, error } = useMetaTabDataV2(clientId, dateRange);
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center text-red-600">
-          <h3 className="text-lg font-semibold mb-2">Error Loading Meta Data</h3>
-          <p>{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <LoadingOverlay isLoading={isLoading} message="Loading Meta Ads data...">
+    <div ref={metaTabRef}>
+      <LoadingOverlay isLoading={metaLoading} message="Loading Meta Ads data...">
         
         <Suspense fallback={<ComponentLoader />}>
-          <MetaAdsMetricsCards data={data} />
+          <MetaAdsMetricsCards data={dashboardData} />
         </Suspense>
         
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
           <Suspense fallback={<ComponentLoader />}>
-            <MetaAdsDemographics data={data} />
+            <MetaAdsDemographics data={dashboardData} />
           </Suspense>
           <Suspense fallback={<ComponentLoader />}>
-            <MetaAdsPlatformBreakdown data={data} />
+            <MetaAdsPlatformBreakdown data={dashboardData} />
           </Suspense>
         </div>
         

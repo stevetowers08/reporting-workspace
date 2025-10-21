@@ -1,8 +1,21 @@
 # Google Ads Integration
 
 **Last Updated:** January 20, 2025  
-**Service Version:** v14  
-**Implementation Status:** ✅ Active
+**Service Version:** v14 (V2 planned for v21)  
+**Implementation Status:** 🔄 **V2 IMPLEMENTATION PENDING**
+
+## V2 Architecture Implementation (Planned)
+
+### 🔄 **AnalyticsOrchestratorV2** - Planned Implementation
+- **Location:** `src/services/data/analyticsOrchestratorV2.ts`
+- **API Version:** v21 (upgrade from v14)
+- **Features:** Direct API calls, smart caching, request deduplication, error isolation
+- **Status:** Following Facebook Ads V2 pattern for implementation
+
+### Current Service: `GoogleAdsService` (V1)
+- **Location:** `src/services/googleAds/accountsService.ts`
+- **API Version:** v14
+- **Status:** Active, will be replaced by V2 orchestrator
 
 ## Official Documentation
 

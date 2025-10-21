@@ -38,18 +38,18 @@ export const MetricTableCell: React.FC<MetricTableCellProps> = ({
   };
 
   const getCostPerLeadColor = (val: number): string => {
-    if (val < 10) return 'bg-green-50 text-green-800'; // Best
-    if (val < 20) return 'bg-blue-50 text-blue-800';   // Good
-    if (val < 30) return 'bg-yellow-50 text-yellow-800'; // Okay
-    if (val <= 100) return 'bg-orange-50 text-orange-800'; // Starting to get bad
+    if (val < 10) {return 'bg-green-50 text-green-800';} // Best
+    if (val < 20) {return 'bg-blue-50 text-blue-800';}   // Good
+    if (val < 30) {return 'bg-yellow-50 text-yellow-800';} // Okay
+    if (val <= 100) {return 'bg-orange-50 text-orange-800';} // Starting to get bad
     return 'bg-red-50 text-red-800'; // Bad (>100)
   };
 
   const getBackgroundColor = (): string => {
-    if (!colorCode || format !== 'currency') return '';
+    if (!colorCode || format !== 'currency') {return '';}
     
     const numericValue = typeof value === 'string' ? parseFloat(value.replace('$', '')) : value;
-    if (isNaN(numericValue)) return '';
+    if (isNaN(numericValue)) {return '';}
     
     return getCostPerLeadColor(numericValue);
   };

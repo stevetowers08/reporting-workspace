@@ -1,7 +1,7 @@
+import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
 import { DatabaseService } from '@/services/data/databaseService';
 import { CommonGoogleAdsAccount, GoogleAdsApiRow, Integration } from '@/types';
-import { debugLogger } from '@/lib/debug';
 
 // Simple cache for integrations to prevent repeated API calls
 let integrationsCache: Integration[] | null = null;
@@ -14,10 +14,18 @@ async function getCachedIntegrations() {
   
   // Return cached data if it's still valid
   if (integrationsCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    debugLogger.debug('GoogleAdsAccountsService', 'Using cached integrations', { 
+      cacheAge: now - cacheTimestamp,
+      cacheDuration: CACHE_DURATION 
+    });
     return integrationsCache;
   }
   
   // Fetch fresh data and update cache
+  debugLogger.debug('GoogleAdsAccountsService', 'Fetching fresh integrations data', { 
+    cacheAge: now - cacheTimestamp,
+    cacheDuration: CACHE_DURATION 
+  });
   integrationsCache = await DatabaseService.getIntegrations();
   cacheTimestamp = now;
   

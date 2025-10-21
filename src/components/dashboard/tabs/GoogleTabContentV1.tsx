@@ -1,7 +1,7 @@
 // Google Ads Tab Content Component
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
-import { useGoogleTabDataV2 } from '@/hooks/charts/useChartDataV2';
+import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -30,41 +30,30 @@ const GoogleAdsCampaignBreakdown = lazy(() =>
 );
 
 interface GoogleTabContentProps {
-  clientId: string;
-  dateRange: { start: string; end: string };
+  googleLoading: boolean;
+  dashboardData?: EventDashboardData;
+  googleTabRef: React.RefObject<HTMLDivElement>;
 }
 
 export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
-  clientId,
-  dateRange
+  googleLoading,
+  dashboardData,
+  googleTabRef
 }) => {
-  const { data, isLoading, error } = useGoogleTabDataV2(clientId, dateRange);
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center text-red-600">
-          <h3 className="text-lg font-semibold mb-2">Error Loading Google Data</h3>
-          <p>{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <LoadingOverlay isLoading={isLoading} message="Loading Google Ads data...">
+    <div ref={googleTabRef}>
+      <LoadingOverlay isLoading={googleLoading} message="Loading Google Ads data...">
         
         <Suspense fallback={<ComponentLoader />}>
-          <GoogleAdsMetricsCards data={data} />
+          <GoogleAdsMetricsCards data={dashboardData} />
         </Suspense>
         
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
           <Suspense fallback={<ComponentLoader />}>
-            <GoogleAdsDemographics data={data} />
+            <GoogleAdsDemographics data={dashboardData} />
           </Suspense>
           <Suspense fallback={<ComponentLoader />}>
-            <GoogleAdsCampaignBreakdown data={data} />
+            <GoogleAdsCampaignBreakdown data={dashboardData} />
           </Suspense>
         </div>
         

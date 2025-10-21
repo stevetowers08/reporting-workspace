@@ -72,6 +72,30 @@ export interface GoogleMetricsWithTrends {
   clicks: number;
   ctr: number;
   cpc: number;
+  demographics?: {
+    ageGroups: {
+      '25-34': number;
+      '35-44': number;
+      '45-54': number;
+      '55+': number;
+    };
+    gender: {
+      female: number;
+      male: number;
+    };
+  };
+  campaignBreakdown?: {
+    campaignTypes: {
+      search: number;
+      display: number;
+      youtube: number;
+    };
+    adFormats: {
+      textAds: number;
+      responsiveDisplay: number;
+      videoAds: number;
+    };
+  };
   previousPeriod?: GoogleMetricsWithTrends;
 }
 

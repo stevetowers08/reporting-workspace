@@ -128,18 +128,18 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Computed values
   const overallProgress = useMemo(() => {
-    if (loadingTasks.length === 0) return 0;
+    if (loadingTasks.length === 0) {return 0;}
     const totalProgress = loadingTasks.reduce((sum, task) => sum + task.progress, 0);
     return totalProgress / loadingTasks.length;
   }, [loadingTasks]);
 
   const currentMessage = useMemo(() => {
-    if (globalLoading) return globalMessage;
-    if (loadingTasks.length === 0) return '';
+    if (globalLoading) {return globalMessage;}
+    if (loadingTasks.length === 0) {return '';}
     
     // Get the most recent task or the one with highest progress
     const activeTasks = loadingTasks.filter(task => task.progress < 100);
-    if (activeTasks.length === 0) return '';
+    if (activeTasks.length === 0) {return '';}
     
     const latestTask = activeTasks.reduce((latest, current) => 
       current.startTime > latest.startTime ? current : latest

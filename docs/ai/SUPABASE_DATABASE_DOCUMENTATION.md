@@ -1,8 +1,12 @@
 # Supabase Database Structure Documentation
 
+**Last Updated:** January 20, 2025  
+**Version:** 2.0.0  
+**Status:** ✅ **V2 ARCHITECTURE COMPATIBLE**
+
 ## Overview
 
-The Supabase database serves as the central data store for the Marketing Analytics Dashboard, managing integrations, authentication tokens, client data, metrics, and OAuth credentials. This document provides a comprehensive overview of the database schema, relationships, and usage patterns.
+The Supabase database serves as the central data store for the Marketing Analytics Dashboard, managing integrations, authentication tokens, client data, metrics, and OAuth credentials. The V2 architecture maintains full compatibility with the existing database schema while adding new caching and performance optimizations.
 
 ## Database Architecture
 

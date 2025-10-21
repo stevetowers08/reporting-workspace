@@ -42,14 +42,14 @@ export const LoadingProvider: React.FC<{ children: ReactNode }> = ({ children })
   
   const getLoadingMessage = useCallback(() => {
     const states = Array.from(loadingStates.values());
-    if (states.length === 0) return '';
+    if (states.length === 0) {return '';}
     
     // Return the most important loading message
     const pageLoading = states.find(s => s.type === 'page');
-    if (pageLoading) return pageLoading.message || 'Loading...';
+    if (pageLoading) {return pageLoading.message || 'Loading...';}
     
     const componentLoading = states.find(s => s.type === 'component');
-    if (componentLoading) return componentLoading.message || 'Loading...';
+    if (componentLoading) {return componentLoading.message || 'Loading...';}
     
     return states[0].message || 'Loading...';
   }, [loadingStates]);
@@ -300,7 +300,7 @@ export const LoadingOverlay: React.FC<{
 export const GlobalLoadingIndicator: React.FC = () => {
   const { isAnyLoading, getLoadingMessage } = useGlobalLoading();
   
-  if (!isAnyLoading) return null;
+  if (!isAnyLoading) {return null;}
   
   return (
     <div className="fixed top-4 right-4 z-50">
