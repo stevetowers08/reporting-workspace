@@ -193,8 +193,7 @@ export class GoogleSheetsService {
         spreadsheetId,
         range,
         rowCount: data.values?.length || 0,
-        firstRow: data.values?.[0],
-        sampleData: data.values?.slice(0, 3)
+        firstRow: data.values?.[0]
       });
 
       return data;

@@ -74,7 +74,7 @@ export class FacebookTroubleshoot {
     // Test 5: API Endpoints
     try {
       const token = await FacebookAdsService.getAccessToken();
-      const response = await fetch(`https://graph.facebook.com/v19.0/me?access_token=${token}`);
+      const response = await fetch(`https://graph.facebook.com/v22.0/me?access_token=${token}`);
       const userData = await response.json();
       
       if (response.ok) {

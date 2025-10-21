@@ -1,8 +1,8 @@
-// Summary Tab Content Component
+// Summary Tab Content Component - Updated to use independent API calls
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
 import { Card } from "@/components/ui/card";
-import { useV2SummaryTabData } from '@/hooks/useV2TabSpecificData';
+import { useIndependentSummaryData } from '@/hooks/useIndependentSummaryData';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -23,7 +23,7 @@ const PlatformPerformanceStatusChart = lazy(() =>
 );
 
 const LeadByMonthChart = lazy(() => 
-  import('@/components/dashboard/LeadByDayChart')
+  import('@/components/dashboard/LeadByMonthChart')
     .then(module => ({ default: module.LeadByMonthChart }))
     .catch(() => ({ 
       default: React.memo(() => <div>Failed to load component</div>) 
@@ -47,7 +47,7 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   clientId,
   dateRange
 }) => {
-  const { data, isLoading, error } = useV2SummaryTabData(clientId, dateRange);
+  const { data, isLoading, error } = useIndependentSummaryData(clientId, dateRange);
 
   if (error) {
     return (
@@ -70,7 +70,7 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
         
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
           <Card className="bg-white border border-slate-200 p-6">
-            <div className="pb-3">
+            <div className="pb-4">
               <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
             </div>
             <div className="h-64">
@@ -80,12 +80,14 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
             </div>
           </Card>
 
-          <Card className="bg-white border border-slate-200 p-5">
-            <div className="pb-2">
+          <Card className="bg-white border border-slate-200 p-6">
+            <div className="pb-4">
               <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
             </div>
-            <div className="h-64 -mx-1">
-              <LeadByMonthChart data={data} />
+            <div className="h-64 ">
+              <LeadByMonthChart 
+                clientId={clientId}
+              />
             </div>
           </Card>
 

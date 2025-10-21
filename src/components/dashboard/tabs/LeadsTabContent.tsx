@@ -2,7 +2,7 @@
 import { AppErrorBoundary } from "@/components/error/AppErrorBoundary";
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
-import { useLeadsTabDataV2 } from '@/hooks/charts/useChartDataV2';
+import { useLeadsTabData } from '@/hooks/useTabSpecificData';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -39,7 +39,7 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = ({
   clientId,
   dateRange
 }) => {
-  const { data, isLoading, error } = useLeadsTabDataV2(clientId, dateRange);
+  const { data, isLoading, error } = useLeadsTabData(clientId, dateRange);
 
   if (error) {
     return (

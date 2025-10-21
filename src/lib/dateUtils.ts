@@ -5,6 +5,7 @@
 export interface DateRange {
   start: string;
   end: string;
+  period?: string; // For API preset periods like 'lastMonth'
 }
 
 /**
@@ -24,6 +25,13 @@ export function getDateRange(period: string): DateRange {
     case '30d':
       startDate.setDate(endDate.getDate() - 30);
       break;
+    case 'lastMonth':
+      // For lastMonth, let the API handle it with date_preset
+      return {
+        start: '',
+        end: '',
+        period: 'lastMonth'
+      };
     case '90d':
       startDate.setDate(endDate.getDate() - 90);
       break;

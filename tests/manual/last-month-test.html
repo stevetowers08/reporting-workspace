@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Month Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        .date-display { font-family: monospace; background: #f0f0f0; padding: 5px; margin: 5px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Last Month Functionality Test</h1>
+    
+    <div class="test-result">
+        <h2>Current Date: <span id="currentDate"></span></h2>
+        <button onclick="testLastMonth()">Test Last Month Calculation</button>
+        <div id="testResults"></div>
+    </div>
+
+    <div class="test-result">
+        <h2>Implementation Comparison</h2>
+        <div id="comparisonResults"></div>
+    </div>
+
+    <script>
+        // Update current date display
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
+
+        // Test different implementations found in the codebase
+        function testLastMonthUnifiedHeader() {
+            const now = new Date();
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            
+            return {
+                start: lastMonth.toISOString().split('T')[0],
+                end: lastMonthEnd.toISOString().split('T')[0],
+                method: 'UnifiedHeader (millisecond arithmetic)'
+            };
+        }
+
+        function testLastMonthAnalytics() {
+            const end = new Date();
+            const start = new Date();
+            
+            start.setMonth(end.getMonth() - 1);
+            start.setDate(1);
+            end.setDate(0); // Last day of previous month
+            
+            return {
+                start: start.toISOString().split('T')[0],
+                end: end.toISOString().split('T')[0],
+                method: 'Analytics Tables (setMonth/setDate)'
+            };
+        }
+
+        function testLastMonthReporting() {
+            const endDate = new Date();
+            const startDate = new Date();
+            
+            startDate.setMonth(endDate.getMonth() - 1, 1);
+            endDate.setDate(0); // Last day of previous month
+            
+            return {
+                start: startDate.toISOString().split('T')[0],
+                end: endDate.toISOString().split('T')[0],
+                method: 'Reporting Services (setMonth with day)'
+            };
+        }
+
+        function testLastMonth() {
+            const results = [
+                testLastMonthUnifiedHeader(),
+                testLastMonthAnalytics(),
+                testLastMonthReporting()
+            ];
+
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = results.map(result => `
+                <div class="date-display">
+                    <strong>${result.method}:</strong><br>
+                    Start: ${result.start}<br>
+                    End: ${result.end}<br>
+                    Days: ${Math.ceil((new Date(result.end) - new Date(result.start)) / (1000 * 60 * 60 * 24)) + 1} days
+                </div>
+            `).join('');
+
+            // Check for consistency
+            const allSame = results.every(r => r.start === results[0].start && r.end === results[0].end);
+            if (allSame) {
+                resultsDiv.innerHTML += '<div class="success">✅ All implementations are consistent!</div>';
+            } else {
+                resultsDiv.innerHTML += '<div class="error">❌ Implementations are inconsistent!</div>';
+            }
+        }
+
+        function testEdgeCases() {
+            const testDates = [
+                new Date(2024, 0, 1),   // Jan 1, 2024
+                new Date(2024, 0, 15),  // Jan 15, 2024
+                new Date(2024, 0, 31),  // Jan 31, 2024
+                new Date(2024, 1, 1),   // Feb 1, 2024 (leap year)
+                new Date(2024, 1, 29),  // Feb 29, 2024 (leap day)
+                new Date(2024, 11, 31), // Dec 31, 2024
+            ];
+
+            const comparisonDiv = document.getElementById('comparisonResults');
+            comparisonDiv.innerHTML = testDates.map(testDate => {
+                const originalDate = new Date(testDate);
+                
+                // Test UnifiedHeader method
+                const lastMonth = new Date(testDate.getFullYear(), testDate.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(testDate.getFullYear(), testDate.getMonth(), 0);
+                
+                // Test Analytics method
+                const end = new Date(testDate);
+                const start = new Date(testDate);
+                start.setMonth(end.getMonth() - 1);
+                start.setDate(1);
+                end.setDate(0);
+                
+                const unifiedResult = {
+                    start: lastMonth.toISOString().split('T')[0],
+                    end: lastMonthEnd.toISOString().split('T')[0]
+                };
+                
+                const analyticsResult = {
+                    start: start.toISOString().split('T')[0],
+                    end: end.toISOString().split('T')[0]
+                };
+                
+                const isConsistent = unifiedResult.start === analyticsResult.start && unifiedResult.end === analyticsResult.end;
+                
+                return `
+                    <div class="date-display">
+                        <strong>Test Date: ${originalDate.toLocaleDateString()}</strong><br>
+                        UnifiedHeader: ${unifiedResult.start} to ${unifiedResult.end}<br>
+                        Analytics: ${analyticsResult.start} to ${analyticsResult.end}<br>
+                        ${isConsistent ? '✅ Consistent' : '❌ Inconsistent'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Run tests on page load
+        window.onload = function() {
+            testLastMonth();
+            testEdgeCases();
+        };
+    </script>
+</body>
+</html>

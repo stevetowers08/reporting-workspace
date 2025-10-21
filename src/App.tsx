@@ -14,12 +14,10 @@ import AgencyPanel from "@/pages/AdminPanel";
 import ClientEditPage from "@/pages/ClientEditPage";
 // ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
 import { DashboardSkeleton } from "@/components/ui/UnifiedLoadingSystem";
-import FacebookAdsPage from "@/pages/FacebookAdsPage";
 import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
 import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
-import GoogleAdsPage from "@/pages/GoogleAdsPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
 import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
@@ -28,9 +26,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-// V2 Components - New Architecture
-import { V2Navigation } from "@/components/dashboard/V2Navigation";
-import { GoogleTabContentV2Wrapper, LeadsTabContentV2Wrapper, MetaTabContentV2Wrapper, SummaryTabContentV2Wrapper } from "@/components/dashboard/tabs/V2RouteWrappers";
+// Components - New Architecture
 
 // ✅ FIX: Lazy load EventDashboard to prevent TDZ issues
 const EventDashboard = lazy(() => 
@@ -253,12 +249,7 @@ const App = () => {
                     </Suspense>
                   } />
                   
-                  {/* V2 Routes - New Architecture Testing */}
-                  <Route path="/dashboard/v2/:clientId" element={<V2Navigation />} />
-                  <Route path="/dashboard/v2/summary/:clientId" element={<SummaryTabContentV2Wrapper />} />
-                  <Route path="/dashboard/v2/meta/:clientId" element={<MetaTabContentV2Wrapper />} />
-                  <Route path="/dashboard/v2/google/:clientId" element={<GoogleTabContentV2Wrapper />} />
-                  <Route path="/dashboard/v2/leads/:clientId" element={<LeadsTabContentV2Wrapper />} />
+                  {/* Routes - New Architecture Testing */}
                   <Route path="/agency" element={<AgencyPanel />} />
                   <Route path="/agency/clients" element={<AgencyPanel />} />
                   <Route path="/agency/integrations" element={<AgencyPanel />} />
@@ -266,9 +257,7 @@ const App = () => {
                   <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
                   <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
                   <Route path="/ad-accounts" element={<AdAccountsOverview />} />
-                  <Route path="/facebook-ads" element={<FacebookAdsPage />} />
                   <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
-                  <Route path="/google-ads" element={<GoogleAdsPage />} />
                   <Route path="/api-testing" element={<APITestingPage />} />
                   <Route path="/oauth/callback" element={<OAuthCallback />} />
                   <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />

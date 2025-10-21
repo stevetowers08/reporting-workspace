@@ -1,4 +1,6 @@
+import { ChartErrorWrapper } from '@/components/charts/ChartErrorWrapper';
 import { ConditionalGHLChart } from '@/components/charts/ConditionalGHLChart';
+import { useChartError } from '@/hooks/useChartError';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React, { useEffect, useState } from 'react';
 import { DailyFunnelAnalytics } from './DailyFunnelAnalytics';
@@ -19,6 +21,8 @@ interface ChartConfig {
   props: any;
   priority: number;
   hasData: boolean;
+  endpoint?: string;
+  errorType?: 'network' | 'api' | 'auth' | 'generic';
 }
 
 export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({ 
@@ -27,7 +31,11 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
   locationId 
 }) => {
   const [availableCharts, setAvailableCharts] = useState<ChartConfig[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
+  const { error: chartError, setError: setChartError, retry, isRetrying } = useChartError(() => {
+    // Retry logic - reload the page or refetch data
+    window.location.reload();
+  });
 
   useEffect(() => {
     try {
@@ -37,35 +45,45 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
           component: GHLOpportunityMetricsCard,
           props: { data: dashboardData },
           priority: 1,
-          hasData: true // Always show - shows real opportunity data from API
+          hasData: true,
+          endpoint: 'GoHighLevel API - Opportunities',
+          errorType: 'api'
         },
         {
           id: 'daily-funnel',
           component: DailyFunnelAnalytics,
           props: { locationId, dateRange },
           priority: 2,
-          hasData: true // Always show this one
+          hasData: true,
+          endpoint: 'GoHighLevel API - Funnel Analytics',
+          errorType: 'api'
         },
         {
           id: 'event-types',
           component: EventTypesBreakdown,
           props: { data: dashboardData, dateRange },
           priority: 3,
-          hasData: true // Always show - component handles empty data gracefully
+          hasData: true,
+          endpoint: 'Lead Data Service',
+          errorType: 'api'
         },
         {
           id: 'guest-count',
           component: GuestCountDistribution,
           props: { data: dashboardData },
           priority: 4,
-          hasData: true // Always show - component handles empty data gracefully
+          hasData: true,
+          endpoint: 'Lead Data Service',
+          errorType: 'api'
         },
         {
           id: 'opportunity-stages',
           component: OpportunityStagesChart,
           props: { data: dashboardData, dateRange },
           priority: 5,
-          hasData: true // Always show opportunities chart - it handles empty data gracefully
+          hasData: true,
+          endpoint: 'GoHighLevel API - Opportunity Stages',
+          errorType: 'api'
         }
       ];
 
@@ -74,8 +92,15 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
 
       setAvailableCharts(sortedCharts);
       setError(null);
-    } catch (error) {
-      setError('Failed to initialize charts');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize charts';
+      setChartError({
+        message: errorMessage,
+        endpoint: 'Chart Registry',
+        reason: 'Initialization Error',
+        errorType: 'generic',
+        timestamp: Date.now()
+      });
       setAvailableCharts([]);
     }
   }, [dashboardData, dateRange, locationId]);
@@ -86,12 +111,14 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
     chartPairs.push(availableCharts.slice(i, i + 2));
   }
 
-  if (error) {
+  if (chartError) {
     return (
-      <div className="text-center py-8 text-slate-500">
-        <p>{error}</p>
-        <p className="text-sm mt-2">Please try refreshing the page.</p>
-      </div>
+      <ChartErrorWrapper
+        error={chartError}
+        onRetry={retry}
+        isRetrying={isRetrying}
+        compact={false}
+      />
     );
   }
 
@@ -118,7 +145,14 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
                     locationId={locationId}
                     hasGHLAccount={!!dashboardData?.clientData?.accounts?.goHighLevel}
                   >
-                    <ChartComponent {...chart.props} />
+                    <ChartErrorWrapper
+                      error={null}
+                      isLoading={false}
+                      onRetry={() => window.location.reload()}
+                      compact={true}
+                    >
+                      <ChartComponent {...chart.props} />
+                    </ChartErrorWrapper>
                   </ConditionalGHLChart>
                 </div>
               );
@@ -126,7 +160,14 @@ export const SmartChartLayout: React.FC<SmartChartLayoutProps> = ({
             
             return (
               <div key={chart.id} className="min-h-[300px]">
-                <ChartComponent {...chart.props} />
+                <ChartErrorWrapper
+                  error={null}
+                  isLoading={false}
+                  onRetry={() => window.location.reload()}
+                  compact={true}
+                >
+                  <ChartComponent {...chart.props} />
+                </ChartErrorWrapper>
               </div>
             );
           })}

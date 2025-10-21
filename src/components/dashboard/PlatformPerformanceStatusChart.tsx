@@ -39,7 +39,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
     <div className="space-y-6">
       {/* Leads Performance */}
       <div>
-        <div className="flex justify-between items-center mb-3">
+        <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-semibold text-slate-700">Leads Distribution</h3>
           <span className="text-xs text-slate-500">{metrics.totalLeads.toLocaleString()} total leads</span>
         </div>
@@ -86,7 +86,7 @@ export const PlatformPerformanceStatusChart = React.memo<PlatformPerformanceStat
       
       {/* Spend Performance */}
       <div>
-        <div className="flex justify-between items-center mb-3">
+        <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-semibold text-slate-700">Spend Distribution</h3>
           <span className="text-xs text-slate-500">${Math.round(metrics.totalSpend).toLocaleString()} total spend</span>
         </div>

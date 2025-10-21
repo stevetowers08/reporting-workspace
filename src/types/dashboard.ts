@@ -1,3 +1,5 @@
+import { Client } from '../services/data/databaseService';
+
 export interface EventDashboardData {
     // Summary metrics
     totalLeads: number;
@@ -5,14 +7,24 @@ export interface EventDashboardData {
     totalRevenue: number;
     roi: number;
 
-    // Platform-specific data
-    facebookMetrics: FacebookAdsMetrics & { costPerLead: number };
-    googleMetrics: GoogleAdsMetrics & { costPerLead: number };
-    ghlMetrics: GoHighLevelMetrics;
-    eventMetrics: EventMetrics;
+    // Platform-specific data - Using modern types with trends
+    facebookMetrics?: FacebookMetricsWithTrends;
+    googleMetrics?: GoogleMetricsWithTrends;
+    ghlMetrics?: GoHighLevelMetrics;
+    eventMetrics?: EventMetrics;
 
     // Combined insights
-    leadMetrics: EventLeadMetrics;
+    leadMetrics?: EventLeadMetrics;
+    leadData?: any; // Raw lead data from Google Sheets for components
+
+    // Monthly leads data
+    monthlyLeadsData?: Array<{
+        month: string; // YYYY-MM format
+        monthLabel: string; // "Jun 2025" format
+        facebookLeads: number;
+        googleLeads: number;
+        totalLeads: number;
+    }>;
 
     // Client data
     clientData?: Client;
@@ -109,6 +121,8 @@ export interface FacebookMetricsWithTrends {
     conversions: number;
     costPerLead: number;
     ctr: number;
+    cpm: number;
+    cpc: number;
     demographics?: any;
     platformBreakdown?: any;
 }
@@ -122,6 +136,7 @@ export interface GoogleMetricsWithTrends {
     conversions: number;
     conversionRate: number;
     ctr: number;
+    costPerConversion: number;
     demographics?: any;
     campaignBreakdown?: any;
 }

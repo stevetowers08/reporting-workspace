@@ -110,13 +110,8 @@ export class GoogleAiService {
     } catch (error) {
       debugLogger.error('GoogleAiService', 'Error generating AI insights', error);
       
-      // Return empty insights instead of fallback data
-      return {
-        insights: [],
-        summary: 'Unable to generate insights at this time',
-        recommendations: [],
-        generatedAt: new Date().toISOString()
-      };
+      // Return null instead of fallback data
+      return null;
     }
   }
 

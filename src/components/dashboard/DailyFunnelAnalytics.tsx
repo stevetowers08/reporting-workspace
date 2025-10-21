@@ -1,5 +1,7 @@
+import { ErrorState } from '@/components/ui/ErrorState';
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
+import { useChartError } from '@/hooks/useChartError';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -19,37 +21,47 @@ interface DailyData {
 export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ locationId, dateRange }) => {
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { error, setError, retry, isRetrying } = useChartError(async () => {
+    // Retry logic
+    await fetchDailyData();
+  });
+
+  const fetchDailyData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Get funnel analytics data
+      // Convert date range format for API
+      const apiDateRange = dateRange ? {
+        startDate: dateRange.start,
+        endDate: dateRange.end
+      } : undefined;
+      
+      const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
+      
+      // Generate daily data based on total metrics and date range
+      const dailyData = generateDailyData(funnelData, dateRange);
+      
+      setDailyData(dailyData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch daily funnel data';
+      setError({
+        message: errorMessage,
+        endpoint: 'GoHighLevel API - Funnel Analytics',
+        reason: err instanceof Error ? err.message : 'Unknown error',
+        errorType: 'api',
+        details: `Location ID: ${locationId}`,
+        timestamp: Date.now()
+      });
+      setDailyData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDailyData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Get funnel analytics data
-        // Convert date range format for API
-        const apiDateRange = dateRange ? {
-          startDate: dateRange.start,
-          endDate: dateRange.end
-        } : undefined;
-        
-        const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
-        
-        // Generate daily data based on total metrics and date range
-        const dailyData = generateDailyData(funnelData, dateRange);
-        
-        setDailyData(dailyData);
-      } catch (err) {
-        // Error handled by error boundary
-        setError(err instanceof Error ? err.message : 'Failed to fetch daily funnel data');
-        // Set empty data instead of leaving it undefined
-        setDailyData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDailyData();
   }, [locationId, dateRange]);
 
@@ -101,7 +113,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
   if (loading) {
     return (
       <Card className="bg-white border border-slate-200  p-6">
-        <div className="pb-3">
+        <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
@@ -117,22 +129,24 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
 
   if (error) {
     return (
-      <Card className="bg-white border border-slate-200  p-6">
-        <div className="pb-3">
-          <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
-          <p className="text-sm text-slate-600">Page views and conversions over time</p>
-        </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="text-red-500">Error: {error}</div>
-        </div>
-      </Card>
+      <ErrorState
+        message={error.message}
+        endpoint={error.endpoint}
+        reason={error.reason}
+        errorType={error.errorType}
+        details={error.details}
+        showRetry={true}
+        onRetry={retry}
+        isRetrying={isRetrying}
+        compact={false}
+      />
     );
   }
 
   if (dailyData.length === 0) {
     return (
       <Card className="bg-white border border-slate-200  p-6">
-        <div className="pb-3">
+        <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
           <p className="text-sm text-slate-600">Page views and conversions over time</p>
         </div>
@@ -153,7 +167,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
 
   return (
     <Card className="bg-white border border-slate-200  p-6 w-full">
-      <div className="pb-3">
+      <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Daily Funnel Analytics</h3>
         <p className="text-sm text-slate-600">
           {dateRange ? 
@@ -168,7 +182,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
       
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={dailyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={dailyData} margin={{ top: 20, right: 30, left: 5, bottom: 20 }}>
             <XAxis 
               dataKey="date" 
               tick={{ fontSize: 12 }}

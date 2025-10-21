@@ -1,7 +1,7 @@
 import { ConnectLocationButton } from '@/components/agency/ConnectLocationButton';
 import { GoogleSheetsSelector } from '@/components/integration/GoogleSheetsSelector';
-import { Spinner } from "@/components/ui/UnifiedLoadingSystem";
 import { LogoManager } from "@/components/ui/LogoManager";
+import { Spinner } from "@/components/ui/UnifiedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label-simple";
@@ -405,6 +405,25 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       newErrors.name = "Client name is required";
     }
 
+    // Validate name length and characters
+    if (formData.name && formData.name.length > 100) {
+      newErrors.name = "Client name must be less than 100 characters";
+    }
+
+    // Validate name contains only allowed characters
+    if (formData.name && !/^[a-zA-Z0-9\s\-_&.()]+$/.test(formData.name)) {
+      newErrors.name = "Client name contains invalid characters";
+    }
+
+    // Validate logo URL if provided
+    if (formData.logo_url && formData.logo_url.trim() !== '') {
+      try {
+        new URL(formData.logo_url);
+      } catch {
+        newErrors.logo = "Logo URL must be a valid URL";
+      }
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       debugLogger.warn('ClientForm', 'Form validation failed', newErrors);
@@ -461,7 +480,13 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
 
     } catch (error) {
       debugLogger.error('ClientForm', 'Form submission failed', error);
-      setErrors({ submit: 'Failed to save client. Please try again.' });
+      
+      // Show specific error message
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save client. Please try again.';
+      setErrors({ submit: errorMessage });
+      
+      // Log to console for debugging
+      // console.error('ClientForm submission error:', error);
     } finally {
       setIsSubmitting(false);
     }

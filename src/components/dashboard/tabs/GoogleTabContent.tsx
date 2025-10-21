@@ -1,7 +1,7 @@
 // Google Ads Tab Content Component
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
-import { useGoogleTabDataV2 } from '@/hooks/charts/useChartDataV2';
+import { useGoogleTabData } from '@/hooks/useTabSpecificData';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -38,7 +38,7 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
   clientId,
   dateRange
 }) => {
-  const { data, isLoading, error } = useGoogleTabDataV2(clientId, dateRange);
+  const { data, isLoading, error } = useGoogleTabData(clientId, dateRange);
 
   if (error) {
     return (

@@ -1,5 +1,5 @@
 /**
- * Chart Registry V2
+ * Chart Registry
  * Implements dynamic chart loading based on data availability
  * Easy to add new chart types and platforms
  */
@@ -18,6 +18,7 @@ interface ChartConfig {
   platforms: string[]; // Which platforms this chart supports
   priority: number; // Higher priority charts load first
   category: 'overview' | 'platform' | 'detailed' | 'insights';
+  errorHandler?: (error: any) => any; // Custom error handler
 }
 
 // Chart registry class

@@ -32,10 +32,9 @@ const supabaseHelpers = {
       .from('clients')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
     
     if (error) {
-      if (error.code === 'PGRST116') {return null;}
       throw error;
     }
     
@@ -48,13 +47,20 @@ const supabaseHelpers = {
   },
 
   async createClient(client: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<Client> {
+    console.log('supabaseHelpers.createClient: Inserting client:', client);
+    
     const { data, error } = await supabase
       .from('clients')
       .insert(client)
       .select()
       .single();
     
-    if (error) {throw error;}
+    if (error) {
+      console.error('supabaseHelpers.createClient: Database error:', error);
+      throw error;
+    }
+    
+    console.log('supabaseHelpers.createClient: Success, returned data:', data);
     return data;
   },
 
@@ -286,6 +292,8 @@ export class DatabaseService {
     };
   }): Promise<Client> {
     try {
+      debugLogger.info('DatabaseService', 'Starting client creation', { clientData });
+      
       // Validate input data
       const validatedData = validateInput(ClientCreateSchema, {
         name: clientData.name,
@@ -307,6 +315,8 @@ export class DatabaseService {
         conversion_actions: clientData.conversionActions,
       });
 
+      debugLogger.info('DatabaseService', 'Validation passed', { validatedData });
+
       // Include Google Sheets config in the accounts object
       const accountsWithSheetsConfig = {
         ...clientData.accounts,
@@ -326,12 +336,30 @@ export class DatabaseService {
         shareable_link: `https://eventmetrics.com/share/${Date.now()}`
       };
 
+      debugLogger.info('DatabaseService', 'About to insert client', { newClient });
+
       const client = await supabaseHelpers.createClient(newClient);
       debugLogger.info('DatabaseService', 'Client created successfully in database', { id: client.id, name: client.name });
+      
+      console.log('DatabaseService: Client created successfully:', client);
       return client;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error creating client in database', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('validation')) {
+          throw new Error(`Validation failed: ${error.message}`);
+        } else if (error.message.includes('duplicate')) {
+          throw new Error('A client with this name already exists');
+        } else if (error.message.includes('permission')) {
+          throw new Error('Permission denied. Please check your access rights');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      }
+      
+      throw new Error('Failed to create client. Please try again.');
     }
   }
 

@@ -38,6 +38,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
     const handleSubmit = async (formData: any) => {
         
         debugLogger.info('EditClientModal', 'handleSubmit called', { formData, clientId: client?.id, isCreating: !client });
+        console.log('EditClientModal: Received formData:', formData);
         
         // Transform form data to match expected format
         const clientData = {
@@ -60,6 +61,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             }
         };
         
+        console.log('EditClientModal: Transformed clientData:', clientData);
         
         if (client) {
             // Editing existing client
@@ -68,6 +70,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
         } else if (onCreateClient) {
             // Creating new client
             debugLogger.info('EditClientModal', 'Calling onCreateClient', { clientData });
+            console.log('EditClientModal: Calling onCreateClient with:', clientData);
             await onCreateClient(clientData);
         }
     };

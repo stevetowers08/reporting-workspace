@@ -1,17 +1,7 @@
 import { API_BASE_URLS, API_VERSIONS } from '@/constants/apiVersions';
 import { debugLogger, debugService } from '@/lib/debug';
-import { 
-  FacebookApiResponse, 
-  FacebookAdAccount, 
-  FacebookBusiness, 
-  FacebookSystemUser, 
-  FacebookInsightData, 
-  FacebookConversionAction, 
-  FacebookErrorResponse,
-  CachedData,
-  MetricsData,
-  DemographicsData,
-  PlatformBreakdown
+import {
+    CachedData
 } from '@/types/api';
 
 export interface FacebookAdsMetrics {
@@ -284,39 +274,20 @@ export class FacebookAdsService {
     throw new Error('Maximum retry attempts exceeded');
   }
 
-  // Helper method to build Facebook API URL with both tokens
-  private static async buildApiUrl(endpoint: string, params: Record<string, string> = {}, userToken?: string): Promise<string> {
-    const token = userToken || await this.getUserAccessToken();
-    
-    const urlParams = new URLSearchParams({
-      ...params,
-      access_token: token,
-      // Note: Developer token is typically passed in headers, not URL params
-    });
-    
-    return `${this.BASE_URL}/${endpoint}?${urlParams}`;
-  }
 
-  // Helper method to build Facebook API headers with developer token
-  private static async buildApiHeaders(): Promise<Record<string, string>> {
-    const developerToken = await this.getDeveloperToken();
-    
-    return {
-      'Authorization': `Bearer ${developerToken}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'Marketing-Analytics-Dashboard/1.0'
-    };
-  }
 
   static async authenticate(accessToken?: string, _adAccountId?: string): Promise<boolean> {
     try {
       const userToken = accessToken || await this.getUserAccessToken();
-      const _developerToken = await this.getDeveloperToken();
 
-      // Validate both tokens with Facebook Graph API
-      const headers = await this.buildApiHeaders();
+      // Validate token with Facebook Graph API using proper headers
+      const headers = {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json'
+      };
+      
       const response = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me?access_token=${userToken}`,
+        `${this.BASE_URL}/me`,
         { headers }
       );
 
@@ -338,16 +309,19 @@ export class FacebookAdsService {
   static async validateTokenScopes(): Promise<{ hasBusinessManagement: boolean; scopes: string[] }> {
     try {
       const userToken = await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
       
-      if (!userToken || !developerToken) {
+      if (!userToken) {
         return { hasBusinessManagement: false, scopes: [] };
       }
 
       // Try to access business management endpoint to check if permission is available
-      const headers = await this.buildApiHeaders();
+      const headers = {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json'
+      };
+      
       const businessResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id&access_token=${userToken}`,
+        `${this.BASE_URL}/me/businesses?fields=id`,
         { headers }
       );
       const hasBusinessManagement = businessResponse.ok;
@@ -394,132 +368,137 @@ export class FacebookAdsService {
       debugLogger.debug('FacebookAdsService', 'No cached accounts found, fetching from Facebook API');
       
       const userToken = await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
       
-      if (!userToken || !developerToken) {
-        throw new Error('Facebook tokens not found. Please authenticate first.');
+      if (!userToken) {
+        throw new Error('Facebook user access token not found. Please authenticate first.');
       }
 
-      // Debug token info (without exposing the tokens)
       debugLogger.debug('FacebookAdsService', 'Facebook user token length', userToken.length);
-      debugLogger.debug('FacebookAdsService', 'Facebook developer token length', developerToken.length);
 
-      const allAccounts: FacebookAdAccount[] = [];
+      // Use proper Authorization header format as per Facebook API documentation
+      const headers = {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json'
+      };
 
-      // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
-      const headers = await this.buildApiHeaders();
-      const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
-        // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`, { headers })
-          .then(response => response.ok ? response.json() : { data: [] })
-          .then(data => {
-            debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
-            return data.data || [];
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching user ad accounts', error);
-            return [];
-          }),
+      // Define fields to fetch according to Facebook API documentation
+      const fields = [
+        'account_id',           // Ad account ID (without 'act_' prefix)
+        'id',                   // Full ID (with 'act_' prefix)
+        'name',                 // Account name
+        'account_status',       // Account status (1=ACTIVE, 2=DISABLED, etc.)
+        'currency',             // Currency code (USD, EUR, etc.)
+        'timezone_id',          // Timezone ID
+        'timezone_name',        // Timezone name
+        'business{name}',        // Business Manager info
+        'amount_spent'          // Total amount spent
+      ].join(',');
 
-        // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`, { headers })
-          .then(response => {
-            if (!response.ok) {
-              if (response.status === 403) {
-                debugLogger.warn('FacebookAdsService', 'Business Management permission not available or not granted. Skipping business accounts.');
-                return { data: [] };
-              }
-              throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
-            }
-            return response.json();
-          })
-          .then(async businessData => {
-            debugLogger.debug('FacebookAdsService', 'Business Managers found', businessData.data?.length || 0);
-
-            if (!businessData.data?.length) {return [];}
-
-            // Fetch ALL ad accounts for all Business Managers in parallel
-            // This includes both owned_ad_accounts AND client_ad_accounts
-            const businessAccountPromises = businessData.data.map(async (business: any) => {
-              try {
-                const allBusinessAccounts: any[] = [];
-                
-                // Fetch owned ad accounts with pagination support
-                const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
-                );
-                allBusinessAccounts.push(...ownedAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
-                
-                // Fetch client ad accounts (accounts managed by this business) with pagination support
-                const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
-                );
-                allBusinessAccounts.push(...clientAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
-                
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
-                return allBusinessAccounts;
-              } catch (error) {
-                debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
-                return [];
-              }
-            });
-
-            const businessAccountResults = await Promise.allSettled(businessAccountPromises);
-            return businessAccountResults
-              .filter(result => result.status === 'fulfilled')
-              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching Business Managers', error);
-            return [];
-          }),
-
-        // Get accounts via system users (additional method to ensure comprehensive coverage)
-        FacebookAdsService.fetchSystemUserAccounts(userToken)
-          .catch(error => {
-            debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
-            return [];
-          })
-      ]);
-
-      // Combine all accounts
-      if (userAccounts.status === 'fulfilled') {
-        allAccounts.push(...userAccounts.value);
-      }
-      if (businessAccounts.status === 'fulfilled') {
-        allAccounts.push(...businessAccounts.value);
-      }
-      if (systemUserAccounts.status === 'fulfilled') {
-        allAccounts.push(...systemUserAccounts.value);
-      }
-
-      // Remove duplicates based on ID
-      const uniqueAccounts = allAccounts.filter((account, index, self) =>
-        index === self.findIndex(a => a.id === account.id)
-      );
-
-      debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API', uniqueAccounts.length);
-      debugLogger.info('FacebookAdsService', 'Comprehensive ad account fetch completed', {
-        userAccounts: userAccounts.status === 'fulfilled' ? userAccounts.value.length : 0,
-        businessAccounts: businessAccounts.status === 'fulfilled' ? businessAccounts.value.length : 0,
-        systemUserAccounts: systemUserAccounts.status === 'fulfilled' ? systemUserAccounts.value.length : 0,
-        totalUnique: uniqueAccounts.length
-      });
-      
-      // Cache the results in Supabase for future use
       try {
-        await this.cacheAdAccounts(uniqueAccounts);
+        // Fetch ALL ad accounts with comprehensive pagination
+        const allAccounts = await this.fetchAllAdAccountsWithPagination(fields, headers);
+        
+        debugLogger.debug('FacebookAdsService', 'All ad accounts fetched', allAccounts.length);
+
+        // Process and format the accounts according to Facebook API documentation
+        const processedAccounts = allAccounts.map((account: any) => ({
+          id: account.id,                    // Full ID with 'act_' prefix
+          account_id: account.account_id,    // Numeric ID
+          name: account.name || 'Unnamed Account',
+          account_status: account.account_status,
+          currency: account.currency,
+          timezone_id: account.timezone_id,
+          timezone_name: account.timezone_name,
+          amount_spent: account.amount_spent ? parseFloat(account.amount_spent) / 100 : 0, // Convert cents to dollars
+          business_name: account.business?.name || null,
+          isActive: account.account_status === 1
+        }));
+
+        // Filter to only show active accounts (optional)
+        const activeAccounts = processedAccounts.filter(acc => acc.isActive);
+        
+        debugLogger.info('FacebookAdsService', 'Ad accounts processed', {
+          total: processedAccounts.length,
+          active: activeAccounts.length
+        });
+        
+        // Cache the results in Supabase for future use
+        try {
+          await this.cacheAdAccounts(activeAccounts);
+        } catch (error) {
+          debugLogger.warn('FacebookAdsService', 'Failed to cache ad accounts', error);
+        }
+        
+        return activeAccounts;
+        
       } catch (error) {
-        debugLogger.warn('FacebookAdsService', 'Failed to cache ad accounts', error);
+        debugLogger.error('FacebookAdsService', 'Error fetching ad accounts from Facebook API', error);
+        throw error;
       }
-      
-      return uniqueAccounts;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook ad accounts', error);
       throw error;
     }
+  }
+
+  // Fetch ALL ad accounts with comprehensive pagination to get all accounts user has access to
+  private static async fetchAllAdAccountsWithPagination(fields: string, headers: Record<string, string>): Promise<any[]> {
+    const allAccounts: any[] = [];
+    let nextUrl: string | null = `${this.BASE_URL}/me/adaccounts?fields=${fields}&limit=100`;
+
+    debugLogger.info('FacebookAdsService', 'Starting comprehensive ad account fetch with pagination');
+
+    while (nextUrl) {
+      try {
+        debugLogger.debug('FacebookAdsService', 'Fetching page', { url: nextUrl });
+        
+        const response = await FacebookAdsService.rateLimitedFetch(nextUrl, { headers });
+        
+        if (!response.ok) {
+          debugLogger.error('FacebookAdsService', 'Failed to fetch ad accounts page', {
+            status: response.status,
+            statusText: response.statusText,
+            url: nextUrl
+          });
+          throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          debugLogger.error('FacebookAdsService', 'Facebook API returned error', data.error);
+          throw new Error(data.error.message);
+        }
+
+        const accounts = data.data || [];
+        allAccounts.push(...accounts);
+
+        debugLogger.debug('FacebookAdsService', 'Fetched page of accounts', {
+          count: accounts.length,
+          total: allAccounts.length,
+          hasNext: !!data.paging?.next
+        });
+
+        // Check for next page
+        nextUrl = data.paging?.next || null;
+        
+        // Safety check to prevent infinite loops
+        if (allAccounts.length > 1000) {
+          debugLogger.warn('FacebookAdsService', 'Stopping pagination at 1000 accounts to prevent infinite loop');
+          break;
+        }
+        
+      } catch (error) {
+        debugLogger.error('FacebookAdsService', 'Error fetching paginated accounts', error);
+        break;
+      }
+    }
+
+    debugLogger.info('FacebookAdsService', 'Comprehensive ad account fetch completed', {
+      totalAccounts: allAccounts.length
+    });
+
+    return allAccounts;
   }
 
   // Fetch paginated accounts to handle large numbers of ad accounts
@@ -567,11 +546,14 @@ export class FacebookAdsService {
     try {
       debugLogger.debug('FacebookAdsService', 'Fetching ad accounts via system users');
       
-      const headers = await this.buildApiHeaders();
+      const headers = {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json'
+      };
       
       // Get all businesses first
       const businessesResponse = await FacebookAdsService.rateLimitedFetch(
-        `${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`,
+        `${this.BASE_URL}/me/businesses?fields=id,name`,
         { headers }
       );
       
@@ -597,7 +579,7 @@ export class FacebookAdsService {
         try {
           // Get system users for this business
           const systemUsersResponse = await FacebookAdsService.rateLimitedFetch(
-            `${this.BASE_URL}/${business.id}/system_users?fields=id,name&access_token=${userToken}`,
+            `${this.BASE_URL}/${business.id}/system_users?fields=id,name`,
             { headers }
           );
 
@@ -615,7 +597,7 @@ export class FacebookAdsService {
           for (const systemUser of systemUsers) {
             try {
               const systemUserAccountsResponse = await FacebookAdsService.rateLimitedFetch(
-                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`,
+                `${this.BASE_URL}/${systemUser.id}/adaccounts?fields=id,name,account_status,currency,timezone_name`,
                 { headers }
               );
 
@@ -649,124 +631,71 @@ export class FacebookAdsService {
       debugLogger.info('FacebookAdsService', 'Force refreshing ad accounts from Facebook API');
       
       const userToken = await this.getUserAccessToken();
-      const developerToken = await this.getDeveloperToken();
       
-      if (!userToken || !developerToken) {
-        throw new Error('Facebook tokens not found. Please authenticate first.');
+      if (!userToken) {
+        throw new Error('Facebook user access token not found. Please authenticate first.');
       }
 
-      const allAccounts: any[] = [];
+      // Use proper Authorization header format as per Facebook API documentation
+      const headers = {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json'
+      };
 
-      // Fetch user accounts, business accounts, and system user accounts in parallel for comprehensive coverage
-      const headers = await this.buildApiHeaders();
-      const [userAccounts, businessAccounts, systemUserAccounts] = await Promise.allSettled([
-        // Get accounts directly associated with the user
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/adaccounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`, { headers })
-          .then(response => response.ok ? response.json() : { data: [] })
-          .then(data => {
-            debugLogger.debug('FacebookAdsService', 'User ad accounts', data.data?.length || 0);
-            return data.data || [];
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching user ad accounts', error);
-            return [];
-          }),
+      // Define fields to fetch according to Facebook API documentation
+      const fields = [
+        'account_id',           // Ad account ID (without 'act_' prefix)
+        'id',                   // Full ID (with 'act_' prefix)
+        'name',                 // Account name
+        'account_status',       // Account status (1=ACTIVE, 2=DISABLED, etc.)
+        'currency',             // Currency code (USD, EUR, etc.)
+        'timezone_id',          // Timezone ID
+        'timezone_name',        // Timezone name
+        'business{name}',        // Business Manager info
+        'amount_spent'          // Total amount spent
+      ].join(',');
 
-        // Get accounts from Business Managers
-        FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me/businesses?fields=id,name&access_token=${userToken}`, { headers })
-          .then(response => {
-            if (!response.ok) {
-              if (response.status === 403) {
-                debugLogger.warn('FacebookAdsService', 'Business Management permission not available or not granted. Skipping business accounts.');
-                return { data: [] };
-              }
-              throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
-            }
-            return response.json();
-          })
-          .then(async businessData => {
-            debugLogger.debug('FacebookAdsService', 'Business Managers found', businessData.data?.length || 0);
-
-            if (!businessData.data?.length) {return [];}
-
-            // Fetch ALL ad accounts for all Business Managers in parallel
-            // This includes both owned_ad_accounts AND client_ad_accounts
-            const businessAccountPromises = businessData.data.map(async (business: any) => {
-              try {
-                const allBusinessAccounts: any[] = [];
-                
-                // Fetch owned ad accounts with pagination support
-                const ownedAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/owned_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
-                );
-                allBusinessAccounts.push(...ownedAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} owned ad accounts`, ownedAccounts.length);
-                
-                // Fetch client ad accounts (accounts managed by this business) with pagination support
-                const clientAccounts = await FacebookAdsService.fetchPaginatedAccounts(
-                  `${this.BASE_URL}/${business.id}/client_ad_accounts?fields=id,name,account_status,currency,timezone_name&access_token=${userToken}`
-                );
-                allBusinessAccounts.push(...clientAccounts);
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} client ad accounts`, clientAccounts.length);
-                
-                debugLogger.debug('FacebookAdsService', `Business ${business.name} total ad accounts`, allBusinessAccounts.length);
-                return allBusinessAccounts;
-              } catch (error) {
-                debugLogger.error('FacebookAdsService', `Error fetching accounts for business ${business.name}`, error);
-                return [];
-              }
-            });
-
-            const businessAccountResults = await Promise.allSettled(businessAccountPromises);
-            return businessAccountResults
-              .filter(result => result.status === 'fulfilled')
-              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
-          })
-          .catch(error => {
-            debugLogger.error('FacebookAdsService', 'Error fetching Business Managers', error);
-            return [];
-          }),
-
-        // Get accounts via system users (additional method to ensure comprehensive coverage)
-        FacebookAdsService.fetchSystemUserAccounts(userToken)
-          .catch(error => {
-            debugLogger.warn('FacebookAdsService', 'Error fetching system user accounts', error);
-            return [];
-          })
-      ]);
-
-      // Combine all accounts
-      if (userAccounts.status === 'fulfilled') {
-        allAccounts.push(...userAccounts.value);
-      }
-      if (businessAccounts.status === 'fulfilled') {
-        allAccounts.push(...businessAccounts.value);
-      }
-      if (systemUserAccounts.status === 'fulfilled') {
-        allAccounts.push(...systemUserAccounts.value);
-      }
-
-      // Remove duplicates based on ID
-      const uniqueAccounts = allAccounts.filter((account, index, self) =>
-        index === self.findIndex(a => a.id === account.id)
-      );
-
-      debugLogger.debug('FacebookAdsService', 'Total unique ad accounts from API (refresh)', uniqueAccounts.length);
-      debugLogger.info('FacebookAdsService', 'Comprehensive ad account refresh completed', {
-        userAccounts: userAccounts.status === 'fulfilled' ? userAccounts.value.length : 0,
-        businessAccounts: businessAccounts.status === 'fulfilled' ? businessAccounts.value.length : 0,
-        systemUserAccounts: systemUserAccounts.status === 'fulfilled' ? systemUserAccounts.value.length : 0,
-        totalUnique: uniqueAccounts.length
-      });
-      
-      // Always cache the refreshed results
       try {
-        await this.cacheAdAccounts(uniqueAccounts);
+        // Fetch ALL ad accounts with comprehensive pagination
+        const allAccounts = await this.fetchAllAdAccountsWithPagination(fields, headers);
+        
+        debugLogger.debug('FacebookAdsService', 'All ad accounts refreshed', allAccounts.length);
+
+        // Process and format the accounts according to Facebook API documentation
+        const processedAccounts = allAccounts.map((account: any) => ({
+          id: account.id,                    // Full ID with 'act_' prefix
+          account_id: account.account_id,    // Numeric ID
+          name: account.name || 'Unnamed Account',
+          account_status: account.account_status,
+          currency: account.currency,
+          timezone_id: account.timezone_id,
+          timezone_name: account.timezone_name,
+          amount_spent: account.amount_spent ? parseFloat(account.amount_spent) / 100 : 0, // Convert cents to dollars
+          business_name: account.business?.name || null,
+          isActive: account.account_status === 1
+        }));
+
+        // Filter to only show active accounts (optional)
+        const activeAccounts = processedAccounts.filter(acc => acc.isActive);
+        
+        debugLogger.info('FacebookAdsService', 'Ad accounts refreshed', {
+          total: processedAccounts.length,
+          active: activeAccounts.length
+        });
+        
+        // Cache the results in Supabase for future use
+        try {
+          await this.cacheAdAccounts(activeAccounts);
+        } catch (error) {
+          debugLogger.warn('FacebookAdsService', 'Failed to cache refreshed ad accounts', error);
+        }
+        
+        return activeAccounts;
+        
       } catch (error) {
-        debugLogger.warn('FacebookAdsService', 'Failed to cache refreshed ad accounts', error);
+        debugLogger.error('FacebookAdsService', 'Error refreshing ad accounts from Facebook API', error);
+        throw error;
       }
-      
-      return uniqueAccounts;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error refreshing Facebook ad accounts', error);
       throw error;
@@ -1178,14 +1107,19 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
-        // Facebook API expects dates in YYYY-MM-DD format
-        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
-        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
-        
-        params.append('time_range', JSON.stringify({
-          since,
-          until
-        }));
+        // Check if it's a preset period that Facebook API supports
+        if ((dateRange as any).period === 'lastMonth') {
+          params.append('date_preset', 'last_month');
+        } else {
+          // Facebook API expects dates in YYYY-MM-DD format
+          const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+          const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+          
+          params.append('time_range', JSON.stringify({
+            since,
+            until
+          }));
+        }
       }
 
       const response = await fetch(
@@ -1204,21 +1138,10 @@ export class FacebookAdsService {
       // Process platform data
       const platformBreakdown = this.processPlatformData(data.data || []);
       
-      return platformBreakdown;
+      return platformBreakdown || undefined;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook platform data', error);
-      // Return empty data instead of mock data
-      return {
-        facebookVsInstagram: {
-          facebook: 0,
-          instagram: 0
-        },
-        adPlacements: {
-          feed: 0,
-          stories: 0,
-          reels: 0
-        }
-      };
+      return null;
     }
   }
 
@@ -1250,14 +1173,19 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
-        // Facebook API expects dates in YYYY-MM-DD format
-        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
-        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
-        
-        params.append('time_range', JSON.stringify({
-          since,
-          until
-        }));
+        // Check if it's a preset period that Facebook API supports
+        if ((dateRange as any).period === 'lastMonth') {
+          params.append('date_preset', 'last_month');
+        } else {
+          // Facebook API expects dates in YYYY-MM-DD format
+          const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+          const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+          
+          params.append('time_range', JSON.stringify({
+            since,
+            until
+          }));
+        }
       }
 
       const response = await fetch(
@@ -1276,22 +1204,10 @@ export class FacebookAdsService {
       // Process demographic data
       const demographics = this.processDemographicData(data.data || []);
       
-      return demographics;
+      return demographics || undefined;
     } catch (error) {
       debugLogger.error('FacebookAdsService', 'Error fetching Facebook demographic data', error);
-      // Return empty data instead of mock data
-      return {
-        ageGroups: {
-          '25-34': 0,
-          '35-44': 0,
-          '45-54': 0,
-          '55+': 0
-        },
-        gender: {
-          female: 0,
-          male: 0
-        }
-      };
+      return null;
     }
   }
 
@@ -1426,7 +1342,8 @@ export class FacebookAdsService {
       });
 
       const response = await this.rateLimitedFetch(
-        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status&access_token=${token}`
+        `${this.BASE_URL}/${formattedAccountId}/customconversions?fields=id,name,category,type,status`,
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
 
       if (!response.ok) {
@@ -1495,14 +1412,19 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
-        // Facebook API expects dates in YYYY-MM-DD format
-        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
-        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
-        
-        params.append('time_range', JSON.stringify({
-          since,
-          until
-        }));
+        // Check if it's a preset period that Facebook API supports
+        if ((dateRange as any).period === 'lastMonth') {
+          params.append('date_preset', 'last_month');
+        } else {
+          // Facebook API expects dates in YYYY-MM-DD format
+          const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+          const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+          
+          params.append('time_range', JSON.stringify({
+            since,
+            until
+          }));
+        }
       }
 
       const response = await fetch(
@@ -1530,6 +1452,7 @@ export class FacebookAdsService {
     }
   }
 
+
   /**
    * Get monthly metrics for the previous 4 months (excluding current month)
    */
@@ -1547,49 +1470,96 @@ export class FacebookAdsService {
       return [];
     }
 
-    const currentDate = new Date();
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+
+    // Calculate date range for last 4 complete months (excluding current month)
+    // Simple UTC approach - no timezone complications
+    const endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
+    const startDate = new Date(currentYear, currentMonth - 4, 1); // First day of 4 months ago
     
-    // Calculate date range for previous 4 months (excluding current month)
-    const startDate = new Date();
-    startDate.setMonth(currentDate.getMonth() - 4, 1); // Start of 4 months ago
-    
-    const endDate = new Date();
-    endDate.setMonth(currentDate.getMonth() - 1, 0); // End of last month
-    
-    const dateRange = {
-      start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
-    };
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
     
     try {
-      debugLogger.info('FacebookAdsService', 'Fetching 4-month data in single call', { dateRange, adAccountId });
-      const metrics = await this.getAccountMetrics(adAccountId, dateRange, conversionAction, false);
+      debugLogger.info('FacebookAdsService', 'Fetching monthly data with time_increment', { 
+        startDateStr, 
+        endDateStr, 
+        adAccountId 
+      });
+
+      // Use Facebook Insights API with time_increment: 'monthly'
+      const params = new URLSearchParams({
+        time_range: JSON.stringify({
+          since: startDateStr,
+          until: endDateStr
+        }),
+        time_increment: 'monthly', // KEY PARAMETER for monthly breakdown
+        level: 'account',
+        fields: 'actions,date_start,date_stop,spend,impressions,clicks,outbound_clicks,cost_per_action_type'
+      });
+
+      const accessToken = await this.getAccessToken();
+      // Ensure account ID has 'act_' prefix (don't double it)
+      const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      const url = `${this.BASE_URL}/${formattedAccountId}/insights?${params}`;
       
-      debugLogger.info('FacebookAdsService', '4-month data received:', metrics);
-      
-      // Distribute the total metrics across 4 months proportionally
-      // This is a simplified approach - in production you'd want daily breakdown
-      const monthlyData = [];
-      for (let i = 4; i >= 1; i--) {
-        const monthDate = new Date();
-        monthDate.setMonth(currentDate.getMonth() - i);
-        const monthName = monthDate.toLocaleDateString('en-US', { month: 'short' });
-        
-        // Distribute metrics proportionally (rough approximation)
-        const monthProportion = 0.25; // Each month gets 25% of total
-        
-        monthlyData.push({
-          month: monthName,
-          leads: Math.round((metrics.leads || 0) * monthProportion),
-          spend: (metrics.spend || 0) * monthProportion,
-          impressions: Math.round((metrics.impressions || 0) * monthProportion),
-          clicks: Math.round((metrics.clicks || 0) * monthProportion)
-        });
+      const response = await this.rateLimitedFetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Facebook API error: ${response.status} ${response.statusText}`);
       }
+
+      const result = await response.json();
+      debugLogger.info('FacebookAdsService', 'Facebook API response', result);
+
+      // Process the response
+      const monthlyData = result.data.map((row: any) => {
+        // Extract leads from actions array - Use priority-based approach to avoid double-counting
+        let leads = 0;
+        if (row.actions) {
+          // Priority order: most reliable first
+          const leadActionPriority = [
+            'lead', // Most direct lead action
+            'offsite_conversion.fb_pixel_lead', // Facebook pixel lead
+            'onsite_web_lead', // Onsite web lead
+            'offsite_conversion.lead', // Generic offsite lead
+            'onsite_conversion.lead', // Onsite conversion lead
+            'offsite_conversion.fb_pixel_complete_registration', // Registration completion
+            'offsite_conversion.fb_pixel_purchase' // Sometimes leads are tracked as purchases
+          ];
+          
+          // Find the first (highest priority) lead action and use only that value
+          for (const priorityAction of leadActionPriority) {
+            const action = row.actions.find((a: any) => a.action_type === priorityAction);
+            if (action) {
+              leads = parseFloat(action.value || '0');
+              break; // Use only the first (highest priority) lead action
+            }
+          }
+        }
+        
+        return {
+          month: row.date_start.substring(0, 7), // "YYYY-MM"
+          leads: leads,
+          spend: parseFloat(row.spend || 0),
+          impressions: parseInt(row.impressions || 0),
+          clicks: parseInt(row.clicks || 0)
+        };
+      });
+
+      // Sort by month
+      monthlyData.sort((a: any, b: any) => a.month.localeCompare(b.month));
       
+      debugLogger.info('FacebookAdsService', 'Processed monthly data', monthlyData);
       return monthlyData;
     } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Error fetching 4-month data', error);
+      debugLogger.error('FacebookAdsService', 'Error fetching monthly data', error);
       throw error;
     }
   }
@@ -1642,14 +1612,19 @@ export class FacebookAdsService {
       });
 
       if (dateRange) {
-        // Facebook API expects dates in YYYY-MM-DD format
-        const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
-        const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
-        
-        params.append('time_range', JSON.stringify({
-          since,
-          until
-        }));
+        // Check if it's a preset period that Facebook API supports
+        if ((dateRange as any).period === 'lastMonth') {
+          params.append('date_preset', 'last_month');
+        } else {
+          // Facebook API expects dates in YYYY-MM-DD format
+          const since = dateRange.start.includes('T') ? dateRange.start.split('T')[0] : dateRange.start;
+          const until = dateRange.end.includes('T') ? dateRange.end.split('T')[0] : dateRange.end;
+          
+          params.append('time_range', JSON.stringify({
+            since,
+            until
+          }));
+        }
       }
 
       const url = `${this.BASE_URL}/${formattedAccountId}/insights?${params}`;
@@ -1681,15 +1656,42 @@ export class FacebookAdsService {
         debugLogger.warn('FacebookAdsService', 'Facebook API returned empty data array', {
           accountId: formattedAccountId,
           dateRange,
-          response: data
+          response: data,
+          url: url.replace(/access_token=[^&]+/, 'access_token=***')
         });
+        
+        // Return empty metrics instead of throwing error
+        return {
+          impressions: 0,
+          clicks: 0,
+          spend: 0,
+          leads: 0,
+          conversions: 0,
+          ctr: 0,
+          cpc: 0,
+          cpm: 0,
+          roas: 0,
+          reach: 0,
+          frequency: 0
+        };
       }
       
       // Fetch demographic and platform breakdown data
       const demographics = await this.getDemographicBreakdown(accountId, dateRange);
       const platformBreakdown = await this.getPlatformBreakdown(accountId, dateRange);
       
-      const metrics = this.parseMetrics(data.data?.[0] || {}, conversionAction);
+      const metrics = this.parseMetrics(data.data?.[0] || {
+        impressions: '0',
+        clicks: '0',
+        spend: '0',
+        actions: [],
+        ctr: '0',
+        cpc: '0',
+        cpm: '0',
+        roas: '0',
+        reach: '0',
+        frequency: '0'
+      }, conversionAction);
       // Include demographic and platform data
       metrics.demographics = demographics;
       metrics.platformBreakdown = platformBreakdown;
@@ -1895,7 +1897,12 @@ export class FacebookAdsService {
       }
 
       // Get user info
-      const userResponse = await FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me?access_token=${token}`);
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      
+      const userResponse = await FacebookAdsService.rateLimitedFetch(`${this.BASE_URL}/me`, { headers });
       if (!userResponse.ok) {
         const errorData = await userResponse.json();
         debugLogger.error('FacebookAdsService', 'Facebook user info error', errorData);

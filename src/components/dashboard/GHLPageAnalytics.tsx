@@ -63,14 +63,7 @@ export const GHLPageAnalytics: React.FC<GHLPageAnalyticsProps> = ({ locationId, 
         setPageData(transformedData);
       } catch (_error) {
         // Error handled by error boundary
-        // Set empty data instead of leaving it null
-        setPageData({
-          pages: [],
-          totalPages: 0,
-          totalViews: 0,
-          totalConversions: 0,
-          averageConversionRate: 0
-        });
+        setPageData(null);
       } finally {
         setLoading(false);
       }

@@ -74,7 +74,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
                       ? (dashboardData.facebookMetrics.leads / dashboardData.facebookMetrics.clicks) * 100
                       : 0;
                     
-                    // Use Google Ads conversion rate if available, otherwise Facebook
+                    // Use Google Ads conversion rate if available, otherwise Meta
                     const overallConversionRate = googleConversionRate > 0 ? googleConversionRate : facebookConversionRate;
                     return overallConversionRate.toFixed(1);
                   })()}%

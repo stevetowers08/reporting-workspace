@@ -34,7 +34,7 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
         <div className="space-y-6">
           {/* Campaign Types */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Campaign Types</h3>
               <span className="text-xs text-slate-500">{totalLeads} total leads</span>
             </div>
@@ -71,7 +71,7 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
 
           {/* Ad Formats */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Ad Formats</h3>
               <span className="text-xs text-slate-500">${Math.round(totalCost).toLocaleString()} total spend</span>
             </div>

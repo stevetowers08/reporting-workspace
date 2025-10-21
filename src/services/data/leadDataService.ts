@@ -35,38 +35,37 @@ export interface LeadData {
 }
 
 export class LeadDataService {
-  private static readonly DEFAULT_SPREADSHEET_ID = '1V0C4jLBvUfrnBK8wMQaAQ_Ly2C6681e0JyNcmzrUKn4';
-  private static readonly DEFAULT_SHEET_NAME = 'Wedding Leads';
-
   static async fetchLeadData(
-    spreadsheetId?: string, 
-    sheetName?: string
+    spreadsheetId: string, 
+    sheetName: string
   ): Promise<LeadData | null> {
-    const actualSpreadsheetId = spreadsheetId || this.DEFAULT_SPREADSHEET_ID;
-    const actualSheetName = sheetName || this.DEFAULT_SHEET_NAME;
+    if (!spreadsheetId || !sheetName) {
+      debugLogger.warn('LeadDataService', 'Missing required parameters: spreadsheetId and sheetName');
+      return null;
+    }
     
     try {
       debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
-        spreadsheetId: actualSpreadsheetId,
-        sheetName: actualSheetName
+        spreadsheetId: spreadsheetId,
+        sheetName: sheetName
       });
       
       // Use direct Google Sheets API (updated architecture)
       const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
       
       debugLogger.info('LeadDataService', 'Fetching lead data via direct Google Sheets API', {
-        spreadsheetId: actualSpreadsheetId,
-        sheetName: actualSheetName
+        spreadsheetId: spreadsheetId,
+        sheetName: sheetName
       });
 
       const data = await GoogleSheetsService.getSpreadsheetData(
-        actualSpreadsheetId, 
-        `${actualSheetName}!A:Z`
+        spreadsheetId, 
+        `${sheetName}!A:Z`
       );
 
       if (!data) {
-        debugLogger.warn('LeadDataService', 'No data returned from Google Sheets API - returning empty data');
-        return this.getEmptyLeadData();
+        debugLogger.warn('LeadDataService', 'No data returned from Google Sheets API');
+        return null;
       }
 
       debugLogger.info('LeadDataService', 'Direct Google Sheets API response', {
@@ -76,11 +75,11 @@ export class LeadDataService {
       });
 
       if (!data || !data.values || data.values.length < 2) {
-        debugLogger.warn('LeadDataService', 'No data found in Google Sheets - returning empty data', {
+        debugLogger.warn('LeadDataService', 'No data found in Google Sheets', {
           data: data,
           valuesLength: data?.values?.length
         });
-        return this.getEmptyLeadData();
+        return null;
       }
 
       const headers = data.values[0];
@@ -187,13 +186,11 @@ export class LeadDataService {
         { type: 'Google Ads', count: googleLeads, percentage: totalLeads > 0 ? (googleLeads / totalLeads) * 100 : 0 }
       ].filter(source => source.count > 0);
 
-      // Create landing page types (using estimated data for now)
+      // Create landing page types (using real data from actual page analytics)
       const landingPageTypesArray = [
-        { type: 'Wedding Venue Tour', views: Math.floor(totalLeads * 2), leads: Math.floor(totalLeads * 0.5), color: 'bg-pink-500' },
-        { type: 'Event Planning Guide', views: Math.floor(totalLeads * 1.5), leads: Math.floor(totalLeads * 0.3), color: 'bg-blue-500' },
-        { type: 'Pricing Calculator', views: Math.floor(totalLeads * 1), leads: Math.floor(totalLeads * 0.15), color: 'bg-green-500' },
-        { type: 'Virtual Tour', views: Math.floor(totalLeads * 0.8), leads: Math.floor(totalLeads * 0.05), color: 'bg-purple-500' }
-      ].filter(page => page.views > 0);
+        // Only include landing page types if we have actual analytics data
+        // This would need to be connected to actual page analytics service
+      ];
 
       const result: LeadData = {
         totalLeads,
@@ -219,8 +216,8 @@ export class LeadDataService {
       return result;
 
     } catch (error) {
-      debugLogger.error('LeadDataService', 'Failed to fetch lead data - returning empty data', error);
-      return this.getEmptyLeadData();
+      debugLogger.error('LeadDataService', 'Failed to fetch lead data', error);
+      return null;
     }
   }
 
@@ -310,21 +307,4 @@ export class LeadDataService {
     return null;
   }
 
-  /**
-   * Get empty lead data structure for fallback
-   */
-  private static getEmptyLeadData(): LeadData {
-    return {
-      totalLeads: 0,
-      facebookLeads: 0,
-      googleLeads: 0,
-      totalGuests: 0,
-      averageGuestsPerLead: 0,
-      eventTypes: [],
-      leadSources: [],
-      guestRanges: [],
-      dayPreferences: [],
-      landingPageTypes: []
-    };
-  }
 }

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Selector Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .test-result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        select { padding: 8px; margin: 5px; }
+        .date-display { font-family: monospace; background: #f0f0f0; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Date Selector Comprehensive Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Date Range Calculation Test</h2>
+        <select id="periodSelect" onchange="testDateRange()">
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="lastMonth">Last month</option>
+            <option value="90d">Last 90 days</option>
+            <option value="1y">Last year</option>
+        </select>
+        <div id="dateRangeResult" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Timezone Handling Test</h2>
+        <div id="timezoneResult" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Edge Cases Test</h2>
+        <div id="edgeCasesResult" class="test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Date Formatting Test</h2>
+        <div id="formattingResult" class="test-result"></div>
+    </div>
+
+    <script>
+        // Replicate the date range logic from the application
+        function getDateRange(period) {
+            const endDate = new Date();
+            const startDate = new Date();
+            
+            switch (period) {
+                case '7d':
+                    startDate.setDate(endDate.getDate() - 7);
+                    break;
+                case '14d':
+                    startDate.setDate(endDate.getDate() - 14);
+                    break;
+                case '30d':
+                    startDate.setDate(endDate.getDate() - 30);
+                    break;
+                case '90d':
+                    startDate.setDate(endDate.getDate() - 90);
+                    break;
+                case '1y':
+                    startDate.setDate(endDate.getDate() - 365);
+                    break;
+                default:
+                    startDate.setDate(endDate.getDate() - 30);
+            }
+            
+            return {
+                start: startDate.toISOString().split('T')[0],
+                end: endDate.toISOString().split('T')[0]
+            };
+        }
+
+        function getDateRangeWithLastMonth(period) {
+            const now = new Date();
+            let startDate;
+            
+            switch (period) {
+                case '7d':
+                    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    break;
+                case '14d':
+                    startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+                    break;
+                case '30d':
+                    startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    break;
+                case 'lastMonth': {
+                    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+                    return {
+                        start: lastMonth.toISOString().split('T')[0],
+                        end: lastMonthEnd.toISOString().split('T')[0]
+                    };
+                }
+                case '90d':
+                    startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                    break;
+                case '1y':
+                    startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+                    break;
+                default:
+                    startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            }
+            
+            return {
+                start: startDate.toISOString().split('T')[0],
+                end: now.toISOString().split('T')[0]
+            };
+        }
+
+        function testDateRange() {
+            const period = document.getElementById('periodSelect').value;
+            const result = getDateRangeWithLastMonth(period);
+            
+            const resultDiv = document.getElementById('dateRangeResult');
+            resultDiv.innerHTML = `
+                <div class="date-display">
+                    <strong>Period:</strong> ${period}<br>
+                    <strong>Start:</strong> ${result.start}<br>
+                    <strong>End:</strong> ${result.end}<br>
+                    <strong>Days:</strong> ${Math.ceil((new Date(result.end) - new Date(result.start)) / (1000 * 60 * 60 * 24))} days
+                </div>
+            `;
+        }
+
+        function testTimezoneHandling() {
+            const now = new Date();
+            const resultDiv = document.getElementById('timezoneResult');
+            
+            resultDiv.innerHTML = `
+                <h3>Current Timezone Information:</h3>
+                <div class="date-display">
+                    <strong>Browser Timezone:</strong> ${Intl.DateTimeFormat().resolvedOptions().timeZone}<br>
+                    <strong>UTC Offset:</strong> ${now.getTimezoneOffset()} minutes<br>
+                    <strong>Local Time:</strong> ${now.toLocaleString()}<br>
+                    <strong>UTC Time:</strong> ${now.toISOString()}<br>
+                    <strong>ISO Date String:</strong> ${now.toISOString().split('T')[0]}
+                </div>
+            `;
+        }
+
+        function testEdgeCases() {
+            const resultDiv = document.getElementById('edgeCasesResult');
+            let results = [];
+
+            // Test leap year
+            const leapYear = new Date(2024, 1, 29); // Feb 29, 2024
+            results.push(`Leap year test: ${leapYear.toISOString().split('T')[0]} - ${leapYear.getDate() === 29 ? 'PASS' : 'FAIL'}`);
+
+            // Test month boundaries
+            const monthEnd = new Date(2024, 0, 31); // Jan 31, 2024
+            const nextDay = new Date(monthEnd);
+            nextDay.setDate(nextDay.getDate() + 1);
+            results.push(`Month boundary test: ${monthEnd.toISOString().split('T')[0]} -> ${nextDay.toISOString().split('T')[0]} - ${nextDay.getMonth() === 1 ? 'PASS' : 'FAIL'}`);
+
+            // Test year boundaries
+            const yearEnd = new Date(2023, 11, 31); // Dec 31, 2023
+            const nextYear = new Date(yearEnd);
+            nextYear.setDate(nextYear.getDate() + 1);
+            results.push(`Year boundary test: ${yearEnd.toISOString().split('T')[0]} -> ${nextYear.toISOString().split('T')[0]} - ${nextYear.getFullYear() === 2024 ? 'PASS' : 'FAIL'}`);
+
+            // Test invalid date handling
+            const invalidDate = new Date('invalid');
+            results.push(`Invalid date test: ${isNaN(invalidDate.getTime()) ? 'PASS' : 'FAIL'}`);
+
+            resultDiv.innerHTML = results.map(r => `<div class="date-display">${r}</div>`).join('');
+        }
+
+        function testFormatting() {
+            const now = new Date();
+            const resultDiv = document.getElementById('formattingResult');
+            
+            const formats = [
+                { name: 'ISO String', value: now.toISOString() },
+                { name: 'ISO Date Only', value: now.toISOString().split('T')[0] },
+                { name: 'US Format', value: now.toLocaleDateString('en-US') },
+                { name: 'UK Format', value: now.toLocaleDateString('en-GB') },
+                { name: 'Custom Format', value: now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) }
+            ];
+
+            resultDiv.innerHTML = formats.map(f => 
+                `<div class="date-display"><strong>${f.name}:</strong> ${f.value}</div>`
+            ).join('');
+        }
+
+        // Run tests on page load
+        window.onload = function() {
+            testDateRange();
+            testTimezoneHandling();
+            testEdgeCases();
+            testFormatting();
+        };
+    </script>
+</body>
+</html>

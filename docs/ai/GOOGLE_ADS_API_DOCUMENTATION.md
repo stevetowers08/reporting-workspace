@@ -1,25 +1,33 @@
 # Google Ads API Documentation
 
-**Last Updated:** January 20, 2025  
-**Version:** 2.0.0  
-**Status:** 🔄 **V2 IMPLEMENTATION PENDING**
+**Last Updated:** January 21, 2025  
+**Version:** 2.1.0  
+**Status:** ✅ **PRODUCTION READY - TIMEZONE ISSUES RESOLVED**
 
 ## Overview
 
-The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. The V2 implementation is planned to use direct API calls with smart caching, following the same pattern as the successful Facebook Ads V2 implementation.
+The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. The current implementation (v2.1.0) uses direct API calls with smart caching, simplified UTC-based date calculations, and proper error handling for consistent data across all charts.
 
-## V2 Service Architecture (Planned)
+### ✅ **Key Improvements in v2.1.0**
+- **Simplified Timezone Handling**: Using UTC consistently for all date calculations
+- **Fixed Date Range Issues**: Resolved discrepancies between summary cards and monthly chart
+- **Better Error Handling**: Improved error messages and logging with debugLogger
+- **Production Ready**: All timezone-related bugs resolved
+- **Cleaner Code**: Removed complex timezone calculations
 
-### 🔄 **AnalyticsOrchestratorV2** - Planned Implementation
-- **Location**: `src/services/data/analyticsOrchestratorV2.ts`
-- **API Version**: v21 (upgrade from v14)
-- **Base URL**: `https://googleads.googleapis.com/v21`
-- **Features**: Direct API calls, smart caching, request deduplication, error isolation
+## Current Service Architecture
 
-### Current Service: `GoogleAdsService` (V1)
+### ✅ **GoogleAdsService** - Current Implementation
 - **Location**: `src/services/api/googleAdsService.ts`
-- **API Version**: v14
-- **Status**: Active, will be replaced by V2 orchestrator
+- **API Version**: v21 (Latest 2025)
+- **Base URL**: `https://googleads.googleapis.com/v21`
+- **Features**: Simplified UTC date handling, comprehensive campaign fetching, proper OAuth 2.0, smart caching
+
+### ✅ **AnalyticsOrchestrator** - Data Orchestration
+- **Location**: `src/services/data/analyticsOrchestrator.ts`
+- **API Version**: v21
+- **Base URL**: `https://googleads.googleapis.com/v21`
+- **Features**: Direct API calls, smart caching, request deduplication, error isolation, UTC-based date calculations
 
 ### Supporting Services
 - **Token Management**: `TokenManager` from `@/services/auth/TokenManager`

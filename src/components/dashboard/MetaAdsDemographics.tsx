@@ -32,7 +32,7 @@ export const MetaAdsDemographics: React.FC<MetaAdsDemographicsProps> = ({ data }
         <div className="space-y-6">
           {/* Age Groups */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Age Groups</h3>
               <span className="text-xs text-slate-500">{data?.facebookMetrics?.leads || '0'} total leads</span>
             </div>
@@ -78,7 +78,7 @@ export const MetaAdsDemographics: React.FC<MetaAdsDemographicsProps> = ({ data }
 
           {/* Gender */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Gender</h3>
               <span className="text-xs text-slate-500">{data?.facebookMetrics?.leads || '0'} total leads</span>
             </div>

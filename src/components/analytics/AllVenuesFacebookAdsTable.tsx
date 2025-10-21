@@ -1,9 +1,9 @@
+import { DataSkeleton } from "@/components/ui/UnifiedLoadingSystem";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataSkeleton } from "@/components/ui/UnifiedLoadingSystem";
 import { debugLogger } from '@/lib/debug';
+import { AnalyticsOrchestrator } from "@/services/data/analyticsOrchestrator";
 import { DatabaseService } from "@/services/data/databaseService";
-import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
     BarChart3,
     Eye,
@@ -63,12 +63,10 @@ const AllVenuesFacebookAdsTable = ({ selectedPeriod }: AllVenuesFacebookAdsTable
                 if (!hasFacebookAds) {continue;}
 
                 try {
-                    // Get comprehensive metrics for this client
-                    const metrics = await EventMetricsService.getComprehensiveMetrics(
+                    // Get comprehensive metrics using the new orchestrator
+                    const metrics = await AnalyticsOrchestrator.getDashboardData(
                         client.id,
-                        dateRange,
-                        client.accounts,
-                        client.conversion_actions
+                        dateRange
                     );
 
                     const accountData: FacebookAdAccountData = {

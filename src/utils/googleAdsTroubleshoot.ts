@@ -32,7 +32,7 @@ export class GoogleAdsTroubleshoot {
           test: 'Developer Token',
           status: 'fail',
           message: 'Google Ads Developer Token not configured',
-          details: { developerToken: developerToken ? 'Set but placeholder value' : 'Not set' }
+          details: { developerToken: developerToken ? 'Set' : 'Not set' }
         });
       } else {
         results.push({
@@ -48,7 +48,7 @@ export class GoogleAdsTroubleshoot {
           test: 'Google Client ID',
           status: 'fail',
           message: 'Google Client ID not configured',
-          details: { clientId: clientId ? 'Set but placeholder value' : 'Not set' }
+          details: { clientId: clientId ? 'Set' : 'Not set' }
         });
       } else {
         results.push({
@@ -64,7 +64,7 @@ export class GoogleAdsTroubleshoot {
           test: 'Google Client Secret',
           status: 'fail',
           message: 'Google Client Secret not configured',
-          details: { clientSecret: clientSecret ? 'Set but placeholder value' : 'Not set' }
+          details: { clientSecret: clientSecret ? 'Set' : 'Not set' }
         });
       } else {
         results.push({

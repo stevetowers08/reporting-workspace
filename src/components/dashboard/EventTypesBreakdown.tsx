@@ -1,9 +1,9 @@
 import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
+import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Card } from '@/components/ui/card';
 
 interface EventTypesBreakdownProps {
   data: {
@@ -24,7 +24,7 @@ interface EventTypesBreakdownProps {
   dateRange?: { start: string; end: string };
 }
 
-export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange }) => {
+export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.memo(({ data, dateRange: _dateRange }) => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +80,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   if (error) {
     return (
       <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
-        <div className="pb-3">
+        <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
         </div>
         <div className="h-64 flex items-center justify-center">
@@ -95,12 +95,12 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     );
   }
 
-  const eventTypes = leadData.eventTypes || [];
+  const eventTypes = leadData?.eventTypes || [];
 
   if (eventTypes.length === 0) {
     return (
       <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
-        <div className="pb-3">
+        <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
         </div>
         <div className="h-64 flex items-center justify-center">
@@ -133,7 +133,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
 
   return (
     <Card className="bg-white border border-slate-200 p-6 w-full">
-      <div className="pb-3">
+      <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
       </div>
       
@@ -141,7 +141,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
           >
             <XAxis 
               dataKey="name"

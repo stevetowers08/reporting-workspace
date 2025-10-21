@@ -292,23 +292,15 @@ export class GoHighLevelAnalyticsService {
     pageId: string,
     locationId: string,
     _dateRange?: { startDate?: string; endDate?: string }
-  ): Promise<GHLPageAnalytics> {
+  ): Promise<GHLPageAnalytics | null> {
     // GoHighLevel doesn't provide page-level analytics in their current API
-    // Return empty data structure instead of mock data
-    debugLogger.warn('GoHighLevelAnalyticsService', 'Page analytics not available in GoHighLevel API - returning empty data', {
+    debugLogger.warn('GoHighLevelAnalyticsService', 'Page analytics not available in GoHighLevel API', {
       funnelId,
       pageId,
       locationId
     });
     
-    return {
-      id: pageId,
-      name: `Page ${pageId}`,
-      views: 0,
-      uniqueViews: 0,
-      conversions: 0,
-      conversionRate: 0
-    };
+    return null;
   }
 
   // Opportunities Analytics

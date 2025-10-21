@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { FacebookMetricsWithTrends, TrendResult } from '@/types';
+import { AnalyticsOrchestrator } from './analyticsOrchestrator';
 import { DatabaseService } from './databaseService';
-import { EventMetricsService } from './eventMetricsService';
 
 export interface FacebookAdsReportingData {
   clientId: string;
@@ -162,12 +162,9 @@ class FacebookAdsReportingService {
             end: endDate.toISOString().split('T')[0]
           };
           
-          const dashboardData = await EventMetricsService.getComprehensiveMetrics(
+          const dashboardData = await AnalyticsOrchestrator.getDashboardData(
             client.id,
-            dateRange,
-            client.accounts,
-            client.conversion_actions,
-            true // Include previous period data
+            dateRange
           );
           
           debugLogger.info('FACEBOOK_REPORTING', `Dashboard data for ${client.name}`, { 

@@ -51,7 +51,7 @@ const FacebookDebugPanel: React.FC = () => {
       }
 
       const response = await fetch(
-        `https://graph.facebook.com/v19.0/me/businesses?fields=id,name&access_token=${token}`
+        `https://graph.facebook.com/v22.0/me/businesses?fields=id,name&access_token=${token}`
       );
       
       if (response.ok) {

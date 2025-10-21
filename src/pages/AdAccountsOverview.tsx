@@ -4,8 +4,8 @@ import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import CompactTable from "@/components/ui/CompactTable";
 import { Button } from "@/components/ui/button";
 import { debugLogger } from '@/lib/debug';
+import { AnalyticsOrchestrator } from "@/services/data/analyticsOrchestrator";
 import { DatabaseService } from "@/services/data/databaseService";
-import { EventMetricsService } from "@/services/data/eventMetricsService";
 import {
     ArrowLeft,
     BarChart3,
@@ -131,13 +131,10 @@ const AdAccountsOverview = () => {
                 if (!hasFacebookAds && !hasGoogleAds) {continue;}
 
                 try {
-                    // Get comprehensive metrics for this client with previous period comparison
-                    const metrics = await EventMetricsService.getComprehensiveMetrics(
+                    // Get comprehensive metrics using the new orchestrator
+                    const metrics = await AnalyticsOrchestrator.getDashboardData(
                         client.id,
-                        dateRange,
-                        client.accounts,
-                        client.conversion_actions,
-                        true // includePreviousPeriod
+                        dateRange
                     );
 
                     const accountData: AdAccountData = {

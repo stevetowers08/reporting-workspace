@@ -165,9 +165,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
         break;
       case 'lastMonth': {
         // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-        return `${formatDate(lastMonth)} - ${formatDate(lastMonthEnd)}`;
+        const startDate = new Date();
+        const endDate = new Date();
+        startDate.setMonth(endDate.getMonth() - 1);
+        startDate.setDate(1);
+        endDate.setDate(0); // Last day of previous month
+        return `${formatDate(startDate)} - ${formatDate(endDate)}`;
       }
       case '90d':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);

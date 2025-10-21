@@ -94,13 +94,31 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
     };
   }) => {
     try {
-      await DatabaseService.createClient(clientData);
+      // console.log('Creating client with data:', clientData);
+      const _newClient = await DatabaseService.createClient(clientData);
+      // console.log('Client created successfully:', newClient);
+      
+      // Close modal first
       setShowEditClientModal(false);
       setEditingClient(null);
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (_error) {
-      // Handle error silently or show user-friendly message
+      
+      // Show success message
+      // alert(`Venue "${newClient.name}" created successfully!`);
+      
+      // Add a small delay before refresh to ensure database operation completes
+      setTimeout(() => {
+        // console.log('Refreshing page to show new venue...');
+        window.location.reload();
+      }, 500);
+      
+    } catch (error) {
+      // console.error('Failed to create client:', error);
+      
+      // Show user-friendly error message
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      // alert(`Failed to create client: ${errorMessage}`);
+      
+      // Keep modal open so user can retry
     }
   };
 
@@ -109,10 +127,20 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       await DatabaseService.updateClient(clientId, updates);
       setShowEditClientModal(false);
       setEditingClient(null);
+      
+      // Show success message
+      // console.log('Client updated successfully!');
+      
       // Refresh the page to show updated data
       window.location.reload();
-    } catch (_error) {
-      // Handle error silently or show user-friendly message
+    } catch (error) {
+      // console.error('Failed to update client:', error);
+      
+      // Show user-friendly error message
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      // alert(`Failed to update client: ${errorMessage}`);
+      
+      // Keep modal open so user can retry
     }
   };
 

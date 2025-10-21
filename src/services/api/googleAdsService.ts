@@ -255,7 +255,7 @@ export class GoogleAdsService {
         }
         
         // Log the actual error response for debugging
-        console.error('Google Ads API Error Details:', {
+        debugLogger.error('GoogleAdsService', 'Google Ads API Error Details', {
           status: response.status,
           statusText: response.statusText,
           responseText: text,
@@ -523,45 +523,118 @@ export class GoogleAdsService {
     impressions: number;
     clicks: number;
   }>> {
-    const currentDate = new Date();
-    
-    // Calculate date range for previous 4 months (excluding current month)
-    const startDate = new Date();
-    startDate.setMonth(currentDate.getMonth() - 4, 1); // Start of 4 months ago
-    
-    const endDate = new Date();
-    endDate.setMonth(currentDate.getMonth() - 1, 0); // End of last month
-    
-    const dateRange = {
-      start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
-    };
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+
+    // Calculate date range for last 4 complete months (excluding current month)
+    // Use UTC for Google Ads API (Google Ads API uses UTC by default)
+    const endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
+    const startDate = new Date(currentYear, currentMonth - 4, 1); // First day of 4 months ago
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
     
     try {
-      debugLogger.info('GoogleAdsService', 'Fetching 4-month data in single call', { dateRange, customerId });
-      const metrics = await this.getAccountMetrics(customerId, dateRange, false);
-      
-      debugLogger.info('GoogleAdsService', '4-month data received:', metrics);
-      
-      // Distribute the total metrics across 4 months proportionally
-      const monthlyData = [];
-      for (let i = 4; i >= 1; i--) {
-        const monthDate = new Date();
-        monthDate.setMonth(currentDate.getMonth() - i);
-        const monthName = monthDate.toLocaleDateString('en-US', { month: 'short' });
-        
-        // Distribute metrics proportionally (rough approximation)
-        const monthProportion = 0.25; // Each month gets 25% of total
-        
-        monthlyData.push({
-          month: monthName,
-          leads: Math.round((metrics.leads || 0) * monthProportion),
-          cost: (metrics.cost || 0) * monthProportion,
-          impressions: Math.round((metrics.impressions || 0) * monthProportion),
-          clicks: Math.round((metrics.clicks || 0) * monthProportion)
-        });
+      debugLogger.info('GoogleAdsService', 'Fetching monthly data with segments.month', { 
+        startDateStr, 
+        endDateStr, 
+        customerId 
+      });
+
+      // Use Google Ads API with segments.month for monthly data
+      // Based on 2025 API documentation - query campaigns with monthly segmentation
+      const gaql = `
+        SELECT 
+          segments.month,
+          metrics.conversions,
+          metrics.cost_micros,
+          metrics.impressions,
+          metrics.clicks
+        FROM campaign
+        WHERE segments.date BETWEEN '${startDateStr}' AND '${endDateStr}'
+        AND campaign.status = 'ENABLED'
+        ORDER BY segments.month
+      `;
+
+      const accessToken = await this.ensureValidToken();
+      const developerToken = await this.getDeveloperToken();
+      const managerAccountId = await this.getManagerAccountId();
+
+      if (!accessToken || !developerToken || !managerAccountId) {
+        debugLogger.warn('GoogleAdsService', 'Missing required credentials for monthly metrics');
+        return [];
       }
+
+      const blocks = await this.makeApiRequest({
+        accessToken,
+        developerToken,
+        customerId: this.normalizeCid(customerId),
+        managerId: managerAccountId,
+        gaql
+      });
+
+      debugLogger.info('GoogleAdsService', 'Monthly metrics API request completed', {
+        blockCount: blocks.length,
+        totalResults: blocks.reduce((sum, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
+      });
+
+      // Group results by month using segments.month
+      const leadsByMonth: Record<string, {
+        leads: number;
+        cost: number;
+        impressions: number;
+        clicks: number;
+      }> = {};
+
+      for (const block of blocks) {
+        const results = (block as { results?: unknown[] }).results || [];
+        for (const result of results) {
+          const segments = (result as { segments?: { month?: string } }).segments;
+          const metrics = (result as { 
+            metrics?: { 
+              conversions?: string | number; 
+              costMicros?: string | number; 
+              impressions?: string | number; 
+              clicks?: string | number;
+            } 
+          }).metrics;
+
+          const month = segments?.month;
+          if (month && metrics) {
+            // Convert Google's "2025-09-01" format to "2025-09" format to match Facebook
+            const normalizedMonth = month.substring(0, 7); // "2025-09-01" -> "2025-09"
+            
+            if (!leadsByMonth[normalizedMonth]) {
+              leadsByMonth[normalizedMonth] = {
+                leads: 0,
+                cost: 0,
+                impressions: 0,
+                clicks: 0
+              };
+            }
+            
+            leadsByMonth[normalizedMonth].leads += parseFloat(String(metrics.conversions || '0'));
+            leadsByMonth[normalizedMonth].cost += parseFloat(String(metrics.costMicros || '0')) / 1000000; // Convert micros to dollars
+            leadsByMonth[normalizedMonth].impressions += parseInt(String(metrics.impressions || '0'));
+            leadsByMonth[normalizedMonth].clicks += parseInt(String(metrics.clicks || '0'));
+          }
+        }
+      }
+
+      // Convert to array format
+      const monthlyData = Object.entries(leadsByMonth).map(([month, data]) => ({
+        month,
+        leads: data.leads,
+        cost: data.cost,
+        impressions: data.impressions,
+        clicks: data.clicks
+      }));
+
+      // Sort by month
+      monthlyData.sort((a, b) => a.month.localeCompare(b.month));
       
+      debugLogger.info('GoogleAdsService', 'Processed monthly data', monthlyData);
       return monthlyData;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error fetching 4-month data', error);
@@ -572,7 +645,7 @@ export class GoogleAdsService {
   /**
    * Get account metrics - simplified
    */
-  static async getAccountMetrics(customerId: string, dateRange: { start: string; end: string }, includePreviousPeriod: boolean = false): Promise<{
+  static async getAccountMetrics(customerId: string, dateRange: { start: string; end: string; period?: string }, includePreviousPeriod: boolean = false): Promise<{
     impressions: number;
     clicks: number;
     cost: number;
@@ -599,10 +672,27 @@ export class GoogleAdsService {
       const managerAccountId = await this.getManagerAccountId();
 
       if (!accessToken || !developerToken || !managerAccountId) {
-        return this.getEmptyMetrics();
+        debugLogger.warn('GoogleAdsService', 'Missing required credentials for metrics');
+        return null;
       }
 
-      const gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      let gaql: string;
+      
+      // Handle preset periods
+      if (dateRange.period === 'lastMonth') {
+        // Calculate last month date range for Google Ads
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        
+        const startDate = lastMonth.toISOString().split('T')[0];
+        const endDate = lastMonthEnd.toISOString().split('T')[0];
+        
+        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+      } else {
+        // Use provided date range
+        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      }
       const blocks = await this.makeApiRequest({
         accessToken,
         developerToken,
@@ -757,7 +847,7 @@ export class GoogleAdsService {
       };
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting metrics', error);
-      return this.getEmptyMetrics();
+      return null;
     }
   }
 
@@ -874,25 +964,6 @@ export class GoogleAdsService {
     }
   }
 
-  /**
-   * Get empty metrics structure
-   */
-  private static getEmptyMetrics() {
-    return {
-      impressions: 0,
-      clicks: 0,
-      cost: 0,
-      leads: 0,
-      ctr: 0,
-      averageCpc: 0,
-      conversions: 0,
-      conversionRate: 0,
-      costPerConversion: 0,
-      searchImpressionShare: 0,
-      qualityScore: 0,
-      previousPeriod: undefined
-    };
-  }
 
   /**
    * Get demographic breakdown data from Google Ads
@@ -922,7 +993,7 @@ export class GoogleAdsService {
 
       if (!accessToken || !developerToken || !managerAccountId) {
         debugLogger.warn('GoogleAdsService', 'Missing required credentials for demographics');
-        return this.getEmptyDemographics();
+        return null;
       }
 
       // Run separate queries for gender and age due to API limitations
@@ -942,7 +1013,7 @@ export class GoogleAdsService {
       };
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch demographics data', error);
-      return this.getEmptyDemographics();
+      return null;
     }
   }
 
@@ -961,13 +1032,13 @@ export class GoogleAdsService {
         SELECT 
           campaign.id,
           campaign.name,
-          segments.gender,
-          segments.product_channel,
+          ad_group_criterion.gender.type,
           metrics.conversions,
           metrics.cost_micros
-        FROM gender_view 
+        FROM keyword_view 
         WHERE campaign.advertising_channel_type IN ('PERFORMANCE_MAX', 'SEARCH')
         AND segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        AND ad_group_criterion.gender.type IS NOT NULL
       `;
 
       const blocks = await this.makeApiRequest({
@@ -1000,13 +1071,13 @@ export class GoogleAdsService {
         SELECT 
           campaign.id,
           campaign.name,
-          segments.age_range,
-          segments.product_channel,
+          ad_group_criterion.age_range.type,
           metrics.conversions,
           metrics.cost_micros
-        FROM age_range_view 
+        FROM keyword_view 
         WHERE campaign.advertising_channel_type IN ('PERFORMANCE_MAX', 'SEARCH')
         AND segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        AND ad_group_criterion.age_range.type IS NOT NULL
       `;
 
       const blocks = await this.makeApiRequest({
@@ -1052,7 +1123,7 @@ export class GoogleAdsService {
 
       if (!accessToken || !developerToken || !managerAccountId) {
         debugLogger.warn('GoogleAdsService', 'Missing required credentials for campaign breakdown');
-        return this.getEmptyCampaignBreakdown();
+        return null;
       }
 
       // Simplified GAQL query without segments to avoid 400 errors
@@ -1082,13 +1153,13 @@ export class GoogleAdsService {
 
       if (blocks.length === 0) {
         debugLogger.warn('GoogleAdsService', 'No campaign breakdown data returned from API');
-        return this.getEmptyCampaignBreakdown();
+        return null;
       }
 
       return this.processCampaignBreakdownData(blocks);
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', error);
-      return this.getEmptyCampaignBreakdown();
+      return null;
     }
   }
 
@@ -1106,7 +1177,7 @@ export class GoogleAdsService {
         const leads = parseInt(data.metrics?.conversions || '0');
         totalLeads += leads;
 
-        const genderValue = data.segments?.gender;
+        const genderValue = data.ad_group_criterion?.gender?.type;
         if (genderValue) {
           if (genderValue === 'GENDER_FEMALE') {
             gender.female += leads;
@@ -1140,7 +1211,7 @@ export class GoogleAdsService {
         const leads = parseInt(data.metrics?.conversions || '0');
         totalLeads += leads;
 
-        const ageRange = data.segments?.age_range;
+        const ageRange = data.ad_group_criterion?.age_range?.type;
         if (ageRange) {
           if (ageRange === 'AGE_RANGE_25_34') {
             ageGroups['25-34'] += leads;
@@ -1233,39 +1304,4 @@ export class GoogleAdsService {
     return { campaignTypes, adFormats };
   }
 
-  /**
-   * Get empty demographics data
-   */
-  private static getEmptyDemographics() {
-    return {
-      ageGroups: {
-        '25-34': 0,
-        '35-44': 0,
-        '45-54': 0,
-        '55+': 0
-      },
-      gender: {
-        female: 0,
-        male: 0
-      }
-    };
-  }
-
-  /**
-   * Get empty campaign breakdown data
-   */
-  private static getEmptyCampaignBreakdown() {
-    return {
-      campaignTypes: {
-        search: 0,
-        display: 0,
-        youtube: 0
-      },
-      adFormats: {
-        textAds: 0,
-        responsiveDisplay: 0,
-        videoAds: 0
-      }
-    };
-  }
 }

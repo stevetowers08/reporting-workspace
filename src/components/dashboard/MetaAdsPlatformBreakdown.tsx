@@ -7,7 +7,7 @@ interface MetaAdsPlatformBreakdownProps {
 }
 
 export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> = ({ data }) => {
-  // Get platform breakdown data from Facebook metrics
+  // Get platform breakdown data from Meta metrics
   const platformBreakdown = data?.facebookMetrics?.platformBreakdown;
   
   // Use real data if available, otherwise show fallback message
@@ -29,15 +29,15 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
       </div>
       <div>
         <div className="space-y-6">
-          {/* Facebook vs Instagram */}
+          {/* Meta vs Instagram */}
           <div>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">Facebook vs Instagram</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-semibold text-slate-700">Meta vs Instagram</h3>
               <span className="text-xs text-slate-500">{data?.facebookMetrics?.leads || '0'} total leads</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-8 relative overflow-hidden">
               <div className="bg-blue-600 h-8 rounded-l-full transition-all duration-700 ease-out flex items-center justify-center" style={{ width: `${facebookVsInstagram.facebook}%` }}>
-                <span className="text-xs font-normal text-white">Facebook ({facebookVsInstagram.facebook}%)</span>
+                <span className="text-xs font-normal text-white">Meta ({facebookVsInstagram.facebook}%)</span>
               </div>
               <div className="bg-pink-500 h-8 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center" style={{ width: `${facebookVsInstagram.instagram}%`, left: `${facebookVsInstagram.facebook}%` }}>
                 <span className="text-xs font-normal text-white">Instagram ({facebookVsInstagram.instagram}%)</span>
@@ -47,7 +47,7 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
 
           {/* Ad Placements */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Ad Placements</h3>
               <span className="text-xs text-slate-500">${Math.round(data?.facebookMetrics?.spend || 0).toLocaleString()} total spend</span>
             </div>

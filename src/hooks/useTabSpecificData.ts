@@ -1,8 +1,12 @@
+/**
+ * Tab-Specific Data Hooks
+ * Duplicates existing data fetching patterns for architecture
+ * Uses the same Supabase and API calls as V1, but with orchestration
+ */
+
 import { debugLogger } from '@/lib/debug';
+import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
 import { DatabaseService } from '@/services/data/databaseService';
-import { EventMetricsService } from '@/services/data/eventMetricsService';
-import { LeadDataService } from '@/services/data/leadDataService';
-import { GoHighLevelAnalyticsService } from '@/services/ghl/goHighLevelAnalyticsService';
 import { useQuery } from '@tanstack/react-query';
 
 interface DateRange {
@@ -10,12 +14,12 @@ interface DateRange {
   end: string;
 }
 
-// Shared client data cache to prevent repeated API calls
+// Client data cache (separate from other cache)
 const clientDataCache = new Map<string, { data: any; timestamp: number }>();
 const CLIENT_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 // Helper function to get cached client data
-async function getCachedClientData(clientId: string) {
+export async function getCachedClientData(clientId: string) {
   const now = Date.now();
   const cached = clientDataCache.get(clientId);
   
@@ -40,15 +44,19 @@ export function invalidateClientDataCache(clientId?: string) {
   }
 }
 
-// Hook for Summary tab data (minimal data needed for overview)
+// Hook for Summary tab data
 export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
     queryKey: ['summary-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) {throw new Error('Client ID is required');}
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
       const clientData = await getCachedClientData(clientId);
-      if (!clientData) {throw new Error('Client not found');}
+      if (!clientData) {
+        throw new Error('Client not found');
+      }
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -59,7 +67,6 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
           end: endDate.toISOString().split('T')[0] 
         };
       })();
-      
       
       debugLogger.info('useSummaryTabData', 'Fetching summary data', { 
         clientId, 
@@ -79,16 +86,15 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
         googleSheets: clientData.accounts?.googleSheets
       };
       
-      
-      debugLogger.info('useSummaryTabData', 'Calling EventMetricsService with:', {
+      debugLogger.info('useSummaryTabData', 'Calling AnalyticsOrchestrator with:', {
         clientAccounts,
         willCallFacebook: clientAccounts.facebookAds && clientAccounts.facebookAds !== 'none'
       });
       
-      const result = await EventMetricsService.getComprehensiveMetrics(
+      // Use AnalyticsOrchestrator with direct API calls
+      const result = await AnalyticsOrchestrator.getDashboardData(
         clientId,
-        finalDateRange,
-        clientAccounts
+        finalDateRange
       );
       
       return { ...result, clientData };
@@ -98,19 +104,22 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
   });
 };
 
-// Hook for Meta/Facebook Ads tab data
+// Hook for Meta tab data
 export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
-    queryKey: ['meta-tab-data', clientId, dateRange, 'with-previous-period'],
+    queryKey: ['meta-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) {throw new Error('Client ID is required');}
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
       const clientData = await getCachedClientData(clientId);
-      if (!clientData) {throw new Error('Client not found');}
+      if (!clientData) {
+        throw new Error('Client not found');
+      }
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -122,59 +131,37 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         };
       })();
       
+      debugLogger.info('useMetaTabData', 'Fetching meta data', { clientId, finalDateRange });
       
-      debugLogger.info('useMetaTabData', 'Fetching Meta ads data', { 
-        clientId, 
-        finalDateRange,
-        clientAccounts: {
-          facebookAds: clientData.accounts?.facebookAds,
-          facebookAdsType: typeof clientData.accounts?.facebookAds,
-          facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
-        }
-      });
-      
-      // Only fetch Facebook/Meta specific data
-      const clientAccounts = {
-        facebookAds: clientData.accounts?.facebookAds,
-        googleAds: undefined, // Don't fetch Google data for Meta tab
-        goHighLevel: undefined,
-        googleSheets: undefined
-      };
-      
-      
-      debugLogger.info('useMetaTabData', 'Calling EventMetricsService with:', {
-        clientAccounts,
-        willCallFacebook: clientAccounts.facebookAds && clientAccounts.facebookAds !== 'none'
-      });
-      
-      const result = await EventMetricsService.getComprehensiveMetrics(
+      // Use AnalyticsOrchestrator with direct API calls
+      const result = await AnalyticsOrchestrator.getDashboardData(
         clientId,
-        finalDateRange,
-        clientAccounts,
-        undefined, // clientConversionActions
-        true // includePreviousPeriod
+        finalDateRange
       );
       
       return { ...result, clientData };
     },
     enabled: !!clientId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
   });
 };
 
-// Hook for Google Ads tab data
+// Hook for Google tab data
 export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) {throw new Error('Client ID is required');}
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
       const clientData = await getCachedClientData(clientId);
-      if (!clientData) {throw new Error('Client not found');}
+      if (!clientData) {
+        throw new Error('Client not found');
+      }
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -186,42 +173,37 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
         };
       })();
       
-      debugLogger.info('useGoogleTabData', 'Fetching Google ads data', { clientId, finalDateRange });
+      debugLogger.info('useGoogleTabData', 'Fetching google data', { clientId, finalDateRange });
       
-      // Only fetch Google specific data
-      const clientAccounts = {
-        facebookAds: undefined, // Don't fetch Facebook data for Google tab
-        googleAds: clientData.accounts?.googleAds,
-        goHighLevel: undefined,
-        googleSheets: undefined
-      };
-      
-      const result = await EventMetricsService.getComprehensiveMetrics(
+      // Use AnalyticsOrchestrator with direct API calls
+      const result = await AnalyticsOrchestrator.getDashboardData(
         clientId,
-        finalDateRange,
-        clientAccounts
+        finalDateRange
       );
       
       return { ...result, clientData };
     },
     enabled: !!clientId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
   });
 };
 
-// Hook for Leads tab data (GoHighLevel + Google Sheets)
+// Hook for Leads tab data
 export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange) => {
   return useQuery({
     queryKey: ['leads-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) {throw new Error('Client ID is required');}
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
       
       const clientData = await getCachedClientData(clientId);
-      if (!clientData) {throw new Error('Client not found');}
+      if (!clientData) {
+        throw new Error('Client not found');
+      }
       
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
@@ -235,70 +217,19 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
       
       debugLogger.info('useLeadsTabData', 'Fetching leads data', { clientId, finalDateRange });
       
-      // Only fetch GoHighLevel and Google Sheets data
-      const clientAccounts = {
-        facebookAds: undefined, // Don't fetch Facebook data for Leads tab
-        googleAds: undefined, // Don't fetch Google Ads data for Leads tab
-        goHighLevel: clientData.accounts?.goHighLevel,
-        googleSheets: clientData.accounts?.googleSheets,
-        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
-      };
-      
-      const result = await EventMetricsService.getComprehensiveMetrics(
+      // Use AnalyticsOrchestrator with direct API calls
+      const result = await AnalyticsOrchestrator.getDashboardData(
         clientId,
-        finalDateRange,
-        clientAccounts
+        finalDateRange
       );
       
-      // Also fetch lead data from Google Sheets
-      let leadData = null;
-      try {
-        if (clientData.accounts?.googleSheetsConfig) {
-          leadData = await LeadDataService.fetchLeadData(
-            clientData.accounts.googleSheetsConfig.spreadsheetId,
-            clientData.accounts.googleSheetsConfig.sheetName
-          );
-        } else {
-          leadData = await LeadDataService.fetchLeadData();
-        }
-      } catch (error) {
-        debugLogger.warn('useLeadsTabData', 'Failed to fetch lead data', error);
-      }
-      
-      return { ...result, clientData, leadData };
+      return { ...result, clientData };
     },
     enabled: !!clientId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
     retry: 1,
     refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
   });
 };
 
-// Hook for GoHighLevel specific data (used in leads tab)
-export const useGHLTabData = (locationId: string | undefined, dateRange?: DateRange) => {
-  return useQuery({
-    queryKey: ['ghl-tab-data', locationId, dateRange],
-    queryFn: async () => {
-      if (!locationId) {throw new Error('Location ID is required');}
-      
-      debugLogger.info('useGHLTabData', 'Fetching GHL data', { locationId, dateRange });
-      
-      const apiDateRange = dateRange ? {
-        startDate: dateRange.start,
-        endDate: dateRange.end
-      } : undefined;
-      
-      const metrics = await GoHighLevelAnalyticsService.getGHLMetrics(locationId, apiDateRange);
-      
-      return metrics;
-    },
-    enabled: !!locationId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    retry: 1,
-    refetchOnWindowFocus: false,
-    timeout: 30000, // 30 second timeout to prevent infinite loading
-  });
-};

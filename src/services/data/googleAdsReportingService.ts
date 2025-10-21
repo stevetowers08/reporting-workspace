@@ -1,8 +1,8 @@
 import { debugLogger } from '@/lib/debug';
 import { BaseReportingService } from '@/services/base/BaseService';
 import { DatabaseService } from '@/services/data/databaseService';
-import { EventMetricsService } from '@/services/data/eventMetricsService';
 import { GoogleMetricsWithTrends, TrendResult } from '@/types';
+import { AnalyticsOrchestrator } from './analyticsOrchestrator';
 
 export interface GoogleAdsReportingData {
   clientId: string;
@@ -121,12 +121,9 @@ export class GoogleAdsReportingService extends BaseReportingService {
             end: endDate.toISOString().split('T')[0]
           };
 
-          const dashboardData = await EventMetricsService.getComprehensiveMetrics(
+          const dashboardData = await AnalyticsOrchestrator.getDashboardData(
             client.id,
-            dateRange,
-            client.accounts,
-            client.conversion_actions,
-            true // includePreviousPeriod
+            dateRange
           );
 
           debugLogger.info('GOOGLE_REPORTING', `Dashboard data for ${client.name}`, {

@@ -273,8 +273,8 @@ export class EventMetricsService {
       
       // ✅ SAFETY CHECK: Ensure ghlMetrics is never null
       if (!ghlMetrics) {
-        ghlMetrics = this.getEmptyGHLMetrics();
-        debugLogger.warn('EventMetricsService', 'GHL metrics was null, using empty metrics');
+        debugLogger.warn('EventMetricsService', 'GHL metrics was null');
+        ghlMetrics = null;
       }
       if (hasGoogleSheets) {
         const result = results[resultIndex++];
@@ -376,7 +376,7 @@ export class EventMetricsService {
     } catch (error) {
       debugLogger.error('EventMetricsService', 'Facebook metrics error', error);
       debugLogger.warn('EventMetricsService', 'Facebook metrics not available', error);
-      return this.getEmptyFacebookMetrics();
+      return null;
     }
   }
 
@@ -397,15 +397,15 @@ export class EventMetricsService {
       const isConnected = integrations && integrations.length > 0;
       
       if (!isConnected) {
-        debugLogger.warn('EventMetricsService', 'Google Ads not connected, returning empty metrics');
-        return this.getEmptyGoogleMetrics();
+        debugLogger.warn('EventMetricsService', 'Google Ads not connected, returning null');
+        return null;
       }
       
       // Get the manager account ID from the integration (for login-customer-id header)
       const managerAccountId = await GoogleAdsService.getManagerAccountId();
       if (!managerAccountId) {
         debugLogger.warn('EventMetricsService', 'No manager account ID found in integration');
-        return this.getEmptyGoogleMetrics();
+        return null;
       }
       
       // Use the client's Google Ads account ID for metrics (not the manager account)
@@ -443,7 +443,7 @@ export class EventMetricsService {
         debugLogger.warn('EventMetricsService', 'Google Ads metrics not available', error);
       }
       
-      return this.getEmptyGoogleMetrics();
+      return null;
     }
   }
 
@@ -451,7 +451,7 @@ export class EventMetricsService {
     try {
       if (!locationId) {
         debugLogger.warn('EventMetricsService', 'No GoHighLevel location ID provided');
-        return this.getEmptyGHLMetrics();
+        return null;
       }
       
       // ✅ FIX: Check GoHighLevel connection using the correct method
@@ -474,8 +474,8 @@ export class EventMetricsService {
         debugLogger.warn('EventMetricsService', 'Go High Level authentication error - returning null', { locationId });
         return null; // ✅ FIX: Return null for authentication errors
       } else {
-        debugLogger.warn('EventMetricsService', 'Go High Level metrics not available - returning empty metrics', error);
-        return this.getEmptyGHLMetrics(); // Return empty metrics for other errors
+        debugLogger.warn('EventMetricsService', 'Go High Level metrics not available - returning null', error);
+        return null;
       }
     }
   }
@@ -509,10 +509,10 @@ export class EventMetricsService {
           budgetDistribution: []
         };
       }
-      return this.getEmptyEventMetrics();
+      return null;
     } catch (error) {
       debugLogger.warn('EventMetricsService', 'Event metrics not available - using LeadDataService fallback', error);
-      return this.getEmptyEventMetrics();
+      return null;
     }
   }
 
@@ -676,63 +676,6 @@ export class EventMetricsService {
     }
   }
 
-  // Helper methods for empty metrics when services are not connected
-  private static getEmptyFacebookMetrics(): FacebookAdsMetrics {
-    return {
-      impressions: 0,
-      clicks: 0,
-      spend: 0,
-      leads: 0,
-      conversions: 0,
-      ctr: 0,
-      cpc: 0,
-      cpm: 0,
-      roas: 0,
-      reach: 0,
-      frequency: 0
-    };
-  }
-
-  private static getEmptyGoogleMetrics(): any {
-    return {
-      impressions: 0,
-      clicks: 0,
-      cost: 0,
-      leads: 0,
-      conversions: 0,
-      ctr: 0,
-      cpc: 0,
-      conversionRate: 0,
-      costPerConversion: 0,
-      searchImpressionShare: 0,
-      qualityScore: 0
-    };
-  }
-
-  private static getEmptyGHLMetrics(): any {
-    return {
-      totalContacts: 0,
-      newContacts: 0,
-      totalOpportunities: 0,
-      wonOpportunities: 0,
-      lostOpportunities: 0,
-      pipelineValue: 0,
-      avgDealSize: 0,
-      conversionRate: 0,
-      responseTime: 0,
-      wonRevenue: 0
-    };
-  }
-
-  private static getEmptyEventMetrics(): EventMetrics {
-    return {
-      totalEvents: 0,
-      averageGuests: 0,
-      totalSubmissions: 0,
-      eventTypeBreakdown: [],
-      budgetDistribution: []
-    };
-  }
 
   // Utility method to get key insights for client reports
   static generateInsights(data: EventDashboardData): Array<{

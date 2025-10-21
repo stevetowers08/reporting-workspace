@@ -17,7 +17,8 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
       try {
         const data = await LeadDataService.fetchLeadData();
         setLeadData(data);
-      } catch (error) {
+      } catch (_error) {
+        // Handle error silently
       } finally {
         setLoading(false);
       }
@@ -47,7 +48,7 @@ export const LeadSourceBreakdown: React.FC<LeadSourceBreakdownProps> = ({ data: 
 
   const leadSources = [
     {
-      source: 'Facebook Ads',
+      source: 'Meta Ads',
       count: leadData.facebookLeads,
       percentage: facebookPercentage,
       color: 'bg-blue-500',

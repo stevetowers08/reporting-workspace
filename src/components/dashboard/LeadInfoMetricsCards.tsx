@@ -56,8 +56,6 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
     ghlAccount: data?.clientAccounts?.goHighLevel
   });
   
-  // Remove fake funnel data - we don't have real page analytics
-
   if (isLoading) {
     return (
       <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-1">

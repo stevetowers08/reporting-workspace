@@ -131,10 +131,11 @@ export const GHLFunnelAnalytics: React.FC<GHLFunnelAnalyticsProps> = ({ location
 
   // Prepare chart data from funnelBreakdown - use real data from API
   const funnelPerformanceData = funnelData.funnelBreakdown.map((funnel, index) => {
-    // For funnelBreakdown, we only have basic info, so use placeholder values
-    const totalViews = funnel.pages * 100; // Estimate based on page count
-    const totalConversions = Math.floor(totalViews * 0.05); // Estimate 5% conversion rate
-    const conversionRate = 5; // Fixed conversion rate for breakdown data
+    // Use actual funnel data from API
+    const actualFunnel = funnelData.funnels.find(f => f.name === funnel.name);
+    const totalViews = actualFunnel ? actualFunnel.pages.reduce((sum, page) => sum + page.views, 0) : 0;
+    const totalConversions = actualFunnel ? actualFunnel.pages.reduce((sum, page) => sum + page.conversions, 0) : 0;
+    const conversionRate = totalViews > 0 ? (totalConversions / totalViews) * 100 : 0;
     
     return {
       name: funnel.name.length > 15 ? funnel.name.substring(0, 15) + '...' : funnel.name,

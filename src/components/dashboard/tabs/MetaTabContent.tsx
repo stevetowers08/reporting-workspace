@@ -1,7 +1,7 @@
 // Meta Ads Tab Content Component
 import { ComponentLoader } from "@/components/ui/ComponentLoader";
 import { LoadingOverlay } from "@/components/ui/EnhancedLoadingSystem";
-import { useMetaTabDataV2 } from '@/hooks/charts/useChartDataV2';
+import { useMetaTabData } from '@/hooks/useTabSpecificData';
 import React, { Suspense, lazy } from "react";
 
 // Lazy load components
@@ -38,7 +38,7 @@ export const MetaTabContent: React.FC<MetaTabContentProps> = ({
   clientId,
   dateRange
 }) => {
-  const { data, isLoading, error } = useMetaTabDataV2(clientId, dateRange);
+  const { data, isLoading, error } = useMetaTabData(clientId, dateRange);
 
   if (error) {
     return (
