@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
-import { OAuthService } from '@/services/auth/oauthService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -24,8 +24,19 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     setIsConnecting(true);
     
     try {
-      // Use OAuthService to generate proper OAuth URL with state validation
-      const authUrl = await OAuthService.generateAuthUrl('goHighLevel', {}, clientId);
+      // Get OAuth credentials from environment
+      const clientId_env = import.meta.env.VITE_GHL_CLIENT_ID;
+      const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
+          (window.location.hostname === 'localhost' 
+              ? `${window.location.origin}/oauth/callback`
+              : 'https://reporting.tulenagency.com/oauth/callback')).trim();
+      
+      if (!clientId_env) {
+        throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
+      }
+      
+      // Use GoHighLevelService to generate proper OAuth URL
+      const authUrl = GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       
