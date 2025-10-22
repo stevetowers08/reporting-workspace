@@ -3,6 +3,7 @@ import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -96,12 +97,26 @@ const OAuthCallback: React.FC = () => {
             throw new Error('Missing GoHighLevel OAuth credentials');
           }
           
-          const tokens = await OAuthService.exchangeCodeForTokens('goHighLevel', code, state);
+          const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
+              (window.location.hostname === 'localhost' 
+                  ? `${window.location.origin}/oauth/callback`
+                  : 'https://reporting.tulenagency.com/oauth/callback');
           
-          await TokenManager.storeOAuthTokens('goHighLevel', tokens, {
-            id: 'ghl-user',
-            name: 'GoHighLevel User'
-          });
+          const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
+          
+          // Save token to database
+          const saveSuccess = await GoHighLevelService.saveLocationToken(
+            tokenData.locationId,
+            tokenData.access_token,
+            tokenData.scope.split(' ')
+          );
+          
+          if (!saveSuccess) {
+            throw new Error('Failed to save GoHighLevel token to database');
+          }
+          
+          // Set credentials for future API calls
+          GoHighLevelService.setCredentials(tokenData.access_token, tokenData.locationId);
 
           setStatus('success');
           setMessage('Successfully connected to GoHighLevel!');
