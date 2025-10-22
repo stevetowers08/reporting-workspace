@@ -3,7 +3,6 @@ import { debugLogger } from '@/lib/debug';
 import { TokenManager } from '@/services/auth/TokenManager';
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { OAuthService } from '@/services/auth/oauthService';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -13,7 +12,7 @@ const OAuthCallback: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [showManagerModal, setShowManagerModal] = useState(false);
-  const [platform, setPlatform] = useState<string>('');
+  const [_platform, setPlatform] = useState<string>('');
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -87,39 +86,8 @@ const OAuthCallback: React.FC = () => {
           setStatus('success');
           setMessage('Successfully connected to Google Ads! Please configure your manager account ID.');
         } else if (platform === 'goHighLevel') {
-          // Handle GoHighLevel OAuth
-          debugLogger.debug('🔍 Processing GoHighLevel OAuth');
-          
-          const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-          const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-          
-          if (!clientId || !clientSecret) {
-            throw new Error('Missing GoHighLevel OAuth credentials');
-          }
-          
-          const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
-              (window.location.hostname === 'localhost' 
-                  ? `${window.location.origin}/oauth/ghl-callback`
-                  : 'https://reporting.tulenagency.com/oauth/ghl-callback');
-          
-          const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
-          
-          // Save token to database
-          const saveSuccess = await GoHighLevelService.saveLocationToken(
-            tokenData.locationId,
-            tokenData.access_token,
-            tokenData.scope.split(' ')
-          );
-          
-          if (!saveSuccess) {
-            throw new Error('Failed to save GoHighLevel token to database');
-          }
-          
-          // Set credentials for future API calls
-          GoHighLevelService.setCredentials(tokenData.access_token, tokenData.locationId);
-
-          setStatus('success');
-          setMessage('Successfully connected to GoHighLevel!');
+          // GoHighLevel OAuth is handled client-specific, not at agency level
+          throw new Error('GoHighLevel OAuth should be handled through client-specific flow, not agency-level OAuth callback');
         } else {
           throw new Error(`Unsupported platform: ${platform}`);
         }
@@ -144,7 +112,7 @@ const OAuthCallback: React.FC = () => {
     };
 
     handleOAuthCallback();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, showManagerModal]);
 
   const handleManagerModalSuccess = () => {
     setShowManagerModal(false);

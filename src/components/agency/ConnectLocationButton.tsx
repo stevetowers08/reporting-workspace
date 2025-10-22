@@ -102,7 +102,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         try {
           // Check if popup has redirected to our callback URL
           const currentUrl = popup.location.href;
-          if (currentUrl.includes('/leadconnector/oath') && currentUrl.includes('success=true')) {
+          if (currentUrl.includes('/oauth/ghl-callback') && currentUrl.includes('success=true')) {
             clearInterval(monitorPopup);
             window.removeEventListener('message', handleMessage);
             setIsConnecting(false);

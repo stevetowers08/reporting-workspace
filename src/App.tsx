@@ -206,21 +206,21 @@ const HealthCheckPage = () => {
 };
 
 const App = () => {
-  console.log('🎯 App component: Rendering started');
+  // App.tsx - Main application component
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => {
-    console.log('🔧 App useEffect: Initializing app');
+    // Initialize app
     
     // Initialize production monitoring - load Sentry lazily to prevent SES conflicts
     const loadSentry = async () => {
       try {
-        console.log('📊 Loading Sentry...');
+        // Load Sentry for production monitoring
         const { initSentry } = await import("@/lib/sentry");
         initSentry();
-        console.log('✅ Sentry loaded successfully');
+        // Sentry loaded successfully
       } catch (error) {
-        console.error('❌ Failed to load Sentry:', error);
+        // Failed to load Sentry
         debugLogger.error('App', 'Failed to load Sentry', error);
       }
     };
@@ -286,8 +286,6 @@ const App = () => {
                     <Route path="/api-testing" element={<APITestingPage />} />
                     <Route path="/oauth/callback" element={<OAuthCallback />} />
                     <Route path="/oauth/ghl-callback" element={<GHLCallbackPage />} />
-                    <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
-                    <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                     <Route path="/share/:clientId" element={
                       <Suspense fallback={<DashboardSkeleton />}>
                         <EventDashboard isShared={true} />
