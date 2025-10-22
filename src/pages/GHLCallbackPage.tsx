@@ -126,10 +126,10 @@ export const GHLCallbackPage: React.FC = () => {
         // Get OAuth credentials from environment
         const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
         const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-        const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
-            (window.location.hostname === 'localhost' 
-                ? `${window.location.origin}/api/leadconnector/oath`
-                : 'https://reporting.tulenagency.com/api/leadconnector/oath')).trim();
+        const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI ||
+            (window.location.hostname === 'localhost'
+                ? `${window.location.origin}/oauth/ghl-callback`
+                : 'https://reporting.tulenagency.com/oauth/ghl-callback')).trim();
         
         if (!clientId || !clientSecret) {
           throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');
