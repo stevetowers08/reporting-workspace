@@ -68,7 +68,7 @@ export default async function handler(req, res) {
           grant_type: 'authorization_code',
           code: code,
           user_type: 'Location',
-          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app'}/api/leadconnector/oath`
+          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://reporting.tulenagency.com'}/oauth/callback`
         })
       }
     );
@@ -225,10 +225,10 @@ export default async function handler(req, res) {
     
     // Redirect to the frontend callback page instead of direct redirects
     // This allows the popup to handle the success message properly
-    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://tulenreporting.vercel.app';
+    const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://reporting.tulenagency.com';
     
     // Always redirect to the frontend callback page with success parameters
-    const callbackUrl = `${baseUrl}/leadconnector/oath?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
+    const callbackUrl = `${baseUrl}/oauth/callback?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
     
     console.log('🔍 Redirecting to frontend callback:', callbackUrl);
     res.redirect(302, callbackUrl);

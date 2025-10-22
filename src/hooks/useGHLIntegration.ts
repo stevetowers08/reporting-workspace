@@ -137,6 +137,14 @@ export const useGHLIntegration = () => {
               ? `${window.location.origin}/oauth/callback`
               : 'https://reporting.tulenagency.com/oauth/callback');
       
+      debugLogger.info('useGHLIntegration', 'OAuth configuration', {
+        clientId: clientId ? clientId.substring(0, 10) + '...' : 'MISSING',
+        redirectUri,
+        hostname: window.location.hostname,
+        origin: window.location.origin,
+        envRedirectUri: import.meta.env.VITE_GHL_REDIRECT_URI
+      });
+      
       if (!clientId) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
@@ -153,7 +161,7 @@ export const useGHLIntegration = () => {
       }
       
       // Listen for messages from the popup window
-      const handleMessage = (event: MessageEvent<any>) => {
+      const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'GHL_CONNECTED') {
           setIsConnecting(false);
           if (event.data.success) {

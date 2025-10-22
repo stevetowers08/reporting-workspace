@@ -19,14 +19,46 @@ export const GHLCallbackPage: React.FC = () => {
     const handleCallback = async () => {
       try {
         debugLogger.info('GHLCallbackPage', 'Starting OAuth callback processing');
+        
+        // Log full URL and all search parameters for debugging
+        debugLogger.info('GHLCallbackPage', 'Full URL and parameters', {
+          fullUrl: window.location.href,
+          search: window.location.search,
+          hash: window.location.hash,
+          allSearchParams: Object.fromEntries(searchParams.entries())
+        });
+        
         const code = searchParams.get('code');
+        
+        // Check for authorization code in multiple possible locations
+        let authCode = code;
+        
+        // Fallback: check if code is in hash instead of query params
+        if (!authCode && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          authCode = hashParams.get('code');
+          debugLogger.info('GHLCallbackPage', 'Found code in hash', { authCode: authCode ? authCode.substring(0, 10) + '...' : 'none' });
+        }
+        
+        // Fallback: check if code is in different parameter name
+        if (!authCode) {
+          authCode = searchParams.get('authorization_code') || searchParams.get('auth_code');
+          debugLogger.info('GHLCallbackPage', 'Checked alternative code parameters', { authCode: authCode ? authCode.substring(0, 10) + '...' : 'none' });
+        }
         const locationId = searchParams.get('locationId');
         const errorParam = searchParams.get('error');
         const state = searchParams.get('state');
         const success = searchParams.get('success');
         const locationName = searchParams.get('location_name');
 
-        debugLogger.info('GHLCallbackPage', 'URL parameters', { code, locationId, errorParam, state, success, locationName });
+        debugLogger.info('GHLCallbackPage', 'URL parameters', { 
+          code: authCode ? authCode.substring(0, 10) + '...' : 'MISSING', 
+          locationId, 
+          errorParam, 
+          state, 
+          success, 
+          locationName 
+        });
 
         // Handle success redirect from API endpoint
         if (success === 'true' && locationId) {
@@ -65,8 +97,18 @@ export const GHLCallbackPage: React.FC = () => {
           throw new Error(`OAuth error: ${errorParam}`);
         }
 
-        if (!code) {
-          throw new Error('Authorization code not found in callback');
+        if (!authCode) {
+          // Enhanced error logging for debugging
+          debugLogger.error('GHLCallbackPage', 'Authorization code missing', {
+            fullUrl: window.location.href,
+            searchParams: Object.fromEntries(searchParams.entries()),
+            hasCode: !!authCode,
+            hasError: !!errorParam,
+            errorParam,
+            allParams: Array.from(searchParams.keys()),
+            hash: window.location.hash
+          });
+          throw new Error('Authorization code not found in callback. Please check the GoHighLevel OAuth app redirect URI configuration.');
         }
 
         // Note: In a production app, you should validate the state parameter
@@ -77,7 +119,7 @@ export const GHLCallbackPage: React.FC = () => {
 
         // Exchange code for token
         debugLogger.info('GHLCallbackPage', 'Starting token exchange', { 
-          code: code ? code.substring(0, 10) + '...' : 'MISSING', 
+          code: authCode ? authCode.substring(0, 10) + '...' : 'MISSING', 
           locationId,
           fullUrl: window.location.href
         });
@@ -93,7 +135,7 @@ export const GHLCallbackPage: React.FC = () => {
           throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');
         }
         
-        const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
+        const tokenData = await GoHighLevelService.exchangeCodeForToken(authCode, clientId, clientSecret, redirectUri);
         
         // Save token to database
         const saveSuccess = await GoHighLevelService.saveLocationToken(
