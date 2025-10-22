@@ -376,8 +376,8 @@ const googleSheetsScopes = [
 ```
 
 #### Redirect URIs
-- **Development**: `http://localhost:3000/oauth/callback`
-- **Production**: `https://reporting.tulenagency.com/oauth/callback`
+- **Development**: `http://localhost:3000/oauth/ghl-callback`
+- **Production**: `https://reporting.tulenagency.com/oauth/ghl-callback`
 - **Backend**: `${VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
 
 ### Facebook OAuth Configuration

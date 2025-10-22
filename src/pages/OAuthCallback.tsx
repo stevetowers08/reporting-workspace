@@ -99,8 +99,8 @@ const OAuthCallback: React.FC = () => {
           
           const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
               (window.location.hostname === 'localhost' 
-                  ? `${window.location.origin}/oauth/callback`
-                  : 'https://reporting.tulenagency.com/oauth/callback');
+                  ? `${window.location.origin}/oauth/ghl-callback`
+                  : 'https://reporting.tulenagency.com/oauth/ghl-callback');
           
           const tokenData = await GoHighLevelService.exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
           

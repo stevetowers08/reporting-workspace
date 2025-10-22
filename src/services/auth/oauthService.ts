@@ -71,8 +71,8 @@ export class OAuthService {
                     const redirectUri = platform === 'goHighLevel' 
                         ? (import.meta.env.VITE_GHL_REDIRECT_URI || 
                            (window.location.hostname === 'localhost' 
-                               ? `${window.location.origin}/oauth/callback`
-                               : 'https://reporting.tulenagency.com/oauth/callback'))
+                               ? `${window.location.origin}/oauth/ghl-callback`
+                               : 'https://reporting.tulenagency.com/oauth/ghl-callback'))
                         : (window.location.hostname === 'localhost' 
                             ? `${window.location.origin}/oauth/callback`
                             : 'https://reporting.tulenagency.com/oauth/callback');

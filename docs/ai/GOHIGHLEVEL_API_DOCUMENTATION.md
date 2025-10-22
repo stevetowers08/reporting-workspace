@@ -601,8 +601,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### OAuth Redirect URIs
-- **Development**: `http://localhost:3000/oauth/callback`
-- **Production**: `https://reporting.tulenagency.com/oauth/callback`
+- **Development**: `http://localhost:3000/oauth/ghl-callback`
+- **Production**: `https://reporting.tulenagency.com/oauth/ghl-callback`
 
 ## API Limitations & Constraints
 

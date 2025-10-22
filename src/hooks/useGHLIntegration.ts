@@ -134,8 +134,8 @@ export const useGHLIntegration = () => {
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
       const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost' 
-              ? `${window.location.origin}/oauth/callback`
-              : 'https://reporting.tulenagency.com/oauth/callback')).trim();
+              ? `${window.location.origin}/oauth/ghl-callback`
+              : 'https://reporting.tulenagency.com/oauth/ghl-callback')).trim();
       
       debugLogger.info('useGHLIntegration', 'OAuth configuration', {
         clientId: clientId ? clientId.substring(0, 10) + '...' : 'MISSING',

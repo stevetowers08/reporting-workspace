@@ -28,8 +28,8 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       const clientId_env = import.meta.env.VITE_GHL_CLIENT_ID;
       const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost' 
-              ? `${window.location.origin}/oauth/callback`
-              : 'https://reporting.tulenagency.com/oauth/callback')).trim();
+              ? `${window.location.origin}/oauth/ghl-callback`
+              : 'https://reporting.tulenagency.com/oauth/ghl-callback')).trim();
       
       if (!clientId_env) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
