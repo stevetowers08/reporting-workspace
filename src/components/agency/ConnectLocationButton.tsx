@@ -35,8 +35,16 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
       
-      // Use GoHighLevelService to generate proper OAuth URL
-      const authUrl = GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri);
+      // Use GoHighLevelService to generate proper OAuth URL with required scopes
+      const scopes = [
+        'contacts.readonly',
+        'opportunities.readonly', 
+        'calendars.readonly',
+        'funnels/funnel.readonly',
+        'funnels/page.readonly',
+        'locations.readonly'
+      ];
+      const authUrl = GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri, scopes);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       
