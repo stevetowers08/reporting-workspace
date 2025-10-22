@@ -12,21 +12,34 @@ export class GoHighLevelAuthService {
   private static locationTokens: Map<string, string> = new Map();
 
   // OAuth Methods
-  static getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): string {
+  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
+    
+    // Generate PKCE code verifier and challenge
+    const codeVerifier = this.generateCodeVerifier();
+    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+    
+    // Store code verifier for later use
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('oauth_code_verifier_goHighLevel', codeVerifier);
+    }
+    
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
       scope: scopes.join(' '),
       access_type: 'offline',
-      prompt: 'consent'
+      prompt: 'consent',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256'
     });
 
-    debugLogger.info('GoHighLevelAuthService', 'Generated authorization URL', {
+    debugLogger.info('GoHighLevelAuthService', 'Generated authorization URL with PKCE', {
       baseUrl,
       redirectUri,
-      scopes: scopes.join(' ')
+      scopes: scopes.join(' '),
+      hasCodeChallenge: !!codeChallenge
     });
 
     return `${baseUrl}?${params.toString()}`;
@@ -40,6 +53,15 @@ export class GoHighLevelAuthService {
   ): Promise<GHLTokenData> {
     await GHLRateLimiter.enforceRateLimit();
 
+    // Get PKCE code verifier
+    const codeVerifier = typeof window !== 'undefined' 
+      ? window.sessionStorage.getItem('oauth_code_verifier_goHighLevel')
+      : null;
+
+    if (!codeVerifier) {
+      throw new Error('Code verifier not found. Please try connecting again.');
+    }
+
     const response = await fetch(`${this.API_BASE_URL}/oauth/token`, {
       method: 'POST',
       headers: {
@@ -51,7 +73,8 @@ export class GoHighLevelAuthService {
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-        user_type: 'Location'
+        user_type: 'Location',
+        code_verifier: codeVerifier
       })
     });
 
@@ -332,6 +355,26 @@ export class GoHighLevelAuthService {
     }
 
     return response.json();
+  }
+
+  // PKCE Helper Methods
+  private static generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode.apply(null, Array.from(array)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  private static async generateCodeChallenge(codeVerifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(digest))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
   }
 
   // Webhook Management

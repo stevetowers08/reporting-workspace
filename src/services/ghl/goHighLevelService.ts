@@ -21,7 +21,7 @@ export class GoHighLevelService {
   /**
    * Generate OAuth authorization URL
    */
-  static getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): string {
+  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
     return GoHighLevelAuthService.getAuthorizationUrl(clientId, redirectUri, scopes);
   }
 
