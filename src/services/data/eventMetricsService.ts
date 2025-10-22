@@ -98,6 +98,7 @@ export class EventMetricsService {
     clientConversionActions?: { facebookAds?: string; googleAds?: string },
     includePreviousPeriod: boolean = false
   ): Promise<EventDashboardData> {
+    console.log('🚀 EventMetricsService.getComprehensiveMetrics called', { _clientId, dateRange, clientAccounts });
     try {
       // Only fetch data for connected accounts
       const promises = [];
@@ -129,6 +130,13 @@ export class EventMetricsService {
         clientAccounts.goHighLevel !== 'none' && 
         (typeof clientAccounts.goHighLevel === 'string' || 
          (typeof clientAccounts.goHighLevel === 'object' && clientAccounts.goHighLevel?.locationId));
+      
+      debugLogger.info('EventMetricsService', 'GoHighLevel account detection', {
+        goHighLevelValue: clientAccounts?.goHighLevel,
+        goHighLevelType: typeof clientAccounts?.goHighLevel,
+        hasGoHighLevel,
+        willCallGHLAPI: hasGoHighLevel
+      });
       const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
 
       if (hasFacebookAds && clientAccounts?.facebookAds) {
@@ -463,8 +471,9 @@ export class EventMetricsService {
         return null; // ✅ FIX: Return null to indicate no OAuth connection
       }
       
+      debugLogger.info('EventMetricsService', 'Calling GoHighLevelService.getGHLMetrics', { locationId, dateRange });
       const result = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
-      debugLogger.debug('EventMetricsService', 'Go High Level metrics result', result);
+      debugLogger.info('EventMetricsService', 'GoHighLevel metrics result', { locationId, result });
       return result;
     } catch (error) {
       debugLogger.error('EventMetricsService', 'GoHighLevel metrics error', error);

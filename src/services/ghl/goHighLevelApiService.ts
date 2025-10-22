@@ -286,6 +286,14 @@ export class GoHighLevelApiService {
 
   // Opportunities
   static async getOpportunities(locationId: string, _dateRange?: { startDate?: string; endDate?: string }): Promise<GHLOpportunity[]> {
+    return this.getOpportunitiesByStatus(locationId, 'all', _dateRange);
+  }
+
+  static async getWonOpportunities(locationId: string, _dateRange?: { startDate?: string; endDate?: string }): Promise<GHLOpportunity[]> {
+    return this.getOpportunitiesByStatus(locationId, 'won', _dateRange);
+  }
+
+  private static async getOpportunitiesByStatus(locationId: string, status: 'all' | 'won' | 'open' | 'lost' | 'abandoned', _dateRange?: { startDate?: string; endDate?: string }): Promise<GHLOpportunity[]> {
     await GHLRateLimiter.enforceRateLimit();
     
     // Use client-specific OAuth token instead of agency token
@@ -298,7 +306,8 @@ export class GoHighLevelApiService {
 
     try {
       // ✅ FIXED: Use correct API 2.0 endpoint with proper status filter
-      const response = await fetch(`${this.API_BASE_URL}/opportunities/search?location_id=${locationId}&status=won&limit=100`, {
+      const statusParam = status === 'all' ? '' : `&status=${status}`;
+      const response = await fetch(`${this.API_BASE_URL}/opportunities/search?location_id=${locationId}${statusParam}&limit=100`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -387,7 +396,7 @@ export class GoHighLevelApiService {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id, name, accounts')
-        .eq('accounts->goHighLevel->locationId', locationId)
+        .eq('accounts->goHighLevel', locationId)
         .single();
 
       if (clientError || !clientData) {
@@ -523,7 +532,7 @@ export class GoHighLevelApiService {
         .from('integrations')
         .select('config')
         .eq('platform', 'goHighLevel')
-        .eq('config->locationId', locationId)
+        .eq('account_id', locationId)
         .eq('connected', true)
         .single();
         

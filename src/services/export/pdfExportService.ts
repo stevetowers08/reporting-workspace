@@ -35,6 +35,33 @@ export class PDFExportService {
   }
 
   /**
+   * Wait for all resources to load before capturing
+   */
+  private static async waitForResources(element: HTMLElement): Promise<void> {
+    return new Promise((resolve) => {
+      const images = element.querySelectorAll('img');
+      const promises: Promise<void>[] = [];
+
+      images.forEach((img) => {
+        if (!img.complete) {
+          promises.push(
+            new Promise<void>((imgResolve) => {
+              img.onload = () => imgResolve();
+              img.onerror = () => imgResolve(); // Resolve even if image fails
+            })
+          );
+        }
+      });
+
+      // Wait for all images or timeout after 5 seconds
+      Promise.race([
+        Promise.all(promises),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000))
+      ]).then(() => resolve());
+    });
+  }
+
+  /**
    * Validate dashboard data structure
    */
   private static validateDashboardData(data: EventDashboardData): void {
@@ -348,13 +375,18 @@ export class PDFExportService {
   }
 
   /**
-   * Export dashboard tabs as separate pages in PDF
+   * Export dashboard tabs as separate pages in PDF - FIXED VERSION
    */
   static async exportTabsToPDF(
     tabElements: { [key: string]: HTMLElement },
     options: TabExportOptions
   ): Promise<void> {
     try {
+      debugLogger.info('PDFExportService', 'Starting PDF export', { 
+        availableTabs: Object.keys(tabElements),
+        options 
+      });
+
       // Lazy load PDF libraries
       const { jsPDF, html2canvas } = await this.loadPDFLibraries();
       
@@ -375,6 +407,8 @@ export class PDFExportService {
         ? Object.keys(tabConfig)
         : (options.tabs || ['summary']);
 
+      debugLogger.info('PDFExportService', 'Tabs to export', { tabsToExport });
+
       let isFirstPage = true;
 
       for (const tabKey of tabsToExport) {
@@ -382,9 +416,23 @@ export class PDFExportService {
         const tabName = tabConfig[tabKey as keyof typeof tabConfig];
         
         if (!tabElement || !tabName) {
-          debugLogger.warn('PDFExportService', `Tab ${tabKey} not found, skipping`);
+          debugLogger.warn('PDFExportService', `Tab ${tabKey} not found, skipping`, { 
+            tabElement: !!tabElement, 
+            tabName: !!tabName,
+            availableTabs: Object.keys(tabElements)
+          });
           continue;
         }
+
+        debugLogger.info('PDFExportService', `Processing tab ${tabKey}`, {
+          elementTagName: tabElement.tagName,
+          elementClasses: tabElement.className,
+          elementChildren: tabElement.children.length,
+          elementVisible: tabElement.offsetWidth > 0 && tabElement.offsetHeight > 0,
+          elementDisplay: window.getComputedStyle(tabElement).display,
+          elementVisibility: window.getComputedStyle(tabElement).visibility,
+          elementRect: tabElement.getBoundingClientRect()
+        });
 
         try {
           // Add new page for each tab (except the first one)
@@ -393,43 +441,126 @@ export class PDFExportService {
           }
           isFirstPage = false;
 
-          // Add tab header
-          this.addTabHeader(pdf, options, tabName, pageWidth);
+          // CRITICAL FIX: Make element visible and ensure it has content
+          const originalStyles = {
+            display: tabElement.style.display,
+            visibility: tabElement.style.visibility,
+            position: tabElement.style.position,
+            opacity: tabElement.style.opacity,
+            height: tabElement.style.height,
+            width: tabElement.style.width
+          };
 
-          // Capture tab content
+          // Force element to be visible and have dimensions
+          tabElement.style.display = 'block';
+          tabElement.style.visibility = 'visible';
+          tabElement.style.position = 'static';
+          tabElement.style.opacity = '1';
+          tabElement.style.height = 'auto';
+          tabElement.style.width = '100%';
+
+          // Wait for styles to apply
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Wait for resources to load
+          await this.waitForResources(tabElement);
+          
+          // Get element dimensions after making it visible
+          const rect = tabElement.getBoundingClientRect();
+          debugLogger.info('PDFExportService', `Element dimensions after visibility fix`, {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left
+          });
+
+          // Skip if element still has no dimensions
+          if (rect.width === 0 || rect.height === 0) {
+            debugLogger.warn('PDFExportService', `Tab ${tabKey} still has no dimensions, skipping`);
+            continue;
+          }
+          
+          // Capture tab content with optimized settings
+          debugLogger.info('PDFExportService', `Capturing canvas for tab ${tabKey}`);
+          
           const canvas = await html2canvas(tabElement, {
-            scale: 1.5,
+            scale: 2,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
             scrollX: 0,
             scrollY: 0,
-            windowWidth: 1200,
-            windowHeight: 800
+            width: rect.width,
+            height: rect.height,
+            logging: false,
+            removeContainer: true,
+            foreignObjectRendering: true,
+            imageTimeout: 15000,
+            onclone: (clonedDoc) => {
+              // Ensure cloned element is also visible
+              const clonedElement = clonedDoc.querySelector(`[data-tab="${tabKey}"]`) || 
+                                  clonedDoc.querySelector(`.${tabElement.className.split(' ')[0]}`);
+              if (clonedElement) {
+                clonedElement.style.display = 'block';
+                clonedElement.style.visibility = 'visible';
+                clonedElement.style.position = 'static';
+                clonedElement.style.opacity = '1';
+              }
+            }
           });
+
+          debugLogger.info('PDFExportService', `Canvas captured for tab ${tabKey}`, {
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+            canvasDataLength: canvas.toDataURL('image/png').length
+          });
+
+          // Validate canvas content
+          if (canvas.width === 0 || canvas.height === 0) {
+            throw new Error(`Canvas is empty for tab ${tabKey}`);
+          }
 
           const imgData = canvas.toDataURL('image/png');
           
-          // Calculate dimensions to fit the image
+          // Validate image data
+          if (imgData.length < 1000) {
+            throw new Error(`Image data is too small for tab ${tabKey}`);
+          }
+          
+          // Get canvas dimensions
           const imgWidth = canvas.width;
           const imgHeight = canvas.height;
-          const ratio = imgWidth / imgHeight;
           
+          // Add the tab content image - fill the entire page
+          const startY = 10; // Small margin from top
+          const availableHeight = pageHeight - 20; // Leave small margins
+          
+          // Calculate dimensions to fill the page
           let finalWidth = pageWidth - 20; // 10mm margin on each side
-          let finalHeight = finalWidth / ratio;
+          let finalHeight = availableHeight;
           
-          // If height is too large, scale down
-          if (finalHeight > pageHeight - 60) { // Leave space for header and footer
-            finalHeight = pageHeight - 60;
-            finalWidth = finalHeight * ratio;
+          // Maintain aspect ratio but prioritize filling the page
+          const elementRatio = imgWidth / imgHeight;
+          const pageRatio = finalWidth / finalHeight;
+          
+          if (elementRatio > pageRatio) {
+            // Element is wider, fit to width
+            finalHeight = finalWidth / elementRatio;
+          } else {
+            // Element is taller, fit to height
+            finalWidth = finalHeight * elementRatio;
           }
 
-          // Add the tab content image
-          const startY = 40; // Start after header
-          pdf.addImage(imgData, 'PNG', (pageWidth - finalWidth) / 2, startY, finalWidth, finalHeight);
+          // Center the image
+          const xOffset = (pageWidth - finalWidth) / 2;
+          const yOffset = startY + (availableHeight - finalHeight) / 2;
+          
+          pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
 
-          // Add footer for this page
-          this.addFooter(pdf, pageWidth, pageHeight);
+          debugLogger.info('PDFExportService', `Successfully added tab ${tabKey} to PDF`);
+
+          // Restore original styles
+          Object.assign(tabElement.style, originalStyles);
 
         } catch (tabError) {
           debugLogger.error('PDFExportService', `Error processing tab ${tabKey}`, tabError);
@@ -440,6 +571,8 @@ export class PDFExportService {
       // Save the PDF
       const fileName = `${options.clientName.replace(/[^a-z0-9]/gi, '_')}_dashboard_tabs_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
+
+      debugLogger.info('PDFExportService', 'PDF export completed successfully', { fileName });
 
     } catch (error) {
       debugLogger.error('PDFExportService', 'Error generating tabs PDF', error);

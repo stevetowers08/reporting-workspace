@@ -369,6 +369,11 @@ export class AnalyticsOrchestrator {
       
       // Only call GoHighLevel API if GHL account is connected
       if (clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none') {
+        console.log('🚀 AnalyticsOrchestrator calling getGoHighLevelData', { 
+          clientId, 
+          goHighLevelValue: clientData.accounts.goHighLevel,
+          goHighLevelType: typeof clientData.accounts.goHighLevel
+        });
         promises.push(this.getGoHighLevelData(clientId, dateRange, clientData));
       }
       
@@ -1257,6 +1262,12 @@ export class AnalyticsOrchestrator {
         const locationId = typeof clientData.accounts.goHighLevel === 'object' 
           ? clientData.accounts.goHighLevel?.locationId 
           : clientData.accounts.goHighLevel;
+
+        debugLogger.info('AnalyticsOrchestrator', 'Extracted GoHighLevel locationId', { 
+          locationId,
+          goHighLevelType: typeof clientData.accounts.goHighLevel,
+          goHighLevelValue: clientData.accounts.goHighLevel
+        });
 
         if (!locationId) {
           debugLogger.warn('AnalyticsOrchestrator', 'No GoHighLevel locationId found');

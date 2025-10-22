@@ -22,6 +22,13 @@ export class GoHighLevelAuthService {
       access_type: 'offline',
       prompt: 'consent'
     });
+
+    debugLogger.info('GoHighLevelAuthService', 'Generated authorization URL', {
+      baseUrl,
+      redirectUri,
+      scopes: scopes.join(' ')
+    });
+
     return `${baseUrl}?${params.toString()}`;
   }
 

@@ -9,6 +9,7 @@ import {
     OAuthTokens
 } from '@/types/integration';
 import { TokenEncryptionService } from './TokenEncryptionService';
+import { OAuthService } from './oauthService';
 
 /**
  * TokenManager - Database-only token management service
@@ -508,9 +509,6 @@ export class TokenManager {
     try {
       DevLogger.info('TokenManager', `Refreshing tokens for ${platform}`);
 
-      // Import OAuth service to handle refresh
-      const { OAuthService } = await import('@/services/auth/oauthService');
-      
       // Use OAuth service to refresh tokens
       await OAuthService.refreshAccessToken(platform);
       

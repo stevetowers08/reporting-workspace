@@ -688,15 +688,16 @@ export class DatabaseService {
         .from('integrations')
         .select('*')
         .eq('platform', 'goHighLevel')
-        .single();
+        .eq('connected', true)
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error) {
         debugDatabase.error('getGHLConnection', 'integrations', error);
         throw error;
       }
 
       debugDatabase.success('getGHLConnection', 'integrations', data);
-      return data;
+      return data?.[0] || null;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error getting GHL connection', error);
       throw error;

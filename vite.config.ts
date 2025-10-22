@@ -74,8 +74,7 @@ export default defineConfig(({ mode }) => {
         'react-dom',
         '@tanstack/react-query',
         '@supabase/supabase-js',
-        'chart.js',
-        'react-chartjs-2',
+        'recharts',
         'react-router-dom',
         '@sentry/react',
         'clsx',
@@ -98,8 +97,8 @@ export default defineConfig(({ mode }) => {
           keepNames: true,
         }),
       },
-      // Aggressive deduplication to prevent multiple React instances
-      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+      // Critical: Prevent multiple React instances that cause hydration errors
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-is'],
     },
   resolve: {
     alias: {
@@ -122,7 +121,7 @@ export default defineConfig(({ mode }) => {
     define: {
       global: 'globalThis',
       'process.env': JSON.stringify(process.env),
-      'process.env.NODE_ENV': JSON.stringify('production'),
+      'process.env.NODE_ENV': JSON.stringify(mode === 'production' ? 'production' : 'development'),
       // Environment-specific defines
       __DEV__: isDev,
       __PROD__: !isDev,
@@ -131,9 +130,17 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
       minify: 'esbuild', // Use esbuild for faster builds
-      rollupOptions: {
+        rollupOptions: {
         // Ensure React is NOT externalized - it must be bundled
         external: [],
+        // Force React to be included in the main bundle to prevent loading order issues
+        preserveEntrySignatures: 'strict',
+        // Prevent TDZ by ensuring proper module initialization order
+        treeshake: {
+          moduleSideEffects: false,
+          propertyReadSideEffects: false,
+          tryCatchDeoptimization: false,
+        },
         onwarn(warning, warn) {
           // Suppress unreachable code warnings from react-router-dom
           if (warning.code === 'UNREACHABLE_CODE' && warning.message.includes('react-router-dom')) {                                                            
@@ -150,59 +157,13 @@ export default defineConfig(({ mode }) => {
           warn(warning);
         },
         output: {
-          // Optimized chunking for better performance
-          manualChunks: (id) => {
-            // Split large vendor libraries
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is')) {
-                return 'react';
-              }
-              if (id.includes('@supabase')) {
-                return 'supabase';
-              }
-              if (id.includes('chart.js') || id.includes('recharts') || id.includes('d3')) {
-                return 'charts';
-              }
-              if (id.includes('@radix-ui')) {
-                return 'radix';
-              }
-              if (id.includes('@tanstack')) {
-                return 'tanstack';
-              }
-              if (id.includes('axios') || id.includes('lodash') || id.includes('clsx') || id.includes('tailwind-merge')) {
-                return 'utils';
-              }
-              // Split remaining vendor into smaller chunks
-              if (id.includes('lucide-react')) {
-                return 'icons';
-              }
-              return 'vendor';
-            }
-            // Split app code into smaller chunks
-            if (id.includes('src/pages/')) {
-              const pageName = id.split('/').pop()?.replace('.tsx', '') || 'page';
-              return `page-${pageName}`;
-            }
-            if (id.includes('src/components/dashboard/')) {
-              return 'dashboard';
-            }
-            if (id.includes('src/components/agency/')) {
-              return 'agency';
-            }
-            if (id.includes('src/services/api/')) {
-              return 'api-services';
-            }
-            if (id.includes('src/services/auth/')) {
-              return 'auth-services';
-            }
-            return 'app';
-          },
-          // Prevent variable name conflicts in minified code
-          format: 'es',
-          // Ensure proper initialization order
-          hoistTransitiveImports: false,
           // Prevent TDZ by ensuring proper module order
           preserveModules: false,
+          hoistTransitiveImports: false,
+          // Disable chunk splitting to prevent TDZ errors
+          manualChunks: undefined,
+          // Prevent variable name conflicts in minified code
+          format: 'es',
           // Use consistent chunk naming
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',

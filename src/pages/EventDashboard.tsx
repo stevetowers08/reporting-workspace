@@ -1,6 +1,7 @@
 import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { GoogleTabContent, LeadsTabContent, MetaTabContent, SummaryTabContent } from "@/components/dashboard/tabs";
+import { PDFExportOptionsModal } from "@/components/export/PDFExportOptionsModal";
 import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
@@ -111,6 +112,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   
   // Enhanced loading states
   const { startLoading: _startLoading, stopLoading: _stopLoading, isLoading: _isDashboardLoading } = useLoading('dashboard');
@@ -182,33 +184,61 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
   const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
 
-  // Handle PDF export with tabs
-  const handleExportPDF = useCallback(async () => {
+  // Handle PDF export with enhanced options
+  const handleExportPDF = useCallback(() => {
+    if (!clientData) {
+      alert('Client data not available for export');
+      return;
+    }
+    setShowExportModal(true);
+  }, [clientData]);
+
+  const handleExportWithOptions = useCallback(async (options: any) => {
     if (!clientData) {
       alert('Client data not available for export');
       return;
     }
 
     setExportingPDF(true);
+    setShowExportModal(false);
+    
     try {
       // Collect tab elements
       const tabElements: { [key: string]: HTMLElement } = {};
       
-      if (summaryTabRef.current) {tabElements.summary = summaryTabRef.current;}
-      if (metaTabRef.current) {tabElements.meta = metaTabRef.current;}
-      if (googleTabRef.current) {tabElements.google = googleTabRef.current;}
-      if (leadsTabRef.current) {tabElements.leads = leadsTabRef.current;}
+      if (options.includeAllTabs) {
+        if (summaryTabRef.current) tabElements.summary = summaryTabRef.current;
+        if (metaTabRef.current) tabElements.meta = metaTabRef.current;
+        if (googleTabRef.current) tabElements.google = googleTabRef.current;
+        if (leadsTabRef.current) tabElements.leads = leadsTabRef.current;
+      } else {
+        // Only include selected tabs
+        if (options.tabs?.includes('summary') && summaryTabRef.current) {
+          tabElements.summary = summaryTabRef.current;
+        }
+        if (options.tabs?.includes('meta') && metaTabRef.current) {
+          tabElements.meta = metaTabRef.current;
+        }
+        if (options.tabs?.includes('google') && googleTabRef.current) {
+          tabElements.google = googleTabRef.current;
+        }
+        if (options.tabs?.includes('leads') && leadsTabRef.current) {
+          tabElements.leads = leadsTabRef.current;
+        }
+      }
 
-      // Export all tabs as separate pages
+      // Export tabs with options
       await exportTabsToPDF(tabElements, {
         clientName: clientData.name,
         logoUrl: clientData.logo_url,
         dateRange: getDateRange(selectedPeriod),
-        includeAllTabs: true,
-        includeCharts: true,
-        includeDetailedMetrics: true
+        includeAllTabs: options.includeAllTabs,
+        tabs: options.tabs,
+        includeCharts: options.includeCharts,
+        includeDetailedMetrics: options.includeDetailedMetrics
       });
-    } catch (_err) {
+    } catch (err) {
+      console.error('PDF export failed:', err);
       alert('Failed to export PDF. Please try again.');
     } finally {
       setExportingPDF(false);
@@ -344,7 +374,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
 
           {/* Summary Tab */}
-          <TabsContent value="summary" className="mt-6">
+          <TabsContent value="summary" className="mt-6" ref={summaryTabRef}>
             <SummaryTabContent
               clientId={actualClientId}
               dateRange={getDateRange(selectedPeriod)}
@@ -352,7 +382,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           </TabsContent>
 
           {/* Meta Ads Tab */}
-          <TabsContent value="meta" className="mt-6">
+          <TabsContent value="meta" className="mt-6" ref={metaTabRef}>
             <MetaTabContent
               clientId={actualClientId}
               dateRange={getDateRange(selectedPeriod)}
@@ -360,7 +390,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           </TabsContent>
 
           {/* Google Ads Tab */}
-          <TabsContent value="google" className="mt-6">
+          <TabsContent value="google" className="mt-6" ref={googleTabRef}>
             <GoogleTabContent
               clientId={actualClientId}
               dateRange={getDateRange(selectedPeriod)}
@@ -368,7 +398,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           </TabsContent>
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
-          <TabsContent value="leads" className="mt-6">
+          <TabsContent value="leads" className="mt-6" ref={leadsTabRef}>
             <LeadsTabContent
               clientId={actualClientId}
               dateRange={getDateRange(selectedPeriod)}
@@ -378,6 +408,17 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         </Tabs>
         </div>
       </div>
+      
+      {/* PDF Export Options Modal */}
+      <PDFExportOptionsModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportWithOptions}
+        clientName={clientData?.name || ''}
+        dateRange={getDateRange(selectedPeriod)}
+        availableTabs={['summary', 'meta', 'google', 'leads']}
+        isExporting={exportingPDF}
+      />
     </div>
     </LazyComponentErrorBoundary>
   );

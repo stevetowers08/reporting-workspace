@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { DatabaseService } from '@/services/data/databaseService';
+import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -135,7 +135,7 @@ export const useGHLIntegration = () => {
       const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost' 
               ? `${window.location.origin}/oauth/callback`
-              : 'https://tulenreporting.vercel.app/oauth/callback');
+              : 'https://reporting.tulenagency.com/oauth/callback');
       
       if (!clientId) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');

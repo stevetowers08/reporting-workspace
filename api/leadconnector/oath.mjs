@@ -13,7 +13,14 @@ export default async function handler(req, res) {
     const locationId = query.location_id;
     const clientId = query.client_id;
 
-    console.log('🔍 OAuth callback received:', { code: !!code, locationId, clientId });
+    console.log('🔍 OAuth callback received:', { 
+      code: !!code, 
+      locationId, 
+      clientId,
+      fullQuery: query,
+      url: req.url,
+      method: req.method
+    });
 
     // Get the state parameter (contains clientId for context)
     const state = query.state;

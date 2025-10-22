@@ -1,52 +1,33 @@
 import React from 'react';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  Filler,
-} from 'chart.js';
-import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  Filler
-);
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
 
 interface ChartData {
-  labels: string[];
-  datasets: Array<{
-    label: string;
-    data: number[];
-    backgroundColor?: string | string[];
-    borderColor?: string | string[];
-    borderWidth?: number;
-    fill?: boolean;
-    tension?: number;
-  }>;
+  name: string;
+  value: number;
+  [key: string]: any;
 }
 
 interface ChartWrapperProps {
-  type: 'bar' | 'line' | 'pie' | 'doughnut';
-  data: ChartData;
+  type: 'bar' | 'line' | 'pie';
+  data: ChartData[];
   title?: string;
   height?: number;
-  options?: any;
+  dataKey?: string;
+  xAxisKey?: string;
 }
 
 export const ChartWrapper: React.FC<ChartWrapperProps> = ({
@@ -54,46 +35,73 @@ export const ChartWrapper: React.FC<ChartWrapperProps> = ({
   data,
   title,
   height = 300,
-  options = {}
+  dataKey = 'value',
+  xAxisKey = 'name'
 }) => {
-  const defaultOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: !!title,
-        text: title,
-      },
-    },
-    scales: type === 'bar' || type === 'line' ? {
-      y: {
-        beginAtZero: true,
-      },
-    } : undefined,
-    ...options,
-  };
-
   const renderChart = () => {
     switch (type) {
       case 'bar':
-        return <Bar data={data} options={defaultOptions} />;
+        return (
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisKey} />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey={dataKey} fill="#10B981" />
+          </BarChart>
+        );
       case 'line':
-        return <Line data={data} options={defaultOptions} />;
+        return (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisKey} />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey={dataKey} stroke="#3B82F6" strokeWidth={2} />
+          </LineChart>
+        );
       case 'pie':
-        return <Pie data={data} options={defaultOptions} />;
-      case 'doughnut':
-        return <Doughnut data={data} options={defaultOptions} />;
+        return (
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey={dataKey}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={CHART_COLORS.palette[index % CHART_COLORS.palette.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        );
       default:
-        return <Bar data={data} options={defaultOptions} />;
+        return (
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisKey} />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey={dataKey} fill="#10B981" />
+          </BarChart>
+        );
     }
   };
 
   return (
     <div style={{ height: `${height}px`, width: '100%' }}>
-      {renderChart()}
+      {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
+      <ResponsiveContainer width="100%" height="100%">
+        {renderChart()}
+      </ResponsiveContainer>
     </div>
   );
 };

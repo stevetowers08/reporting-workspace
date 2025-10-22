@@ -1018,7 +1018,7 @@ export class GoogleAdsService {
   }
 
   /**
-   * Get gender breakdown using gender_view resource
+   * Get gender breakdown using gender_view (Google Ads API v21)
    */
   private static async getGenderBreakdown(
     customerId: string, 
@@ -1028,18 +1028,24 @@ export class GoogleAdsService {
     managerAccountId: string
   ): Promise<{ female: number; male: number }> {
     try {
+      // Use gender_view for demographics (correct approach for v21)
       const gaql = `
         SELECT 
-          campaign.id,
-          campaign.name,
           ad_group_criterion.gender.type,
           metrics.conversions,
-          metrics.cost_micros
-        FROM keyword_view 
-        WHERE campaign.advertising_channel_type IN ('PERFORMANCE_MAX', 'SEARCH')
-        AND segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
-        AND ad_group_criterion.gender.type IS NOT NULL
+          metrics.cost_micros,
+          metrics.impressions,
+          metrics.clicks
+        FROM gender_view 
+        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        AND ad_group_criterion.status = 'ENABLED'
       `;
+
+      debugLogger.info('GoogleAdsService', 'Fetching gender data with gender_view', {
+        customerId,
+        dateRange,
+        gaql: gaql.replace(/\s+/g, ' ').trim()
+      });
 
       const blocks = await this.makeApiRequest({
         accessToken,
@@ -1049,15 +1055,47 @@ export class GoogleAdsService {
         gaql
       });
 
-      return this.processGenderData(blocks);
+      return this.processGenderDataCriterionInfo(blocks);
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to fetch gender data', error);
-      return { female: 0, male: 0 };
+      debugLogger.error('GoogleAdsService', 'Gender view approach failed, trying ad_group_criterion fallback', error);
+      
+      // Fallback to ad_group_criterion approach
+      try {
+        const fallbackGaql = `
+          SELECT 
+            ad_group_criterion.gender.type,
+            metrics.conversions,
+            metrics.cost_micros
+          FROM ad_group_criterion 
+          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+          AND ad_group_criterion.type = 'GENDER'
+          AND ad_group_criterion.status = 'ENABLED'
+        `;
+
+        debugLogger.info('GoogleAdsService', 'Trying ad_group_criterion fallback for gender', {
+          customerId,
+          dateRange,
+          gaql: fallbackGaql.replace(/\s+/g, ' ').trim()
+        });
+
+        const blocks = await this.makeApiRequest({
+          accessToken,
+          developerToken,
+          customerId: this.normalizeCid(customerId),
+          managerId: managerAccountId,
+          gaql: fallbackGaql
+        });
+
+        return this.processGenderDataCriterionInfo(blocks);
+      } catch (fallbackError) {
+        debugLogger.error('GoogleAdsService', 'Both gender approaches failed', fallbackError);
+        return { female: 0, male: 0 };
+      }
     }
   }
 
   /**
-   * Get age breakdown using age_range_view resource
+   * Get age breakdown using age_range_view (Google Ads API v21)
    */
   private static async getAgeBreakdown(
     customerId: string, 
@@ -1067,18 +1105,24 @@ export class GoogleAdsService {
     managerAccountId: string
   ): Promise<{ '25-34': number; '35-44': number; '45-54': number; '55+': number }> {
     try {
+      // Use age_range_view for demographics (correct approach for v21)
       const gaql = `
         SELECT 
-          campaign.id,
-          campaign.name,
           ad_group_criterion.age_range.type,
           metrics.conversions,
-          metrics.cost_micros
-        FROM keyword_view 
-        WHERE campaign.advertising_channel_type IN ('PERFORMANCE_MAX', 'SEARCH')
-        AND segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
-        AND ad_group_criterion.age_range.type IS NOT NULL
+          metrics.cost_micros,
+          metrics.impressions,
+          metrics.clicks
+        FROM age_range_view 
+        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        AND ad_group_criterion.status = 'ENABLED'
       `;
+
+      debugLogger.info('GoogleAdsService', 'Fetching age data with age_range_view', {
+        customerId,
+        dateRange,
+        gaql: gaql.replace(/\s+/g, ' ').trim()
+      });
 
       const blocks = await this.makeApiRequest({
         accessToken,
@@ -1088,10 +1132,42 @@ export class GoogleAdsService {
         gaql
       });
 
-      return this.processAgeData(blocks);
+      return this.processAgeDataCriterionInfo(blocks);
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to fetch age data', error);
-      return { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
+      debugLogger.error('GoogleAdsService', 'Age range view approach failed, trying ad_group_criterion fallback', error);
+      
+      // Fallback to ad_group_criterion approach
+      try {
+        const fallbackGaql = `
+          SELECT 
+            ad_group_criterion.age_range.type,
+            metrics.conversions,
+            metrics.cost_micros
+          FROM ad_group_criterion 
+          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+          AND ad_group_criterion.type = 'AGE_RANGE'
+          AND ad_group_criterion.status = 'ENABLED'
+        `;
+
+        debugLogger.info('GoogleAdsService', 'Trying ad_group_criterion fallback for age', {
+          customerId,
+          dateRange,
+          gaql: fallbackGaql.replace(/\s+/g, ' ').trim()
+        });
+
+        const blocks = await this.makeApiRequest({
+          accessToken,
+          developerToken,
+          customerId: this.normalizeCid(customerId),
+          managerId: managerAccountId,
+          gaql: fallbackGaql
+        });
+
+        return this.processAgeDataCriterionInfo(blocks);
+      } catch (fallbackError) {
+        debugLogger.error('GoogleAdsService', 'Both age approaches failed', fallbackError);
+        return { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
+      }
     }
   }
 
@@ -1164,74 +1240,179 @@ export class GoogleAdsService {
   }
 
   /**
-   * Process gender data from gender_view API response
+   * Process gender data from segments API response (preferred approach)
    */
   private static processGenderData(blocks: any[]): { female: number; male: number } {
     const gender = { female: 0, male: 0 };
-    let totalLeads = 0;
+    let totalConversions = 0;
 
     for (const block of blocks) {
       const results = (block as { results?: unknown[] }).results || [];
       for (const result of results) {
         const data = result as any;
-        const leads = parseInt(data.metrics?.conversions || '0');
-        totalLeads += leads;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        totalConversions += conversions;
 
-        const genderValue = data.ad_group_criterion?.gender?.type;
+        // Handle segments approach
+        const genderValue = data.segments?.gender;
         if (genderValue) {
           if (genderValue === 'GENDER_FEMALE') {
-            gender.female += leads;
+            gender.female += conversions;
           } else if (genderValue === 'GENDER_MALE') {
-            gender.male += leads;
+            gender.male += conversions;
           }
         }
       }
     }
 
     // Convert to percentages
-    if (totalLeads > 0) {
-      gender.female = Math.round((gender.female / totalLeads) * 100);
-      gender.male = Math.round((gender.male / totalLeads) * 100);
+    if (totalConversions > 0) {
+      gender.female = Math.round((gender.female / totalConversions) * 100);
+      gender.male = Math.round((gender.male / totalConversions) * 100);
     }
+
+    debugLogger.info('GoogleAdsService', 'Processed gender data', {
+      totalConversions,
+      gender,
+      blocksProcessed: blocks.length
+    });
 
     return gender;
   }
 
   /**
-   * Process age data from age_range_view API response
+   * Process gender data from CriterionInfo API response (fallback approach)
    */
-  private static processAgeData(blocks: any[]): { '25-34': number; '35-44': number; '45-54': number; '55+': number } {
-    const ageGroups = { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
-    let totalLeads = 0;
+  private static processGenderDataCriterionInfo(blocks: any[]): { female: number; male: number } {
+    const gender = { female: 0, male: 0 };
+    let totalConversions = 0;
 
     for (const block of blocks) {
       const results = (block as { results?: unknown[] }).results || [];
       for (const result of results) {
         const data = result as any;
-        const leads = parseInt(data.metrics?.conversions || '0');
-        totalLeads += leads;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        totalConversions += conversions;
 
-        const ageRange = data.ad_group_criterion?.age_range?.type;
-        if (ageRange) {
-          if (ageRange === 'AGE_RANGE_25_34') {
-            ageGroups['25-34'] += leads;
-          } else if (ageRange === 'AGE_RANGE_35_44') {
-            ageGroups['35-44'] += leads;
-          } else if (ageRange === 'AGE_RANGE_45_54') {
-            ageGroups['45-54'] += leads;
-          } else if (ageRange === 'AGE_RANGE_55_64' || ageRange === 'AGE_RANGE_65_UP') {
-            ageGroups['55+'] += leads;
+        // Handle CriterionInfo approach
+        const genderValue = data.ad_group_criterion?.gender?.type;
+        if (genderValue) {
+          if (genderValue === 'GENDER_FEMALE') {
+            gender.female += conversions;
+          } else if (genderValue === 'GENDER_MALE') {
+            gender.male += conversions;
           }
         }
       }
     }
 
     // Convert to percentages
-    if (totalLeads > 0) {
+    if (totalConversions > 0) {
+      gender.female = Math.round((gender.female / totalConversions) * 100);
+      gender.male = Math.round((gender.male / totalConversions) * 100);
+    }
+
+    debugLogger.info('GoogleAdsService', 'Processed gender data (CriterionInfo)', {
+      totalConversions,
+      gender,
+      blocksProcessed: blocks.length
+    });
+
+    return gender;
+  }
+
+  /**
+   * Process age data from segments API response (preferred approach)
+   */
+  private static processAgeData(blocks: any[]): { '25-34': number; '35-44': number; '45-54': number; '55+': number } {
+    const ageGroups = { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
+    let totalConversions = 0;
+
+    for (const block of blocks) {
+      const results = (block as { results?: unknown[] }).results || [];
+      for (const result of results) {
+        const data = result as any;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        totalConversions += conversions;
+
+        // Handle segments approach
+        const ageRange = data.segments?.age_range;
+        if (ageRange) {
+          if (ageRange === 'AGE_RANGE_25_34') {
+            ageGroups['25-34'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_35_44') {
+            ageGroups['35-44'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_45_54') {
+            ageGroups['45-54'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_55_64' || ageRange === 'AGE_RANGE_65_UP') {
+            ageGroups['55+'] += conversions;
+          }
+        }
+      }
+    }
+
+    // Convert to percentages
+    if (totalConversions > 0) {
       Object.keys(ageGroups).forEach(key => {
-        ageGroups[key as keyof typeof ageGroups] = Math.round((ageGroups[key as keyof typeof ageGroups] / totalLeads) * 100);
+        ageGroups[key as keyof typeof ageGroups] = Math.round(
+          (ageGroups[key as keyof typeof ageGroups] / totalConversions) * 100
+        );
       });
     }
+
+    debugLogger.info('GoogleAdsService', 'Processed age data', {
+      totalConversions,
+      ageGroups,
+      blocksProcessed: blocks.length
+    });
+
+    return ageGroups;
+  }
+
+  /**
+   * Process age data from CriterionInfo API response (fallback approach)
+   */
+  private static processAgeDataCriterionInfo(blocks: any[]): { '25-34': number; '35-44': number; '45-54': number; '55+': number } {
+    const ageGroups = { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
+    let totalConversions = 0;
+
+    for (const block of blocks) {
+      const results = (block as { results?: unknown[] }).results || [];
+      for (const result of results) {
+        const data = result as any;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        totalConversions += conversions;
+
+        // Handle CriterionInfo approach
+        const ageRange = data.ad_group_criterion?.age_range?.type;
+        if (ageRange) {
+          if (ageRange === 'AGE_RANGE_25_34') {
+            ageGroups['25-34'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_35_44') {
+            ageGroups['35-44'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_45_54') {
+            ageGroups['45-54'] += conversions;
+          } else if (ageRange === 'AGE_RANGE_55_64' || ageRange === 'AGE_RANGE_65_UP') {
+            ageGroups['55+'] += conversions;
+          }
+        }
+      }
+    }
+
+    // Convert to percentages
+    if (totalConversions > 0) {
+      Object.keys(ageGroups).forEach(key => {
+        ageGroups[key as keyof typeof ageGroups] = Math.round(
+          (ageGroups[key as keyof typeof ageGroups] / totalConversions) * 100
+        );
+      });
+    }
+
+    debugLogger.info('GoogleAdsService', 'Processed age data (CriterionInfo)', {
+      totalConversions,
+      ageGroups,
+      blocksProcessed: blocks.length
+    });
 
     return ageGroups;
   }

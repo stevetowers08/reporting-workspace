@@ -149,6 +149,46 @@ class LogoService {
         usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table']
       }
     });
+
+    // Tulen Agency Logo
+    this.logos.set('tulenAgency', {
+      id: 'tulen-agency-2024',
+      platform: 'tulenAgency',
+      name: 'Tulen Agency',
+      version: '2024.1',
+      lastUpdated: '2024-01-15',
+      source: 'custom',
+      formats: {
+        png: '/logos/tulen-favicon-32x32.png'
+      },
+      dimensions: { width: 32, height: 32 },
+      brandGuidelines: {
+        minSize: 16,
+        maxSize: 200,
+        backgroundColor: '#FFFFFF',
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table', 'header', 'sidebar']
+      }
+    });
+
+    // Tulen Agency Logo (alias)
+    this.logos.set('tulen', {
+      id: 'tulen-agency-2024',
+      platform: 'tulen',
+      name: 'Tulen Agency',
+      version: '2024.1',
+      lastUpdated: '2024-01-15',
+      source: 'custom',
+      formats: {
+        png: '/logos/tulen-favicon-32x32.png'
+      },
+      dimensions: { width: 32, height: 32 },
+      brandGuidelines: {
+        minSize: 16,
+        maxSize: 200,
+        backgroundColor: '#FFFFFF',
+        usage: ['agency-panel', 'dashboard', 'integration-cards', 'client-form', 'client-table', 'header', 'sidebar']
+      }
+    });
   }
 
   /**
@@ -198,7 +238,9 @@ class LogoService {
       'goHighLevel': 'GoHighLevelIcon',
       'googleSheets': 'GoogleSheetsIcon',
       'googleAI': 'GoogleAIStudioIcon',
-      'google-ai': 'GoogleAIStudioIcon'
+      'google-ai': 'GoogleAIStudioIcon',
+      'tulenAgency': 'TulenAgencyLogo',
+      'tulen': 'TulenAgencyLogo'
     };
     
     return componentMap[platform] || 'DefaultIcon';
