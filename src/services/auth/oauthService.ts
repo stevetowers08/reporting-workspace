@@ -67,31 +67,18 @@ export class OAuthService {
                             'locations.readonly'
                           ];
                     
-                    // Use frontend OAuth callback for GoHighLevel (corrected)
-                    const redirectUri = platform === 'goHighLevel' 
-                        ? (import.meta.env.VITE_GHL_REDIRECT_URI || 
-                           (window.location.hostname === 'localhost' 
-                               ? `${window.location.origin}/oauth/ghl-callback`
-                               : 'https://reporting.tulenagency.com/oauth/ghl-callback'))
-                        : (window.location.hostname === 'localhost' 
-                            ? `${window.location.origin}/oauth/callback`
-                            : 'https://reporting.tulenagency.com/oauth/callback');
+                    // Use frontend OAuth callback for Google platforms
+                    const redirectUri = window.location.hostname === 'localhost' 
+                        ? `${window.location.origin}/oauth/callback`
+                        : 'https://reporting.tulenagency.com/oauth/callback';
                     
                     return {
-                        clientId: platform === 'goHighLevel' 
-                            ? import.meta.env.VITE_GHL_CLIENT_ID || ''
-                            : import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                        clientSecret: platform === 'goHighLevel'
-                            ? import.meta.env.VITE_GHL_CLIENT_SECRET || ''
-                            : import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Required for Google OAuth with PKCE
+                        clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+                        clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '', // Required for Google OAuth with PKCE
                         redirectUri: redirectUri,
                         scopes: scopes,
-                        authUrl: platform === 'goHighLevel'
-                            ? 'https://marketplace.leadconnectorhq.com/oauth/chooselocation'
-                            : 'https://accounts.google.com/o/oauth2/v2/auth',
-                        tokenUrl: platform === 'goHighLevel'
-                            ? 'https://services.leadconnectorhq.com/oauth/token'
-                            : 'https://oauth2.googleapis.com/token'
+                        authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+                        tokenUrl: 'https://oauth2.googleapis.com/token'
                     };
                 }
                 throw new Error(`No OAuth credentials found for platform: ${platform}`);
@@ -312,10 +299,7 @@ export class OAuthService {
             }
         }
 
-        // Add GoHighLevel specific parameters
-        if (platform === 'goHighLevel') {
-            tokenParams.user_type = 'Location';
-        }
+        // Platform-specific parameters are handled by individual services
 
         try {
             DevLogger.debug('OAuthService', 'Token exchange parameters', {
