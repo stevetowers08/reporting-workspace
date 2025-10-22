@@ -455,7 +455,7 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ### OAuth Redirect URIs
 - **Development**: `http://localhost:3000/oauth/callback`
-- **Production**: `https://tulenreporting.vercel.app/oauth/callback`
+- **Production**: `https://reporting.tulenagency.com/oauth/callback`
 - **Backend**: `${VITE_SUPABASE_URL}/functions/v1/google-ads-oauth`
 
 ## GAQL (Google Ads Query Language)

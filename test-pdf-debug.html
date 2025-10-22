@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Export Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-dashboard {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 1200px; /* Laptop screen width */
+        }
+        .metric-card {
+            background: #e3f2fd;
+            padding: 15px;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: inline-block;
+            width: 200px;
+            margin-right: 20px;
+        }
+        .chart-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 20px 0;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Export Debug Test - Laptop Screen Size</h1>
+    
+    <div id="test-dashboard" class="test-dashboard">
+        <h2>Marketing Analytics Dashboard</h2>
+        
+        <div class="metric-card">
+            <h3>Total Leads</h3>
+            <p style="font-size: 24px; font-weight: bold; color: #2196f3;">1,250</p>
+        </div>
+        
+        <div class="metric-card">
+            <h3>Total Spend</h3>
+            <p style="font-size: 24px; font-weight: bold; color: #f44336;">$15,420</p>
+        </div>
+        
+        <div class="metric-card">
+            <h3>ROI</h3>
+            <p style="font-size: 24px; font-weight: bold; color: #4caf50;">285%</p>
+        </div>
+        
+        <div class="chart-container">
+            <div style="text-align: center;">
+                <h3>Performance Chart</h3>
+                <div style="width: 400px; height: 200px; background: linear-gradient(45deg, #2196f3, #4caf50); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">
+                    Sample Chart Visualization
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>Campaign Performance</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: #f8f9fa;">
+                    <th style="border: 1px solid #dee2e6; padding: 8px;">Campaign</th>
+                    <th style="border: 1px solid #dee2e6; padding: 8px;">Leads</th>
+                    <th style="border: 1px solid #dee2e6; padding: 8px;">Spend</th>
+                    <th style="border: 1px solid #dee2e6; padding: 8px;">ROI</th>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">Facebook Ads</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">850</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">$8,500</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">320%</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">Google Ads</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">400</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">$6,920</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">245%</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <div>
+        <h2>Actions</h2>
+        <button onclick="testPDFExport()">Test PDF Export</button>
+        <button onclick="checkElementInfo()">Check Element Info</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <div>
+        <h2>Debug Logs</h2>
+        <div id="logs" class="log"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        function log(message, data = null) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const logEntry = `[${timestamp}] ${message}`;
+            if (data) {
+                logs.textContent += logEntry + '\n' + JSON.stringify(data, null, 2) + '\n\n';
+            } else {
+                logs.textContent += logEntry + '\n';
+            }
+            logs.scrollTop = logs.scrollHeight;
+            console.log(logEntry, data);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').textContent = '';
+        }
+        
+        function checkElementInfo() {
+            const element = document.getElementById('test-dashboard');
+            const rect = element.getBoundingClientRect();
+            
+            log('Element Info:', {
+                tagName: element.tagName,
+                className: element.className,
+                offsetWidth: element.offsetWidth,
+                offsetHeight: element.offsetHeight,
+                clientWidth: element.clientWidth,
+                clientHeight: element.clientHeight,
+                scrollWidth: element.scrollWidth,
+                scrollHeight: element.scrollHeight,
+                boundingRect: {
+                    width: rect.width,
+                    height: rect.height,
+                    top: rect.top,
+                    left: rect.left
+                },
+                hasContent: element.innerHTML.trim().length > 0,
+                childrenCount: element.children.length,
+                textContent: element.textContent?.substring(0, 200) + '...'
+            });
+        }
+        
+        async function testPDFExport() {
+            log('=== Testing PDF Export ===');
+            
+            try {
+                const element = document.getElementById('test-dashboard');
+                if (!element) {
+                    log('ERROR: test-dashboard element not found');
+                    return;
+                }
+                
+                log('Creating PDF...');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                log('PDF Page Info:', {
+                    pageWidth: pageWidth,
+                    pageHeight: pageHeight
+                });
+                
+                log('Capturing element...');
+                const canvas = await html2canvas(element, {
+                    scale: 1.5,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    width: element.offsetWidth,
+                    height: element.offsetHeight
+                });
+                
+                log('Canvas Info:', {
+                    width: canvas.width,
+                    height: canvas.height,
+                    dataURLLength: canvas.toDataURL('image/png').length
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Optimize for laptop screens
+                const headerHeight = 20;
+                const footerHeight = 10;
+                const availableHeight = pageHeight - headerHeight - footerHeight;
+                
+                let finalWidth = pageWidth - 10; // Minimal margins
+                let finalHeight = availableHeight;
+                
+                const elementRatio = canvas.width / canvas.height;
+                const pageRatio = finalWidth / finalHeight;
+                
+                if (elementRatio > pageRatio) {
+                    finalHeight = finalWidth / elementRatio;
+                } else {
+                    finalHeight = Math.min(availableHeight, finalHeight);
+                    finalWidth = finalHeight * elementRatio;
+                }
+                
+                log('Final Dimensions:', {
+                    finalWidth: finalWidth,
+                    finalHeight: finalHeight,
+                    xOffset: (pageWidth - finalWidth) / 2,
+                    yOffset: headerHeight + (availableHeight - finalHeight) / 2
+                });
+                
+                // Add image to PDF
+                const xOffset = (pageWidth - finalWidth) / 2;
+                const yOffset = headerHeight + (availableHeight - finalHeight) / 2;
+                
+                pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+                
+                log('PDF created successfully, saving...');
+                pdf.save('debug-test-laptop.pdf');
+                
+                log('PDF export completed successfully');
+                
+            } catch (error) {
+                log('ERROR in PDF export test:', error);
+            }
+        }
+        
+        // Auto-check element info on load
+        window.addEventListener('load', () => {
+            setTimeout(checkElementInfo, 1000);
+        });
+    </script>
+</body>
+</html>

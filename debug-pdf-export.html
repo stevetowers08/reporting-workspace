@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Export Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .debug-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-element {
+            background: #e3f2fd;
+            padding: 20px;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-element h3 {
+            color: #1976d2;
+            margin-top: 0;
+        }
+        .test-element p {
+            color: #424242;
+            line-height: 1.5;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Export Debug Tool</h1>
+    
+    <div class="debug-container">
+        <h2>Test Elements</h2>
+        <div id="test-element-1" class="test-element">
+            <h3>Test Element 1</h3>
+            <p>This is a test element with some content. It should be visible and have proper dimensions.</p>
+            <p>Width: <span id="width-1">-</span>px, Height: <span id="height-1">-</span>px</p>
+        </div>
+        
+        <div id="test-element-2" class="test-element" style="display: none;">
+            <h3>Test Element 2 (Hidden)</h3>
+            <p>This element is hidden and should not be captured.</p>
+        </div>
+        
+        <div id="test-element-3" class="test-element">
+            <h3>Test Element 3</h3>
+            <p>Another visible element with content.</p>
+            <div style="background: #ffeb3b; padding: 10px; margin: 10px 0;">
+                <strong>Highlighted content</strong>
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-container">
+        <h2>Actions</h2>
+        <button onclick="checkElementDimensions()">Check Element Dimensions</button>
+        <button onclick="testHtml2Canvas()">Test html2canvas</button>
+        <button onclick="testPDFExport()">Test PDF Export</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <div class="debug-container">
+        <h2>Debug Logs</h2>
+        <div id="logs" class="log"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        function log(message, data = null) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const logEntry = `[${timestamp}] ${message}`;
+            if (data) {
+                logs.textContent += logEntry + '\n' + JSON.stringify(data, null, 2) + '\n\n';
+            } else {
+                logs.textContent += logEntry + '\n';
+            }
+            logs.scrollTop = logs.scrollHeight;
+            console.log(logEntry, data);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').textContent = '';
+        }
+        
+        function checkElementDimensions() {
+            log('=== Checking Element Dimensions ===');
+            
+            const elements = [
+                { id: 'test-element-1', name: 'Test Element 1' },
+                { id: 'test-element-2', name: 'Test Element 2 (Hidden)' },
+                { id: 'test-element-3', name: 'Test Element 3' }
+            ];
+            
+            elements.forEach(element => {
+                const el = document.getElementById(element.id);
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const computedStyle = window.getComputedStyle(el);
+                    
+                    log(`${element.name}:`, {
+                        elementId: element.id,
+                        tagName: el.tagName,
+                        className: el.className,
+                        offsetWidth: el.offsetWidth,
+                        offsetHeight: el.offsetHeight,
+                        clientWidth: el.clientWidth,
+                        clientHeight: el.clientHeight,
+                        scrollWidth: el.scrollWidth,
+                        scrollHeight: el.scrollHeight,
+                        boundingRect: {
+                            width: rect.width,
+                            height: rect.height,
+                            top: rect.top,
+                            left: rect.left,
+                            bottom: rect.bottom,
+                            right: rect.right
+                        },
+                        computedStyle: {
+                            display: computedStyle.display,
+                            visibility: computedStyle.visibility,
+                            position: computedStyle.position,
+                            opacity: computedStyle.opacity,
+                            overflow: computedStyle.overflow
+                        },
+                        hasContent: el.innerHTML.trim().length > 0,
+                        childrenCount: el.children.length
+                    });
+                    
+                    // Update width/height display
+                    const widthSpan = document.getElementById(`width-${element.id.split('-')[2]}`);
+                    const heightSpan = document.getElementById(`height-${element.id.split('-')[2]}`);
+                    if (widthSpan) widthSpan.textContent = rect.width;
+                    if (heightSpan) heightSpan.textContent = rect.height;
+                } else {
+                    log(`Element ${element.id} not found`);
+                }
+            });
+        }
+        
+        async function testHtml2Canvas() {
+            log('=== Testing html2canvas ===');
+            
+            try {
+                const element = document.getElementById('test-element-1');
+                if (!element) {
+                    log('ERROR: test-element-1 not found');
+                    return;
+                }
+                
+                log('Capturing element with html2canvas...');
+                
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    logging: true,
+                    onclone: (clonedDoc) => {
+                        log('html2canvas onclone callback triggered');
+                        const clonedElement = clonedDoc.getElementById('test-element-1');
+                        if (clonedElement) {
+                            log('Cloned element found:', {
+                                tagName: clonedElement.tagName,
+                                className: clonedElement.className,
+                                innerHTML: clonedElement.innerHTML.substring(0, 100) + '...'
+                            });
+                        } else {
+                            log('ERROR: Cloned element not found');
+                        }
+                    }
+                });
+                
+                log('Canvas captured:', {
+                    width: canvas.width,
+                    height: canvas.height,
+                    dataURL: canvas.toDataURL('image/png').substring(0, 100) + '...',
+                    dataURLLength: canvas.toDataURL('image/png').length
+                });
+                
+                // Check if canvas has content
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                let hasContent = false;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255) {
+                        hasContent = true;
+                        break;
+                    }
+                }
+                
+                log('Canvas content analysis:', {
+                    hasContent: hasContent,
+                    isEmpty: !hasContent,
+                    firstPixel: {
+                        r: data[0],
+                        g: data[1],
+                        b: data[2],
+                        a: data[3]
+                    }
+                });
+                
+            } catch (error) {
+                log('ERROR in html2canvas test:', error);
+            }
+        }
+        
+        async function testPDFExport() {
+            log('=== Testing PDF Export ===');
+            
+            try {
+                const element = document.getElementById('test-element-1');
+                if (!element) {
+                    log('ERROR: test-element-1 not found');
+                    return;
+                }
+                
+                log('Creating PDF...');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                log('Capturing element...');
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                
+                log('Canvas created:', {
+                    width: canvas.width,
+                    height: canvas.height,
+                    dataURLLength: canvas.toDataURL('image/png').length
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Calculate dimensions
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = imgWidth / imgHeight;
+                
+                let finalWidth = pageWidth - 20; // 10mm margin on each side
+                let finalHeight = finalWidth / ratio;
+                
+                if (finalHeight > pageHeight - 40) {
+                    finalHeight = pageHeight - 40;
+                    finalWidth = finalHeight * ratio;
+                }
+                
+                log('PDF dimensions:', {
+                    pageWidth: pageWidth,
+                    pageHeight: pageHeight,
+                    imgWidth: imgWidth,
+                    imgHeight: imgHeight,
+                    ratio: ratio,
+                    finalWidth: finalWidth,
+                    finalHeight: finalHeight
+                });
+                
+                // Add image to PDF
+                pdf.addImage(imgData, 'PNG', (pageWidth - finalWidth) / 2, 30, finalWidth, finalHeight);
+                
+                log('PDF created successfully, saving...');
+                pdf.save('debug-test.pdf');
+                
+                log('PDF export completed');
+                
+            } catch (error) {
+                log('ERROR in PDF export test:', error);
+            }
+        }
+        
+        // Auto-check dimensions on load
+        window.addEventListener('load', () => {
+            setTimeout(checkElementDimensions, 1000);
+        });
+    </script>
+</body>
+</html>

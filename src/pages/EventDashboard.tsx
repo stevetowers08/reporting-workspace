@@ -4,11 +4,12 @@ import { GoogleTabContent, LeadsTabContent, MetaTabContent, SummaryTabContent } 
 import { PDFExportOptionsModal } from "@/components/export/PDFExportOptionsModal";
 import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
-import { usePDFExport } from '@/hooks/usePDFExport';
+import { simpleClientPDFService } from '@/services/export/simpleClientPDFService';
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -124,10 +125,12 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const leadsTabRef = useRef<HTMLDivElement>(null);
   
   // PDF export hook
-  const { exportTabsToPDF, isExporting: _isExporting, error: _error } = usePDFExport();
   
   // Get active tab from URL params, default to "summary"
   const activeTab = searchParams.get('tab') || "summary";
+  
+  // Check if this is a shared view (no agency header)
+  const isSharedView = searchParams.get('shared') === 'true';
   
   // ✅ FIX: Initialize all callbacks and memos AFTER all hooks
   const handleTabChange = useCallback((tab: string) => {
@@ -178,7 +181,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }, [clientId, urlClientId]);
 
   // Use React Query hooks for data fetching
-  const dateRange = getDateRange(selectedPeriod);
+  const _dateRange = getDateRange(selectedPeriod);
 
   // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
@@ -203,47 +206,43 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     setShowExportModal(false);
     
     try {
-      // Collect tab elements
-      const tabElements: { [key: string]: HTMLElement } = {};
-      
-      if (options.includeAllTabs) {
-        if (summaryTabRef.current) tabElements.summary = summaryTabRef.current;
-        if (metaTabRef.current) tabElements.meta = metaTabRef.current;
-        if (googleTabRef.current) tabElements.google = googleTabRef.current;
-        if (leadsTabRef.current) tabElements.leads = leadsTabRef.current;
-      } else {
-        // Only include selected tabs
-        if (options.tabs?.includes('summary') && summaryTabRef.current) {
-          tabElements.summary = summaryTabRef.current;
-        }
-        if (options.tabs?.includes('meta') && metaTabRef.current) {
-          tabElements.meta = metaTabRef.current;
-        }
-        if (options.tabs?.includes('google') && googleTabRef.current) {
-          tabElements.google = googleTabRef.current;
-        }
-        if (options.tabs?.includes('leads') && leadsTabRef.current) {
-          tabElements.leads = leadsTabRef.current;
-        }
-      }
-
-      // Export tabs with options
-      await exportTabsToPDF(tabElements, {
+      // Simple Puppeteer-based export
+      await simpleClientPDFService.exportWithProgress({
+        clientId: clientData.id,
         clientName: clientData.name,
-        logoUrl: clientData.logo_url,
+        tabs: [
+          { id: 'summary', name: 'Summary', url: `${window.location.origin}/dashboard/${clientData.id}?tab=summary&shared=true` },
+          { id: 'meta', name: 'Meta', url: `${window.location.origin}/dashboard/${clientData.id}?tab=meta&shared=true` },
+          { id: 'google', name: 'Google', url: `${window.location.origin}/dashboard/${clientData.id}?tab=google&shared=true` },
+          { id: 'leads', name: 'Leads', url: `${window.location.origin}/dashboard/${clientData.id}?tab=leads&shared=true` }
+        ],
         dateRange: getDateRange(selectedPeriod),
-        includeAllTabs: options.includeAllTabs,
-        tabs: options.tabs,
-        includeCharts: options.includeCharts,
-        includeDetailedMetrics: options.includeDetailedMetrics
+        quality: options.quality || 'email'
+      }, (message) => {
+        console.log('Export progress:', message);
       });
+      
     } catch (err) {
       console.error('PDF export failed:', err);
-      alert('Failed to export PDF. Please try again.');
+      
+      // User-friendly error messages
+      let errorMessage = 'Failed to export PDF. Please try again.';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Export timed out. Please try again with fewer tabs.';
+        } else {
+          errorMessage = `Export failed: ${err.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setExportingPDF(false);
     }
-  }, [clientData, selectedPeriod, exportTabsToPDF, getDateRange]);
+  }, [clientData, selectedPeriod, getDateRange]);
   
   // Transform clients for the dropdown
   const clients = (availableClients || []).map(client => ({
@@ -344,7 +343,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     <LazyComponentErrorBoundary>
       <div className="bg-slate-100 min-h-screen">
       {/* Internal Agency Header with Venue Dropdown - Only for internal users */}
-      {!isShared && (
+      {!isShared && !isSharedView && (
         <AgencyHeader
           clients={clients}
           selectedClientId={actualClientId}

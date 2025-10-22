@@ -4,9 +4,9 @@
  */
 
 import { Request, Response } from 'express';
-import { PuppeteerPDFExporter, ExportConfig, ExportResult } from '../services/export/puppeteerPDFExportService';
-import { debugLogger } from '../../lib/debugLogger';
 import { v4 as uuidv4 } from 'uuid';
+import { debugLogger } from '../../lib/debugLogger';
+import { ExportConfig, ExportResult, PuppeteerPDFExporter } from '../services/export/puppeteerPDFExportService';
 
 export interface ExportRequest {
   clientId: string;

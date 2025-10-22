@@ -35,18 +35,6 @@ interface DateRange {
   end: string;
 }
 
-interface LeadMetrics {
-  totalLeads: number;
-  facebookLeads: number;
-  googleLeads: number;
-  totalGuests: number;
-  averageGuestsPerLead: number;
-  eventTypes: Array<{ type: string; count: number; percentage: number }>;
-  leadSources: Array<{ source: string; count: number; percentage: number }>;
-  guestRanges: Array<{ range: string; count: number; percentage: number }>;
-  dayPreferences: Array<{ day: string; count: number; percentage: number }>;
-  landingPageTypes: Array<{ type: string; count: number; percentage: number }>;
-}
 
 // Smart cache with invalidation tracking
 interface CacheEntry<T> {
@@ -292,7 +280,7 @@ export class AnalyticsOrchestrator {
     ['google', new GoogleAdapter()]
   ]);
   private static lastRequestTime = 0;
-  private static backgroundRefreshInterval: NodeJS.Timeout | null = null;
+  private static backgroundRefreshInterval: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Start background refresh for frequently accessed data

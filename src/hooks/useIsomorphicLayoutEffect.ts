@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 
 /**
  * Isomorphic layout effect hook that works in both SSR and client-side environments.

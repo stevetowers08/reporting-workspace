@@ -114,7 +114,7 @@ describe('usePDFExport', () => {
     await act(async () => {
       try {
         await result.current.exportToPDF(mockDashboardData, mockOptions);
-      } catch (error) {
+      } catch (_error) {
         // Expected to throw
       }
     });
@@ -213,7 +213,7 @@ describe('usePDFExport', () => {
     await act(async () => {
       try {
         await result.current.exportToPDF(mockDashboardData, mockOptions);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
     });

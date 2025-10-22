@@ -128,7 +128,7 @@ This document describes the current implementation of the Marketing Analytics Da
 ## Environment Configuration
 
 ### Production URLs
-- **Frontend:** `https://tulenreporting.vercel.app`
+- **Frontend:** `https://reporting.tulenagency.com`
 - **Backend:** Supabase hosted functions
 - **Database:** Supabase PostgreSQL
 

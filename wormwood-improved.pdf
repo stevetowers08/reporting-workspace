@@ -1,0 +1,1 @@
+{"success":false,"error":"PDF generation failed","message":"className.includes is not a function\npptr:evaluate;SimplePuppeteerPDFService.generatePDF%20(file%3A%2F%2F%2FC%3A%2FDev%2FTulen%2Freporting-workspace%2Fsrc%2Fservices%2Fexport%2FsimplePuppeteerPDFService.js%3A89%3A20):48:27"}

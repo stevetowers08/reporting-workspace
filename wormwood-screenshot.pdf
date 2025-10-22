@@ -1,0 +1,1 @@
+{"success":false,"error":"PDF generation failed","message":"Cannot access dashboard at http://localhost:5173/dashboard/2775ae60-b5d6-4714-add4-d6fa30292822. Please ensure the frontend server is running."}

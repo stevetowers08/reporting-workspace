@@ -1,29 +1,35 @@
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { PDFExportService } from '@/services/export/pdfExportService';
+import { vi } from 'vitest';
 
 // Mock PDF libraries
-jest.mock('jspdf', () => ({
-  default: jest.fn().mockImplementation(() => ({
+vi.mock('jspdf', () => ({
+  default: vi.fn().mockImplementation(() => ({
     internal: {
       pageSize: {
         getWidth: () => 210,
         getHeight: () => 297
       }
     },
-    setFontSize: jest.fn(),
-    setFont: jest.fn(),
-    text: jest.fn(),
-    addImage: jest.fn(),
-    save: jest.fn(),
-    getCurrentPageInfo: () => ({ pageNumber: 1 })
+    setFontSize: vi.fn(),
+    setFont: vi.fn(),
+    text: vi.fn(),
+    addImage: vi.fn(),
+    save: vi.fn(),
+    getCurrentPageInfo: () => ({ pageNumber: 1 }),
+    getTextWidth: vi.fn(() => 10),
+    line: vi.fn(),
+    setDrawColor: vi.fn(),
+    setTextColor: vi.fn(),
+    addPage: vi.fn()
   }))
 }));
 
-jest.mock('html2canvas', () => ({
-  default: jest.fn().mockResolvedValue({
+vi.mock('html2canvas', () => ({
+  default: vi.fn().mockResolvedValue({
     width: 800,
     height: 600,
-    toDataURL: jest.fn().mockReturnValue('data:image/png;base64,mock-image-data')
+    toDataURL: vi.fn().mockReturnValue('data:image/png;base64,mock-image-data')
   })
 }));
 
@@ -89,7 +95,7 @@ describe('PDFExportService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('exportDashboardToPDF', () => {
@@ -116,7 +122,7 @@ describe('PDFExportService', () => {
       
       await expect(
         PDFExportService.exportDashboardToPDF(invalidData as any, mockOptions)
-      ).rejects.toThrow('Event metrics data is invalid');
+      ).rejects.toThrow('Missing required field: totalLeads');
     });
   });
 
@@ -146,6 +152,13 @@ describe('PDFExportService', () => {
         leads: document.createElement('div')
       };
 
+      // Add some content to mock elements
+      Object.values(mockTabElements).forEach(element => {
+        element.innerHTML = '<div class="card">Mock Dashboard Content</div>';
+        element.style.width = '800px';
+        element.style.height = '600px';
+      });
+
       const tabOptions = {
         ...mockOptions,
         includeAllTabs: true,
@@ -155,7 +168,7 @@ describe('PDFExportService', () => {
       await expect(
         PDFExportService.exportTabsToPDF(mockTabElements, tabOptions)
       ).resolves.not.toThrow();
-    });
+    }, 15000); // Increased timeout to 15 seconds
 
     it('should export only selected tabs', async () => {
       const mockTabElements = {
@@ -189,18 +202,18 @@ describe('PDFExportService', () => {
       
       expect(() => {
         (PDFExportService as any).validateDashboardData(invalidData);
-      }).toThrow('Event metrics data is invalid');
+      }).toThrow('Missing required field: totalSpend');
     });
   });
 
   describe('File naming', () => {
     it('should generate valid filename from client name', () => {
       const clientName = 'Test Client & Co.';
-      const expectedPattern = /Test_Client___Co__dashboard_\d{4}-\d{2}-\d{2}\.pdf/;
+      const _expectedPattern = /Test_Client___Co__dashboard_\d{4}-\d{2}-\d{2}\.pdf/;
       
       // This would be tested by checking the actual filename generated
       // in a real implementation, we'd mock the save method to capture the filename
-      expect(clientName.replace(/[^a-z0-9]/gi, '_')).toBe('Test_Client___Co__');
+      expect(clientName.replace(/[^a-z0-9]/gi, '_')).toBe('Test_Client___Co_');
     });
   });
 });

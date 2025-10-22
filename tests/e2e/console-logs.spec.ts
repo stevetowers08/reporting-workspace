@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test.describe('PDF Export Console Logs', () => {
   test('should check console logs for PDF export errors', async ({ page }) => {

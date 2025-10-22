@@ -1,0 +1,1 @@
+{"success":false,"error":"PDF generation failed","message":"Cannot access tab Summary at http://localhost:5173/dashboard/2775ae60-b5d6-4714-add4-d6fa30292822?tab=summary&shared=true. Please ensure the frontend server is running."}

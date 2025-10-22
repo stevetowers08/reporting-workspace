@@ -1,180 +1,961 @@
-# PDF Export Feature - Product Development Report (PDR)
+# Production Design Report (PDR)
+## PDF Export System for Reporting Dashboard
 
-## Project Overview
-**Feature**: Enhanced PDF Export Functionality for Marketing Analytics Dashboard  
-**Status**: ✅ COMPLETED  
-**Date**: [Current Date]  
-**Developer**: AI Assistant  
-
-## Executive Summary
-
-Successfully implemented and enhanced a comprehensive PDF export system for the Marketing Analytics Dashboard. The feature provides users with professional, customizable PDF reports containing dashboard data, charts, and metrics.
-
-## Completed Deliverables
-
-### ✅ Core Functionality
-- **PDF Export Service**: Complete service with jsPDF and html2canvas integration
-- **React Hook**: usePDFExport hook with state management and error handling
-- **Export Options Modal**: User-friendly interface for customizing export options
-- **Dashboard Integration**: Seamless integration with EventDashboard and AgencyHeader
-
-### ✅ Key Features Implemented
-1. **Dashboard Export**: Export complete dashboard with all metrics and visualizations
-2. **Tab-based Export**: Export specific tabs (Summary, Meta, Google, Leads) individually or collectively
-3. **Section Export**: Export specific HTML elements or sections
-4. **Customizable Options**: 
-   - Select specific tabs to include
-   - Toggle charts and detailed metrics
-   - Client branding and date range display
-5. **Professional Layout**: Headers, footers, client logos, and branded PDFs
-
-### ✅ Technical Implementation
-- **Lazy Loading**: PDF libraries only loaded when export is triggered
-- **Error Handling**: Comprehensive error handling with user-friendly messages
-- **Type Safety**: Full TypeScript implementation with proper interfaces
-- **Performance**: Optimized bundle size and memory management
-- **Testing**: Complete unit test coverage for all components
-
-### ✅ User Experience
-- **Export Button**: Integrated in dashboard header (only shown when client selected)
-- **Options Modal**: Intuitive interface for customizing export content
-- **Loading States**: Clear feedback during export process
-- **Error Recovery**: Graceful error handling with retry options
-
-## Technical Architecture
-
-### Components Created/Enhanced
-1. **PDFExportService** (`src/services/export/pdfExportService.ts`)
-   - Core PDF generation logic
-   - Data validation and error handling
-   - Professional PDF layout with branding
-
-2. **usePDFExport Hook** (`src/hooks/usePDFExport.ts`)
-   - React hook for PDF functionality
-   - State management (loading, error states)
-   - Dynamic import of PDF libraries
-
-3. **PDFExportOptionsModal** (`src/components/export/PDFExportOptionsModal.tsx`)
-   - User interface for export customization
-   - Tab selection and content options
-   - Client and date range display
-
-4. **EventDashboard Integration** (`src/pages/EventDashboard.tsx`)
-   - Modal integration
-   - Enhanced export handling
-   - Tab element collection
-
-### Dependencies Added
-- **jsPDF**: PDF generation library
-- **html2canvas**: HTML to canvas conversion for charts
-- **Existing UI Components**: Button, Modal, Checkbox, RadioGroup
-
-## Quality Assurance
-
-### Testing Coverage
-- **Unit Tests**: Complete coverage for PDFExportService and usePDFExport
-- **Integration Tests**: End-to-end export workflows
-- **Error Scenarios**: Comprehensive error handling tests
-- **Cross-browser**: Tested across major browsers
-
-### Code Quality
-- **TypeScript**: Strict mode compliance
-- **Error Handling**: Proper try-catch blocks and user feedback
-- **Performance**: Lazy loading and memory management
-- **Documentation**: Comprehensive inline and external documentation
-
-## Performance Metrics
-
-### Bundle Size Impact
-- **Initial Load**: No impact (lazy loading)
-- **Export Trigger**: ~200KB additional (jsPDF + html2canvas)
-- **Memory Usage**: Optimized with proper cleanup
-
-### Export Performance
-- **Small Reports**: < 2 seconds
-- **Large Reports**: < 5 seconds
-- **Error Recovery**: < 1 second
-
-## User Feedback Integration
-
-### Accessibility
-- **Keyboard Navigation**: Full keyboard support
-- **Screen Readers**: Proper ARIA labels
-- **Color Contrast**: WCAG 2.1 AA compliance
-
-### Usability
-- **Intuitive Interface**: Clear export options
-- **Progress Feedback**: Loading states and progress indicators
-- **Error Messages**: User-friendly error descriptions
-
-## Security Considerations
-
-### Data Protection
-- **Client Data**: Properly sanitized and secured
-- **File Naming**: Safe filename generation
-- **Access Control**: Export only for authenticated users
-
-### Privacy
-- **No Data Storage**: PDFs generated client-side
-- **Secure Processing**: No server-side data exposure
-
-## Future Roadmap
-
-### Phase 2 Enhancements (Planned)
-1. **Email Integration**: Send PDFs via email
-2. **Scheduled Reports**: Automated PDF generation
-3. **Custom Templates**: User-defined PDF layouts
-4. **Multiple Formats**: Excel, CSV export options
-
-### Performance Optimizations
-1. **Background Processing**: Non-blocking PDF generation
-2. **Caching**: Reuse generated PDFs
-3. **Compression**: Optimize PDF file sizes
-
-## Deployment Status
-
-### Production Ready
-- ✅ All tests passing
-- ✅ Error handling implemented
-- ✅ Performance optimized
-- ✅ Documentation complete
-- ✅ Security reviewed
-
-### Rollout Plan
-1. **Internal Testing**: Completed
-2. **Beta Release**: Ready for user testing
-3. **Production Deployment**: Ready for immediate deployment
-
-## Success Metrics
-
-### Technical Success
-- ✅ 100% test coverage for core functionality
-- ✅ Zero critical bugs in testing
-- ✅ Performance targets met
-- ✅ Security requirements satisfied
-
-### User Experience Success
-- ✅ Intuitive user interface
-- ✅ Comprehensive error handling
-- ✅ Professional PDF output
-- ✅ Customizable export options
-
-## Conclusion
-
-The PDF Export feature has been successfully implemented with comprehensive functionality, robust error handling, and excellent user experience. The feature is production-ready and provides users with professional, customizable PDF reports for their marketing analytics data.
-
-### Key Achievements
-- **Complete Feature Implementation**: All planned functionality delivered
-- **High Quality Code**: TypeScript strict mode, comprehensive testing
-- **Excellent UX**: Intuitive interface with clear feedback
-- **Performance Optimized**: Lazy loading and efficient processing
-- **Future-Ready**: Extensible architecture for planned enhancements
-
-The PDF Export feature significantly enhances the value proposition of the Marketing Analytics Dashboard by providing users with professional reporting capabilities.
+**Version:** 2.0  
+**Date:** October 22, 2025  
+**Status:** Production Specification  
+**Author:** Development Team  
+**Approved By:** Pending Review
 
 ---
 
-**Project Status**: ✅ COMPLETED  
-**Next Phase**: User testing and feedback collection  
-**Maintenance**: Ongoing support and enhancement planning
+## Executive Summary
 
+This PDR outlines the architecture, implementation strategy, and technical specifications for a production-grade PDF export system for our multi-tenant reporting dashboard. The system will generate high-quality, email-optimized PDF reports that capture client-specific headers and analytics across multiple dashboard tabs, with each tab rendered as a separate page.
+
+### Key Requirements
+- ✅ Capture **client header** (not agency header) on each page
+- ✅ Capture complete analytics/dashboard content per tab
+- ✅ Generate **separate PDF page per tab** with client header repeated
+- ✅ Optimize for **email delivery** (target: <8MB after compression)
+- ✅ Maintain **screenshot-like fidelity** (1920x1080 per page)
+- ✅ Support **4+ dashboard tabs** in single PDF document
+
+---
+
+## 1. System Architecture
+
+### 1.1 Technology Stack Selection
+
+After comprehensive research and industry benchmarking, we recommend a **hybrid approach** with Puppeteer as the primary engine:
+
+| Component | Technology | Justification |
+|-----------|-----------|---------------|
+| **Primary Engine** | Puppeteer | Industry standard, used by Grafana and enterprise tools |
+| **Fallback Engine** | html2canvas + jsPDF | Client-side backup for simple exports |
+| **PDF Processing** | pdf-lib | Merging, optimization, metadata |
+| **Compression** | Ghostscript | Best-in-class PDF compression for email |
+| **Backend** | Node.js + Express | API endpoint for PDF generation |
+| **Queue System** | Bull + Redis | Handle concurrent export requests |
+| **Storage** | S3-compatible | Temporary PDF storage before email delivery |
+
+### 1.2 Architecture Diagram
+
+```
+┌─────────────────┐
+│  Client Browser │
+│   (Dashboard)   │
+└────────┬────────┘
+         │ 1. Request PDF Export
+         ↓
+┌─────────────────────────────────────┐
+│     Backend API (Node.js/Express)   │
+│  ┌───────────────────────────────┐  │
+│  │  PDF Export Controller        │  │
+│  │  - Validate request           │  │
+│  │  - Queue export job           │  │
+│  │  - Return job ID              │  │
+│  └───────────────────────────────┘  │
+└────────┬────────────────────────────┘
+         │ 2. Queue Job
+         ↓
+┌─────────────────────────────────────┐
+│    Job Queue (Bull + Redis)         │
+│  - Manage concurrent exports        │
+│  - Retry failed exports             │
+│  - Track export status              │
+└────────┬────────────────────────────┘
+         │ 3. Process Job
+         ↓
+┌─────────────────────────────────────┐
+│   PDF Generator Service             │
+│  ┌───────────────────────────────┐  │
+│  │ 1. Launch Puppeteer Browser   │  │
+│  │ 2. Authenticate as client     │  │
+│  │ 3. Navigate to each tab       │  │
+│  │ 4. Capture screenshots        │  │
+│  │ 5. Generate PDF pages         │  │
+│  │ 6. Merge & compress           │  │
+│  └───────────────────────────────┘  │
+└────────┬────────────────────────────┘
+         │ 4. Store PDF
+         ↓
+┌─────────────────────────────────────┐
+│   Storage Service (S3)              │
+│  - Store generated PDFs             │
+│  - Generate presigned URLs          │
+│  - Auto-cleanup after 24h           │
+└────────┬────────────────────────────┘
+         │ 5. Send Email
+         ↓
+┌─────────────────────────────────────┐
+│   Email Service                     │
+│  - Send PDF as attachment           │
+│  - Track delivery status            │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 2. Detailed Requirements
+
+### 2.1 Content Capture Requirements
+
+#### **MUST Include:**
+1. **Client Header** (repeated on every page)
+   - Client logo
+   - Client name/branding
+   - Report title
+   - Date range/filters applied
+   - Generation timestamp
+
+2. **Dashboard Analytics Content**
+   - All metrics cards
+   - Charts and visualizations
+   - Data tables
+   - Summary statistics
+   - Any custom widgets
+
+#### **MUST Exclude:**
+1. **Agency Header**
+   - Agency branding
+   - Agency navigation
+   - User menu/profile
+   - Admin controls
+
+2. **Interactive Elements**
+   - Export buttons
+   - Filter controls (capture applied state only)
+   - Navigation tabs (replace with styled headers)
+   - Tooltips/hover states
+
+### 2.2 Page Layout Specifications
+
+#### **Page Dimensions**
+- **Resolution:** 1920 × 1080 pixels (Full HD)
+- **Orientation:** Landscape
+- **Aspect Ratio:** 16:9
+- **DPI:** 96 (screen quality) for email optimization
+
+#### **Page Structure (Per Tab)**
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                     CLIENT HEADER                           │ ← 120px height
+│  [Client Logo]  Client Name      Generated: Oct 22, 2025   │
+│  Report Type: Performance Analytics  |  Period: Oct 2025   │
+├────────────────────────────────────────────────────────────┤
+│                                                              │
+│                   TAB NAME/TITLE                            │ ← 80px height
+│               PERFORMANCE DASHBOARD                         │
+│                                                              │
+├────────────────────────────────────────────────────────────┤
+│                                                              │
+│                                                              │
+│              DASHBOARD ANALYTICS CONTENT                    │
+│                                                              │ ← 880px height
+│         [Charts, Metrics, Tables, Visualizations]           │
+│                                                              │
+│                                                              │
+└────────────────────────────────────────────────────────────┘
+Total: 1080px
+```
+
+### 2.3 Multi-Tab Page Requirements
+
+#### **Tab Processing Order**
+1. **Overview Tab** → Page 1
+2. **Performance Tab** → Page 2
+3. **Analytics Tab** → Page 3
+4. **Reports Tab** → Page 4
+5. *[Additional tabs as needed]*
+
+#### **Per-Tab Processing**
+- Navigate to tab URL
+- Wait for all content to load (charts, lazy-loaded elements)
+- Hide agency header elements
+- Ensure client header is visible and positioned correctly
+- Replace tab navigation with styled text header
+- Capture full viewport at 1920×1080
+- Validate content presence
+- Add to PDF as new page
+
+---
+
+## 3. Implementation Strategy
+
+### 3.1 Puppeteer-Based Implementation (Primary)
+
+#### **Why Puppeteer?**
+
+Based on industry research:
+- ✅ Used by Grafana OSS for production PDF exports
+- ✅ Full Chrome rendering engine with complete CSS/JS support
+- ✅ Consistent output across all users (server-side rendering)
+- ✅ Better file size control and compression options
+- ✅ Handles complex dashboards with dynamic content
+- ✅ 4.8M+ weekly downloads - industry proven
+
+#### **Implementation Code Structure**
+
+```javascript
+/**
+ * PDF Export Service - Puppeteer Implementation
+ */
+class PuppeteerPDFExporter {
+  
+  async generateClientReport(config) {
+    const {
+      clientId,
+      userId,
+      tabs,
+      dateRange,
+      filters
+    } = config;
+    
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--window-size=1920,1080'
+      ]
+    });
+    
+    try {
+      const page = await browser.newPage();
+      
+      // Set viewport to exact requirements
+      await page.setViewport({
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1 // Quality vs. size balance
+      });
+      
+      // Authenticate as client user
+      await this.authenticateClientSession(page, clientId, userId);
+      
+      // Inject print-specific CSS
+      await page.addStyleTag({
+        content: this.getPrintCSS()
+      });
+      
+      const pdfPages = [];
+      
+      // Process each tab
+      for (const tab of tabs) {
+        console.log(`Processing ${tab.name}...`);
+        
+        // Navigate to tab
+        await page.goto(tab.url, {
+          waitUntil: 'networkidle0',
+          timeout: 30000
+        });
+        
+        // Wait for dynamic content
+        await this.waitForContentReady(page);
+        
+        // Hide agency header, show client header
+        await page.evaluate(() => {
+          // Hide agency elements
+          document.querySelectorAll('.agency-header, .admin-nav, .user-menu')
+            .forEach(el => el.style.display = 'none');
+          
+          // Ensure client header is visible
+          const clientHeader = document.querySelector('.client-header');
+          if (clientHeader) {
+            clientHeader.style.display = 'block';
+            clientHeader.style.visibility = 'visible';
+            clientHeader.style.position = 'sticky';
+            clientHeader.style.top = '0';
+            clientHeader.style.zIndex = '100';
+          }
+          
+          // Replace tab navigation with styled title
+          const tabNav = document.querySelector('.tab-navigation');
+          if (tabNav) {
+            const title = document.createElement('div');
+            title.className = 'pdf-tab-title';
+            title.textContent = document.title;
+            tabNav.replaceWith(title);
+          }
+        });
+        
+        // Capture page as PDF
+        const pageBuffer = await page.pdf({
+          width: '1920px',
+          height: '1080px',
+          printBackground: true,
+          preferCSSPageSize: false,
+          displayHeaderFooter: false,
+          margin: { top: 0, bottom: 0, left: 0, right: 0 }
+        });
+        
+        pdfPages.push(pageBuffer);
+      }
+      
+      // Merge all pages
+      const mergedPDF = await this.mergePDFPages(pdfPages);
+      
+      // Compress for email
+      const compressedPDF = await this.compressPDF(mergedPDF, {
+        quality: 'balanced',
+        targetSizeMB: 8
+      });
+      
+      // Add metadata
+      const finalPDF = await this.addMetadata(compressedPDF, {
+        title: `${config.clientName} - Report`,
+        author: 'Analytics Platform',
+        subject: `Generated ${new Date().toISOString()}`,
+        keywords: 'analytics, report, dashboard'
+      });
+      
+      return finalPDF;
+      
+    } finally {
+      await browser.close();
+    }
+  }
+  
+  getPrintCSS() {
+    return `
+      @media print, screen {
+        /* Hide agency elements */
+        .agency-header,
+        .admin-nav,
+        .user-menu,
+        .export-button,
+        [data-exclude-from-pdf] {
+          display: none !important;
+        }
+        
+        /* Ensure client header is visible */
+        .client-header {
+          display: block !important;
+          visibility: visible !important;
+          background: white;
+          border-bottom: 2px solid #e5e7eb;
+          padding: 20px 40px;
+        }
+        
+        /* Tab title styling */
+        .pdf-tab-title {
+          font-size: 36px;
+          font-weight: 700;
+          color: #1f2937;
+          text-align: center;
+          padding: 30px 0;
+          margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          border-bottom: 3px solid #3b82f6;
+        }
+        
+        /* Ensure backgrounds and colors print */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        
+        /* Prevent page breaks within elements */
+        .metric-card,
+        .chart-container,
+        .data-table {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+      }
+    `;
+  }
+  
+  async waitForContentReady(page) {
+    // Wait for all charts to render
+    await page.waitForFunction(() => {
+      const charts = document.querySelectorAll('canvas, svg[class*="chart"]');
+      if (charts.length === 0) return true; // No charts
+      
+      return Array.from(charts).every(chart => {
+        const rect = chart.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+    }, { timeout: 15000 });
+    
+    // Wait for lazy-loaded images
+    await page.waitForFunction(() => {
+      const images = document.querySelectorAll('img');
+      return Array.from(images).every(img => img.complete);
+    }, { timeout: 10000 });
+    
+    // Additional wait for animations to settle
+    await page.waitForTimeout(1000);
+  }
+  
+  async mergePDFPages(pageBuffers) {
+    const PDFDocument = require('pdf-lib').PDFDocument;
+    
+    const mergedPdf = await PDFDocument.create();
+    
+    for (const buffer of pageBuffers) {
+      const pdf = await PDFDocument.load(buffer);
+      const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+      pages.forEach(page => mergedPdf.addPage(page));
+    }
+    
+    return await mergedPdf.save();
+  }
+  
+  async compressPDF(pdfBuffer, options) {
+    // Use Ghostscript for compression
+    const { quality, targetSizeMB } = options;
+    
+    // Map quality to Ghostscript settings
+    const gsQuality = {
+      'high': '/printer',      // 300 DPI - ~10-15MB
+      'balanced': '/ebook',    // 150 DPI - ~5-8MB
+      'compressed': '/screen'  // 72 DPI - ~3-5MB
+    }[quality] || '/ebook';
+    
+    // Save temp file and compress
+    const tempInput = `/tmp/input-${Date.now()}.pdf`;
+    const tempOutput = `/tmp/output-${Date.now()}.pdf`;
+    
+    await fs.writeFile(tempInput, pdfBuffer);
+    
+    const command = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=${gsQuality} -dNOPAUSE -dQUIET -dBATCH -sOutputFile="${tempOutput}" "${tempInput}"`;
+    
+    await execPromise(command);
+    
+    const compressed = await fs.readFile(tempOutput);
+    
+    // Cleanup
+    await fs.unlink(tempInput);
+    await fs.unlink(tempOutput);
+    
+    return compressed;
+  }
+  
+  async addMetadata(pdfBuffer, metadata) {
+    const PDFDocument = require('pdf-lib').PDFDocument;
+    
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    
+    pdfDoc.setTitle(metadata.title);
+    pdfDoc.setAuthor(metadata.author);
+    pdfDoc.setSubject(metadata.subject);
+    pdfDoc.setKeywords([metadata.keywords]);
+    pdfDoc.setCreationDate(new Date());
+    pdfDoc.setModificationDate(new Date());
+    
+    return await pdfDoc.save();
+  }
+}
+```
+
+### 3.2 Client Header Requirements
+
+#### **Header Component Structure**
+
+The client header must be captured on every page and should include:
+
+```html
+<div class="client-header" data-pdf-include>
+  <div class="header-left">
+    <img src="/client-logo.png" alt="Client Logo" class="client-logo" />
+    <div class="client-info">
+      <h1 class="client-name">Acme Corporation</h1>
+      <p class="report-type">Performance Analytics Report</p>
+    </div>
+  </div>
+  
+  <div class="header-right">
+    <div class="report-metadata">
+      <div class="metadata-item">
+        <span class="label">Generated:</span>
+        <span class="value">October 22, 2025</span>
+      </div>
+      <div class="metadata-item">
+        <span class="label">Period:</span>
+        <span class="value">October 2025</span>
+      </div>
+      <div class="metadata-item">
+        <span class="label">Filters:</span>
+        <span class="value">All Regions</span>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+#### **CSS Requirements for Client Header**
+
+```css
+.client-header[data-pdf-include] {
+  width: 1920px;
+  height: 120px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.client-logo {
+  height: 60px;
+  width: auto;
+  margin-right: 20px;
+}
+
+.client-name {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.report-type {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.metadata-item {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.metadata-item .label {
+  font-weight: 600;
+}
+
+/* Ensure header is always visible in PDF */
+@media print {
+  .client-header[data-pdf-include] {
+    display: flex !important;
+    visibility: visible !important;
+    position: relative !important;
+    page-break-after: avoid;
+  }
+}
+```
+
+### 3.3 Fallback Implementation (html2canvas)
+
+For scenarios where server-side rendering is unavailable:
+
+```javascript
+class ClientSidePDFExporter {
+  
+  async generatePDF(tabs) {
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [1920, 1080],
+      compress: true
+    });
+    
+    for (let i = 0; i < tabs.length; i++) {
+      const tab = tabs[i];
+      
+      // Show only current tab
+      this.showTab(tab.id);
+      await this.waitForRender();
+      
+      // Find client header and dashboard content
+      const clientHeader = document.querySelector('.client-header[data-pdf-include]');
+      const dashboardContent = document.querySelector('.dashboard-content');
+      
+      if (!clientHeader || !dashboardContent) {
+        console.error('Required elements not found');
+        continue;
+      }
+      
+      // Create container with header + content
+      const container = document.createElement('div');
+      container.style.width = '1920px';
+      container.style.height = '1080px';
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.backgroundColor = 'white';
+      
+      // Clone header and content
+      const headerClone = clientHeader.cloneNode(true);
+      const contentClone = dashboardContent.cloneNode(true);
+      
+      container.appendChild(headerClone);
+      container.appendChild(contentClone);
+      document.body.appendChild(container);
+      
+      // Capture with html2canvas
+      const canvas = await html2canvas(container, {
+        scale: 1.5,  // Balance quality vs size
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 1920,
+        height: 1080,
+        logging: false
+      });
+      
+      // Remove temporary container
+      document.body.removeChild(container);
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.92); // JPEG with quality
+      
+      if (i > 0) {
+        pdf.addPage([1920, 1080], 'landscape');
+      }
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, 1920, 1080, '', 'FAST');
+    }
+    
+    pdf.save('client-report.pdf');
+  }
+}
+```
+
+---
+
+## 4. File Size Optimization Strategy
+
+### 4.1 Target File Sizes
+
+| Priority | Max Size | Use Case | Strategy |
+|----------|----------|----------|----------|
+| **Email Attachment** | 8 MB | Email delivery | Ghostscript `/ebook` compression |
+| **Download** | 15 MB | Direct download | Higher quality, light compression |
+| **Archive** | 25 MB | Long-term storage | Maximum quality preservation |
+
+### 4.2 Compression Techniques
+
+#### **Level 1: PDF Generation Settings**
+```javascript
+{
+  deviceScaleFactor: 1,      // Don't over-sample
+  preferCSSPageSize: false,  // Prevent upscaling
+  compress: true             // Enable internal compression
+}
+```
+
+#### **Level 2: Image Optimization**
+- Use JPEG for screenshots (92% quality)
+- PNG only for elements requiring transparency
+- Optimize images before PDF generation
+
+#### **Level 3: Ghostscript Post-Processing**
+```bash
+gs -sDEVICE=pdfwrite \
+   -dCompatibilityLevel=1.4 \
+   -dPDFSETTINGS=/ebook \
+   -dNOPAUSE -dQUIET -dBATCH \
+   -sOutputFile=output.pdf \
+   input.pdf
+```
+
+#### **Level 4: Font Subsetting**
+- Embed only used characters from fonts
+- Use web-safe fonts when possible
+- Subset custom fonts
+
+### 4.3 Quality vs. Size Trade-offs
+
+```javascript
+const compressionPresets = {
+  email: {
+    dpi: 150,
+    imageQuality: 0.85,
+    ghostscriptSetting: '/ebook',
+    targetSize: '8MB',
+    expectedQuality: 'Good for screen viewing'
+  },
+  
+  download: {
+    dpi: 200,
+    imageQuality: 0.92,
+    ghostscriptSetting: '/printer',
+    targetSize: '15MB',
+    expectedQuality: 'Excellent for screen and print'
+  },
+  
+  archive: {
+    dpi: 300,
+    imageQuality: 1.0,
+    ghostscriptSetting: '/prepress',
+    targetSize: '25MB',
+    expectedQuality: 'Print-ready quality'
+  }
+};
+```
+
+---
+
+## 5. API Specification
+
+### 5.1 Export Endpoint
+
+#### **Request**
+
+```http
+POST /api/v1/exports/pdf
+Content-Type: application/json
+Authorization: Bearer {token}
+
+{
+  "clientId": "client-123",
+  "reportType": "performance",
+  "tabs": [
+    {
+      "id": "overview",
+      "name": "Overview",
+      "url": "/dashboard?tab=overview"
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "url": "/dashboard?tab=performance"
+    },
+    {
+      "id": "analytics",
+      "name": "Analytics",
+      "url": "/dashboard?tab=analytics"
+    },
+    {
+      "id": "reports",
+      "name": "Reports",
+      "url": "/dashboard?tab=reports"
+    }
+  ],
+  "filters": {
+    "dateRange": {
+      "start": "2025-10-01",
+      "end": "2025-10-31"
+    },
+    "region": "all"
+  },
+  "options": {
+    "quality": "email",
+    "includeClientHeader": true,
+    "excludeAgencyHeader": true,
+    "deliveryMethod": "email"
+  }
+}
+```
+
+#### **Response**
+
+```json
+{
+  "success": true,
+  "jobId": "export-abc123",
+  "status": "queued",
+  "estimatedCompletionTime": "30s",
+  "statusUrl": "/api/v1/exports/pdf/status/export-abc123",
+  "message": "PDF export queued successfully"
+}
+```
+
+### 5.2 Status Endpoint
+
+```http
+GET /api/v1/exports/pdf/status/{jobId}
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "jobId": "export-abc123",
+  "status": "completed",
+  "progress": 100,
+  "currentStep": "completed",
+  "downloadUrl": "https://storage.example.com/exports/report-abc123.pdf",
+  "expiresAt": "2025-10-23T00:00:00Z",
+  "fileSize": "7.3 MB",
+  "pageCount": 4,
+  "generatedAt": "2025-10-22T14:30:00Z"
+}
+```
+
+---
+
+## 6. Error Handling & Resilience
+
+### 6.1 Common Failure Scenarios
+
+| Scenario | Detection | Recovery Strategy |
+|----------|-----------|-------------------|
+| **Browser timeout** | No response after 30s | Retry with extended timeout |
+| **Chart rendering failure** | Missing canvas elements | Wait longer, or skip chart with note |
+| **Memory exhaustion** | Browser crash | Reduce quality, split into smaller PDFs |
+| **File size exceeded** | Size > 10MB after compression | Increase compression, notify user |
+| **Authentication failure** | 401/403 errors | Refresh token, retry |
+| **Network timeout** | Connection errors | Exponential backoff retry |
+
+### 6.2 Retry Logic
+
+```javascript
+async function generateWithRetry(config, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await generatePDF(config);
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error);
+      
+      if (attempt === maxRetries) {
+        throw new Error(`PDF generation failed after ${maxRetries} attempts`);
+      }
+      
+      // Exponential backoff
+      await sleep(Math.pow(2, attempt) * 1000);
+    }
+  }
+}
+```
+
+### 6.3 Fallback Chain
+
+```
+1. Try Puppeteer (primary)
+   ↓ (if fails)
+2. Try Puppeteer with reduced quality
+   ↓ (if fails)
+3. Try html2canvas (client-side)
+   ↓ (if fails)
+4. Generate text-only PDF with data tables
+   ↓ (if fails)
+5. Export as CSV + notification
+```
+
+---
+
+## 7. Testing Strategy
+
+### 7.1 Unit Tests
+
+```javascript
+describe('PDF Export Service', () => {
+  
+  test('should capture client header on each page', async () => {
+    const pdf = await exporter.generate(mockConfig);
+    const pages = await pdf.getPages();
+    
+    for (const page of pages) {
+      const text = await page.getTextContent();
+      expect(text).toContain('Acme Corporation');
+    }
+  });
+  
+  test('should exclude agency header', async () => {
+    const pdf = await exporter.generate(mockConfig);
+    const text = await pdf.getFullText();
+    
+    expect(text).not.toContain('Agency Dashboard');
+    expect(text).not.toContain('Admin Menu');
+  });
+  
+  test('should generate correct number of pages', async () => {
+    const config = { tabs: 4 };
+    const pdf = await exporter.generate(config);
+    
+    expect(pdf.getPageCount()).toBe(4);
+  });
+  
+  test('should stay under 8MB for email', async () => {
+    const pdf = await exporter.generate({
+      ...mockConfig,
+      quality: 'email'
+    });
+    
+    const size = pdf.getSize();
+    expect(size).toBeLessThan(8 * 1024 * 1024);
+  });
+});
+```
+
+### 7.2 Integration Tests
+
+- Test complete export workflow
+- Verify PDF content accuracy
+- Test with real dashboard data
+- Validate compression effectiveness
+- Test email delivery
+
+### 7.3 Visual Regression Tests
+
+- Capture baseline screenshots
+- Compare generated PDFs to baselines
+- Detect unintended layout changes
+- Validate cross-browser consistency
+
+### 7.4 Load Tests
+
+- Test concurrent export requests
+- Measure server resource usage
+- Test queue performance
+- Validate memory cleanup
+
+---
+
+## 8. Performance Benchmarks
+
+### 8.1 Target Metrics
+
+| Metric | Target | Acceptable | Critical |
+|--------|--------|------------|----------|
+| **Generation Time** | < 20s | < 45s | > 60s |
+| **File Size (email)** | < 6MB | < 8MB | > 10MB |
+| **Memory Usage** | < 512MB | < 1GB | > 2GB |
+| **Concurrent Exports** | 10 | 5 | < 3 |
+| **Queue Processing** | < 30s | < 60s | > 120s |
+
+### 8.2 Optimization Techniques
+
+1. **Browser Pooling**: Reuse Puppeteer instances
+2. **Caching**: Cache common elements (client headers, logos)
+3. **Lazy Loading**: Only render visible content
+4. **Parallel Processing**: Process tabs in parallel when possible
+5. **Resource Limits**: Set memory/CPU limits per export
+
+---
+
+## 9. Security Considerations
+
+### 9.1 Authentication & Authorization
+
+```javascript
+async function validateExportRequest(req) {
+  // 1. Verify user is authenticated
+  const user = await authenticateToken(req.headers.authorization);
+  
+  // 2. Verify user has access to client data
+  const hasAccess = await checkClientAccess(user.id, req.body.clientId);
+  if (!hasAccess) {
+    throw new UnauthorizedError('No access to client data');
+  }
+  
+  // 3. Verify user can export PDFs
+  const canExport = await checkPermission(user.id, 'pdf.export');
+  if (!canExport) {
+    throw new ForbiddenError('PDF export not permitted');
+  }
+  
+  // 4. Rate limiting
+  const withinLimit = await checkRateLimit(user.id, 'pdf-export', 10, 3600);
+  if (!withinLimit) {
+    throw new RateLimitError('Too many export requests');
+  }
+  
+  return { user, clientId: req.body.clientId };
+}
+```
+
+### 9.2 Data Privacy
+
+- Generate PDFs in isolated browser contexts
+- Clear browser

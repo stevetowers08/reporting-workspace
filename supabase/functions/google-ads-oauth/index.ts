@@ -28,7 +28,7 @@ serve(async (req) => {
     // Get OAuth credentials from environment variables
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
-    const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI') || 'https://tulenreporting.vercel.app/oauth/callback'
+    const redirectUri = Deno.env.get('GOOGLE_REDIRECT_URI') || 'https://reporting.tulenagency.com/oauth/callback'
 
     if (!clientId || !clientSecret) {
       console.error('Missing Google OAuth credentials')
@@ -133,7 +133,7 @@ serve(async (req) => {
     }
 
     // Redirect back to frontend with success
-    const frontendUrl = new URL('https://tulenreporting.vercel.app/oauth/callback')
+    const frontendUrl = new URL('https://reporting.tulenagency.com/oauth/callback')
     frontendUrl.searchParams.set('platform', platform)
     frontendUrl.searchParams.set('success', 'true')
     frontendUrl.searchParams.set('user_id', userInfo.id)
