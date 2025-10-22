@@ -99,9 +99,6 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
               <div className="flex items-baseline gap-2 mb-3">
                 <p className="text-4xl font-bold text-green-600">{dashboardData?.ghlMetrics?.wonOpportunities || '0'}</p>
               </div>
-              <div className="text-caption text-left mt-2">
-                ${dashboardData?.ghlMetrics?.wonRevenue?.toLocaleString() || '0'} in closed revenue
-              </div>
             </div>
           </div>
         </Card>

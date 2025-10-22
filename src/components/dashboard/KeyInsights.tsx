@@ -16,9 +16,6 @@ export const KeyInsights: React.FC<KeyInsightsProps> = ({ data }) => {
         <div className="text-sm text-slate-800 space-y-1">
           <div>• Meta Ads: {data?.facebookMetrics?.leads || '0'} leads at ${(data?.facebookMetrics?.costPerLead || 0).toFixed(2)} CPL</div>
           <div>• Google Ads: {data?.googleMetrics?.leads || '0'} leads at ${(data?.googleMetrics?.costPerLead || 0).toFixed(2)} CPL</div>
-          <div>• ROI: {data?.roi?.toFixed(1) || '0.0'}% with ${data?.totalRevenue?.toLocaleString() || '0'} revenue</div>
-          <div>• Lead Quality: {data?.leadMetrics?.leadToOpportunityRate?.toFixed(1) || '0.0'}% conversion rate</div>
-          <div>• Event Sales: ${data?.ghlMetrics?.pipelineValue?.toLocaleString() || '0'} pipeline with {data?.eventMetrics?.totalEvents || '0'} events</div>
         </div>
       </div>
     </Card>

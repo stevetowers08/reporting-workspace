@@ -126,13 +126,44 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
     sheetName: string;
   } | null>(null);
   const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
+  const [spreadsheetName, setSpreadsheetName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   
-  // Load integration status on mount
+  // Fetch spreadsheet name when googleSheetsConfig changes
   useEffect(() => {
-    // This useEffect will be implemented later
-  }, []);
+    const fetchSpreadsheetName = async () => {
+      if (googleSheetsConfig?.spreadsheetId) {
+        try {
+          const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
+          const accessToken = await GoogleSheetsService.getAccessToken();
+          
+          if (accessToken) {
+            const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              setSpreadsheetName(data.properties?.title || 'Unknown Spreadsheet');
+            } else {
+              setSpreadsheetName('Unknown Spreadsheet');
+            }
+          }
+        } catch (error) {
+          debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', error);
+          setSpreadsheetName('Unknown Spreadsheet');
+        }
+      } else {
+        setSpreadsheetName(null);
+      }
+    };
+
+    fetchSpreadsheetName();
+  }, [googleSheetsConfig?.spreadsheetId]);
   
   // Edit states for each integration
   const [editingIntegrations, setEditingIntegrations] = useState<Record<string, boolean>>({});
@@ -1429,15 +1460,10 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                   <div className="space-y-2">
                     <div className="bg-gray-50 p-2 rounded text-xs">
                       <div className="font-medium text-gray-700">
-                        {googleSheetsConfig?.sheetName || 'No sheet configured'}
+                        Spreadsheet: {spreadsheetName || 'Loading...'}
                       </div>
-                      {googleSheetsConfig?.spreadsheetId && (
-                        <div className="text-gray-500 mt-1">
-                          ID: {googleSheetsConfig.spreadsheetId}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-400 mt-1">
-                        Debug: {JSON.stringify(googleSheetsConfig)}
+                      <div className="text-gray-500 mt-1">
+                        Sheet: {googleSheetsConfig?.sheetName || 'No sheet configured'}
                       </div>
                     </div>
                     <Button 

@@ -73,11 +73,7 @@ const InsightsCard: React.FC<InsightsCardProps> = ({ dashboardData, selectedPeri
         
         {/* Additional Performance Summary */}
         <div className="mt-6 pt-4 border-t border-slate-200">
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{dashboardData.roi?.toFixed(1) || '0.0'}%</p>
-              <p className="text-sm text-slate-600">ROI</p>
-            </div>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <div className="text-center">
               <p className="text-2xl font-bold text-blue-600">${dashboardData.totalRevenue?.toLocaleString() || '0'}</p>
               <p className="text-sm text-slate-600">Total Revenue</p>
