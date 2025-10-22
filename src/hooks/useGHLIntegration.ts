@@ -132,10 +132,10 @@ export const useGHLIntegration = () => {
       
       // Get OAuth credentials from environment
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-      const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
+      const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost' 
               ? `${window.location.origin}/oauth/callback`
-              : 'https://reporting.tulenagency.com/oauth/callback');
+              : 'https://reporting.tulenagency.com/oauth/callback')).trim();
       
       debugLogger.info('useGHLIntegration', 'OAuth configuration', {
         clientId: clientId ? clientId.substring(0, 10) + '...' : 'MISSING',
