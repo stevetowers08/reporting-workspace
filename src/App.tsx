@@ -285,6 +285,7 @@ const App = () => {
                     <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                     <Route path="/api-testing" element={<APITestingPage />} />
                     <Route path="/oauth/callback" element={<OAuthCallback />} />
+                    <Route path="/oauth/ghl-callback" element={<GHLCallbackPage />} />
                     <Route path="/api/leadconnector/oath" element={<GHLCallbackPage />} />
                     <Route path="/leadconnector/oath" element={<GHLCallbackPage />} />
                     <Route path="/share/:clientId" element={

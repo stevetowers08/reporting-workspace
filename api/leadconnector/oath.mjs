@@ -227,8 +227,8 @@ export default async function handler(req, res) {
     // This allows the popup to handle the success message properly
     const baseUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://reporting.tulenagency.com';
     
-    // Always redirect to the frontend callback page with success parameters
-    const callbackUrl = `${baseUrl}/oauth/callback?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
+    // Always redirect to the GoHighLevel-specific callback page with success parameters
+    const callbackUrl = `${baseUrl}/oauth/ghl-callback?success=true&location=${tokenData.locationId}&location_name=${encodeURIComponent(locationName)}&state=${encodeURIComponent(state || '')}`;
     
     console.log('🔍 Redirecting to frontend callback:', callbackUrl);
     res.redirect(302, callbackUrl);
