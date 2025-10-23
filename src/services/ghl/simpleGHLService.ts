@@ -238,6 +238,17 @@ export class SimpleGHLService {
       throw new Error('code_verifier is required for PKCE');
     }
 
+    // Debug: Log request parameters (masked for security)
+    debugLogger.info('SimpleGHLService', 'Making token exchange request', {
+      client_id: clientId ? '***' : 'MISSING',
+      client_secret: clientSecret ? '***' : 'MISSING',
+      grant_type: 'authorization_code',
+      code: code ? '***' : 'MISSING',
+      user_type: 'Location',
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier ? '***' : 'MISSING'
+    });
+
     // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
@@ -256,7 +267,17 @@ export class SimpleGHLService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      let errorData = {};
+      let errorText = '';
+      
+      try {
+        errorText = await response.text();
+        errorData = JSON.parse(errorText);
+      } catch (_e) {
+        // Response is not JSON, use text as error message
+        errorData = { error: errorText || response.statusText };
+      }
+      
       const errorMessage = errorData.error || errorData.message || `Token exchange failed: ${response.statusText}`;
       
       // Enhanced error logging for 422 debugging
@@ -264,6 +285,7 @@ export class SimpleGHLService {
         status: response.status,
         statusText: response.statusText,
         errorData,
+        errorText,
         requestParams: {
           client_id: clientId,
           client_secret: clientSecret ? '***' : 'MISSING',
