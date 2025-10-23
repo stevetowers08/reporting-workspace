@@ -70,9 +70,12 @@ export const useGHLIntegration = () => {
       }
       
       const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, [
-        'contacts.readonly',
-        'opportunities.readonly', 
-        'calendars.readonly',
+        'contacts.read',
+        'contacts.write',
+        'opportunities.read', 
+        'opportunities.write',
+        'calendars.read',
+        'calendars.write',
         'funnels/funnel.readonly',
         'funnels/page.readonly',
         'locations.readonly'
@@ -88,8 +91,8 @@ export const useGHLIntegration = () => {
       }
       
       // Listen for messages from the popup window
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
+      const handleMessage = (event: globalThis.MessageEvent) => {
+        if (event.origin !== window.location.origin) {return;}
         
         if (event.data.type === 'GHL_OAUTH_SUCCESS') {
           debugLogger.info('useGHLIntegration', 'OAuth success received', event.data);
@@ -147,7 +150,7 @@ export const useGHLIntegration = () => {
   const { data: accountInfo } = useQuery({
     queryKey: ['ghl-account-info'],
     queryFn: async () => {
-      if (!connection?.connected) return null;
+      if (!connection?.connected) {return null;}
       return {
         id: connection.account_id,
         name: connection.account_name || 'GoHighLevel Location',
@@ -162,7 +165,7 @@ export const useGHLIntegration = () => {
   const { data: contacts, isLoading: contactsLoading } = useQuery({
     queryKey: ['ghl-contacts'],
     queryFn: async () => {
-      if (!connection?.connected) return [];
+      if (!connection?.connected) {return [];}
       // TODO: Implement API call to get contacts
       debugLogger.info('useGHLIntegration', 'Contacts API not implemented yet');
       return [];
@@ -175,7 +178,7 @@ export const useGHLIntegration = () => {
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ['ghl-campaigns'],
     queryFn: async () => {
-      if (!connection?.connected) return [];
+      if (!connection?.connected) {return [];}
       // TODO: Implement API call to get campaigns
       debugLogger.info('useGHLIntegration', 'Campaigns API not implemented yet');
       return [];

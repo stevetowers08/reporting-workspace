@@ -35,7 +35,29 @@ export class SimpleGHLService {
   }
 
   /**
-   * Generate OAuth authorization URL with PKCE
+   * Generate state parameter for CSRF protection
+   */
+  private static generateState(): string {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode.apply(null, Array.from(array)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  /**
+   * Validate state parameter to prevent CSRF attacks
+   */
+  private static validateState(receivedState: string, expectedState: string): boolean {
+    if (!receivedState || !expectedState) {
+      return false;
+    }
+    return receivedState === expectedState;
+  }
+
+  /**
+   * Generate OAuth authorization URL with PKCE and state parameter
    */
   static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
@@ -44,9 +66,13 @@ export class SimpleGHLService {
     const codeVerifier = this.generateCodeVerifier();
     const codeChallenge = await this.generateCodeChallenge(codeVerifier);
     
-    // Store code verifier for later use
+    // Generate state parameter for CSRF protection
+    const state = this.generateState();
+    
+    // Store code verifier and state for later validation
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('oauth_code_verifier_goHighLevel', codeVerifier);
+      window.sessionStorage.setItem('oauth_state_goHighLevel', state);
     }
     
     const params = new URLSearchParams({
@@ -57,7 +83,8 @@ export class SimpleGHLService {
       access_type: 'offline',
       prompt: 'consent',
       code_challenge: codeChallenge,
-      code_challenge_method: 'S256'
+      code_challenge_method: 'S256',
+      state: state
     });
 
     debugLogger.info('SimpleGHLService', 'Generated authorization URL with PKCE', {
@@ -76,7 +103,9 @@ export class SimpleGHLService {
   static async saveLocationToken(
     locationId: string,
     accessToken: string,
-    scopes: string[] = []
+    scopes: string[] = [],
+    refreshToken?: string,
+    expiresIn?: number
   ): Promise<boolean> {
     try {
       const { error } = await supabase
@@ -88,6 +117,7 @@ export class SimpleGHLService {
           config: {
             tokens: {
               accessToken: accessToken,
+              refreshToken: refreshToken,
               tokenType: 'Bearer',
               scope: scopes.join(' ')
             },
@@ -98,7 +128,8 @@ export class SimpleGHLService {
             locationId: locationId,
             lastSync: new Date().toISOString(),
             syncStatus: 'idle',
-            connectedAt: new Date().toISOString()
+            connectedAt: new Date().toISOString(),
+            expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined
           }
         }, {
           onConflict: 'platform,account_id'
@@ -123,15 +154,25 @@ export class SimpleGHLService {
   static async exchangeCodeForToken(
     code: string,
     clientId: string,
-    redirectUri: string
+    redirectUri: string,
+    state?: string
   ): Promise<GHLTokenData> {
-    // Get PKCE code verifier
+    // Get PKCE code verifier and expected state
     const codeVerifier = typeof window !== 'undefined' 
       ? window.sessionStorage.getItem('oauth_code_verifier_goHighLevel')
+      : null;
+    
+    const expectedState = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem('oauth_state_goHighLevel')
       : null;
 
     if (!codeVerifier) {
       throw new Error('Code verifier not found. Please try connecting again.');
+    }
+
+    // Validate state parameter if provided
+    if (state && expectedState && !this.validateState(state, expectedState)) {
+      throw new Error('Invalid state parameter - potential CSRF attack detected.');
     }
 
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
@@ -171,5 +212,88 @@ export class SimpleGHLService {
     });
 
     return tokenData;
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  static async refreshAccessToken(refreshToken: string, clientId: string): Promise<GHLTokenData> {
+    const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || `Token refresh failed: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
+
+    const tokenData = await response.json();
+    
+    if (!tokenData.access_token) {
+      throw new Error('No access token received from GoHighLevel refresh');
+    }
+
+    debugLogger.info('SimpleGHLService', 'Token refresh successful', {
+      hasRefreshToken: !!tokenData.refresh_token
+    });
+
+    return tokenData;
+  }
+
+  /**
+   * Check if token needs refresh and refresh if necessary
+   */
+  static async getValidToken(locationId: string): Promise<string | null> {
+    try {
+      const { data: integration } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'goHighLevel')
+        .eq('account_id', locationId)
+        .single();
+
+      if (!integration?.config?.tokens) {
+        return null;
+      }
+
+      const tokens = integration.config.tokens;
+      const expiresAt = integration.config.expiresAt;
+      
+      // Check if token is expired or expires soon (5 minute buffer)
+      if (expiresAt) {
+        const expiryTime = new Date(expiresAt);
+        const now = new Date();
+        const bufferTime = 5 * 60 * 1000; // 5 minutes
+        
+        if (expiryTime.getTime() - now.getTime() < bufferTime) {
+          // Token expires soon, try to refresh
+          if (tokens.refreshToken) {
+            const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+            if (clientId) {
+              const refreshedToken = await this.refreshAccessToken(tokens.refreshToken, clientId);
+              
+              // Update database with new token
+              await this.saveLocationToken(locationId, refreshedToken.access_token);
+              
+              return refreshedToken.access_token;
+            }
+          }
+        }
+      }
+
+      return tokens.accessToken;
+    } catch (error) {
+      debugLogger.error('SimpleGHLService', 'Error getting valid token', error);
+      return null;
+    }
   }
 }

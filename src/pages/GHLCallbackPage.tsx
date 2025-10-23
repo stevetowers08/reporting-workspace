@@ -137,14 +137,17 @@ export const GHLCallbackPage: React.FC = () => {
         const tokenData = await SimpleGHLService.exchangeCodeForToken(
           authCode,
           clientId,
-          redirectUri
+          redirectUri,
+          state
         );
 
         // Save token to database
         const saveSuccess = await SimpleGHLService.saveLocationToken(
           tokenData.locationId,
           tokenData.access_token,
-          tokenData.scope ? tokenData.scope.split(' ') : []
+          tokenData.scope ? tokenData.scope.split(' ') : [],
+          tokenData.refresh_token,
+          tokenData.expires_in
         );
         
         if (!saveSuccess) {

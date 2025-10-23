@@ -15,7 +15,7 @@ interface ConnectLocationButtonProps {
 }
 
 export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
-  clientId,
+  clientId: _clientId,
   onConnected
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -36,9 +36,12 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       
       // Generate OAuth URL with proper PKCE
       const scopes = [
-        'contacts.readonly',
-        'opportunities.readonly', 
-        'calendars.readonly',
+        'contacts.read',
+        'contacts.write',
+        'opportunities.read', 
+        'opportunities.write',
+        'calendars.read',
+        'calendars.write',
         'funnels/funnel.readonly',
         'funnels/page.readonly',
         'locations.readonly'
