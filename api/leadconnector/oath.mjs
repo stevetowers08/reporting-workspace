@@ -54,6 +54,36 @@ export default async function handler(req, res) {
 
     console.log('🔍 Starting token exchange...');
     
+    // Get PKCE code verifier from state parameter
+    let codeVerifier = null;
+    if (state) {
+      try {
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        codeVerifier = decodedState.codeVerifier;
+        console.log('🔍 Extracted code verifier from state:', !!codeVerifier);
+      } catch (decodeError) {
+        console.log('⚠️ Could not decode state for code verifier:', decodeError.message);
+      }
+    }
+
+    // Build token exchange parameters
+    const tokenParams = {
+      client_id: ghlClientId,
+      client_secret: ghlClientSecret,
+      grant_type: 'authorization_code',
+      code: code,
+      user_type: 'Location',
+      redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://reporting.tulenagency.com'}/oauth/callback`
+    };
+
+    // Add PKCE code verifier if available
+    if (codeVerifier) {
+      tokenParams.code_verifier = codeVerifier;
+      console.log('🔍 Using PKCE code verifier in token exchange');
+    } else {
+      console.log('⚠️ No code verifier found - PKCE may fail');
+    }
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch(
       'https://services.leadconnectorhq.com/oauth/token',
@@ -62,14 +92,7 @@ export default async function handler(req, res) {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: new URLSearchParams({
-          client_id: ghlClientId,
-          client_secret: ghlClientSecret,
-          grant_type: 'authorization_code',
-          code: code,
-          user_type: 'Location',
-          redirect_uri: `${process.env.APP_URL || process.env.VITE_APP_URL || 'https://reporting.tulenagency.com'}/oauth/callback`
-        })
+        body: new URLSearchParams(tokenParams)
       }
     );
 

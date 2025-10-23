@@ -44,7 +44,14 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         'funnels/page.readonly',
         'locations.readonly'
       ];
-      const authUrl = await GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri, scopes);
+      
+      // Pass clientId in state data for backend access
+      const stateData = {
+        clientId: clientId,
+        integrationPlatform: clientId
+      };
+      
+      const authUrl = await GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri, scopes, stateData);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       

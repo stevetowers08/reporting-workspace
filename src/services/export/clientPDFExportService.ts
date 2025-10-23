@@ -269,3 +269,4 @@ export class ClientPDFExportService {
 
 // Export singleton instance
 export const clientPDFExportService = new ClientPDFExportService();
+

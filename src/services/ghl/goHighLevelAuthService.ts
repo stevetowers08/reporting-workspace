@@ -12,7 +12,7 @@ export class GoHighLevelAuthService {
   private static locationTokens: Map<string, string> = new Map();
 
   // OAuth Methods
-  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
+  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = [], stateData?: any): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
     
     // Generate PKCE code verifier and challenge
@@ -24,6 +24,14 @@ export class GoHighLevelAuthService {
       window.sessionStorage.setItem('oauth_code_verifier_goHighLevel', codeVerifier);
     }
     
+    // Create state parameter with code verifier for backend access
+    const statePayload = {
+      ...stateData,
+      codeVerifier: codeVerifier,
+      timestamp: Date.now()
+    };
+    const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+    
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
@@ -32,14 +40,17 @@ export class GoHighLevelAuthService {
       access_type: 'offline',
       prompt: 'consent',
       code_challenge: codeChallenge,
-      code_challenge_method: 'S256'
+      code_challenge_method: 'S256',
+      state: state
     });
 
     debugLogger.info('GoHighLevelAuthService', 'Generated authorization URL with PKCE', {
       baseUrl,
       redirectUri,
       scopes: scopes.join(' '),
-      hasCodeChallenge: !!codeChallenge
+      hasCodeChallenge: !!codeChallenge,
+      hasState: !!state,
+      stateLength: state.length
     });
 
     return `${baseUrl}?${params.toString()}`;

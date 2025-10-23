@@ -1,0 +1,10 @@
+[33mdfb5934[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m CRITICAL FIX: Remove GoHighLevel from generic OAuth service and fix environment variable inconsistencies
+[33m6550c7b[m Fix linting errors - remove unused imports and console statements
+[33mef73f12[m Fix GoHighLevel OAuth redirect URI mismatch - use consistent frontend callback flow
+[33m1c984ed[m FINAL FIX: Implement proper PKCE for GoHighLevel OAuth
+[33m9429a85[m COMPREHENSIVE FIX: Complete GoHighLevel OAuth redirect URI standardization
+[33mcdfd490[m Fix GoHighLevel OAuth callback routing issue
+[33m8140ea6[m Fix GoHighLevel OAuth scopes issue
+[33ma9935ec[m Fix ConnectLocationButton to use GoHighLevelService instead of OAuthService
+[33m824166a[m Fix GoHighLevel OAuth PKCE issue in OAuthCallback.tsx
+[33m83e57c7[m Ensure consistent GHL redirect URI: https://reporting.tulenagency.com/oauth/callback

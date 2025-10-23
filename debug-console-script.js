@@ -155,3 +155,4 @@ analyzeTabElements();
 testAllDashboardElements();
 
 console.log('🔍 Debug script completed. Check the logs above for details.');
+
