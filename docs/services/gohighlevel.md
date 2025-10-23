@@ -2,7 +2,8 @@
 
 **Last Updated:** January 20, 2025  
 **Service Version:** 2021-04-15 (API 2.0)  
-**Implementation Status:** ✅ Active
+**OAuth Implementation:** ✅ Complete with PKCE + State Parameter  
+**Implementation Status:** ✅ Production Ready
 
 ## Official Documentation
 
@@ -13,39 +14,69 @@
 
 ## Current Implementation
 
-### Service Location
-- **File:** `src/services/ghl/goHighLevelApiService.ts`
-- **Class:** `GoHighLevelApiService`
-- **Authentication:** OAuth 2.0 with location-specific tokens
+### Service Architecture
+- **OAuth Service:** `src/services/ghl/simpleGHLService.ts` - Complete OAuth implementation
+- **API Service:** `src/services/ghl/goHighLevelApiService.ts` - API calls and data management
+- **Analytics Service:** `src/services/ghl/goHighLevelAnalyticsService.ts` - Analytics and metrics
+- **Authentication:** OAuth 2.0 + PKCE with automatic token refresh
 
 ### Key Features
-- ✅ Contact management with pagination
-- ✅ Opportunity tracking
-- ✅ Funnel analytics
-- ✅ Pipeline stage management
-- ✅ Rate limiting and caching
-- ✅ Token refresh automation
+- ✅ **Secure OAuth Flow** - PKCE + State parameter for enterprise security
+- ✅ **Automatic Token Refresh** - Seamless token renewal before expiry
+- ✅ **Contact Management** - Full CRUD operations with pagination
+- ✅ **Opportunity Tracking** - Pipeline management and analytics
+- ✅ **Funnel Analytics** - Complete funnel performance metrics
+- ✅ **Pipeline Stage Management** - Opportunity stage tracking
+- ✅ **Rate Limiting** - Automatic API rate limit handling
+- ✅ **Error Recovery** - Comprehensive error handling and retry logic
 
-## Authentication Flow
+## OAuth 2.0 Authentication Flow (Enhanced)
 
-### 1. OAuth Setup
+### 1. OAuth Configuration
 ```typescript
 // Required environment variables
 VITE_GHL_CLIENT_ID=your_ghl_client_id
 VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
+VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/ghl-callback
 ```
 
-### 2. Token Management
-- Location-specific access tokens stored in Supabase
-- Automatic token refresh before expiration
-- Secure token handling with encryption
-- No agency token fallback (location-specific only)
+### 2. Secure OAuth Flow (PKCE + State)
+```typescript
+import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
 
-### 3. Required Scopes
+// Generate secure authorization URL with PKCE + State
+const authUrl = await SimpleGHLService.getAuthorizationUrl(
+  clientId, 
+  redirectUri, 
+  scopes
+);
+
+// Open OAuth popup
+const authWindow = window.open(authUrl, 'ghl-oauth', 'width=600,height=700');
+
+// Handle callback with PKCE + state validation
+const tokenData = await SimpleGHLService.exchangeCodeForToken(
+  authCode, clientId, redirectUri, state
+);
+```
+
+### 3. Token Management (Enhanced)
+- ✅ **Secure Storage** - Tokens encrypted in Supabase database
+- ✅ **Automatic Refresh** - Seamless token renewal with 5-minute buffer
+- ✅ **PKCE Security** - No client secret exposure in frontend
+- ✅ **Session Security** - PKCE verifier auto-clears on tab close
+- ✅ **Expiry Tracking** - Automatic token expiration monitoring
+
+### 4. Required Scopes (Enhanced)
 - `contacts.read` - Read contact data
-- `contacts.write` - Create/update contacts
+- `contacts.write` - Create/update contacts (✅ Added)
 - `opportunities.read` - Read opportunity data
-- `opportunities.write` - Create/update opportunities
+- `opportunities.write` - Create/update opportunities (✅ Added)
+- `calendars.read` - Read calendar data
+- `calendars.write` - Create/update calendar events (✅ Added)
+- `funnels/funnel.readonly` - Read funnel data
+- `funnels/page.readonly` - Read funnel page data
+- `locations.readonly` - Read location information
 
 ## API Endpoints
 
