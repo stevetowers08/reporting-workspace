@@ -9,6 +9,22 @@ export interface GHLTokenData {
   locationName?: string;
   scope?: string;
   expires_in?: number;
+  userType?: string;
+  companyId?: string;
+}
+
+export interface GHLLocationTokenRequest {
+  companyId: string;
+  locationId: string;
+}
+
+export interface GHLLocationTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+  locationId: string;
+  companyId: string;
 }
 
 export class SimpleGHLService {
@@ -57,10 +73,41 @@ export class SimpleGHLService {
   }
 
   /**
+   * Get default scopes for GoHighLevel OAuth
+   * Based on GoHighLevel OAuth 2.0 documentation requirements
+   */
+  static getDefaultScopes(): string[] {
+    return [
+      'calendars.readonly',
+      'calendars/events.readonly', 
+      'calendars.write',
+      'calendars/events.write',
+      'calendars/groups.readonly',
+      'calendars/groups.write',
+      'calendars/resources.readonly',
+      'calendars/resources.write',
+      'businesses.readonly',
+      'businesses.write',
+      'companies.readonly',
+      'contacts.readonly',
+      'contacts.write',
+      'opportunities.readonly',
+      'opportunities.write',
+      'funnels/funnel.readonly',
+      'funnels/page.readonly',
+      'locations.readonly'
+    ];
+  }
+
+  /**
    * Generate OAuth authorization URL with PKCE and state parameter
+   * Updated to use proper GoHighLevel scopes
    */
   static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
+    
+    // Use default scopes if none provided
+    const finalScopes = scopes.length > 0 ? scopes : this.getDefaultScopes();
     
     // Generate PKCE code verifier and challenge
     const codeVerifier = this.generateCodeVerifier();
@@ -79,7 +126,7 @@ export class SimpleGHLService {
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
-      scope: scopes.join(' '),
+      scope: finalScopes.join(' '),
       access_type: 'offline',
       prompt: 'consent',
       code_challenge: codeChallenge,
@@ -90,7 +137,7 @@ export class SimpleGHLService {
     debugLogger.info('SimpleGHLService', 'Generated authorization URL with PKCE', {
       baseUrl,
       redirectUri,
-      scopes: scopes.join(' '),
+      scopes: finalScopes.join(' '),
       hasCodeChallenge: !!codeChallenge
     });
 
@@ -150,6 +197,7 @@ export class SimpleGHLService {
 
   /**
    * Exchange authorization code for access token using PKCE
+   * Updated to match GoHighLevel OAuth 2.0 requirements
    */
   static async exchangeCodeForToken(
     code: string,
@@ -175,17 +223,26 @@ export class SimpleGHLService {
       throw new Error('Invalid state parameter - potential CSRF attack detected.');
     }
 
+    // Get client secret from environment
+    const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+    if (!clientSecret) {
+      throw new Error('GoHighLevel client secret not configured');
+    }
+
+    // Use JSON format as per GoHighLevel documentation
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
+      body: JSON.stringify({
         client_id: clientId,
-        redirect_uri: redirectUri,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code: code,
         user_type: 'Location',
+        redirect_uri: redirectUri,
         code_verifier: codeVerifier
       })
     });
@@ -208,7 +265,8 @@ export class SimpleGHLService {
 
     debugLogger.info('SimpleGHLService', 'Token exchange successful', {
       locationId: tokenData.locationId,
-      hasRefreshToken: !!tokenData.refresh_token
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in
     });
 
     return tokenData;
@@ -216,8 +274,16 @@ export class SimpleGHLService {
 
   /**
    * Refresh access token using refresh token
+   * Updated to match GoHighLevel OAuth 2.0 requirements
    */
   static async refreshAccessToken(refreshToken: string, clientId: string): Promise<GHLTokenData> {
+    // Get client secret from environment
+    const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+    if (!clientSecret) {
+      throw new Error('GoHighLevel client secret not configured');
+    }
+
+    // Use form-encoded format as per GoHighLevel documentation for refresh
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -226,7 +292,9 @@ export class SimpleGHLService {
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: clientId
+        client_id: clientId,
+        client_secret: clientSecret,
+        user_type: 'Location'
       })
     });
 
@@ -243,7 +311,51 @@ export class SimpleGHLService {
     }
 
     debugLogger.info('SimpleGHLService', 'Token refresh successful', {
-      hasRefreshToken: !!tokenData.refresh_token
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in
+    });
+
+    return tokenData;
+  }
+
+  /**
+   * Create location-level access token from agency-level token
+   * Based on GoHighLevel OAuth 2.0 documentation
+   */
+  static async createLocationToken(
+    agencyAccessToken: string,
+    companyId: string,
+    locationId: string
+  ): Promise<GHLLocationTokenResponse> {
+    const response = await fetch('https://services.leadconnectorhq.com/oauth/locationToken', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${agencyAccessToken}`,
+        'Version': '2021-07-28',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        companyId: companyId,
+        locationId: locationId
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || `Location token creation failed: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
+
+    const tokenData = await response.json();
+    
+    if (!tokenData.access_token) {
+      throw new Error('No access token received from GoHighLevel location token endpoint');
+    }
+
+    debugLogger.info('SimpleGHLService', 'Location token created successfully', {
+      locationId: tokenData.locationId,
+      companyId: tokenData.companyId,
+      expiresIn: tokenData.expires_in
     });
 
     return tokenData;

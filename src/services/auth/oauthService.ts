@@ -59,9 +59,21 @@ export class OAuthService {
                             'https://www.googleapis.com/auth/userinfo.profile'
                           ]
                         : [
-                            'contacts.readonly',
-                            'opportunities.readonly',
                             'calendars.readonly',
+                            'calendars/events.readonly', 
+                            'calendars.write',
+                            'calendars/events.write',
+                            'calendars/groups.readonly',
+                            'calendars/groups.write',
+                            'calendars/resources.readonly',
+                            'calendars/resources.write',
+                            'businesses.readonly',
+                            'businesses.write',
+                            'companies.readonly',
+                            'contacts.readonly',
+                            'contacts.write',
+                            'opportunities.readonly',
+                            'opportunities.write',
                             'funnels/funnel.readonly',
                             'funnels/page.readonly',
                             'locations.readonly'

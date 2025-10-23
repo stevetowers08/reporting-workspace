@@ -553,10 +553,18 @@ export class GoHighLevelApiService {
     }
   }
 
-  // ✅ New method to refresh expired tokens
+  // ✅ Updated method to refresh expired tokens with client secret
   static async refreshToken(locationId: string, refreshToken: string): Promise<boolean> {
     try {
       debugLogger.info('GoHighLevelApiService', 'Refreshing token', { locationId });
+
+      const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        debugLogger.error('GoHighLevelApiService', 'Missing OAuth credentials');
+        return false;
+      }
 
       const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
         method: 'POST',
@@ -564,8 +572,8 @@ export class GoHighLevelApiService {
         body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
-          client_id: import.meta.env.VITE_GHL_CLIENT_ID,
-          client_secret: import.meta.env.VITE_GHL_CLIENT_SECRET,
+          client_id: clientId,
+          client_secret: clientSecret,
           user_type: 'Location'
         })
       });
