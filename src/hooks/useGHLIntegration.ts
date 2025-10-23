@@ -1,7 +1,7 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/data/databaseService';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -149,7 +149,14 @@ export const useGHLIntegration = () => {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
       
-      const authUrl = GoHighLevelService.getAuthorizationUrl(clientId, redirectUri);
+      const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, [
+        'contacts.readonly',
+        'opportunities.readonly', 
+        'calendars.readonly',
+        'funnels/funnel.readonly',
+        'funnels/page.readonly',
+        'locations.readonly'
+      ]);
       debugLogger.info('useGHLIntegration', 'Generated auth URL', { authUrl });
       
       // Open OAuth flow in new window/tab
