@@ -1,6 +1,6 @@
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { GoHighLevelAnalyticsService } from '@/services/ghl/goHighLevelAnalyticsService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -26,7 +26,7 @@ export const GHLPipelineStages: React.FC<GHLPipelineStagesProps> = ({ locationId
   useEffect(() => {
     const fetchPipelineData = async () => {
       try {
-        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
+        const _metrics = await GoHighLevelAnalyticsService.getGHLMetrics(locationId, {
           startDate: dateRange?.start,
           endDate: dateRange?.end
         });

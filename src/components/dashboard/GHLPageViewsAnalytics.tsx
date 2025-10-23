@@ -1,5 +1,5 @@
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { GoHighLevelAnalyticsService } from '@/services/ghl/goHighLevelAnalyticsService';
 import React, { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card } from '@/components/ui/card';
@@ -27,7 +27,7 @@ export const GHLPageViewsAnalytics: React.FC<GHLPageViewsAnalyticsProps> = ({ lo
   useEffect(() => {
     const fetchPageViewData = async () => {
       try {
-        const _metrics = await GoHighLevelService.getGHLMetrics(locationId, {
+        const _metrics = await GoHighLevelAnalyticsService.getGHLMetrics(locationId, {
           startDate: dateRange?.start,
           endDate: dateRange?.end
         });

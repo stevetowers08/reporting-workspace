@@ -2,7 +2,7 @@ import { debugLogger } from '@/lib/debug';
 import { GoogleAdsMetrics } from '@/types/dashboard';
 import { FacebookAdsMetrics, FacebookAdsService } from '../api/facebookAdsService';
 import { GoogleAdsService } from '../api/googleAdsService';
-import { GoHighLevelService } from '../ghl/goHighLevelService';
+import { GoHighLevelAnalyticsService } from '../ghl/goHighLevelAnalyticsService';
 import { LeadDataService } from './leadDataService';
 
 // Event metrics interface (moved from old export service)
@@ -471,8 +471,8 @@ export class EventMetricsService {
         return null; // ✅ FIX: Return null to indicate no OAuth connection
       }
       
-      debugLogger.info('EventMetricsService', 'Calling GoHighLevelService.getGHLMetrics', { locationId, dateRange });
-      const result = await GoHighLevelService.getGHLMetrics(locationId, dateRange);
+      debugLogger.info('EventMetricsService', 'Calling GoHighLevelAnalyticsService.getGHLMetrics', { locationId, dateRange });
+      const result = await GoHighLevelAnalyticsService.getGHLMetrics(locationId, dateRange);
       debugLogger.info('EventMetricsService', 'GoHighLevel metrics result', { locationId, result });
       return result;
     } catch (error) {
