@@ -3,12 +3,12 @@
  * Based on PDR v2.0 specifications
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { PDFDocument } from 'pdf-lib';
 import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { PDFDocument } from 'pdf-lib';
+import puppeteer, { Browser, Page } from 'puppeteer';
+import { promisify } from 'util';
 import { debugLogger } from '../../lib/debugLogger';
 
 const execAsync = promisify(exec);
@@ -133,14 +133,14 @@ export class PuppeteerPDFExporter {
           // Hide agency elements as per PDR requirements
           document.querySelectorAll('.agency-header, .admin-nav, .user-menu, [data-exclude-from-pdf]')
             .forEach(el => {
-              const htmlEl = el as HTMLElement;
+              const htmlEl = el as Element;
               htmlEl.style.display = 'none';
             });
           
           // Ensure client header is visible
           const clientHeader = document.querySelector('.client-header[data-pdf-include]');
           if (clientHeader) {
-            const htmlEl = clientHeader as HTMLElement;
+            const htmlEl = clientHeader as Element;
             htmlEl.style.display = 'block';
             htmlEl.style.visibility = 'visible';
             htmlEl.style.position = 'sticky';

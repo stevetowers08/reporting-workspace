@@ -12,7 +12,7 @@ export class GoHighLevelAuthService {
   private static locationTokens: Map<string, string> = new Map();
 
   // OAuth Methods
-  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = [], stateData?: any): Promise<string> {
+  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = [], stateData?: Record<string, unknown>): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
     
     // Generate PKCE code verifier and challenge
@@ -30,7 +30,7 @@ export class GoHighLevelAuthService {
       codeVerifier: codeVerifier,
       timestamp: Date.now()
     };
-    const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+    const state = btoa(JSON.stringify(statePayload));
     
     const params = new URLSearchParams({
       response_type: 'code',

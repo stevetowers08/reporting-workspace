@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     let codeVerifier = null;
     if (state) {
       try {
-        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
         codeVerifier = decodedState.codeVerifier;
         console.log('🔍 Extracted code verifier from state:', !!codeVerifier);
       } catch (decodeError) {
@@ -199,7 +199,7 @@ export default async function handler(req, res) {
     if (state) {
       try {
         // Decode the state parameter to get the actual client ID
-        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
         const clientId = decodedState.integrationPlatform || decodedState.clientId;
         
         if (clientId && !clientId.startsWith('new_')) {
