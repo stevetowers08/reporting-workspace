@@ -13,17 +13,20 @@ export default async function handler(req, res) {
     const locationId = query.location_id;
     const clientId = query.client_id;
 
+    // Get the state parameter (contains clientId for context)
+    const state = query.state;
+    
     console.log('🔍 OAuth callback received:', { 
       code: !!code, 
       locationId, 
       clientId,
+      state: state ? state.substring(0, 50) + '...' : 'MISSING',
+      stateLength: state ? state.length : 0,
       fullQuery: query,
       url: req.url,
       method: req.method
     });
-
-    // Get the state parameter (contains clientId for context)
-    const state = query.state;
+    
     console.log('🔍 State parameter (clientId):', state);
 
     // Check required environment variables
@@ -58,12 +61,29 @@ export default async function handler(req, res) {
     let codeVerifier = null;
     if (state) {
       try {
+        console.log('🔍 Attempting to decode state:', {
+          stateLength: state.length,
+          statePreview: state.substring(0, 100) + '...'
+        });
+        
         const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        console.log('🔍 Successfully decoded state:', {
+          hasCodeVerifier: !!decodedState.codeVerifier,
+          codeVerifierLength: decodedState.codeVerifier ? decodedState.codeVerifier.length : 0,
+          stateKeys: Object.keys(decodedState)
+        });
+        
         codeVerifier = decodedState.codeVerifier;
         console.log('🔍 Extracted code verifier from state:', !!codeVerifier);
       } catch (decodeError) {
-        console.log('⚠️ Could not decode state for code verifier:', decodeError.message);
+        console.log('⚠️ Could not decode state for code verifier:', {
+          error: decodeError.message,
+          stateLength: state.length,
+          statePreview: state.substring(0, 50) + '...'
+        });
       }
+    } else {
+      console.log('⚠️ No state parameter received');
     }
 
     // Build token exchange parameters

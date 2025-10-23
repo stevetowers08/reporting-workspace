@@ -50,7 +50,10 @@ export class GoHighLevelAuthService {
       scopes: scopes.join(' '),
       hasCodeChallenge: !!codeChallenge,
       hasState: !!state,
-      stateLength: state.length
+      stateLength: state.length,
+      codeVerifierLength: codeVerifier.length,
+      statePayload: statePayload,
+      encodedState: state
     });
 
     return `${baseUrl}?${params.toString()}`;
