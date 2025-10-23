@@ -221,7 +221,8 @@ const response = await fetch('https://services.leadconnectorhq.com/oauth/token',
     client_id: clientId,
     redirect_uri: redirectUri,
     user_type: 'Location',
-    code_verifier: codeVerifier  // PKCE - no client_secret needed
+    code_verifier: codeVerifier,  // PKCE - enhanced security
+    client_secret: clientSecret    // Required by GoHighLevel even with PKCE
   })
 });
 ```
@@ -259,6 +260,18 @@ if (!validToken) {
 ```
 
 ## Security Implementation
+
+### Important: GoHighLevel Client Secret Requirement
+
+**GoHighLevel requires `client_secret` even with PKCE implementation.** This differs from standard OAuth 2.0 PKCE specifications where `client_secret` is optional for public clients. GoHighLevel's implementation maintains the `client_secret` requirement for enhanced security.
+
+### Common 422 "Unprocessable Entity" Causes
+1. **Redirect URI Mismatch** - Must exactly match GoHighLevel app settings
+2. **Code Expiration** - Authorization codes expire quickly (usually 10 minutes)
+3. **Code Already Used** - Codes can only be used once
+4. **Missing user_type** - Must be "Company" or "Location"
+5. **Invalid client_secret** - Check environment variables
+6. **Wrong Content-Type** - Must be `application/x-www-form-urlencoded`
 
 ### PKCE (Proof Key for Code Exchange)
 

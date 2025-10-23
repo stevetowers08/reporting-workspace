@@ -299,7 +299,28 @@ https://marketplace.leadconnectorhq.com/oauth/chooselocation?
 
 **Status:** ✅ Complete & Production Ready
 **Last Updated:** January 20, 2025
-**Production URL:** https://reporting.tulenagency.com/oauth/ghl-callback
+**Production URL:** https://reporting.tulenagency.com/oauth/callback
 **Security Level:** Enterprise Grade (PKCE + State + Auto-Refresh)
 **Tested:** ✅ Comprehensive testing completed
 **OAuth Standard:** ✅ OAuth 2.0 + PKCE (RFC 7636)
+
+## ✅ VERIFIED: Correct Implementation
+
+**Our implementation is CORRECT according to official GoHighLevel documentation:**
+
+- ✅ **Content-Type:** `application/x-www-form-urlencoded` ✓
+- ✅ **Client Secret:** Required by GoHighLevel even with PKCE ✓  
+- ✅ **Request Format:** URLSearchParams (form-encoded) ✓
+- ✅ **Endpoint:** `https://services.leadconnectorhq.com/oauth/token` ✓
+- ✅ **Parameters:** All required fields included ✓
+
+## 🔍 Common 422 "Unprocessable Entity" Causes
+
+If you're still getting 422 errors with correct format, check:
+
+1. **Redirect URI Mismatch** - Must exactly match GoHighLevel app settings
+2. **Code Expiration** - Authorization codes expire quickly (10 minutes)
+3. **Code Already Used** - Codes can only be used once
+4. **Missing user_type** - Must be "Company" or "Location"
+5. **Invalid client_secret** - Check environment variables
+6. **Wrong Content-Type** - Must be `application/x-www-form-urlencoded`

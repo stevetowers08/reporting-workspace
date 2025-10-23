@@ -40,6 +40,20 @@ VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
 VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/callback
 ```
 
+### Important: GoHighLevel OAuth Requirements
+
+**GoHighLevel requires `client_secret` even with PKCE implementation.** This differs from standard OAuth 2.0 PKCE specifications where `client_secret` is optional for public clients.
+
+**Request Format:** `application/x-www-form-urlencoded` (required)
+**Endpoint:** `https://services.leadconnectorhq.com/oauth/token`
+
+### Common 422 Error Causes
+1. **Redirect URI Mismatch** - Must exactly match GoHighLevel app settings
+2. **Code Expiration** - Authorization codes expire quickly (10 minutes)
+3. **Code Already Used** - Codes can only be used once
+4. **Missing user_type** - Must be "Company" or "Location"
+5. **Invalid client_secret** - Check environment variables
+
 ### 2. Secure OAuth Flow (PKCE + State)
 ```typescript
 import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
