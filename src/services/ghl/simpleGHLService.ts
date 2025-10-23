@@ -78,24 +78,16 @@ export class SimpleGHLService {
    */
   static getDefaultScopes(): string[] {
     return [
-      'calendars.readonly',
-      'calendars/events.readonly', 
-      'calendars.write',
-      'calendars/events.write',
-      'calendars/groups.readonly',
-      'calendars/groups.write',
-      'calendars/resources.readonly',
-      'calendars/resources.write',
-      'businesses.readonly',
-      'businesses.write',
-      'companies.readonly',
       'contacts.readonly',
-      'contacts.write',
       'opportunities.readonly',
-      'opportunities.write',
+      'calendars.readonly',
+      'calendars/events.readonly',
       'funnels/funnel.readonly',
       'funnels/page.readonly',
-      'locations.readonly'
+      'funnels/pagecount.readonly',
+      'funnels/redirect.readonly',
+      'locations.readonly',
+      'oauth.readonly'
     ];
   }
 
@@ -229,14 +221,13 @@ export class SimpleGHLService {
       throw new Error('GoHighLevel client secret not configured');
     }
 
-    // Use JSON format as per GoHighLevel documentation
+    // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
         grant_type: 'authorization_code',
