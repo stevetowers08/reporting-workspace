@@ -29,8 +29,8 @@ export class GoHighLevelOAuthExample {
         clientId: import.meta.env.VITE_GHL_CLIENT_ID,
         clientSecret: import.meta.env.VITE_GHL_CLIENT_SECRET,
         redirectUris: [
-          'https://reporting.tulenagency.com/oauth/callback/goHighLevel',
-          'http://localhost:5173/oauth/callback/goHighLevel' // For development
+          'https://reporting.tulenagency.com/oauth/callback',
+          'http://localhost:5173/oauth/callback' // For development
         ],
         scopes: requiredScopes,
         webhookUrl: 'https://reporting.tulenagency.com/webhooks/goHighLevel',
@@ -63,8 +63,8 @@ export class GoHighLevelOAuthExample {
     try {
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
       const redirectUri = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5173/oauth/callback/goHighLevel'
-        : 'https://reporting.tulenagency.com/oauth/callback/goHighLevel';
+        ? 'http://localhost:5173/oauth/callback'
+        : 'https://reporting.tulenagency.com/oauth/callback';
 
       if (!clientId) {
         throw new Error('GoHighLevel client ID not configured');
@@ -101,8 +101,8 @@ export class GoHighLevelOAuthExample {
 
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
       const redirectUri = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5173/oauth/callback/goHighLevel'
-        : 'https://reporting.tulenagency.com/oauth/callback/goHighLevel';
+        ? 'http://localhost:5173/oauth/callback'
+        : 'https://reporting.tulenagency.com/oauth/callback';
 
       if (!clientId) {
         throw new Error('GoHighLevel client ID not configured');

@@ -72,7 +72,7 @@ Client Keys: Generate client_id and client_secret
 # GoHighLevel OAuth Configuration
 VITE_GHL_CLIENT_ID=your_ghl_client_id
 VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
-VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/ghl-callback
+VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/callback
 VITE_GHL_SHARED_SECRET=your_ghl_shared_secret
 
 # Supabase Configuration (for token storage)
@@ -113,7 +113,7 @@ const requiredScopes = [
 
 **Development:**
 ```
-http://localhost:5173/oauth/ghl-callback
+http://localhost:5173/oauth/callback
 ```
 
 **Production:**
@@ -164,7 +164,7 @@ if (!authWindow) {
 
 ### 3. Handle Authorization Response
 
-The callback page (`/oauth/ghl-callback`) automatically processes the authorization code:
+The callback page (`/oauth/callback`) automatically processes the authorization code:
 
 ```typescript
 // Extract parameters from URL
@@ -435,11 +435,11 @@ cp env.example .env.local
 # Set your GoHighLevel OAuth credentials
 VITE_GHL_CLIENT_ID=your_actual_client_id
 VITE_GHL_CLIENT_SECRET=your_actual_client_secret
-VITE_GHL_REDIRECT_URI=http://localhost:5173/oauth/ghl-callback
+VITE_GHL_REDIRECT_URI=http://localhost:5173/oauth/callback
 ```
 
 **2. OAuth App Configuration:**
-- Add `http://localhost:5173/oauth/ghl-callback` to redirect URLs
+- Add `http://localhost:5173/oauth/callback` to redirect URLs
 - Ensure required scopes are selected
 - Test with sandbox location
 
@@ -509,7 +509,7 @@ https://marketplace.leadconnectorhq.com/oauth/chooselocation?
 # Set in Vercel dashboard
 VITE_GHL_CLIENT_ID=your_production_client_id
 VITE_GHL_CLIENT_SECRET=your_production_client_secret
-VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/ghl-callback
+VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/callback
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```

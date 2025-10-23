@@ -1,23 +1,14 @@
 import DebugPanel from "@/components/DebugPanel";
 import { PageErrorBoundary } from "@/components/error/EnhancedErrorBoundary";
 import { ErrorNotificationContainer } from "@/components/error/ErrorNotification";
-import { HydrationSafe } from "@/components/ui/HydrationSafe";
 import { LoadingProvider as EnhancedLoadingProvider, GlobalLoadingIndicator } from "@/components/ui/EnhancedLoadingSystem";
+import { HydrationSafe } from "@/components/ui/HydrationSafe";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NetworkStatusIndicator } from "@/hooks/useNetworkStatus";
 import { debugLogger } from "@/lib/debug";
 import { queryClient } from "@/lib/queryClient";
 // Sentry will be loaded lazily to prevent SES conflicts with React
-
-// Add debugging
-console.log('🚀 App.tsx: Starting app initialization');
-console.log('Environment check:', {
-  NODE_ENV: import.meta.env.MODE,
-  VITE_APP_ENV: import.meta.env.VITE_APP_ENV,
-  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? 'Set' : 'Missing',
-  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Missing'
-});
 
 import APITestingPage from "@/pages/APITestingPage";
 import AdAccountsOverview from "@/pages/AdAccountsOverview";
@@ -30,7 +21,6 @@ import Fallback from "@/pages/Fallback";
 import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
 import HomePageWrapper from "@/pages/HomePageWrapper";
-import OAuthCallback from "@/pages/OAuthCallback";
 import { HealthCheck } from "@/pages/health";
 import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -284,8 +274,7 @@ const App = () => {
                     <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                     <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
                     <Route path="/api-testing" element={<APITestingPage />} />
-                    <Route path="/oauth/callback" element={<OAuthCallback />} />
-                    <Route path="/oauth/ghl-callback" element={<GHLCallbackPage />} />
+                    <Route path="/oauth/callback" element={<GHLCallbackPage />} />
                     <Route path="/share/:clientId" element={
                       <Suspense fallback={<DashboardSkeleton />}>
                         <EventDashboard isShared={true} />

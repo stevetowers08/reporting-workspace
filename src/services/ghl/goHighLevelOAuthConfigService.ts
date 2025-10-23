@@ -313,7 +313,7 @@ export class GoHighLevelOAuthConfigService {
         'Target User': 'Sub-account',
         'Who can install': 'Both Agency & Sub-account',
         'Listing Type': 'white-label',
-        'Redirect URI': 'https://yourdomain.com/oauth/callback/goHighLevel',
+        'Redirect URI': 'https://yourdomain.com/oauth/callback',
         'Webhook URL': 'https://yourdomain.com/webhooks/goHighLevel'
       }
     };

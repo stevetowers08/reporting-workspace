@@ -41,14 +41,14 @@ The OAuth flow was failing due to multiple critical issues:
 - ✅ **After:** `VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39`
 
 - ❌ **Before:** `VITE_GHL_REDIRECT_URI="https://tulenreporting.vercel.app/oauth/callback\n"`
-- ✅ **After:** `VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/ghl-callback`
+- ✅ **After:** `VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/callback`
 
 **Clean Configuration:**
 ```bash
 # Production Environment (.env.vercel)
 VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39
 VITE_GHL_CLIENT_SECRET=68e135aa17f574067cfb7e39-mgcefs9f
-VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/ghl-callback
+VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/callback
 ```
 
 ### 3. Enhanced Security Implementation
@@ -115,7 +115,7 @@ const scopes = [
 2. **Generate PKCE + State** - Secure code verifier and CSRF protection
 3. **Open OAuth popup** - Redirect to GoHighLevel marketplace
 4. **User authorizes** - Selects location and grants permissions
-5. **GoHighLevel redirects** - To `/oauth/ghl-callback?code=...&state=...`
+5. **GoHighLevel redirects** - To `/oauth/callback?code=...&state=...`
 6. **Validate state** - CSRF protection verification
 7. **Exchange code for tokens** - Using PKCE (no client_secret needed)
 8. **Save tokens to database** - With refresh token and expiry
@@ -131,8 +131,8 @@ const scopes = [
 ## Required GoHighLevel OAuth App Configuration
 
 ### Redirect URIs to Configure
-- **Development:** `http://localhost:5173/oauth/ghl-callback`
-- **Production:** `https://reporting.tulenagency.com/oauth/ghl-callback`
+- **Development:** `http://localhost:5173/oauth/callback`
+- **Production:** `https://reporting.tulenagency.com/oauth/callback`
 
 ### Required Scopes (Updated)
 - `contacts.read` - Read contact data

@@ -37,7 +37,7 @@
 // Required environment variables
 VITE_GHL_CLIENT_ID=your_ghl_client_id
 VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
-VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/ghl-callback
+VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/callback
 ```
 
 ### 2. Secure OAuth Flow (PKCE + State)
