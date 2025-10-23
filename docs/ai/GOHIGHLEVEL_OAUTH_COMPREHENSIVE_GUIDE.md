@@ -87,16 +87,27 @@ Based on GoHighLevel's official documentation, request the minimum scopes needed
 ```typescript
 const requiredScopes = [
   // Contact Management
-  'contacts.read',           // Read contact data
-  'contacts.write',          // Create/update contacts
+  'contacts.readonly',           // Read contact data
   
   // Opportunity Management  
-  'opportunities.read',      // Read opportunity data
-  'opportunities.write',     // Create/update opportunities
+  'opportunities.readonly',      // Read opportunity data
   
   // Calendar Management
-  'calendars.read',          // Read calendar data
-  'calendars.write',         // Create/update calendar events
+  'calendars.readonly',          // Read calendar data
+  'calendars/events.readonly',   // Read calendar events
+  
+  // Funnel Management
+  'funnels/funnel.readonly',     // Read funnel data
+  'funnels/page.readonly',       // Read funnel pages
+  'funnels/pagecount.readonly',  // Read funnel page counts
+  'funnels/redirect.readonly',   // Read funnel redirects
+  
+  // Location Management
+  'locations.readonly',          // Read location data
+  
+  // OAuth Management
+  'oauth.readonly'               // Read OAuth data
+];
   
   // Funnel Analytics
   'funnels/funnel.readonly', // Read funnel data

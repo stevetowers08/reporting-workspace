@@ -70,15 +70,16 @@ export const useGHLIntegration = () => {
       }
       
       const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, [
-        'contacts.read',
-        'contacts.write',
-        'opportunities.read', 
-        'opportunities.write',
-        'calendars.read',
-        'calendars.write',
+        'contacts.readonly',
+        'opportunities.readonly',
+        'calendars.readonly',
+        'calendars/events.readonly',
         'funnels/funnel.readonly',
         'funnels/page.readonly',
-        'locations.readonly'
+        'funnels/pagecount.readonly',
+        'funnels/redirect.readonly',
+        'locations.readonly',
+        'oauth.readonly'
       ]);
       
       debugLogger.info('useGHLIntegration', 'Generated auth URL', { authUrl });
