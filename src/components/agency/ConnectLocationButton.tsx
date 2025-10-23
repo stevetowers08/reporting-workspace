@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -25,17 +25,16 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
     
     try {
       // Get OAuth credentials from environment
-      const clientId_env = import.meta.env.VITE_GHL_CLIENT_ID;
-      const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI || 
-          (window.location.hostname === 'localhost' 
-              ? `${window.location.origin}/api/leadconnector/oath`
-              : 'https://reporting.tulenagency.com/api/leadconnector/oath')).trim();
+      const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      const redirectUri = window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/oauth/ghl-callback`
+        : 'https://reporting.tulenagency.com/oauth/ghl-callback';
       
-      if (!clientId_env) {
+      if (!clientId) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
       
-      // Use GoHighLevelService to generate proper OAuth URL with required scopes
+      // Generate OAuth URL with proper PKCE
       const scopes = [
         'contacts.readonly',
         'opportunities.readonly', 
@@ -45,13 +44,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         'locations.readonly'
       ];
       
-      // Pass clientId in state data for backend access
-      const stateData = {
-        clientId: clientId,
-        integrationPlatform: clientId
-      };
-      
-      const authUrl = await GoHighLevelService.getAuthorizationUrl(clientId_env, redirectUri, scopes, stateData);
+      const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, scopes);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       

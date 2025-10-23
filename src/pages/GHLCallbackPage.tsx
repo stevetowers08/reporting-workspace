@@ -1,5 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -117,47 +117,39 @@ export const GHLCallbackPage: React.FC = () => {
           debugLogger.warn('GHLCallbackPage', 'No state parameter received (potential CSRF risk)');
         }
 
-        // Exchange code for token
+        // Exchange code for token directly
         debugLogger.info('GHLCallbackPage', 'Starting token exchange', { 
           code: authCode ? authCode.substring(0, 10) + '...' : 'MISSING', 
           locationId,
           fullUrl: window.location.href
         });
-        // Get OAuth credentials from environment
-        const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-        const clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-        const redirectUri = (import.meta.env.VITE_GHL_REDIRECT_URI ||
-            (window.location.hostname === 'localhost'
-                ? `${window.location.origin}/oauth/ghl-callback`
-                : 'https://reporting.tulenagency.com/oauth/ghl-callback')).trim();
         
-        if (!clientId || !clientSecret) {
-          throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID and VITE_GHL_CLIENT_SECRET in .env.local');
+        const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+        const redirectUri = window.location.hostname === 'localhost'
+          ? `${window.location.origin}/oauth/ghl-callback`
+          : 'https://reporting.tulenagency.com/oauth/ghl-callback';
+        
+        if (!clientId) {
+          throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in .env.local');
         }
         
-        const tokenData = await GoHighLevelService.exchangeCodeForToken(authCode, clientId, clientSecret, redirectUri);
-        
+        // Exchange code for token using PKCE (no client_secret needed)
+        const tokenData = await SimpleGHLService.exchangeCodeForToken(
+          authCode,
+          clientId,
+          redirectUri
+        );
+
         // Save token to database
-        const saveSuccess = await GoHighLevelService.saveLocationToken(
+        const saveSuccess = await SimpleGHLService.saveLocationToken(
           tokenData.locationId,
           tokenData.access_token,
-          tokenData.scope.split(' ')
+          tokenData.scope ? tokenData.scope.split(' ') : []
         );
         
         if (!saveSuccess) {
           throw new Error('Failed to save GoHighLevel token to database');
         }
-        
-        // Set credentials for future API calls
-        GoHighLevelService.setCredentials(tokenData.access_token, tokenData.locationId);
-
-        // Note: Database saving is handled by the backend API callback
-        // The frontend callback just processes the OAuth flow
-        debugLogger.info('GHLCallbackPage', 'OAuth flow completed successfully');
-
-        debugLogger.info('GHLCallbackPage', 'Successfully connected to GHL', {
-          locationId: tokenData.locationId
-        });
 
         setStatus('success');
         
