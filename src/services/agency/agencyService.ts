@@ -94,7 +94,6 @@ export class AgencyService {
           break;
         }
         case 'goHighLevel': {
-          const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
           try {
             // ✅ FIX: Test by checking if we have valid OAuth tokens
             const integrations = await DatabaseService.getIntegrations();

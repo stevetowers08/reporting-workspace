@@ -159,15 +159,15 @@ export class DevAPITester {
       results.push(this.createResult('Go High Level', 'Access Token', !!accessToken, !accessToken ? 'No token found' : undefined));
 
       // Test 3: Test service
-      const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
+      const { GoHighLevelAnalyticsService } = await import('@/services/ghl/goHighLevelAnalyticsService');
       
-      // Test account info
-      const accountInfo = await GoHighLevelService.getAccountInfo();
+      // Test account info (using a test location ID)
+      const testLocationId = 'V7bzEjKiigXzh8r6sQq0'; // Magnolia Terrace location ID
+      const accountInfo = await GoHighLevelAnalyticsService.getAccountInfo(testLocationId);
       results.push(this.createResult('Go High Level', 'Get Account Info', true, undefined, accountInfo));
       
-      // Test contacts (using a test location ID)
-      const testLocationId = 'V7bzEjKiigXzh8r6sQq0'; // Magnolia Terrace location ID
-      const contacts = await GoHighLevelService.getContacts(testLocationId, 10);
+      // Test contacts
+      const contacts = await GoHighLevelAnalyticsService.getContacts(testLocationId);
       results.push(this.createResult('Go High Level', 'Get Contacts', true, undefined, { count: contacts.length }));
       
     } catch (error) {
@@ -280,10 +280,10 @@ export class DevAPITester {
       console.log(`🧪 Testing error handling for ${serviceName}...`);
       
       // Test with invalid parameters
-      const { GoHighLevelService } = await import('@/services/ghl/goHighLevelService');
+      const { GoHighLevelAnalyticsService } = await import('@/services/ghl/goHighLevelAnalyticsService');
       
       try {
-        await GoHighLevelService.getContacts('invalid-location-id', 10);
+        await GoHighLevelAnalyticsService.getContacts('invalid-location-id');
         results.push(this.createResult(serviceName, 'Error Handling - Invalid Location', false, 'Should have thrown error'));
       } catch (error) {
         results.push(this.createResult(serviceName, 'Error Handling - Invalid Location', true, undefined, { 
