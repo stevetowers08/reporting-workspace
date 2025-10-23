@@ -221,6 +221,23 @@ export class SimpleGHLService {
       throw new Error('GoHighLevel client secret not configured');
     }
 
+    // Validate all required parameters before making request
+    if (!clientId || clientId.trim() === '') {
+      throw new Error('client_id is required and cannot be empty');
+    }
+    if (!clientSecret || clientSecret.trim() === '') {
+      throw new Error('client_secret is required and cannot be empty');
+    }
+    if (!code || code.trim() === '') {
+      throw new Error('authorization code is required and cannot be empty');
+    }
+    if (!redirectUri || redirectUri.trim() === '') {
+      throw new Error('redirect_uri is required and cannot be empty');
+    }
+    if (!codeVerifier || codeVerifier.trim() === '') {
+      throw new Error('code_verifier is required for PKCE');
+    }
+
     // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
@@ -241,7 +258,24 @@ export class SimpleGHLService {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error || errorData.message || `Token exchange failed: ${response.statusText}`;
-      throw new Error(errorMessage);
+      
+      // Enhanced error logging for 422 debugging
+      debugLogger.error('SimpleGHLService', 'Token exchange failed', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        requestParams: {
+          client_id: clientId,
+          client_secret: clientSecret ? '***' : 'MISSING',
+          grant_type: 'authorization_code',
+          code: code ? '***' : 'MISSING',
+          user_type: 'Location',
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier ? '***' : 'MISSING'
+        }
+      });
+      
+      throw new Error(`GoHighLevel OAuth Error (${response.status}): ${errorMessage}`);
     }
 
     const tokenData = await response.json();
