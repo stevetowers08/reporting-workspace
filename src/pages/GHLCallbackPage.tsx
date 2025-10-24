@@ -209,34 +209,34 @@ export const GHLCallbackPage: React.FC = () => {
         }
         
       } catch (error) {
-          // Determine if this is an OAuth error or database error
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          const isOAuthError = errorMessage.includes('OAuth') || errorMessage.includes('token exchange') || errorMessage.includes('422');
-          const isDatabaseError = errorMessage.includes('database') || errorMessage.includes('upsert') || errorMessage.includes('supabase');
-          
-          debugLogger.error('GHLCallbackPage', 'OAuth Callback Debug - Operation FAILED', {
-            errorType: isOAuthError ? 'OAUTH_ERROR' : isDatabaseError ? 'DATABASE_ERROR' : 'UNKNOWN_ERROR',
-            errorMessage,
-            errorStack: error instanceof Error ? error.stack : 'No stack trace',
-            isOAuthError,
-            isDatabaseError
-          });
-          
-          debugLogger.error('GHLCallbackPage', 'Error details', error);
-          debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
-          debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
-          
-          setError(errorMessage);
-          setStatus('error');
-          
-          // Don't auto-close on error - let user see the error message
-          debugLogger.info('GHLCallbackPage', 'Error displayed, window will not auto-close');
-          
-          // Notify parent window but don't close immediately
-          if (window.opener) {
-            window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
-          }
+        // Determine if this is an OAuth error or database error
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const isOAuthError = errorMessage.includes('OAuth') || errorMessage.includes('token exchange') || errorMessage.includes('422');
+        const isDatabaseError = errorMessage.includes('database') || errorMessage.includes('upsert') || errorMessage.includes('supabase');
+        
+        debugLogger.error('GHLCallbackPage', 'OAuth Callback Debug - Operation FAILED', {
+          errorType: isOAuthError ? 'OAUTH_ERROR' : isDatabaseError ? 'DATABASE_ERROR' : 'UNKNOWN_ERROR',
+          errorMessage,
+          errorStack: error instanceof Error ? error.stack : 'No stack trace',
+          isOAuthError,
+          isDatabaseError
+        });
+        
+        debugLogger.error('GHLCallbackPage', 'Error details', error);
+        debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
+        debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
+        
+        setError(errorMessage);
+        setStatus('error');
+        
+        // Don't auto-close on error - let user see the error message
+        debugLogger.info('GHLCallbackPage', 'Error displayed, window will not auto-close');
+        
+        // Notify parent window but don't close immediately
+        if (window.opener) {
+          window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
         }
+      }
     };
 
     handleCallback();
