@@ -198,15 +198,15 @@ export const GHLCallbackPage: React.FC = () => {
               locationId: tokenData.locationId,
               locationName: tokenData.locationName || 'GoHighLevel Location'
             }, window.location.origin);
-          
-          // Close the popup after a short delay to show success message
-          setTimeout(() => {
-            window.close();
-          }, 1000);
-        } else {
-          // Fallback: redirect to agency panel
-          navigate('/agency');
-        }
+            
+            // Close the popup after a short delay to show success message
+            setTimeout(() => {
+              window.close();
+            }, 1000);
+          } else {
+            // Fallback: redirect to agency panel
+            navigate('/agency');
+          }
         
       } catch (error) {
         // Determine if this is an OAuth error or database error
