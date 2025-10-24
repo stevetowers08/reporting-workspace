@@ -238,16 +238,27 @@ export class SimpleGHLService {
       throw new Error('code_verifier is required for PKCE');
     }
 
-    // Debug: Log request parameters (masked for security)
-    debugLogger.info('SimpleGHLService', 'Making token exchange request', {
-      client_id: clientId ? '***' : 'MISSING',
-      client_secret: clientSecret ? '***' : 'MISSING',
+    // Debug: Log the exact request body being sent (for debugging 422 errors)
+    const requestBody = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
       grant_type: 'authorization_code',
-      code: code ? '***' : 'MISSING',
+      code: code,
       user_type: 'Location',
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier ? '***' : 'MISSING',
-      endpoint: 'https://services.leadconnectorhq.com/oauth/token'
+      code_verifier: codeVerifier
+    });
+    
+    debugLogger.info('SimpleGHLService', 'Exact request body being sent', {
+      bodyString: requestBody.toString(),
+      bodySize: requestBody.toString().length,
+      hasClientId: requestBody.has('client_id'),
+      hasClientSecret: requestBody.has('client_secret'),
+      hasGrantType: requestBody.has('grant_type'),
+      hasCode: requestBody.has('code'),
+      hasUserType: requestBody.has('user_type'),
+      hasRedirectUri: requestBody.has('redirect_uri'),
+      hasCodeVerifier: requestBody.has('code_verifier')
     });
 
     // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
@@ -257,15 +268,7 @@ export class SimpleGHLService {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Version': '2021-07-28', // Required by GoHighLevel API
       },
-      body: new URLSearchParams({
-        client_id: clientId, // Official GoHighLevel docs specify client_id
-        client_secret: clientSecret,
-        grant_type: 'authorization_code',
-        code: code,
-        user_type: 'Location',
-        redirect_uri: redirectUri,
-        code_verifier: codeVerifier
-      })
+      body: requestBody
     });
 
         if (!response.ok) {
@@ -305,16 +308,6 @@ export class SimpleGHLService {
           });
 
           // Log the actual request body for debugging (masked)
-          const requestBody = new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            grant_type: 'authorization_code',
-            code: code,
-            user_type: 'Location',
-            redirect_uri: redirectUri,
-            code_verifier: codeVerifier
-          });
-          
           debugLogger.error('SimpleGHLService', 'Request body (masked)', {
             body: requestBody.toString().replace(/client_secret=[^&]+/, 'client_secret=***').replace(/code=[^&]+/, 'code=***').replace(/code_verifier=[^&]+/, 'code_verifier=***')
           });
