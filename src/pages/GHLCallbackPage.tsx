@@ -237,7 +237,13 @@ export const GHLCallbackPage: React.FC = () => {
           window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
         }
       }
-    };
+    } catch (outerError) {
+      // Handle any errors from the outer try block (parameter parsing, etc.)
+      debugLogger.error('GHLCallbackPage', 'Outer error in callback processing', outerError);
+      setError('Failed to process OAuth callback');
+      setStatus('error');
+    }
+  };
 
     handleCallback();
   }, [searchParams, navigate]);
