@@ -1350,10 +1350,38 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               <div className="text-center py-4">
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
-                  onConnected={() => {
+                  onConnected={async () => {
                     // Refresh GHL accounts to show updated connection status
                     setGhlAccountsLoaded(false);
-                    loadGHLAccounts();
+                    await loadGHLAccounts();
+                    
+                    // Also refresh integration status to update the connection indicator
+                    debugLogger.info('ClientForm', 'Refreshing integration status after GHL connection');
+                    const { data: integrations, error } = await supabase
+                      .from('integrations')
+                      .select('platform')
+                      .eq('connected', true);
+
+                    const statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
+
+                    if (error) {
+                      debugLogger.error('ClientForm', 'Failed to refresh integrations', error);
+                    } else {
+                      integrations?.forEach(integration => {
+                        if (integration.platform === 'goHighLevel') {
+                          statusMap.goHighLevel = true;
+                        } else if (integration.platform === 'facebookAds') {
+                          statusMap.facebookAds = true;
+                        } else if (integration.platform === 'googleAds') {
+                          statusMap.googleAds = true;
+                        } else if (integration.platform === 'googleSheets') {
+                          statusMap.googleSheets = true;
+                        }
+                      });
+                    }
+
+                    setIntegrationStatus(statusMap);
+                    debugLogger.info('ClientForm', 'Integration status refreshed', statusMap);
                   }}
                 />
               </div>
