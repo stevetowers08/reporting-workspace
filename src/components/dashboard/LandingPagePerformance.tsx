@@ -28,7 +28,9 @@ export const LandingPagePerformance: React.FC<LandingPagePerformanceProps> = ({ 
           leadDataResult = await LeadDataService.fetchLeadData();
         }
         setLeadData(leadDataResult);
-      } catch (error) {
+      } catch (_error) {
+        // Handle error silently for now
+        console.warn('Failed to fetch lead data:', _error);
       } finally {
         setLoading(false);
       }

@@ -314,7 +314,9 @@ export class SimplePuppeteerPDFService {
     // Wait for charts to render (fail fast - 10s max)
     await page.waitForFunction(() => {
       const charts = document.querySelectorAll('canvas, svg[class*="chart"]');
-      if (charts.length === 0) return true;
+      if (charts.length === 0) {
+        return true;
+      }
       
       return Array.from(charts).every(chart => {
         const rect = chart.getBoundingClientRect();

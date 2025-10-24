@@ -111,11 +111,15 @@ export class SimpleClientPDFService {
     options: PDFExportOptions,
     onProgress?: (message: string) => void
   ): Promise<void> {
-    if (onProgress) onProgress('Preparing PDF export...');
+    if (onProgress) {
+      onProgress('Preparing PDF export...');
+    }
     
     await this.exportToPDF(options);
     
-    if (onProgress) onProgress('PDF generated successfully!');
+    if (onProgress) {
+      onProgress('PDF generated successfully!');
+    }
   }
 }
 

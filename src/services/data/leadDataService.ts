@@ -104,7 +104,7 @@ export class LeadDataService {
       const guestCountColumnIndex = this.findGuestCountColumn(rowHeaders);
       const notesColumnIndex = this.findNotesColumn(rowHeaders);
 
-      rows.forEach((row: string[], index) => {
+      rows.forEach((row: string[], _index) => {
         // Get source (column 2 - index 1)
         const source = row[2] || '';
         if (source.toLowerCase().includes('facebook')) {
@@ -143,7 +143,7 @@ export class LeadDataService {
             const date = new Date(eventDate);
             const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
             dayPreferences[dayOfWeek] = (dayPreferences[dayOfWeek] || 0) + 1;
-          } catch (e) {
+          } catch (_e) {
             // Skip invalid dates
           }
         }

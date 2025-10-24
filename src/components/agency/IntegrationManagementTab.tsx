@@ -303,7 +303,7 @@ export const IntegrationManagementTab: React.FC<IntegrationManagementTabProps> =
                             
                             try {
                               // Get spreadsheet name from the GoogleSheetsSelector or use a default
-                              const spreadsheetName = 'Selected Spreadsheet';
+                              const _spreadsheetName = 'Selected Spreadsheet';
                               
                               await UnifiedIntegrationService.saveIntegration('googleSheets', {
                                 connected: true,

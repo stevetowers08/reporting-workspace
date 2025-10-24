@@ -152,6 +152,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
       debugLogger.info('GoogleSheetsSelector', 'Auto-calling onSelectionComplete', { selectedSpreadsheet, sheetName });
       onSelectionComplete(selectedSpreadsheet, sheetName);
     } else {
+      // No action needed when hideSaveButton is false
     }
   };
 

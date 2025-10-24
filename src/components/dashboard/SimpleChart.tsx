@@ -12,8 +12,8 @@ interface SimpleChartProps {
 export const SimpleChart: React.FC<SimpleChartProps> = ({ 
   title, 
   data, 
-  type = 'bar',
-  height = 300 
+  type: _type = 'bar',
+  height: _height = 300 
 }) => {
   // Default data if none provided
   const defaultData = [
@@ -44,7 +44,7 @@ export const SimpleChart: React.FC<SimpleChartProps> = ({
               tick={{ fontSize: 12 }}
             />
             <Tooltip 
-              formatter={(value: number, name: string) => [
+              formatter={(value: number, _name: string) => [
                 `${value}`,
                 'Value'
               ]}

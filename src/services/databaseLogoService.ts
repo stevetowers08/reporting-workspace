@@ -40,7 +40,7 @@ class DatabaseLogoService {
       }
 
       return data;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -61,7 +61,7 @@ class DatabaseLogoService {
       }
 
       return data || [];
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -87,7 +87,7 @@ class DatabaseLogoService {
       }
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -106,7 +106,7 @@ class DatabaseLogoService {
       }
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -129,7 +129,7 @@ class DatabaseLogoService {
       }
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -171,12 +171,13 @@ class DatabaseLogoService {
       const dbLogos = await this.getAllLogoMetadata();
       
       // Update local logo service with database data
-      const { logoService } = await import('./logoService');
+      const { logoService: _logoService } = await import('./logoService');
       
-      for (const dbLogo of dbLogos) {
+      for (const _dbLogo of dbLogos) {
         // Update local cache if needed
       }
-    } catch (error) {
+    } catch (_error) {
+      // Handle error silently
     }
   }
 }

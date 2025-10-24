@@ -322,7 +322,9 @@ export class PuppeteerPDFExporter {
     // Wait for all charts to render
     await page.waitForFunction(() => {
       const charts = document.querySelectorAll('canvas, svg[class*="chart"]');
-      if (charts.length === 0) return true; // No charts
+      if (charts.length === 0) {
+        return true; // No charts
+      }
       
       return Array.from(charts).every(chart => {
         const rect = chart.getBoundingClientRect();
