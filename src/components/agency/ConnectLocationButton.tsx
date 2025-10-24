@@ -8,6 +8,7 @@ import { debugLogger } from '@/lib/debug';
 import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ConnectLocationButtonProps {
   clientId?: string;
@@ -19,6 +20,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
   onConnected
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -85,6 +87,12 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           if (onConnected) {
             onConnected();
           }
+          
+          // Invalidate React Query cache to refresh venue dashboard
+          // This follows React Query best practices for OAuth success
+          debugLogger.info('ConnectLocationButton', 'Invalidating React Query cache to refresh venue dashboard');
+          queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+          queryClient.invalidateQueries({ queryKey: ['integration-status'] });
         } else if (event.data?.type === 'GHL_OAUTH_ERROR') {
           debugLogger.error('ConnectLocationButton', 'OAuth popup error', event.data);
           popup.close();
@@ -116,6 +124,11 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
             if (onConnected) {
               onConnected();
             }
+            
+            // Invalidate React Query cache to refresh venue dashboard
+            debugLogger.info('ConnectLocationButton', 'Invalidating React Query cache via URL monitoring');
+            queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+            queryClient.invalidateQueries({ queryKey: ['integration-status'] });
             
             popup.close();
             debugLogger.info('ConnectLocationButton', 'OAuth success detected via URL monitoring');
