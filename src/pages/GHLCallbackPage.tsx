@@ -225,17 +225,18 @@ export const GHLCallbackPage: React.FC = () => {
           debugLogger.error('GHLCallbackPage', 'Error details', error);
           debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
           debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
-        setError(errorMessage);
-        setStatus('error');
-        
-        // Don't auto-close on error - let user see the error message
-        debugLogger.info('GHLCallbackPage', 'Error displayed, window will not auto-close');
-        
-        // Notify parent window but don't close immediately
-        if (window.opener) {
-          window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
+          
+          setError(errorMessage);
+          setStatus('error');
+          
+          // Don't auto-close on error - let user see the error message
+          debugLogger.info('GHLCallbackPage', 'Error displayed, window will not auto-close');
+          
+          // Notify parent window but don't close immediately
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GHL_OAUTH_ERROR', success: false, error: errorMessage }, window.location.origin);
+          }
         }
-      }
     };
 
     handleCallback();
