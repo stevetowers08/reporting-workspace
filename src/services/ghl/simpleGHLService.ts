@@ -254,6 +254,7 @@ export class SimpleGHLService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Version': '2021-07-28', // Required by GoHighLevel API
       },
       body: new URLSearchParams({
         client_id: clientId,
@@ -266,39 +267,58 @@ export class SimpleGHLService {
       })
     });
 
-    if (!response.ok) {
-      let errorData = {};
-      let errorText = '';
-      
-      try {
-        errorText = await response.text();
-        errorData = JSON.parse(errorText);
-      } catch (_e) {
-        // Response is not JSON, use text as error message
-        errorData = { error: errorText || response.statusText };
-      }
-      
-      const errorMessage = errorData.error || errorData.message || `Token exchange failed: ${response.statusText}`;
-      
-      // Enhanced error logging for 422 debugging
-      debugLogger.error('SimpleGHLService', 'Token exchange failed', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        errorText,
-        requestParams: {
-          client_id: clientId,
-          client_secret: clientSecret ? '***' : 'MISSING',
-          grant_type: 'authorization_code',
-          code: code ? '***' : 'MISSING',
-          user_type: 'Location',
-          redirect_uri: redirectUri,
-          code_verifier: codeVerifier ? '***' : 'MISSING'
+        if (!response.ok) {
+          let errorData = {};
+          let errorText = '';
+
+          try {
+            errorText = await response.text();
+            errorData = JSON.parse(errorText);
+          } catch (_e) {
+            // Response is not JSON, use text as error message
+            errorData = { error: errorText || response.statusText };
+          }
+
+          const errorMessage = errorData.error || errorData.message || `Token exchange failed: ${response.statusText}`;
+
+          // Enhanced error logging for 422 debugging
+          debugLogger.error('SimpleGHLService', 'Token exchange failed', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData,
+            errorText,
+            requestParams: {
+              client_id: clientId,
+              client_secret: clientSecret ? '***' : 'MISSING',
+              grant_type: 'authorization_code',
+              code: code ? '***' : 'MISSING',
+              user_type: 'Location',
+              redirect_uri: redirectUri,
+              code_verifier: codeVerifier ? '***' : 'MISSING'
+            },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Version': '2021-07-28'
+            }
+          });
+
+          // Log the actual request body for debugging (masked)
+          const requestBody = new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'authorization_code',
+            code: code,
+            user_type: 'Location',
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
+          });
+          
+          debugLogger.error('SimpleGHLService', 'Request body (masked)', {
+            body: requestBody.toString().replace(/client_secret=[^&]+/, 'client_secret=***').replace(/code=[^&]+/, 'code=***').replace(/code_verifier=[^&]+/, 'code_verifier=***')
+          });
+
+          throw new Error(`GoHighLevel OAuth Error (${response.status}): ${errorMessage}`);
         }
-      });
-      
-      throw new Error(`GoHighLevel OAuth Error (${response.status}): ${errorMessage}`);
-    }
 
     const tokenData = await response.json();
     
@@ -335,6 +355,7 @@ export class SimpleGHLService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Version': '2021-07-28', // Required by GoHighLevel API
       },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
