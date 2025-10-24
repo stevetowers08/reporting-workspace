@@ -86,11 +86,9 @@ export const useGHLIntegration = () => {
       debugLogger.info('useGHLIntegration', 'Generated auth URL', { authUrl });
       
       // Open OAuth flow in new window/tab
-      const authWindow = window.open(authUrl, 'ghl-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
-      
-      if (!authWindow) {
-        throw new Error('Failed to open OAuth window. Please allow popups for this site.');
-      }
+      // Open OAuth in same window for debugging (temporary)
+      debugLogger.info('useGHLIntegration', 'Redirecting to OAuth URL for debugging', { authUrl });
+      window.location.href = authUrl;
       
       // Listen for messages from the popup window
       const handleMessage = (event: globalThis.MessageEvent) => {
