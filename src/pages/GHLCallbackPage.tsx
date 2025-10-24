@@ -208,7 +208,7 @@ export const GHLCallbackPage: React.FC = () => {
           navigate('/agency');
         }
         
-        } catch (error) {
+      } catch (error) {
           // Determine if this is an OAuth error or database error
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           const isOAuthError = errorMessage.includes('OAuth') || errorMessage.includes('token exchange') || errorMessage.includes('422');
