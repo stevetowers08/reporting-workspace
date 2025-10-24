@@ -257,7 +257,7 @@ export class SimpleGHLService {
         'Version': '2021-07-28', // Required by GoHighLevel API
       },
       body: new URLSearchParams({
-        appId: clientId, // GoHighLevel uses appId instead of client_id
+        client_id: clientId, // GoHighLevel uses client_id (standard OAuth)
         client_secret: clientSecret,
         grant_type: 'authorization_code',
         code: code,
@@ -288,7 +288,7 @@ export class SimpleGHLService {
             errorData,
             errorText,
             requestParams: {
-              appId: clientId,
+              client_id: clientId,
               client_secret: clientSecret ? '***' : 'MISSING',
               grant_type: 'authorization_code',
               code: code ? '***' : 'MISSING',
@@ -304,7 +304,7 @@ export class SimpleGHLService {
 
           // Log the actual request body for debugging (masked)
           const requestBody = new URLSearchParams({
-            appId: clientId,
+            client_id: clientId,
             client_secret: clientSecret,
             grant_type: 'authorization_code',
             code: code,
@@ -360,7 +360,7 @@ export class SimpleGHLService {
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        appId: clientId, // GoHighLevel uses appId instead of client_id
+        client_id: clientId, // GoHighLevel uses client_id (standard OAuth)
         client_secret: clientSecret,
         user_type: 'Location'
       })
