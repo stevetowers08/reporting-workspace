@@ -124,6 +124,21 @@ export const GHLCallbackPage: React.FC = () => {
           fullUrl: window.location.href
         });
         
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 1: Code received', { code: code?.substring(0, 10) + '...' });
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 2: State received', { state: state?.substring(0, 10) + '...' });
+        
+        // Check session storage for state validation
+        const expectedState = typeof window !== 'undefined'
+          ? window.sessionStorage.getItem('oauth_state_goHighLevel')
+          : null;
+          
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 3: Expected state', { 
+          expectedState: expectedState ? expectedState.substring(0, 10) + '...' : 'MISSING' 
+        });
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 4: State validation', { 
+          isValid: state === expectedState ? 'VALID' : 'INVALID' 
+        });
+        
         const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
         const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost'
@@ -134,37 +149,55 @@ export const GHLCallbackPage: React.FC = () => {
           throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in .env.local');
         }
         
-        // Exchange code for token using PKCE (no client_secret needed)
-        const tokenData = await SimpleGHLService.exchangeCodeForToken(
-          authCode,
-          clientId,
-          redirectUri,
-          state
-        );
-
-        // Save token to database
-        const saveSuccess = await SimpleGHLService.saveLocationToken(
-          tokenData.locationId,
-          tokenData.access_token,
-          tokenData.scope ? tokenData.scope.split(' ') : [],
-          tokenData.refresh_token,
-          tokenData.expires_in
-        );
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 5: About to make token exchange request');
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 6: Client ID', { clientId: clientId ? clientId.substring(0, 10) + '...' : 'MISSING' });
+        debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 7: Redirect URI', { redirectUri });
         
-        if (!saveSuccess) {
-          throw new Error('Failed to save GoHighLevel token to database');
-        }
-
-        setStatus('success');
-        
-        // Send success message to parent window and close popup
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'GHL_OAUTH_SUCCESS',
-            success: true,
+        try {
+          // Exchange code for token using standard OAuth
+          const tokenData = await SimpleGHLService.exchangeCodeForToken(
+            authCode,
+            clientId,
+            redirectUri,
+            state
+          );
+          
+          debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 8: Token exchange SUCCESS!');
+          debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 9: Token data received', {
             locationId: tokenData.locationId,
-            locationName: tokenData.locationName || 'GoHighLevel Location'
-          }, window.location.origin);
+            hasAccessToken: !!tokenData.access_token,
+            hasRefreshToken: !!tokenData.refresh_token,
+            expiresIn: tokenData.expires_in
+          });
+          
+          // Save token to database
+          debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 10: About to save to database');
+          const saveSuccess = await SimpleGHLService.saveLocationToken(
+            tokenData.locationId,
+            tokenData.access_token,
+            tokenData.scope ? tokenData.scope.split(' ') : [],
+            tokenData.refresh_token,
+            tokenData.expires_in
+          );
+          
+          debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 11: Database save result', { saveSuccess });
+          
+          if (!saveSuccess) {
+            throw new Error('Failed to save GoHighLevel token to database');
+          }
+          
+          debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 12: COMPLETE SUCCESS!');
+          
+          setStatus('success');
+          
+          // Send success message to parent window and close popup
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'GHL_OAUTH_SUCCESS',
+              success: true,
+              locationId: tokenData.locationId,
+              locationName: tokenData.locationName || 'GoHighLevel Location'
+            }, window.location.origin);
           
           // Close the popup after a short delay to show success message
           setTimeout(() => {
@@ -174,8 +207,8 @@ export const GHLCallbackPage: React.FC = () => {
           // Fallback: redirect to agency panel
           navigate('/agency');
         }
-
-      } catch (error) {
+        
+        } catch (error) {
         debugLogger.error('GHLCallbackPage', 'Error details', error);
         debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
         debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);

@@ -92,8 +92,8 @@ export class SimpleGHLService {
   }
 
   /**
-   * Generate OAuth authorization URL with PKCE and state parameter
-   * Updated to use proper GoHighLevel scopes
+   * Generate OAuth authorization URL with state parameter (no PKCE)
+   * Updated to use standard GoHighLevel OAuth flow
    */
   static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
@@ -101,16 +101,11 @@ export class SimpleGHLService {
     // Use default scopes if none provided
     const finalScopes = scopes.length > 0 ? scopes : this.getDefaultScopes();
     
-    // Generate PKCE code verifier and challenge
-    const codeVerifier = this.generateCodeVerifier();
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-    
     // Generate state parameter for CSRF protection
     const state = this.generateState();
     
-    // Store code verifier and state for later validation
+    // Store state for later validation
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('oauth_code_verifier_goHighLevel', codeVerifier);
       window.sessionStorage.setItem('oauth_state_goHighLevel', state);
     }
     
@@ -121,16 +116,14 @@ export class SimpleGHLService {
       scope: finalScopes.join(' '),
       access_type: 'offline',
       prompt: 'consent',
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
       state: state
     });
 
-    debugLogger.info('SimpleGHLService', 'Generated authorization URL with PKCE', {
+    debugLogger.info('SimpleGHLService', 'Generated authorization URL (standard OAuth)', {
       baseUrl,
       redirectUri,
       scopes: finalScopes.join(' '),
-      hasCodeChallenge: !!codeChallenge
+      state: state.substring(0, 10) + '...'
     });
 
     return `${baseUrl}?${params.toString()}`;
@@ -188,8 +181,8 @@ export class SimpleGHLService {
   }
 
   /**
-   * Exchange authorization code for access token using PKCE
-   * Updated to match GoHighLevel OAuth 2.0 requirements
+   * Exchange authorization code for access token using standard OAuth
+   * Updated to match GoHighLevel OAuth 2.0 requirements (no PKCE)
    */
   static async exchangeCodeForToken(
     code: string,
@@ -197,18 +190,10 @@ export class SimpleGHLService {
     redirectUri: string,
     state?: string
   ): Promise<GHLTokenData> {
-    // Get PKCE code verifier and expected state
-    const codeVerifier = typeof window !== 'undefined' 
-      ? window.sessionStorage.getItem('oauth_code_verifier_goHighLevel')
-      : null;
-    
+    // Get expected state for validation
     const expectedState = typeof window !== 'undefined'
       ? window.sessionStorage.getItem('oauth_state_goHighLevel')
       : null;
-
-    if (!codeVerifier) {
-      throw new Error('Code verifier not found. Please try connecting again.');
-    }
 
     // Validate state parameter if provided
     if (state && expectedState && !this.validateState(state, expectedState)) {
@@ -234,9 +219,6 @@ export class SimpleGHLService {
     if (!redirectUri || redirectUri.trim() === '') {
       throw new Error('redirect_uri is required and cannot be empty');
     }
-    if (!codeVerifier || codeVerifier.trim() === '') {
-      throw new Error('code_verifier is required for PKCE');
-    }
 
     // Debug: Log the exact request body being sent (for debugging 422 errors)
     const requestBody = new URLSearchParams({
@@ -245,8 +227,24 @@ export class SimpleGHLService {
       grant_type: 'authorization_code',
       code: code,
       user_type: 'Location',
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier
+      redirect_uri: redirectUri
+    });
+    
+    debugLogger.info('SimpleGHLService', 'Token Exchange Request Details', {
+      url: 'https://services.leadconnectorhq.com/oauth/token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Version': '2021-07-28'
+      },
+      body: {
+        client_id: clientId ? clientId.substring(0, 10) + '...' : 'MISSING',
+        client_secret: clientSecret ? '***' : 'MISSING',
+        grant_type: 'authorization_code',
+        code: code ? code.substring(0, 10) + '...' : 'MISSING',
+        user_type: 'Location',
+        redirect_uri: redirectUri
+      }
     });
     
     debugLogger.info('SimpleGHLService', 'Exact request body being sent', {
@@ -257,8 +255,7 @@ export class SimpleGHLService {
       hasGrantType: requestBody.has('grant_type'),
       hasCode: requestBody.has('code'),
       hasUserType: requestBody.has('user_type'),
-      hasRedirectUri: requestBody.has('redirect_uri'),
-      hasCodeVerifier: requestBody.has('code_verifier')
+      hasRedirectUri: requestBody.has('redirect_uri')
     });
 
     // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
@@ -297,8 +294,7 @@ export class SimpleGHLService {
               grant_type: 'authorization_code',
               code: code ? '***' : 'MISSING',
               user_type: 'Location',
-              redirect_uri: redirectUri,
-              code_verifier: codeVerifier ? '***' : 'MISSING'
+              redirect_uri: redirectUri
             },
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
@@ -309,7 +305,7 @@ export class SimpleGHLService {
 
           // Log the actual request body for debugging (masked)
           debugLogger.error('SimpleGHLService', 'Request body (masked)', {
-            body: requestBody.toString().replace(/client_secret=[^&]+/, 'client_secret=***').replace(/code=[^&]+/, 'code=***').replace(/code_verifier=[^&]+/, 'code_verifier=***')
+            body: requestBody.toString().replace(/client_secret=[^&]+/, 'client_secret=***').replace(/code=[^&]+/, 'code=***')
           });
 
           throw new Error(`GoHighLevel OAuth Error (${response.status}): ${errorMessage}`);
