@@ -140,42 +140,120 @@ export class SimpleGHLService {
     expiresIn?: number
   ): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('integrations')
-        .upsert({
-          platform: 'goHighLevel',
-          account_id: locationId,
-          connected: true,
-          config: {
-            tokens: {
-              accessToken: accessToken,
-              refreshToken: refreshToken,
-              tokenType: 'Bearer',
-              scope: scopes.join(' ')
-            },
-            accountInfo: {
-              id: locationId,
-              name: 'GoHighLevel Location'
-            },
-            locationId: locationId,
-            lastSync: new Date().toISOString(),
-            syncStatus: 'idle',
-            connectedAt: new Date().toISOString(),
-            expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined
-          }
-        }, {
-          onConflict: 'platform,account_id'
-        });
+      debugLogger.info('SimpleGHLService', 'Starting database save operation', {
+        locationId,
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        expiresIn,
+        scopesCount: scopes.length
+      });
 
-      if (error) {
-        debugLogger.error('SimpleGHLService', 'Failed to save token', error);
-        return false;
+      // Test basic database connection first
+      debugLogger.info('SimpleGHLService', 'Testing database connection...');
+      const { data: testData, error: testError } = await supabase
+        .from('integrations')
+        .select('count')
+        .limit(1);
+      
+      if (testError) {
+        debugLogger.error('SimpleGHLService', 'Database connection test failed', testError);
+        throw new Error(`Database connection failed: ${testError.message}`);
+      }
+      
+      debugLogger.info('SimpleGHLService', 'Database connection test passed', { testData });
+
+      // Check for existing GoHighLevel integrations
+      debugLogger.info('SimpleGHLService', 'Checking for existing GoHighLevel integrations...');
+      const { data: existingData, error: existingError } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('platform', 'goHighLevel');
+      
+      if (existingError) {
+        debugLogger.error('SimpleGHLService', 'Failed to check existing integrations', existingError);
+      } else {
+        debugLogger.info('SimpleGHLService', 'Existing GoHighLevel integrations found', {
+          count: existingData?.length || 0,
+          existing: existingData?.map(item => ({
+            id: item.id,
+            account_id: item.account_id,
+            connected: item.connected,
+            hasConfig: !!item.config
+          }))
+        });
       }
 
-      debugLogger.info('SimpleGHLService', 'Token saved successfully', { locationId });
+      // Prepare the data for upsert
+      const upsertData = {
+        platform: 'goHighLevel',
+        account_id: locationId,
+        account_name: 'GoHighLevel Location',
+        connected: true,
+        config: {
+          tokens: {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            tokenType: 'Bearer',
+            scope: scopes.join(' ')
+          },
+          accountInfo: {
+            id: locationId,
+            name: 'GoHighLevel Location'
+          },
+          locationId: locationId,
+          lastSync: new Date().toISOString(),
+          syncStatus: 'idle',
+          connectedAt: new Date().toISOString(),
+          expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined
+        }
+      };
+
+      debugLogger.info('SimpleGHLService', 'About to upsert integration data', {
+        platform: upsertData.platform,
+        account_id: upsertData.account_id,
+        account_name: upsertData.account_name,
+        connected: upsertData.connected,
+        configSize: JSON.stringify(upsertData.config).length
+      });
+
+      // Perform the upsert operation
+      const { data: upsertResult, error: upsertError } = await supabase
+        .from('integrations')
+        .upsert(upsertData, {
+          onConflict: 'platform,account_id'
+        })
+        .select();
+
+      if (upsertError) {
+        debugLogger.error('SimpleGHLService', 'Database upsert failed', {
+          error: upsertError,
+          errorMessage: upsertError.message,
+          errorCode: upsertError.code,
+          errorDetails: upsertError.details,
+          errorHint: upsertError.hint,
+          upsertData: {
+            platform: upsertData.platform,
+            account_id: upsertData.account_id,
+            account_name: upsertData.account_name,
+            connected: upsertData.connected
+          }
+        });
+        throw new Error(`Database upsert failed: ${upsertError.message}`);
+      }
+
+      debugLogger.info('SimpleGHLService', 'Database upsert successful', {
+        result: upsertResult,
+        locationId
+      });
+
       return true;
     } catch (error) {
-      debugLogger.error('SimpleGHLService', 'Error saving token', error);
+      debugLogger.error('SimpleGHLService', 'Database save operation failed', {
+        error: error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : 'No stack trace',
+        locationId
+      });
       return false;
     }
   }

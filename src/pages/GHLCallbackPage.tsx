@@ -209,11 +209,22 @@ export const GHLCallbackPage: React.FC = () => {
         }
         
         } catch (error) {
-        debugLogger.error('GHLCallbackPage', 'Error details', error);
-        debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
-        debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
-        
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          // Determine if this is an OAuth error or database error
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          const isOAuthError = errorMessage.includes('OAuth') || errorMessage.includes('token exchange') || errorMessage.includes('422');
+          const isDatabaseError = errorMessage.includes('database') || errorMessage.includes('upsert') || errorMessage.includes('supabase');
+          
+          debugLogger.error('GHLCallbackPage', 'OAuth Callback Debug - Operation FAILED', {
+            errorType: isOAuthError ? 'OAUTH_ERROR' : isDatabaseError ? 'DATABASE_ERROR' : 'UNKNOWN_ERROR',
+            errorMessage,
+            errorStack: error instanceof Error ? error.stack : 'No stack trace',
+            isOAuthError,
+            isDatabaseError
+          });
+          
+          debugLogger.error('GHLCallbackPage', 'Error details', error);
+          debugLogger.error('GHLCallbackPage', 'Error stack', error instanceof Error ? error.stack : 'No stack trace');
+          debugLogger.error('GHLCallbackPage', 'Failed to process OAuth callback', error);
         setError(errorMessage);
         setStatus('error');
         
