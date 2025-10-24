@@ -40,7 +40,7 @@ The OAuth flow was failing due to multiple critical issues:
 - ❌ **Before:** `VITE_GHL_CLIENT_ID="68e135aa17f574067cfb7e39\n"`
 - ✅ **After:** `VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39-mh47d35v`
 
-- ❌ **Before:** `VITE_GHL_REDIRECT_URI="https://tulenreporting.vercel.app/oauth/callback\n"`
+- ❌ **Before:** `VITE_GHL_REDIRECT_URI="https://reporting.tulenagency.com/oauth/callback\n"`
 - ✅ **After:** `VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/callback`
 
 **Clean Configuration:**

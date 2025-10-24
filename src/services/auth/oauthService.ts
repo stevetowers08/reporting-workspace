@@ -82,7 +82,7 @@ export class OAuthService {
                     // Use frontend OAuth callback for Google platforms
                     const redirectUri = window.location.hostname === 'localhost' 
                         ? `${window.location.origin}/oauth/callback`
-                        : 'https://tulenreporting.vercel.app/oauth/callback';
+                        : 'https://reporting.tulenagency.com/oauth/callback';
                     
                     return {
                         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',

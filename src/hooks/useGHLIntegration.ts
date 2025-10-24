@@ -64,7 +64,7 @@ export const useGHLIntegration = () => {
       const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
         (window.location.hostname === 'localhost' 
           ? `${window.location.origin}/oauth/callback`
-          : 'https://tulenreporting.vercel.app/oauth/callback');
+          : 'https://reporting.tulenagency.com/oauth/callback');
       
       if (!clientId) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
