@@ -246,7 +246,8 @@ export class SimpleGHLService {
       code: code ? '***' : 'MISSING',
       user_type: 'Location',
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier ? '***' : 'MISSING'
+      code_verifier: codeVerifier ? '***' : 'MISSING',
+      endpoint: 'https://services.leadconnectorhq.com/oauth/token'
     });
 
     // Use form-encoded format as per GoHighLevel OAuth 2.0 specification
@@ -299,7 +300,8 @@ export class SimpleGHLService {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'Version': '2021-07-28'
-            }
+            },
+            endpoint: 'https://services.leadconnectorhq.com/oauth/token'
           });
 
           // Log the actual request body for debugging (masked)
