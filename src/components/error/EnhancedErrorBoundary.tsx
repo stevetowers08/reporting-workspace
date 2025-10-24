@@ -63,7 +63,7 @@ export class EnhancedErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   componentDidUpdate(prevProps: ErrorBoundaryProps) {
     const { resetKeys, resetOnPropsChange } = this.props;
-    const { hasError, retryCount } = this.state;
+    const { hasError, retryCount: _retryCount } = this.state;
 
     if (hasError && resetOnPropsChange) {
       if (resetKeys && resetKeys.length > 0) {

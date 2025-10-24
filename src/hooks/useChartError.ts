@@ -30,14 +30,16 @@ export const useChartError = (
   }, []);
 
   const retry = useCallback(async () => {
-    if (!onRetry) return;
+    if (!onRetry) {
+      return;
+    }
     
     setIsRetrying(true);
     clearError();
     
     try {
       await onRetry();
-    } catch (err) {
+    } catch (_err) {
       // Error will be handled by the component that calls this hook
     } finally {
       setIsRetrying(false);

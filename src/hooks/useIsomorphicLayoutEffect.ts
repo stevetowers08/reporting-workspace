@@ -20,14 +20,20 @@ export const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayo
 export const useSafeLayoutEffect = (effect: React.EffectCallback, deps?: React.DependencyList) => {
   const isClient = typeof window !== 'undefined';
   
-  if (isClient) {
-    useLayoutEffect(effect, deps);
-  } else {
-    // On server, use useEffect to prevent hydration mismatches
-    useEffect(() => {
-      // Only run effect after hydration
+  // Always call hooks in the same order
+  const layoutEffectResult = useLayoutEffect(() => {
+    if (isClient) {
+      return effect();
+    }
+  }, deps);
+  
+  const effectResult = useEffect(() => {
+    if (!isClient) {
+      // On server, use useEffect to prevent hydration mismatches
       const timer = setTimeout(effect, 0);
       return () => clearTimeout(timer);
-    }, deps);
-  }
+    }
+  }, deps);
+  
+  return isClient ? layoutEffectResult : effectResult;
 };

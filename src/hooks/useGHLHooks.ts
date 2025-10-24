@@ -197,3 +197,5 @@ export const useLoadingState = (initialLoading = false) => {
 
   return { loading, error, setLoading: setLoadingWithError, clearError };
 };
+
+export { useGHLMetrics };

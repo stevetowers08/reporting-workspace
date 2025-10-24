@@ -19,6 +19,70 @@ import { DatabaseService } from "@/services/data/databaseService";
 import { AlertCircle, Bot, CheckCircle, ImageIcon, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
+import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
+
+// Component to display GHL connection details
+const GHLConnectionDisplay: React.FC<{ locationId: string }> = ({ locationId }) => {
+  const { data: locationInfo, isLoading } = useQuery({
+    queryKey: ['ghl-location', locationId],
+    queryFn: async () => {
+      if (!locationId || locationId === 'none') {return null;}
+      
+      try {
+        // Get the GHL integration to access the access token
+        const { data: integration } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'goHighLevel')
+          .eq('connected', true)
+          .single();
+        
+        if (!integration?.config?.tokens?.accessToken) {
+          return { name: 'GoHighLevel Location', id: locationId };
+        }
+        
+        // Try to fetch location details from GHL API
+        const response = await fetch(`https://services.leadconnectorhq.com/locations/${locationId}`, {
+          headers: {
+            'Authorization': `Bearer ${integration.config.tokens.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return { name: data.name || 'GoHighLevel Location', id: locationId };
+        }
+        
+        return { name: 'GoHighLevel Location', id: locationId };
+      } catch (error) {
+        debugLogger.error('GHLConnectionDisplay', 'Error fetching location info', error);
+        return { name: 'GoHighLevel Location', id: locationId };
+      }
+    },
+    enabled: !!locationId && locationId !== 'none',
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-gray-50 p-2 rounded text-xs">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span className="text-gray-500">Loading location...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50 p-2 rounded text-xs">
+      <div className="font-medium text-gray-700">{locationInfo?.name || 'GoHighLevel Location'}</div>
+      <div className="text-gray-500">ID: {locationId}</div>
+    </div>
+  );
+};
 
 interface ConnectedAccount {
   id: string;
@@ -1000,21 +1064,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         <Label className="text-sm font-medium">Integrations</Label>
         <div className="space-y-3 mt-2">
           {/* Facebook Ads */}
-          <div className="border rounded-lg p-3">
+          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('facebookAds') ? 'opacity-50 bg-gray-50' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="meta" 
                   size={16} 
                   context="client-form"
-                  className="text-blue-600"
+                  className={isIntegrationConnectedSync('facebookAds') ? "text-blue-600" : "text-gray-400"}
                   fallback={
-                    <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('facebookAds') ? 'bg-blue-600' : 'bg-gray-400'}`}>
                       <span className="text-white font-bold text-xs">f</span>
                     </div>
                   }
                 />
-                <span className="text-sm font-medium">Facebook Ads</span>
+                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('facebookAds') ? 'text-gray-500' : ''}`}>Facebook Ads</span>
               </div>
               {isIntegrationConnectedSync('facebookAds') && (
                 <div className="flex items-center gap-2">
@@ -1160,21 +1224,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* Google Ads */}
-          <div className="border rounded-lg p-3">
+          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('googleAds') ? 'opacity-50 bg-gray-50' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="googleAds" 
                   size={16} 
                   context="client-form"
-                  className="text-red-600"
+                  className={isIntegrationConnectedSync('googleAds') ? "text-red-600" : "text-gray-400"}
                   fallback={
-                    <div className="w-4 h-4 bg-red-600 rounded flex items-center justify-center">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('googleAds') ? 'bg-red-600' : 'bg-gray-400'}`}>
                       <span className="text-white font-bold text-xs">G</span>
                     </div>
                   }
                 />
-                <span className="text-sm font-medium">Google Ads</span>
+                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('googleAds') ? 'text-gray-500' : ''}`}>Google Ads</span>
               </div>
               {isIntegrationConnectedSync('googleAds') && (
                 <div className="flex items-center gap-2">
@@ -1303,21 +1367,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* GoHighLevel */}
-          <div className="border rounded-lg p-3">
+          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('goHighLevel') ? 'opacity-50 bg-gray-50' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="goHighLevel" 
                   size={16} 
                   context="client-form"
-                  className="text-purple-600"
+                  className={isIntegrationConnectedSync('goHighLevel') ? "text-purple-600" : "text-gray-400"}
                   fallback={
-                    <div className="w-4 h-4 bg-purple-600 rounded flex items-center justify-center">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('goHighLevel') ? 'bg-purple-600' : 'bg-gray-400'}`}>
                       <span className="text-white font-bold text-xs">G</span>
                     </div>
                   }
                 />
-                <span className="text-sm font-medium">GoHighLevel CRM</span>
+                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('goHighLevel') ? 'text-gray-500' : ''}`}>GoHighLevel CRM</span>
               </div>
               {isIntegrationConnectedSync('goHighLevel') && (
                 <div className="flex items-center gap-2">
@@ -1329,12 +1393,11 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
             
             {isIntegrationConnectedSync('goHighLevel') ? (
               <div className="space-y-3">
-                {typeof formData.accounts.goHighLevel === 'object' && formData.accounts.goHighLevel?.locationId && (
-                  <div className="bg-gray-50 p-2 rounded text-xs">
-                    <div className="font-medium text-gray-700">{formData.accounts.goHighLevel.locationName}</div>
-                    <div className="text-gray-500">ID: {formData.accounts.goHighLevel.locationId}</div>
-                  </div>
-                )}
+                <GHLConnectionDisplay 
+                  locationId={typeof formData.accounts.goHighLevel === 'string' 
+                    ? formData.accounts.goHighLevel 
+                    : formData.accounts.goHighLevel?.locationId} 
+                />
                 <Button 
                   type="button"
                   variant="outline" 
@@ -1389,21 +1452,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* Google Sheets */}
-          <div className="border rounded-lg p-3">
+          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('googleSheets') ? 'opacity-50 bg-gray-50' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="googleSheets" 
                   size={16} 
                   context="client-form"
-                  className="text-green-600"
+                  className={isIntegrationConnectedSync('googleSheets') ? "text-green-600" : "text-gray-400"}
                   fallback={
-                    <div className="w-4 h-4 bg-green-600 rounded flex items-center justify-center">
+                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('googleSheets') ? 'bg-green-600' : 'bg-gray-400'}`}>
                       <span className="text-white font-bold text-xs">S</span>
                     </div>
                   }
                 />
-                <span className="text-sm font-medium">Google Sheets</span>
+                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('googleSheets') ? 'text-gray-500' : ''}`}>Google Sheets</span>
               </div>
               {isIntegrationConnectedSync('googleSheets') && (
                 <div className="flex items-center gap-2">
