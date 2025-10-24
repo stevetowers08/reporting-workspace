@@ -38,7 +38,7 @@ The OAuth flow was failing due to multiple critical issues:
 
 **Issues Fixed:**
 - ❌ **Before:** `VITE_GHL_CLIENT_ID="68e135aa17f574067cfb7e39\n"`
-- ✅ **After:** `VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39`
+- ✅ **After:** `VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39-mh47d35v`
 
 - ❌ **Before:** `VITE_GHL_REDIRECT_URI="https://tulenreporting.vercel.app/oauth/callback\n"`
 - ✅ **After:** `VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/callback`
@@ -46,7 +46,7 @@ The OAuth flow was failing due to multiple critical issues:
 **Clean Configuration:**
 ```bash
 # Production Environment (.env.vercel)
-VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39
+VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39-mh47d35v
 VITE_GHL_CLIENT_SECRET=68e135aa17f574067cfb7e39-mgcefs9f
 VITE_GHL_REDIRECT_URI=https://reporting.tulenagency.com/oauth/callback
 ```
@@ -155,8 +155,8 @@ const scopes = [
 cp env.example .env.local
 
 # Set your GoHighLevel OAuth credentials (NO NEWLINES!)
-VITE_GHL_CLIENT_ID=your_actual_client_id
-VITE_GHL_CLIENT_SECRET=your_actual_client_secret
+VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39-mh47d35v
+VITE_GHL_CLIENT_SECRET=dd991e4f-8f15-4d8f-a519-bbfc258341f7
 VITE_GHL_REDIRECT_URI=http://localhost:5173/oauth/ghl-callback
 ```
 

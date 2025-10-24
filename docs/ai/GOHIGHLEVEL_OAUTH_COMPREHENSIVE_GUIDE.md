@@ -70,8 +70,8 @@ Client Keys: Generate client_id and client_secret
 
 ```env
 # GoHighLevel OAuth Configuration
-VITE_GHL_CLIENT_ID=your_ghl_client_id
-VITE_GHL_CLIENT_SECRET=your_ghl_client_secret
+VITE_GHL_CLIENT_ID=68e135aa17f574067cfb7e39-mh47d35v
+VITE_GHL_CLIENT_SECRET=dd991e4f-8f15-4d8f-a519-bbfc258341f7
 VITE_GHL_REDIRECT_URI=https://yourdomain.com/oauth/callback
 VITE_GHL_SHARED_SECRET=your_ghl_shared_secret
 
