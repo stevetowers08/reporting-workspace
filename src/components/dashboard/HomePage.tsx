@@ -55,12 +55,18 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
   // Use shared integration status hook instead of local state and direct database calls
   const { data: integrationStatus, isLoading: integrationStatusLoading } = useIntegrationStatus();
   
-  // Check if a client has GoHighLevel configured (client-level check)
-  const isClientGHLConnected = (client: Client): boolean => {
-    const hasLocationId = typeof client.accounts.goHighLevel === 'string' 
-      ? client.accounts.goHighLevel && client.accounts.goHighLevel !== 'none'
-      : (client.accounts.goHighLevel as any)?.locationId && (client.accounts.goHighLevel as any)?.locationId !== 'none';
-    return Boolean(hasLocationId);
+  // Check if a client has integrations configured (client-level checks)
+  const isClientConnected = (client: Client, platform: 'facebookAds' | 'googleAds' | 'goHighLevel' | 'googleSheets'): boolean => {
+    const account = client.accounts[platform];
+    
+    if (platform === 'goHighLevel') {
+      return typeof account === 'string' 
+        ? account && account !== 'none'
+        : (account as any)?.locationId && (account as any)?.locationId !== 'none';
+    }
+    
+    // For other platforms, check if account ID exists and is not 'none'
+    return Boolean(account && account !== 'none');
   };
 
   const handleEditClient = (client: Client) => {
@@ -232,8 +238,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                     <div className="flex items-center gap-1.5">
                       {/* Facebook Ads */}
                       <div 
-                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.facebookAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={!integrationStatusLoading ? (integrationStatus?.facebookAds ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${isClientConnected(client, 'facebookAds') ? 'opacity-100' : 'opacity-40'}`}
+                        title={isClientConnected(client, 'facebookAds') ? 'Facebook Ads - Connected' : 'Facebook Ads - Not Connected'}
                       >
                         <LogoManager 
                           platform="meta" 
@@ -245,8 +251,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Ads */}
                       <div 
-                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.googleAds ? 'opacity-100' : 'opacity-40'}`}
-                        title={!integrationStatusLoading ? (integrationStatus?.googleAds ? 'Google Ads - Connected' : 'Google Ads - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${isClientConnected(client, 'googleAds') ? 'opacity-100' : 'opacity-40'}`}
+                        title={isClientConnected(client, 'googleAds') ? 'Google Ads - Connected' : 'Google Ads - Not Connected'}
                       >
                         <LogoManager 
                           platform="googleAds" 
@@ -258,8 +264,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* GoHighLevel */}
                       <div 
-                        className={`flex items-center ${isClientGHLConnected(client) ? 'opacity-100' : 'opacity-40'}`}
-                        title={isClientGHLConnected(client) ? 'GoHighLevel - Connected' : 'GoHighLevel - Not Connected'}
+                        className={`flex items-center ${isClientConnected(client, 'goHighLevel') ? 'opacity-100' : 'opacity-40'}`}
+                        title={isClientConnected(client, 'goHighLevel') ? 'GoHighLevel - Connected' : 'GoHighLevel - Not Connected'}
                       >
                         <LogoManager 
                           platform="goHighLevel" 
@@ -271,8 +277,8 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                       
                       {/* Google Sheets */}
                       <div 
-                        className={`flex items-center ${!integrationStatusLoading && integrationStatus?.googleSheets ? 'opacity-100' : 'opacity-40'}`}
-                        title={!integrationStatusLoading ? (integrationStatus?.googleSheets ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected') : 'Loading...'}
+                        className={`flex items-center ${isClientConnected(client, 'googleSheets') ? 'opacity-100' : 'opacity-40'}`}
+                        title={isClientConnected(client, 'googleSheets') ? 'Google Sheets - Connected' : 'Google Sheets - Not Connected'}
                       >
                         <LogoManager 
                           platform="googleSheets" 

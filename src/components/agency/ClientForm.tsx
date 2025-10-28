@@ -1088,7 +1088,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               )}
             </div>
             
-            {integrationStatusLoaded && integrationStatus.facebookAds === true ? (
+            {isIntegrationConnectedSync('facebookAds') || (integrationStatusLoaded && integrationStatus.facebookAds === true) ? (
               <div className="space-y-3">
                 {editingIntegrations.facebookAds ? (
                   <div className="space-y-3">
@@ -1248,7 +1248,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               )}
             </div>
             
-            {integrationStatusLoaded && integrationStatus.googleAds === true ? (
+            {isIntegrationConnectedSync('googleAds') || (integrationStatusLoaded && integrationStatus.googleAds === true) ? (
               <div className="space-y-3">
                 {editingIntegrations.googleAds ? (
                   <div className="space-y-3">
@@ -1476,7 +1476,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               )}
             </div>
             
-            {integrationStatusLoaded && integrationStatus.googleSheets === true ? (
+            {isIntegrationConnectedSync('googleSheets') || (integrationStatusLoaded && integrationStatus.googleSheets === true) ? (
               <div 
                 className="space-y-3"
                 onClick={(e) => e.stopPropagation()}
