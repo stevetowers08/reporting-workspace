@@ -139,6 +139,12 @@ export const GHLCallbackPage: React.FC = () => {
           isValid: state === expectedState ? 'VALID' : 'INVALID' 
         });
         
+        // Strict state validation before continuing
+        if (!state || !expectedState || state !== expectedState) {
+          debugLogger.error('GHLCallbackPage', 'Invalid OAuth state - aborting assignment', { state, expectedState });
+          throw new Error('Invalid OAuth state. Please retry connecting GoHighLevel from the client edit page.');
+        }
+
         const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
         const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
           (window.location.hostname === 'localhost'
@@ -211,9 +217,10 @@ export const GHLCallbackPage: React.FC = () => {
                 debugLogger.error('GHLCallbackPage', 'Failed to fetch client', fetchError);
               } else {
                 // Update client's accounts.goHighLevel with the location ID
+                // GoHighLevel can be either a string (location ID) or an object
                 const updatedAccounts = {
                   ...currentClient.accounts,
-                  goHighLevel: tokenData.locationId
+                  goHighLevel: tokenData.locationId // Store as string location ID
                 };
                 
                 const { error: updateError } = await supabase
@@ -228,6 +235,11 @@ export const GHLCallbackPage: React.FC = () => {
                   debugLogger.error('GHLCallbackPage', 'Failed to update client with location', updateError);
                 } else {
                   debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client');
+                  // Cleanup the session keys to avoid cross-assignment
+                  try {
+                    sessionStorage.removeItem(`ghl_oauth_client_id_${state}`);
+                    sessionStorage.removeItem('oauth_state_goHighLevel');
+                  } catch (_cleanupErr) {}
                 }
               }
             } catch (error) {
