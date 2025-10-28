@@ -95,7 +95,7 @@ export class SimpleGHLService {
    * Generate OAuth authorization URL with state parameter (no PKCE)
    * Updated to use standard GoHighLevel OAuth flow
    */
-  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = []): Promise<string> {
+  static async getAuthorizationUrl(clientId: string, redirectUri: string, scopes: string[] = [], targetClientId?: string): Promise<string> {
     const baseUrl = 'https://marketplace.leadconnectorhq.com/oauth/chooselocation';
     
     // Use default scopes if none provided
@@ -104,9 +104,12 @@ export class SimpleGHLService {
     // Generate state parameter for CSRF protection
     const state = this.generateState();
     
-    // Store state for later validation
+    // Store state for later validation along with targetClientId
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('oauth_state_goHighLevel', state);
+      if (targetClientId) {
+        window.sessionStorage.setItem(`ghl_oauth_client_id_${state}`, targetClientId);
+      }
     }
     
     const params = new URLSearchParams({
@@ -123,7 +126,8 @@ export class SimpleGHLService {
       baseUrl,
       redirectUri,
       scopes: finalScopes.join(' '),
-      state: state.substring(0, 10) + '...'
+      state: state.substring(0, 10) + '...',
+      targetClientId: targetClientId || 'none'
     });
 
     return `${baseUrl}?${params.toString()}`;

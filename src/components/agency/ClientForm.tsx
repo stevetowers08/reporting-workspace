@@ -403,38 +403,44 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       const integrations = await DatabaseService.getIntegrations();
       debugLogger.info('ClientForm', 'Integrations from database', { integrationCount: integrations.length });
       
-      const ghlIntegration = integrations.find(i => i.platform === 'goHighLevel');
-      debugLogger.info('ClientForm', 'GoHighLevel integration found', ghlIntegration);
+      // Get ALL GoHighLevel integrations that are connected
+      const ghlIntegrations = integrations.filter(i => 
+        i.platform === 'goHighLevel' && i.connected === true
+      );
       
-      // Check if there's an OAuth connection with tokens
-      const hasOAuthConnection = ghlIntegration?.config?.tokens?.accessToken;
+      debugLogger.info('ClientForm', 'GoHighLevel integrations found', { count: ghlIntegrations.length });
       
-      if (hasOAuthConnection) {
-        debugLogger.info('ClientForm', 'GoHighLevel OAuth connection found');
-        setConnectedAccounts(prev => [...prev, {
-          id: 'ghl_connected',
-          name: 'GoHighLevel Connected',
-          platform: 'goHighLevel' as const
-        }]);
-        setGhlAccountsLoaded(true);
-        debugLogger.info('ClientForm', 'GoHighLevel connection confirmed');
+      if (ghlIntegrations.length > 0) {
+        // Extract location IDs from each integration
+        const ghlAccounts = ghlIntegrations.map(integration => {
+          const locationId = integration.config?.locationId || integration.account_id;
+          const locationName = integration.config?.accountInfo?.name || 'GoHighLevel Location';
+          
+          debugLogger.info('ClientForm', 'Found GHL location', { locationId, locationName });
+          
+          return {
+            id: locationId || 'unknown',
+            name: `${locationName} (${locationId})`,
+            platform: 'goHighLevel' as const
+          };
+        });
+        
+        debugLogger.info('ClientForm', 'Adding GHL accounts to connectedAccounts', ghlAccounts);
+        
+        // Add all GHL locations to connectedAccounts
+        setConnectedAccounts(prev => {
+          const existing = prev.filter(acc => acc.platform !== 'goHighLevel');
+          return [...existing, ...ghlAccounts];
+        });
+        
+        debugLogger.info('ClientForm', 'GoHighLevel locations loaded successfully');
       } else {
-        debugLogger.info('ClientForm', 'GoHighLevel not connected, adding not connected option');
-        setConnectedAccounts(prev => [...prev, {
-          id: 'ghl_not_connected',
-          name: 'GoHighLevel not connected',
-          platform: 'goHighLevel' as const
-        }]);
-        setGhlAccountsLoaded(true);
+        debugLogger.info('ClientForm', 'No GoHighLevel integrations found');
       }
+      
+      setGhlAccountsLoaded(true);
     } catch (error) {
       debugLogger.error('ClientForm', 'GoHighLevel error', error);
-      // Add error to connected accounts so user knows there was an issue
-      setConnectedAccounts(prev => [...prev, {
-        id: 'ghl_error',
-        name: 'Error loading GoHighLevel locations',
-        platform: 'goHighLevel' as const
-      }]);
       setGhlAccountsLoaded(true);
     }
   }, [ghlAccountsLoaded]);

@@ -170,6 +170,13 @@ export const GHLCallbackPage: React.FC = () => {
             expiresIn: tokenData.expires_in
           });
           
+          // Retrieve target clientId from sessionStorage
+          let targetClientId: string | null = null;
+          if (state) {
+            targetClientId = sessionStorage.getItem(`ghl_oauth_client_id_${state}`);
+            debugLogger.info('GHLCallbackPage', 'Retrieved target clientId', { targetClientId, state });
+          }
+          
           // Save token to database
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 10: About to save to database');
           const saveSuccess = await SimpleGHLService.saveLocationToken(
@@ -186,6 +193,48 @@ export const GHLCallbackPage: React.FC = () => {
             throw new Error('Failed to save GoHighLevel token to database');
           }
           
+          // If we have a target client ID, assign this location to that client
+          if (targetClientId && targetClientId !== 'new_client') {
+            try {
+              debugLogger.info('GHLCallbackPage', 'Assigning location to client', { clientId: targetClientId, locationId: tokenData.locationId });
+              
+              const { supabase } = await import('@/lib/supabase');
+              
+              // Get the current client
+              const { data: currentClient, error: fetchError } = await supabase
+                .from('clients')
+                .select('accounts')
+                .eq('id', targetClientId)
+                .single();
+              
+              if (fetchError) {
+                debugLogger.error('GHLCallbackPage', 'Failed to fetch client', fetchError);
+              } else {
+                // Update client's accounts.goHighLevel with the location ID
+                const updatedAccounts = {
+                  ...currentClient.accounts,
+                  goHighLevel: tokenData.locationId
+                };
+                
+                const { error: updateError } = await supabase
+                  .from('clients')
+                  .update({ 
+                    accounts: updatedAccounts,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', targetClientId);
+                
+                if (updateError) {
+                  debugLogger.error('GHLCallbackPage', 'Failed to update client with location', updateError);
+                } else {
+                  debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client');
+                }
+              }
+            } catch (error) {
+              debugLogger.error('GHLCallbackPage', 'Error assigning location to client', error);
+            }
+          }
+          
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 12: COMPLETE SUCCESS!');
           
           setStatus('success');
@@ -196,7 +245,8 @@ export const GHLCallbackPage: React.FC = () => {
               type: 'GHL_OAUTH_SUCCESS',
               success: true,
               locationId: tokenData.locationId,
-              locationName: tokenData.locationName || 'GoHighLevel Location'
+              locationName: tokenData.locationName || 'GoHighLevel Location',
+              clientId: targetClientId
             }, window.location.origin);
             
             // Close the popup after a short delay to show success message

@@ -16,24 +16,24 @@ interface ConnectLocationButtonProps {
 }
 
 export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
-  clientId: _clientId,
+  clientId,
   onConnected
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const queryClient = useQueryClient();
-
+  
   const handleConnect = async () => {
     setIsConnecting(true);
     
     try {
       // Get OAuth credentials from environment
-      const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      const ghlClientId = import.meta.env.VITE_GHL_CLIENT_ID;
       const redirectUri = import.meta.env.VITE_GHL_REDIRECT_URI || 
         (window.location.hostname === 'localhost'
           ? `${window.location.origin}/oauth/callback`
           : 'https://reporting.tulenagency.com/oauth/callback');
       
-      if (!clientId) {
+      if (!ghlClientId) {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
       
@@ -51,7 +51,8 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         'oauth.readonly'
       ];
       
-      const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, scopes);
+      // Pass clientId through the OAuth flow by encoding it in state
+      const authUrl = await SimpleGHLService.getAuthorizationUrl(ghlClientId, redirectUri, scopes, clientId);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       
