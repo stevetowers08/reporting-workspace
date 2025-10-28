@@ -151,7 +151,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
     };
 
     const now = new Date();
-    let startDate: Date;
+    let startDate: Date = new Date(now); // Initialize with current date
     
     switch (period) {
       case '7d':
@@ -176,6 +176,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         break;
       case '3m':
+        startDate = new Date(now);
         startDate.setMonth(now.getMonth() - 3);
         break;
       case '1y':
