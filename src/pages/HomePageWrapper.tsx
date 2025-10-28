@@ -1,8 +1,8 @@
 import { HomePage } from "@/components/dashboard/HomePage";
 import { debugLogger } from "@/lib/debug";
 import { DatabaseService } from "@/services/data/databaseService";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 interface Client {
   id: string;
@@ -21,19 +21,12 @@ interface Client {
 
 const HomePageWrapper = () => {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      // Only fetch clients data - integration status is handled by useIntegrationStatus hook
+  // Use React Query to fetch clients - this will auto-update when 'available-clients' cache is invalidated
+  const { data: clientsData = [], isLoading: loading } = useQuery({
+    queryKey: ['available-clients'],
+    queryFn: async () => {
       const clientsData = await DatabaseService.getAllClients();
-      
       // Transform clients data
       const transformedClients: Client[] = (clientsData || []).map(client => ({
         id: client.id,
@@ -47,15 +40,13 @@ const HomePageWrapper = () => {
           googleSheets: client.accounts?.googleSheets
         }
       }));
-      
-      setClients(transformedClients);
-    } catch (error) {
-      debugLogger.error('HomePageWrapper', 'Failed to load clients data', error);
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return transformedClients;
+    },
+    staleTime: 1 * 60 * 1000, // 1 minute - short cache to allow updates
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const clients = clientsData || [];
 
   const handleClientSelect = (clientId: string) => {
     navigate(`/dashboard/${clientId}`);
