@@ -103,23 +103,11 @@ const AgencyPanel = () => {
 
   const handleAddClientSubmit = async (clientData: {
     name: string;
-    logo_url?: string; 
-    accounts: { 
-      facebookAds?: string; 
-      googleAds?: string; 
-      goHighLevel?: string; 
-      googleSheets?: string; 
-    }; 
-    conversionActions?: { 
-      facebookAds?: string; 
-      googleAds?: string; 
-    }; 
-    googleSheetsConfig?: {
-      spreadsheetId: string;
-      sheetName: string;
-    };
+    logo_url?: string;
+    status: 'active' | 'paused' | 'inactive';
   }) => {
     try {
+      // Create client with minimal data (name and logo)
       await DatabaseService.createClient(clientData);
       setShowAddClientModal(false);
       
@@ -131,7 +119,7 @@ const AgencyPanel = () => {
       
       // Show success message
       setShowSuccessMessage(true);
-      debugLogger.info('AgencyPanel', 'Client created, cache invalidated and list refreshed');
+      debugLogger.info('AgencyPanel', 'Client created with minimal data, cache invalidated and list refreshed');
       
       // Hide success message after 3 seconds
       setTimeout(() => {

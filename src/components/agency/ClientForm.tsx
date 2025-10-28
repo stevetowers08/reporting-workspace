@@ -1064,21 +1064,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         <Label className="text-sm font-medium">Integrations</Label>
         <div className="space-y-3 mt-2">
           {/* Facebook Ads */}
-          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('facebookAds') ? 'opacity-50 bg-gray-50' : ''}`}>
+          <div className="border rounded-lg p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="meta" 
                   size={16} 
                   context="client-form"
-                  className={isIntegrationConnectedSync('facebookAds') ? "text-blue-600" : "text-gray-400"}
+                  className="text-blue-600"
                   fallback={
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('facebookAds') ? 'bg-blue-600' : 'bg-gray-400'}`}>
+                    <div className="w-4 h-4 rounded flex items-center justify-center bg-blue-600">
                       <span className="text-white font-bold text-xs">f</span>
                     </div>
                   }
                 />
-                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('facebookAds') ? 'text-gray-500' : ''}`}>Facebook Ads</span>
+                <span className="text-sm font-medium">Facebook Ads</span>
               </div>
               {isIntegrationConnectedSync('facebookAds') && (
                 <div className="flex items-center gap-2">
@@ -1224,21 +1224,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* Google Ads */}
-          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('googleAds') ? 'opacity-50 bg-gray-50' : ''}`}>
+          <div className="border rounded-lg p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="googleAds" 
                   size={16} 
                   context="client-form"
-                  className={isIntegrationConnectedSync('googleAds') ? "text-red-600" : "text-gray-400"}
+                  className="text-red-600"
                   fallback={
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('googleAds') ? 'bg-red-600' : 'bg-gray-400'}`}>
+                    <div className="w-4 h-4 rounded flex items-center justify-center bg-red-600">
                       <span className="text-white font-bold text-xs">G</span>
                     </div>
                   }
                 />
-                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('googleAds') ? 'text-gray-500' : ''}`}>Google Ads</span>
+                <span className="text-sm font-medium">Google Ads</span>
               </div>
               {isIntegrationConnectedSync('googleAds') && (
                 <div className="flex items-center gap-2">
@@ -1367,21 +1367,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* GoHighLevel */}
-          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('goHighLevel') ? 'opacity-50 bg-gray-50' : ''}`}>
+          <div className="border rounded-lg p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="goHighLevel" 
                   size={16} 
                   context="client-form"
-                  className={isIntegrationConnectedSync('goHighLevel') ? "text-purple-600" : "text-gray-400"}
+                  className="text-purple-600"
                   fallback={
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('goHighLevel') ? 'bg-purple-600' : 'bg-gray-400'}`}>
+                    <div className="w-4 h-4 rounded flex items-center justify-center bg-purple-600">
                       <span className="text-white font-bold text-xs">G</span>
                     </div>
                   }
                 />
-                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('goHighLevel') ? 'text-gray-500' : ''}`}>GoHighLevel CRM</span>
+                <span className="text-sm font-medium">GoHighLevel CRM</span>
               </div>
               {isIntegrationConnectedSync('goHighLevel') && (
                 <div className="flex items-center gap-2">
@@ -1452,21 +1452,21 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
 
           {/* Google Sheets */}
-          <div className={`border rounded-lg p-3 ${!isIntegrationConnectedSync('googleSheets') ? 'opacity-50 bg-gray-50' : ''}`}>
+          <div className="border rounded-lg p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <LogoManager 
                   platform="googleSheets" 
                   size={16} 
                   context="client-form"
-                  className={isIntegrationConnectedSync('googleSheets') ? "text-green-600" : "text-gray-400"}
+                  className="text-green-600"
                   fallback={
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${isIntegrationConnectedSync('googleSheets') ? 'bg-green-600' : 'bg-gray-400'}`}>
+                    <div className="w-4 h-4 rounded flex items-center justify-center bg-green-600">
                       <span className="text-white font-bold text-xs">S</span>
                     </div>
                   }
                 />
-                <span className={`text-sm font-medium ${!isIntegrationConnectedSync('googleSheets') ? 'text-gray-500' : ''}`}>Google Sheets</span>
+                <span className="text-sm font-medium">Google Sheets</span>
               </div>
               {isIntegrationConnectedSync('googleSheets') && (
                 <div className="flex items-center gap-2">

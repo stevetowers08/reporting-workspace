@@ -272,7 +272,7 @@ export class DatabaseService {
   static async createClient(clientData: {
     name: string;
     logo_url?: string;
-    accounts: {
+    accounts?: {
       facebookAds?: string;
       googleAds?: string;
       goHighLevel?: string | {
@@ -294,6 +294,14 @@ export class DatabaseService {
     try {
       debugLogger.info('DatabaseService', 'Starting client creation', { clientData });
       
+      // Default to minimal accounts if not provided
+      const accounts = clientData.accounts || {
+        facebookAds: 'none',
+        googleAds: 'none',
+        goHighLevel: 'none',
+        googleSheets: 'none'
+      };
+      
       // Validate input data
       const validatedData = validateInput(ClientCreateSchema, {
         name: clientData.name,
@@ -302,24 +310,24 @@ export class DatabaseService {
         location: 'Unknown', // Default location
         status: 'active',
         services: {
-          facebookAds: !!clientData.accounts.facebookAds,
-          googleAds: !!clientData.accounts.googleAds,
-          crm: !!clientData.accounts.goHighLevel && (
-            typeof clientData.accounts.goHighLevel === 'string' 
-              ? clientData.accounts.goHighLevel !== 'none'
-              : !!clientData.accounts.goHighLevel.locationId
+          facebookAds: !!accounts.facebookAds && accounts.facebookAds !== 'none',
+          googleAds: !!accounts.googleAds && accounts.googleAds !== 'none',
+          crm: !!accounts.goHighLevel && (
+            typeof accounts.goHighLevel === 'string' 
+              ? accounts.goHighLevel !== 'none'
+              : !!accounts.goHighLevel.locationId
           ),
-          revenue: !!clientData.accounts.googleSheets,
+          revenue: !!accounts.googleSheets && accounts.googleSheets !== 'none',
         },
-        accounts: clientData.accounts,
-        conversion_actions: clientData.conversionActions,
+        accounts: accounts,
+        conversion_actions: clientData.conversionActions || {},
       });
 
       debugLogger.info('DatabaseService', 'Validation passed', { validatedData });
 
       // Include Google Sheets config in the accounts object
       const accountsWithSheetsConfig = {
-        ...clientData.accounts,
+        ...accounts,
         ...(clientData.googleSheetsConfig && {
           googleSheetsConfig: clientData.googleSheetsConfig
         })

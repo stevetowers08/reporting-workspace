@@ -78,45 +78,27 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
     name: string;
     logo_url?: string;
     status: 'active' | 'paused' | 'inactive';
-    accounts: {
-      facebookAds?: string;
-      googleAds?: string;
-      goHighLevel?: string;
-      googleSheets?: string;
-      googleSheetsConfig?: {
-        spreadsheetId: string;
-        sheetName: string;
-      };
-    };
-    conversion_actions?: {
-      facebookAds?: string;
-      googleAds?: string;
-    };
   }) => {
     try {
-      // console.log('Creating client with data:', clientData);
-      const _newClient = await DatabaseService.createClient(clientData);
-      // console.log('Client created successfully:', newClient);
+      // Create client with minimal data (name and logo)
+      const newClient = await DatabaseService.createClient(clientData);
+      console.log('Client created successfully:', newClient);
       
-      // Close modal first
+      // Close modal
       setShowEditClientModal(false);
       setEditingClient(null);
       
-      // Show success message
-      // alert(`Venue "${newClient.name}" created successfully!`);
-      
       // Add a small delay before refresh to ensure database operation completes
       setTimeout(() => {
-        // console.log('Refreshing page to show new venue...');
         window.location.reload();
       }, 500);
       
     } catch (error) {
-      // console.error('Failed to create client:', error);
+      console.error('Failed to create client:', error);
       
       // Show user-friendly error message
-      const _errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      // alert(`Failed to create client: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to create client: ${errorMessage}`);
       
       // Keep modal open so user can retry
     }
