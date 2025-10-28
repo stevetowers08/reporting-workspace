@@ -78,6 +78,15 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
           return; // Ignore messages from other origins
         }
         
+        // Handle request for clientId from the callback page
+        if (event.data?.type === 'GET_CLIENT_ID_REQUEST') {
+          const state = event.data.state;
+          const storedClientId = sessionStorage.getItem(`ghl_oauth_client_id_${state}`);
+          debugLogger.info('ConnectLocationButton', 'Sending clientId to callback', { clientId: storedClientId, state });
+          popup.postMessage({ type: 'CLIENT_ID_RESPONSE', clientId: storedClientId || clientId }, window.location.origin);
+          return;
+        }
+        
         if (event.data?.type === 'GHL_OAUTH_SUCCESS') {
           debugLogger.info('ConnectLocationButton', 'OAuth popup success', event.data);
           popup.close();

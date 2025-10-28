@@ -178,17 +178,40 @@ export const GHLCallbackPage: React.FC = () => {
           
           // Retrieve target clientId from sessionStorage
           let targetClientId: string | null = null;
+          
+          // First try to get clientId from the state-stored key
           if (state) {
             targetClientId = sessionStorage.getItem(`ghl_oauth_client_id_${state}`);
-            debugLogger.info('GHLCallbackPage', 'Retrieved target clientId', { targetClientId, state });
-          } else {
-            debugLogger.error('GHLCallbackPage', 'No state parameter - cannot retrieve target clientId');
+            debugLogger.info('GHLCallbackPage', 'Retrieved target clientId from sessionStorage', { targetClientId, state });
+          }
+          
+          // FALLBACK: If sessionStorage didn't have it, try to get it from the parent window via postMessage
+          // (This happens because the popup window has separate sessionStorage from the parent)
+          if (!targetClientId && window.opener) {
+            debugLogger.info('GHLCallbackPage', 'Attempting to retrieve clientId from parent window');
+            try {
+              // Post a message to parent asking for the clientId
+              const messageChannel = new MessageChannel();
+              messageChannel.port1.onmessage = (event) => {
+                if (event.data.type === 'CLIENT_ID_RESPONSE') {
+                  targetClientId = event.data.clientId;
+                  debugLogger.info('GHLCallbackPage', 'Received clientId from parent', { targetClientId });
+                }
+              };
+              window.opener.postMessage({ type: 'GET_CLIENT_ID_REQUEST', state }, '*', [messageChannel.port2]);
+              
+              // Wait a bit for response (but don't block too long)
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (error) {
+              debugLogger.error('GHLCallbackPage', 'Failed to get clientId from parent', error);
+            }
           }
           
           // Log all sessionStorage keys for debugging
           debugLogger.info('GHLCallbackPage', 'All sessionStorage keys', {
             keys: Object.keys(sessionStorage),
-            hasState: !!state
+            hasState: !!state,
+            targetClientId
           });
           
           // Save token to database
