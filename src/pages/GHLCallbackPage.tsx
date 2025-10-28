@@ -181,7 +181,15 @@ export const GHLCallbackPage: React.FC = () => {
           if (state) {
             targetClientId = sessionStorage.getItem(`ghl_oauth_client_id_${state}`);
             debugLogger.info('GHLCallbackPage', 'Retrieved target clientId', { targetClientId, state });
+          } else {
+            debugLogger.error('GHLCallbackPage', 'No state parameter - cannot retrieve target clientId');
           }
+          
+          // Log all sessionStorage keys for debugging
+          debugLogger.info('GHLCallbackPage', 'All sessionStorage keys', {
+            keys: Object.keys(sessionStorage),
+            hasState: !!state
+          });
           
           // Save token to database
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 10: About to save to database');
@@ -215,6 +223,8 @@ export const GHLCallbackPage: React.FC = () => {
               
               if (fetchError) {
                 debugLogger.error('GHLCallbackPage', 'Failed to fetch client', fetchError);
+              } else if (!currentClient || !currentClient.accounts) {
+                debugLogger.error('GHLCallbackPage', 'Client not found or missing accounts');
               } else {
                 // Update client's accounts.goHighLevel with the location ID
                 // GoHighLevel can be either a string (location ID) or an object
@@ -222,6 +232,8 @@ export const GHLCallbackPage: React.FC = () => {
                   ...currentClient.accounts,
                   goHighLevel: tokenData.locationId // Store as string location ID
                 };
+                
+                debugLogger.info('GHLCallbackPage', 'Updating client accounts', { targetClientId, locationId: tokenData.locationId, updatedAccounts });
                 
                 const { error: updateError } = await supabase
                   .from('clients')
@@ -234,7 +246,7 @@ export const GHLCallbackPage: React.FC = () => {
                 if (updateError) {
                   debugLogger.error('GHLCallbackPage', 'Failed to update client with location', updateError);
                 } else {
-                  debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client');
+                  debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client', { targetClientId, locationId: tokenData.locationId });
                   // Cleanup the session keys to avoid cross-assignment
                   try {
                     sessionStorage.removeItem(`ghl_oauth_client_id_${state}`);
@@ -245,6 +257,8 @@ export const GHLCallbackPage: React.FC = () => {
             } catch (error) {
               debugLogger.error('GHLCallbackPage', 'Error assigning location to client', error);
             }
+          } else {
+            debugLogger.error('GHLCallbackPage', 'No target client ID found', { targetClientId, hasState: !!state });
           }
           
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 12: COMPLETE SUCCESS!');
