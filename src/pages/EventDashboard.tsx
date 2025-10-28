@@ -157,6 +157,9 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       case '90d':
         startDate.setDate(endDate.getDate() - 90);
         break;
+      case '3m':
+        startDate.setMonth(endDate.getMonth() - 3);
+        break;
       case '1y':
         startDate.setDate(endDate.getDate() - 365);
         break;

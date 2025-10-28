@@ -175,6 +175,9 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
       case '90d':
         startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         break;
+      case '3m':
+        startDate.setMonth(now.getMonth() - 3);
+        break;
       case '1y':
         startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
         break;
@@ -235,6 +238,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
               <option value="30d">Last 30 days</option>
               <option value="lastMonth">Last month</option>
               <option value="90d">Last 90 days</option>
+              <option value="3m">Last 3 months</option>
               <option value="1y">Last year</option>
             </select>
             
