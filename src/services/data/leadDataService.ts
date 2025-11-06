@@ -37,7 +37,8 @@ export interface LeadData {
 export class LeadDataService {
   static async fetchLeadData(
     spreadsheetId: string, 
-    sheetName: string
+    sheetName: string,
+    dateRange?: { start: string; end: string }
   ): Promise<LeadData | null> {
     if (!spreadsheetId || !sheetName) {
       debugLogger.warn('LeadDataService', 'Missing required parameters: spreadsheetId and sheetName');
@@ -99,12 +100,73 @@ export class LeadDataService {
       const dayPreferences: { [key: string]: number } = {};
 
       // Detect available columns dynamically
-      const rowHeaders = rows[0] || [];
-      const eventTypeColumnIndex = this.findEventTypeColumn(rowHeaders);
-      const guestCountColumnIndex = this.findGuestCountColumn(rowHeaders);
-      const notesColumnIndex = this.findNotesColumn(rowHeaders);
+      const eventTypeColumnIndex = this.findEventTypeColumn(headers);
+      const guestCountColumnIndex = this.findGuestCountColumn(headers);
+      const dateColumnIndex = this.findDateColumn(headers);
 
-      rows.forEach((row: string[], _index) => {
+      debugLogger.info('LeadDataService', 'Detected columns', {
+        headers: headers,
+        eventTypeColumnIndex,
+        eventTypeColumnHeader: eventTypeColumnIndex >= 0 ? headers[eventTypeColumnIndex] : 'not found',
+        guestCountColumnIndex,
+        dateColumnIndex,
+        dateColumnHeader: dateColumnIndex >= 0 ? headers[dateColumnIndex] : 'not found'
+      });
+
+      if (eventTypeColumnIndex < 0) {
+        debugLogger.warn('LeadDataService', 'No event type column found in sheet. Event types will only be counted if a column with "type" in the header exists.');
+      }
+
+      // Filter rows by date range if provided
+      let filteredRows = rows;
+      if (dateRange && dateColumnIndex >= 0) {
+        const startDate = new Date(dateRange.start);
+        const endDate = new Date(dateRange.end);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        
+        // Validate that the date column actually contains dates
+        let validDatesFound = 0;
+        let invalidDatesFound = 0;
+        
+        filteredRows = rows.filter((row: string[]) => {
+          const eventDateStr = row[dateColumnIndex];
+          if (!eventDateStr || eventDateStr.trim() === '') {
+            invalidDatesFound++;
+            return false;
+          }
+          
+          try {
+            const eventDate = new Date(eventDateStr);
+            if (isNaN(eventDate.getTime())) {
+              invalidDatesFound++;
+              return false;
+            }
+            validDatesFound++;
+            return eventDate >= startDate && eventDate <= endDate;
+          } catch {
+            invalidDatesFound++;
+            return false;
+          }
+        });
+        
+        debugLogger.info('LeadDataService', 'Filtered rows by date range', {
+          totalRows: rows.length,
+          filteredRows: filteredRows.length,
+          dateRange,
+          dateColumnIndex,
+          dateColumnHeader: headers[dateColumnIndex],
+          validDatesFound,
+          invalidDatesFound
+        });
+      } else if (dateRange) {
+        debugLogger.warn('LeadDataService', 'Date range provided but no date column found', {
+          dateRange,
+          headers: headers,
+          dateColumnIndex
+        });
+      }
+
+      filteredRows.forEach((row: string[], _index) => {
         // Get source (column 2 - index 1)
         const source = row[2] || '';
         if (source.toLowerCase().includes('facebook')) {
@@ -136,24 +198,30 @@ export class LeadDataService {
           guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
         }
 
-        // Get event date (column 6 - index 6) and determine day of week
-        const eventDate = row[6];
+        // Get event date using dynamically found date column
+        const eventDate = dateColumnIndex >= 0 ? row[dateColumnIndex] : row[6];
         if (eventDate) {
           try {
             const date = new Date(eventDate);
-            const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-            dayPreferences[dayOfWeek] = (dayPreferences[dayOfWeek] || 0) + 1;
+            if (!isNaN(date.getTime())) { // Validate date
+              const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+              dayPreferences[dayOfWeek] = (dayPreferences[dayOfWeek] || 0) + 1;
+            }
           } catch (_e) {
             // Skip invalid dates
           }
         }
 
-        // Hybrid event type detection
-        const eventType = this.getEventType(row, rowHeaders, eventTypeColumnIndex, guestCountForCategorization, notesColumnIndex);
-        eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
+        // Only use event type from actual column in sheet - no estimation or fallbacks
+        if (eventTypeColumnIndex >= 0 && row[eventTypeColumnIndex]) {
+          const eventType = row[eventTypeColumnIndex].trim();
+          if (eventType && eventType.toLowerCase() !== 'n/a' && eventType.toLowerCase() !== 'none' && eventType !== '') {
+            eventTypes[eventType] = (eventTypes[eventType] || 0) + 1;
+          }
+        }
       });
 
-      const totalLeads = rows.length;
+      const totalLeads = filteredRows.length;
       const averageGuestsPerLead = totalLeads > 0 ? totalGuests / totalLeads : 0;
 
       // Final safety check for unrealistic guest totals
@@ -168,11 +236,23 @@ export class LeadDataService {
         percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
       }));
 
-      const guestRangesArray = Object.entries(guestRanges).map(([range, count]) => ({
-        range,
-        count,
-        percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
-      }));
+      // Ensure all guest ranges are included in order, even if they have 0 count
+      // This creates a proper histogram-style distribution
+      const allPossibleRanges = ['1-50 guests', '51-100 guests', '101-200 guests', '201-300 guests', '300+ guests'];
+      const guestRangesArray = allPossibleRanges.map((range) => {
+        const count = guestRanges[range] || 0;
+        return {
+          range,
+          count,
+          percentage: totalLeads > 0 ? (count / totalLeads) * 100 : 0
+        };
+      }); // Show all ranges to create proper histogram visualization
+      
+      debugLogger.info('LeadDataService', 'Guest ranges calculated', {
+        totalRanges: guestRangesArray.length,
+        ranges: guestRangesArray,
+        rawGuestRanges: guestRanges
+      });
 
       const dayPreferencesArray = Object.entries(dayPreferences).map(([day, count]) => ({
         day,
@@ -223,88 +303,44 @@ export class LeadDataService {
 
   // Helper methods for hybrid event type detection
   private static findEventTypeColumn(headers: string[]): number {
-    const eventTypeKeywords = ['event type', 'event_type', 'type', 'event', 'occasion', 'event category'];
     return headers.findIndex(header => 
-      eventTypeKeywords.some(keyword => 
-        header.toLowerCase().includes(keyword)
-      )
+      header.toLowerCase().includes('type')
     );
   }
 
   private static findGuestCountColumn(headers: string[]): number {
-    const guestCountKeywords = ['guest count', 'guest_count', 'guests', 'number of guests', 'attendees'];
     return headers.findIndex(header => 
-      guestCountKeywords.some(keyword => 
-        header.toLowerCase().includes(keyword)
-      )
+      header.toLowerCase().includes('guest')
     );
   }
 
-  private static findNotesColumn(headers: string[]): number {
-    const notesKeywords = ['notes', 'description', 'comments', 'details', 'remarks'];
-    return headers.findIndex(header => 
-      notesKeywords.some(keyword => 
+  // NOTE: findNotesColumn method removed - no longer using notes for event type extraction
+
+  private static findDateColumn(headers: string[]): number {
+    // First, try to find a column that contains "date" (most common)
+    const dateIndex = headers.findIndex(header => 
+      header.toLowerCase().includes('date')
+    );
+    
+    if (dateIndex >= 0) {
+      return dateIndex;
+    }
+    
+    // Fallback to other date-related keywords
+    const dateKeywords = ['event date', 'event_date', 'lead date', 'created', 'submitted', 'event date', 'date created'];
+    const fallbackIndex = headers.findIndex(header => 
+      dateKeywords.some(keyword => 
         header.toLowerCase().includes(keyword)
       )
     );
+    
+    // If still not found, default to column 6 (index 6) as legacy fallback
+    return fallbackIndex >= 0 ? fallbackIndex : 6;
   }
 
-  private static getEventType(
-    row: string[], 
-    headers: string[], 
-    eventTypeColumnIndex: number, 
-    guestCount: number, 
-    notesColumnIndex: number
-  ): string {
-    // 1. Try to find event type column dynamically
-    if (eventTypeColumnIndex >= 0 && row[eventTypeColumnIndex]) {
-      const eventType = row[eventTypeColumnIndex].trim();
-      if (eventType && eventType.toLowerCase() !== 'n/a' && eventType.toLowerCase() !== 'none') {
-        return eventType;
-      }
-    }
-    
-    // 2. Try guest count estimation
-    if (guestCount > 0) {
-      if (guestCount >= 150) {return 'Wedding';}
-      if (guestCount >= 75) {return 'Corporate Event';}
-      if (guestCount >= 30) {return 'Birthday Party';}
-      if (guestCount >= 10) {return 'Small Event';}
-    }
-    
-    // 3. Try to extract from notes/description
-    if (notesColumnIndex >= 0 && row[notesColumnIndex]) {
-      const notes = row[notesColumnIndex].toLowerCase();
-      const extractedType = this.extractEventTypeFromText(notes);
-      if (extractedType) {
-        return extractedType;
-      }
-    }
-    
-    // 4. Default fallback
-    return 'Other';
-  }
-
-  private static extractEventTypeFromText(text: string): string | null {
-    const eventTypePatterns = {
-      'Wedding': ['wedding', 'marriage', 'bridal', 'ceremony', 'reception'],
-      'Corporate Event': ['corporate', 'business', 'conference', 'meeting', 'seminar', 'workshop'],
-      'Birthday Party': ['birthday', 'bday', 'party', 'celebration'],
-      'Anniversary': ['anniversary', 'anniv'],
-      'Graduation': ['graduation', 'grad', 'commencement'],
-      'Baby Shower': ['baby shower', 'shower'],
-      'Holiday Party': ['holiday', 'christmas', 'new year', 'thanksgiving'],
-      'Fundraiser': ['fundraiser', 'fundraising', 'charity', 'gala'],
-      'Reunion': ['reunion', 'family reunion', 'class reunion']
-    };
-
-    for (const [eventType, patterns] of Object.entries(eventTypePatterns)) {
-      if (patterns.some(pattern => text.includes(pattern))) {
-        return eventType;
-      }
-    }
-
-    return null;
-  }
+  // NOTE: getEventType and extractEventTypeFromText methods removed
+  // We now only use event types from actual sheet columns - no estimation or fallbacks
 
 }
+
+

@@ -81,6 +81,10 @@ export interface EventDashboardData {
     googleAds?: string;
     goHighLevel?: string;
     googleSheets?: string;
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
   };
 
   // Time period
@@ -94,7 +98,16 @@ export class EventMetricsService {
   static async getComprehensiveMetrics(
     _clientId: string,
     dateRange: { start: string; end: string },
-    clientAccounts?: { facebookAds?: string; googleAds?: string; goHighLevel?: string; googleSheets?: string },
+    clientAccounts?: { 
+      facebookAds?: string; 
+      googleAds?: string; 
+      goHighLevel?: string; 
+      googleSheets?: string;
+      googleSheetsConfig?: {
+        spreadsheetId: string;
+        sheetName: string;
+      };
+    },
     clientConversionActions?: { facebookAds?: string; googleAds?: string },
     includePreviousPeriod: boolean = false
   ): Promise<EventDashboardData> {
@@ -495,32 +508,33 @@ export class EventMetricsService {
   ): Promise<EventMetrics> {
     try {
       // Use client-specific Google Sheets configuration if available
-      let leadData;
-      if (clientAccounts?.googleSheetsConfig) {
-        leadData = await LeadDataService.fetchLeadData(
-          clientAccounts.googleSheetsConfig.spreadsheetId,
-          clientAccounts.googleSheetsConfig.sheetName
-        );
-      } else {
-        // Fallback to default configuration
-        leadData = await LeadDataService.fetchLeadData();
+      if (!clientAccounts?.googleSheetsConfig) {
+        debugLogger.warn('EventMetricsService', 'No Google Sheets configuration provided');
+        return null;
       }
+
+      const leadData = await LeadDataService.fetchLeadData(
+        clientAccounts.googleSheetsConfig.spreadsheetId,
+        clientAccounts.googleSheetsConfig.sheetName
+      );
       
-      if (leadData) {
-        return {
-          totalEvents: leadData.totalLeads,
-          averageGuests: leadData.averageGuestsPerLead,
-          totalSubmissions: leadData.totalLeads,
-          eventTypeBreakdown: (leadData.eventTypes || []).map(eventType => ({
-            ...eventType,
-            avgGuests: 0
-          })),
-          budgetDistribution: []
-        };
+      if (!leadData || !leadData.eventTypes) {
+        debugLogger.warn('EventMetricsService', 'No lead data or event types available');
+        return null;
       }
-      return null;
+
+      return {
+        totalEvents: leadData.totalLeads,
+        averageGuests: leadData.averageGuestsPerLead,
+        totalSubmissions: leadData.totalLeads,
+        eventTypeBreakdown: leadData.eventTypes.map(eventType => ({
+          ...eventType,
+          avgGuests: 0
+        })),
+        budgetDistribution: []
+      };
     } catch (error) {
-      debugLogger.warn('EventMetricsService', 'Event metrics not available - using LeadDataService fallback', error);
+      debugLogger.error('EventMetricsService', 'Failed to fetch event metrics', error);
       return null;
     }
   }
