@@ -1241,7 +1241,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         type="button"
                         size="sm"
                         onClick={() => handleSaveIntegration('facebookAds')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Save
                       </Button>
@@ -1250,7 +1250,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         variant="outline"
                         size="sm"
                         onClick={() => handleCancelEdit('facebookAds')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Cancel
                       </Button>
@@ -1260,9 +1260,11 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                   <div className="space-y-2">
                     <div className="bg-gray-50 p-2 rounded text-xs">
                       <div className="font-medium text-gray-700">
-                        {formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' 
-                          ? getAvailableAccounts('facebookAds').find(acc => acc.id === formData.accounts.facebookAds)?.name || 'Unknown Account'
-                          : 'No account selected'
+                        {facebookAccountsLoading 
+                          ? 'Loading...'
+                          : formData.accounts.facebookAds && formData.accounts.facebookAds !== 'none' 
+                            ? getAvailableAccounts('facebookAds').find(acc => acc.id === formData.accounts.facebookAds)?.name || 'Unknown Account'
+                            : 'No account selected'
                         }
                       </div>
                       {formData.conversionActions.facebookAds && (
@@ -1381,7 +1383,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         type="button"
                         size="sm"
                         onClick={() => handleSaveIntegration('googleAds')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Save
                       </Button>
@@ -1390,7 +1392,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         variant="outline"
                         size="sm"
                         onClick={() => handleCancelEdit('googleAds')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Cancel
                       </Button>
@@ -1410,9 +1412,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                           Action: {formData.conversionActions.googleAds}
                         </div>
                       )}
-                      <div className="text-xs text-gray-400 mt-1">
-                        Debug: Account ID: {formData.accounts.googleAds}, Available: {getAvailableAccounts('googleAds').length}
-                      </div>
                     </div>
                     <Button 
                       type="button"
@@ -1599,7 +1598,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         type="button"
                         size="sm"
                         onClick={() => handleSaveIntegration('googleSheets')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Save
                       </Button>
@@ -1608,7 +1607,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         variant="outline"
                         size="sm"
                         onClick={() => handleCancelEdit('googleSheets')}
-                        className="flex-1"
+                        className="w-auto"
                       >
                         Cancel
                       </Button>

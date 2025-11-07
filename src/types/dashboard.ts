@@ -35,6 +35,10 @@ export interface EventDashboardData {
         googleAds?: string;
         goHighLevel?: string;
         googleSheets?: string;
+        googleSheetsConfig?: {
+            spreadsheetId: string;
+            sheetName: string;
+        };
     };
 
     // Time period

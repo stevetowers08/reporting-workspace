@@ -7,6 +7,7 @@ import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useAgencyClients } from '@/hooks/useAgencyClients';
 import { useIntegrations } from '@/hooks/useIntegrations';
+import { debugLogger } from '@/lib/debug';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -14,12 +15,14 @@ interface AgencyPanelProps {
   onBackToDashboard: () => void;
   onAddClient?: () => void;
   onEditClient?: (client: unknown) => void;
+  refreshTrigger?: number; // When this changes, refresh the client list
 }
 
 export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   onBackToDashboard,
   onAddClient,
-  onEditClient
+  onEditClient,
+  refreshTrigger
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,6 +68,16 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
       loadIntegrations();
     }
   }, [loadClients, loadIntegrations]);
+
+  // Refresh client list when refreshTrigger changes (only when trigger increments)
+  const prevRefreshTriggerRef = useRef(0);
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > prevRefreshTriggerRef.current) {
+      prevRefreshTriggerRef.current = refreshTrigger;
+      debugLogger.info('AgencyPanel', 'Refresh trigger changed, reloading clients', { refreshTrigger });
+      loadClients();
+    }
+  }, [refreshTrigger, loadClients]);
 
   // Sync active tab with URL changes
   useEffect(() => {

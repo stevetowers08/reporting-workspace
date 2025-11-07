@@ -154,6 +154,13 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       case '30d':
         startDate.setDate(endDate.getDate() - 30);
         break;
+      case 'lastMonth':
+        // For lastMonth, let the API handle it with date_preset
+        return {
+          start: '',
+          end: '',
+          period: 'lastMonth'
+        };
       case '90d':
         startDate.setDate(endDate.getDate() - 90);
         break;
@@ -169,7 +176,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     
     return {
       start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
+      end: endDate.toISOString().split('T')[0],
+      period: period // Include period for API preset handling
     };
   }, []);
 

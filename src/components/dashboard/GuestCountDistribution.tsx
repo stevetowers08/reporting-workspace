@@ -4,7 +4,7 @@ import { debugLogger } from '@/lib/debug';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import { LeadData, LeadDataService } from '@/services/data/leadDataService';
 import React, { useEffect, useState } from 'react';
-import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface GuestCountDistributionProps {
   data: EventDashboardData | null | undefined;
@@ -19,39 +19,111 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
     const fetchData = async () => {
       try {
         setError(null);
-        debugLogger.debug('GuestCountDistribution', 'Starting to fetch lead data');
+        console.log('🔍 GuestCountDistribution: Starting fetch');
+        console.log('  - hasData:', !!data);
+        console.log('  - hasClientAccounts:', !!data?.clientAccounts);
+        console.log('  - hasClientData:', !!data?.clientData);
+        console.log('  - clientData.accounts:', data?.clientData?.accounts);
+        console.log('  - clientData.accounts.googleSheetsConfig:', data?.clientData?.accounts?.googleSheetsConfig);
+        console.log('  - hasGoogleSheetsConfig (from clientAccounts):', !!data?.clientAccounts?.googleSheetsConfig);
+        console.log('  - hasGoogleSheetsConfig (from clientData):', !!data?.clientData?.accounts?.googleSheetsConfig);
+        console.log('  - data keys:', data ? Object.keys(data) : []);
+        
+        // Try to get googleSheetsConfig from either clientAccounts or clientData
+        const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig || data?.clientData?.accounts?.googleSheetsConfig;
+        const googleSheets = data?.clientAccounts?.googleSheets || data?.clientData?.accounts?.googleSheets;
+        
+        console.log('  - resolved googleSheetsConfig:', googleSheetsConfig);
+        console.log('  - resolved googleSheets:', googleSheets);
+        debugLogger.debug('GuestCountDistribution', 'Starting to fetch lead data', {
+          hasData: !!data,
+          hasClientAccounts: !!data?.clientAccounts,
+          hasGoogleSheetsConfig: !!googleSheetsConfig,
+          googleSheetsConfig: googleSheetsConfig
+        });
+        
+        // Check if client has Google Sheets configuration
+        if (!googleSheetsConfig && !googleSheets) {
+          console.warn('⚠️ GuestCountDistribution: No Google Sheets config found', {
+            clientAccounts: JSON.stringify(data?.clientAccounts, null, 2),
+            clientDataAccounts: JSON.stringify(data?.clientData?.accounts, null, 2),
+            hasGoogleSheets: !!googleSheets,
+            hasGoogleSheetsConfig: !!googleSheetsConfig,
+            dataKeys: data ? Object.keys(data) : []
+          });
+          debugLogger.warn('GuestCountDistribution', 'No Google Sheets configuration found for client');
+          setError('Google Sheets not configured for this client');
+          setLeadData(null);
+          setLoading(false);
+          return;
+        }
         
         // Use client-specific Google Sheets configuration if available
         let leadDataResult;
-        if (data?.clientAccounts?.googleSheetsConfig) {
-          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', data.clientAccounts.googleSheetsConfig);
+        const dateRange = data?.dateRange;
+        
+        if (googleSheetsConfig) {
+          const { spreadsheetId, sheetName } = googleSheetsConfig;
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config', {
+            spreadsheetId,
+            sheetName,
+            config: googleSheetsConfig,
+            dateRange
+          });
+          
+          if (!spreadsheetId || !sheetName) {
+            debugLogger.error('GuestCountDistribution', 'Missing spreadsheetId or sheetName', {
+              spreadsheetId,
+              sheetName
+            });
+            setError('Invalid Google Sheets configuration');
+            setLeadData(null);
+            setLoading(false);
+            return;
+          }
+          
+          leadDataResult = await LeadDataService.fetchLeadData(spreadsheetId, sheetName, dateRange);
+        } else if (googleSheets) {
+          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config (legacy)', { googleSheets, dateRange });
           leadDataResult = await LeadDataService.fetchLeadData(
-            data.clientAccounts.googleSheetsConfig.spreadsheetId,
-            data.clientAccounts.googleSheetsConfig.sheetName
+            googleSheets,
+            'Event Leads', // Use Event Leads as default sheet name
+            dateRange
           );
-        } else if (data?.clientAccounts?.googleSheets) {
-          debugLogger.debug('GuestCountDistribution', 'Using client-specific Google Sheets config (legacy)', data.clientAccounts.googleSheets);
-          leadDataResult = await LeadDataService.fetchLeadData(
-            data.clientAccounts.googleSheets,
-            'Event Leads' // Use Event Leads as default sheet name
-          );
-        } else {
-          debugLogger.debug('GuestCountDistribution', 'Using default Google Sheets config');
-          leadDataResult = await LeadDataService.fetchLeadData();
         }
         
-        debugLogger.debug('GuestCountDistribution', 'Received lead data', leadDataResult);
+        console.log('📊 GuestCountDistribution: Received lead data', {
+          hasResult: !!leadDataResult,
+          totalLeads: leadDataResult?.totalLeads,
+          guestRangesCount: leadDataResult?.guestRanges?.length,
+          guestRanges: JSON.stringify(leadDataResult?.guestRanges, null, 2),
+          eventTypesCount: leadDataResult?.eventTypes?.length,
+          leadDataResult: JSON.stringify(leadDataResult, null, 2)
+        });
+        debugLogger.debug('GuestCountDistribution', 'Received lead data', {
+          hasResult: !!leadDataResult,
+          totalLeads: leadDataResult?.totalLeads,
+          guestRangesCount: leadDataResult?.guestRanges?.length,
+          eventTypesCount: leadDataResult?.eventTypes?.length
+        });
         
         if (leadDataResult) {
+          console.log('✅ GuestCountDistribution: Data received', {
+            guestRanges: leadDataResult.guestRanges,
+            eventTypes: leadDataResult.eventTypes
+          });
           debugLogger.debug('GuestCountDistribution', 'Guest ranges data', leadDataResult.guestRanges);
           setLeadData(leadDataResult);
         } else {
-          debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService');
+          console.error('❌ GuestCountDistribution: No data returned from LeadDataService');
+          debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService - check console for API errors');
           setLeadData(null);
         }
       } catch (error) {
+        console.error('❌ GuestCountDistribution: Error fetching data', error);
         debugLogger.error('GuestCountDistribution', 'Failed to fetch lead data', error);
-        setError('Failed to load guest count data');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load guest count data';
+        setError(errorMessage);
         setLeadData(null);
       } finally {
         setLoading(false);
@@ -63,7 +135,7 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (loading) {
     return (
-      <Card className="bg-white border border-slate-200 p-6">
+      <Card className="h-full">
         <DataSkeleton />
       </Card>
     );
@@ -71,16 +143,13 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (error) {
     return (
-      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
+      <Card className="h-full flex flex-col">
         <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center">
-            <div className="text-slate-500 mb-2">{error}</div>
-            <div className="text-xs text-slate-400">
-              Check console for details. Proxy server may not be running.
-            </div>
+            <div className="text-slate-500">No guest count data available</div>
           </div>
         </div>
       </Card>
@@ -89,70 +158,176 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
 
   if (!leadData) {
     return (
-      <Card className="bg-white border border-slate-200 p-6 w-full md:w-full">
+      <Card className="h-full flex flex-col">
         <div className="pb-4">
           <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center">
-            <div className="text-slate-500 mb-2">No guest count data available</div>
-            <div className="text-xs text-slate-400">
-              Check console for details. Proxy server may not be running.
-            </div>
+            <div className="text-slate-500">No guest count data available</div>
           </div>
         </div>
       </Card>
     );
   }
   
-  // Prepare chart data
-  const chartData = leadData.guestRanges.map((range, index) => ({
-    name: range.range,
-    value: range.count,
-    percentage: range.percentage,
-    color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'][index % 5]
-  }));
+  // Always show guest count distribution (this component is specifically for guest counts)
+  // Calculate average - use averageGuestsPerLead from LeadData if available
+  const averageGuests = leadData.averageGuestsPerLead || 0;
+  
+  // Prepare chart data - always use guest ranges for this component
+  // Keep ranges in order (1-50, 51-100, etc.) for histogram-style visualization
+  // Don't sort - maintain natural order for distribution
+  console.log('🔍 GuestCountDistribution: Preparing chart data', {
+    guestRanges: JSON.stringify(leadData.guestRanges, null, 2),
+    guestRangesLength: leadData.guestRanges?.length,
+    guestRangesType: typeof leadData.guestRanges,
+    isArray: Array.isArray(leadData.guestRanges)
+  });
+  
+  // Define the order of ranges for histogram
+  const rangeOrder = ['1-50 guests', '51-100 guests', '101-200 guests', '201-300 guests', '300+ guests'];
+  
+  const chartData = leadData.guestRanges && Array.isArray(leadData.guestRanges) && leadData.guestRanges.length > 0
+    ? rangeOrder.map((rangeName) => {
+        // Find the range in the data
+        const range = leadData.guestRanges.find(r => r.range === rangeName) || {
+          range: rangeName,
+          count: 0,
+          percentage: 0
+        };
+        
+        // Use a single color gradient for histogram-style (darker = more, lighter = less)
+        // Calculate intensity based on count
+        const maxCount = Math.max(...leadData.guestRanges.map(r => r.count), 1);
+        const intensity = range.count > 0 ? range.count / maxCount : 0;
+        
+        // Green gradient: darker green for higher counts
+        const colorIntensity = Math.max(0.3, intensity); // Minimum 30% opacity
+        const color = range.count > 0 
+          ? `rgba(16, 185, 129, ${0.4 + colorIntensity * 0.6})` // Green with variable opacity
+          : 'rgba(148, 163, 184, 0.2)'; // Light gray for empty ranges
+        
+        return {
+          name: range.range,
+          value: range.count,
+          percentage: range.percentage,
+          color: color,
+          isHighest: range.count === maxCount && range.count > 0,
+          isEmpty: range.count === 0
+        };
+      })
+    : [];
+  
+  console.log('📊 GuestCountDistribution: Chart data prepared', {
+    chartDataLength: chartData.length,
+    chartData: JSON.stringify(chartData, null, 2)
+  });
+
 
   return (
-    <Card className="bg-white border border-slate-200 p-6 w-full">
-      <div className="pb-4">
-        <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
+    <Card className="h-full flex flex-col">
+      <div className="pb-6 space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Guest Count Distribution
+          </h3>
+          {averageGuests > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-xs text-slate-500 font-medium">Average:</span>
+              <span className="text-sm font-semibold text-slate-900">
+                {averageGuests.toFixed(1)} guests
+              </span>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">
+          Based on {leadData.totalLeads} {leadData.totalLeads === 1 ? 'lead' : 'leads'}
+        </p>
       </div>
       
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart 
-            data={chartData} 
-            margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
-          >
-            <XAxis 
-              dataKey="name"
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis 
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip 
-              formatter={(value: number, name: string, props: any) => [
-                `${value} leads (${props.payload?.percentage?.toFixed(1) || '0'}%)`,
-                'Count'
-              ]}
-              labelStyle={{ color: '#374151' }}
-              contentStyle={{ 
-                backgroundColor: '#fff', 
-                border: '1px solid #E2E8F0',
-                borderRadius: '6px'
-              }}
-            />
-            <Bar 
-              dataKey="value" 
-              fill="#10B981"
-              radius={[4, 4, 0, 0]}
+      <div className="flex-1 min-h-0 -mx-2">
+        <div className="h-64 px-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 20, bottom: chartData.length > 5 ? 60 : 40 }}
+              barCategoryGap={0}
+              barGap={0}
             >
-              <LabelList dataKey="value" position="top" style={{ fontSize: '12px', fill: '#374151' }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <XAxis 
+                dataKey="name"
+                tick={{ fontSize: 11, fill: '#64748B' }}
+                angle={chartData.length > 5 ? -45 : 0}
+                textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+                height={chartData.length > 5 ? 60 : 40}
+                axisLine={{ stroke: '#E2E8F0' }}
+                tickLine={{ stroke: '#E2E8F0' }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: '#64748B' }}
+                axisLine={{ stroke: '#E2E8F0' }}
+                tickLine={{ stroke: '#E2E8F0' }}
+                label={{ 
+                  value: 'Number of Leads', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748B', fontWeight: 500 }
+                }}
+              />
+              <Tooltip 
+                formatter={(value: number, name: string, props: any) => [
+                  `${value} ${value === 1 ? 'lead' : 'leads'} (${props.payload?.percentage?.toFixed(1) || '0'}%)`,
+                  'Count'
+                ]}
+                labelStyle={{ 
+                  color: '#111827', 
+                  fontWeight: 600, 
+                  marginBottom: '6px',
+                  fontSize: '13px'
+                }}
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                  padding: '12px'
+                }}
+                cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
+              />
+              <Bar 
+                dataKey="value" 
+                radius={[4, 4, 0, 0]}
+                animationDuration={800}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color}
+                    stroke={entry.isEmpty ? '#E2E8F0' : 'none'}
+                    strokeWidth={entry.isEmpty ? 1 : 0}
+                  />
+                ))}
+                <LabelList 
+                  dataKey="value" 
+                  position="top" 
+                  style={{ 
+                    fontSize: '12px', 
+                    fill: '#374151', 
+                    fontWeight: 600 
+                  }}
+                  formatter={(value: number) => value > 0 ? value : ''}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      
+      <div className="mt-6 pt-4 border-t border-slate-200">
+        <p className="text-xs text-slate-500">
+          Distribution by guest count range
+        </p>
       </div>
     </Card>
   );

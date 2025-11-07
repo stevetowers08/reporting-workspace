@@ -31,10 +31,10 @@ const GoogleAdsCampaignBreakdown = lazy(() =>
 
 interface GoogleTabContentProps {
   clientId: string;
-  dateRange: { start: string; end: string };
+  dateRange: { start: string; end: string; period?: string };
 }
 
-export const GoogleTabContent: React.FC<GoogleTabContentProps> = React.memo(({
+export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
   clientId,
   dateRange
 }) => {
@@ -54,11 +54,9 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = React.memo(({
   return (
     <div>
       <LoadingOverlay isLoading={isLoading} message="Loading Google Ads data...">
-        
         <Suspense fallback={<ComponentLoader />}>
           <GoogleAdsMetricsCards data={data} />
         </Suspense>
-        
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
           <Suspense fallback={<ComponentLoader />}>
             <GoogleAdsDemographics data={data} />
@@ -67,8 +65,7 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = React.memo(({
             <GoogleAdsCampaignBreakdown data={data} />
           </Suspense>
         </div>
-        
       </LoadingOverlay>
     </div>
   );
-});
+};

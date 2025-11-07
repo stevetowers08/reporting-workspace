@@ -73,7 +73,7 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
             <AppErrorBoundary>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Event Types Chart */}
-                <div className="min-h-[300px]">
+                <div className="h-full min-h-[400px]">
                   <EventTypesBreakdown 
                     data={data}
                     dateRange={dateRange}
@@ -81,7 +81,7 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
                 </div>
                 
                 {/* Guest Count Distribution Chart */}
-                <div className="min-h-[300px]">
+                <div className="h-full min-h-[400px]">
                   <GuestCountDistribution 
                     data={data}
                   />

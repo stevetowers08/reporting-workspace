@@ -33,6 +33,7 @@ interface Client {
 interface DateRange {
   start: string;
   end: string;
+  period?: string; // For API preset periods like 'lastMonth', '30d'
 }
 
 
@@ -198,16 +199,35 @@ class RequestDeduplicator {
 
   async deduplicate<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
     if (this.pendingRequests.has(key)) {
-      debugLogger.debug('RequestDeduplicator', `Returning pending request for ${key}`);
+      debugLogger.info('RequestDeduplicator', `✅ DEDUPLICATED: Returning pending request for ${key}`, {
+        pendingCount: this.pendingRequests.size,
+        key
+      });
       return this.pendingRequests.get(key) as Promise<T>;
     }
 
-    const promise = requestFn().finally(() => {
-      this.pendingRequests.delete(key);
+    debugLogger.info('RequestDeduplicator', `🔄 NEW: Starting request for ${key}`, {
+      pendingCount: this.pendingRequests.size + 1,
+      key
     });
 
+    const promise = requestFn()
+      .then(result => {
+        debugLogger.debug('RequestDeduplicator', `✅ COMPLETE: Request completed for ${key}`);
+        return result;
+      })
+      .catch(error => {
+        debugLogger.error('RequestDeduplicator', `❌ ERROR: Request failed for ${key}`, error);
+        throw error;
+      })
+      .finally(() => {
+        this.pendingRequests.delete(key);
+        debugLogger.debug('RequestDeduplicator', `🧹 CLEANUP: Removed pending request for ${key}`, {
+          remainingPending: this.pendingRequests.size
+        });
+      });
+
     this.pendingRequests.set(key, promise);
-    debugLogger.debug('RequestDeduplicator', `Starting new request for ${key}`);
     return promise;
   }
 }
@@ -319,115 +339,73 @@ export class AnalyticsOrchestrator {
   }
 
   /**
-   * Get comprehensive dashboard data with smart caching and deduplication
+   * Get comprehensive dashboard data - SIMPLE: Direct API calls, no dependencies
+   * Each data source fetches independently in parallel
    */
   static async getDashboardData(
     clientId: string,
     dateRange: DateRange,
-    forceRefresh: boolean = false
+    _forceRefresh?: boolean // Kept for backward compatibility, but not used
   ): Promise<EventDashboardData> {
-    const cacheKey = `dashboard-${clientId}-${JSON.stringify(dateRange)}`;
-    
-    if (!forceRefresh) {
-      const cached = this.cache.get(cacheKey);
-      if (cached) return cached as EventDashboardData;
+    // Get client data
+    const clientData = await DatabaseService.getClientById(clientId);
+    if (!clientData) {
+      throw new Error('Client not found');
     }
 
-    return this.deduplicator.deduplicate(cacheKey, async () => {
-      debugLogger.info('AnalyticsOrchestrator', 'Fetching dashboard data', { clientId, dateRange });
+    // Fetch all data sources independently in parallel - no dependencies
+    const [facebookResult, googleResult, ghlResult, leadResult, monthlyResult] = await Promise.allSettled([
+      clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none'
+        ? this.getFacebookData(clientId, dateRange, clientData)
+        : Promise.resolve(undefined),
+      clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none'
+        ? this.getGoogleData(clientId, dateRange, clientData)
+        : Promise.resolve(undefined),
+      clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none'
+        ? this.getGoHighLevelData(clientId, dateRange, clientData)
+        : Promise.resolve(undefined),
+      clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none'
+        ? this.getLeadData(clientId, dateRange, clientData)
+        : Promise.resolve(undefined),
+      this.getMonthlyLeadsData(clientId, clientData)
+    ]);
 
-      // Get client data
-      const clientData = await this.getClientData(clientId);
-      if (!clientData) {
-        throw new Error('Client not found');
-      }
+    // Extract results
+    const facebookMetrics = facebookResult.status === 'fulfilled' ? facebookResult.value : undefined;
+    const googleMetrics = googleResult.status === 'fulfilled' ? googleResult.value : undefined;
+    const ghlMetrics = ghlResult.status === 'fulfilled' ? ghlResult.value : undefined;
+    const leadData = leadResult.status === 'fulfilled' ? leadResult.value : undefined;
+    const monthlyLeadsData = monthlyResult.status === 'fulfilled' ? monthlyResult.value : undefined;
 
-      // Get platform-specific data in parallel - only call APIs for connected accounts
-      const promises = [];
-      
-      // Only call Facebook API if Facebook account is connected
-      if (clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none') {
-        promises.push(this.getFacebookData(clientId, dateRange, clientData));
-      }
-      
-      // Only call Google Ads API if Google account is connected
-      if (clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none') {
-        promises.push(this.getGoogleData(clientId, dateRange, clientData));
-      }
-      
-      // Only call GoHighLevel API if GHL account is connected
-      if (clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none') {
-        console.log('🚀 AnalyticsOrchestrator calling getGoHighLevelData', { 
-          clientId, 
-          goHighLevelValue: clientData.accounts.goHighLevel,
-          goHighLevelType: typeof clientData.accounts.goHighLevel
-        });
-        promises.push(this.getGoHighLevelData(clientId, dateRange, clientData));
-      }
-      
-      // Only call Lead Data API if Google Sheets is connected
-      if (clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none') {
-        promises.push(this.getLeadData(clientId, dateRange, clientData));
-      }
-      
-      // Always fetch monthly leads data if we have connected accounts
-      promises.push(this.getMonthlyLeadsData(clientId, clientData));
-      
-      const results = await Promise.allSettled(promises);
+    // Calculate totals
+    const totalLeads = (facebookMetrics?.leads || 0) + (googleMetrics?.leads || 0);
+    const totalSpend = (facebookMetrics?.spend || 0) + (googleMetrics?.cost || 0);
+    const overallCostPerLead = totalLeads > 0 ? totalSpend / totalLeads : 0;
 
-      // Extract results based on what promises were added
-      let resultIndex = 0;
-      const facebookData = clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Facebook account' };
-      const googleData = clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Google account' };
-      const ghlData = clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No GHL account' };
-      const leadData = clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none' ? results[resultIndex++] : { status: 'rejected' as const, reason: 'No Sheets account' };
-      const monthlyLeadsData = results[resultIndex++]; // Always present
-
-      // Normalize and combine data - BEST PRACTICE: Simple, explicit handling
-      const dashboardData: Partial<EventDashboardData> = {
-        clientData,
-        facebookMetrics: facebookData.status === 'fulfilled' && facebookData.value ? facebookData.value as FacebookMetricsWithTrends : undefined,
-        googleMetrics: googleData.status === 'fulfilled' && googleData.value ? googleData.value as GoogleMetricsWithTrends : undefined,
-        ghlMetrics: ghlData.status === 'fulfilled' && ghlData.value ? ghlData.value as GoHighLevelMetrics : undefined,
-        leadMetrics: leadData.status === 'fulfilled' && leadData.value ? this.normalizeLeadMetrics(leadData.value) : undefined,
-        leadData: leadData.status === 'fulfilled' && leadData.value ? leadData.value : undefined, // Raw lead data for components
-        monthlyLeadsData: monthlyLeadsData.status === 'fulfilled' && monthlyLeadsData.value ? monthlyLeadsData.value as MonthlyLeadsData[] : undefined,
-        totalLeads: 0,
-        totalSpend: 0,
-        totalRevenue: 0,
-        roi: 0,
-        overallConversionRate: 0
-      };
-
-
-      // Calculate totals
-      dashboardData.totalLeads = (dashboardData.facebookMetrics?.leads || 0) + 
-                                 (dashboardData.googleMetrics?.leads || 0);
-      dashboardData.totalSpend = (dashboardData.facebookMetrics?.spend || 0) + 
-                                 (dashboardData.googleMetrics?.cost || 0);
-
-      // Calculate cost per lead for each platform
-      if (dashboardData.facebookMetrics) {
-        dashboardData.facebookMetrics.costPerLead = dashboardData.facebookMetrics.leads > 0 
-          ? dashboardData.facebookMetrics.spend / dashboardData.facebookMetrics.leads 
-          : 0;
-      }
-      
-      if (dashboardData.googleMetrics) {
-        dashboardData.googleMetrics.costPerConversion = dashboardData.googleMetrics.conversions > 0 
-          ? dashboardData.googleMetrics.cost / dashboardData.googleMetrics.conversions 
-          : 0;
-      }
-
-      // Calculate overall cost per lead
-      const overallCostPerLead = dashboardData.totalLeads > 0 
-        ? dashboardData.totalSpend / dashboardData.totalLeads 
-        : 0;
-
-      // Add leadMetrics with overall cost per lead
-      dashboardData.leadMetrics = {
-        facebookCostPerLead: dashboardData.facebookMetrics?.costPerLead || 0,
-        googleCostPerLead: dashboardData.googleMetrics?.costPerConversion || 0,
+    // Build response
+    return {
+      clientData,
+      clientAccounts: {
+        facebookAds: clientData.accounts?.facebookAds,
+        googleAds: clientData.accounts?.googleAds,
+        goHighLevel: clientData.accounts?.goHighLevel,
+        googleSheets: clientData.accounts?.googleSheets,
+        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
+      },
+      dateRange,
+      facebookMetrics,
+      googleMetrics,
+      ghlMetrics,
+      leadData,
+      monthlyLeadsData,
+      totalLeads,
+      totalSpend,
+      totalRevenue: 0,
+      roi: 0,
+      overallConversionRate: 0,
+      leadMetrics: {
+        facebookCostPerLead: facebookMetrics?.costPerLead || 0,
+        googleCostPerLead: googleMetrics?.costPerConversion || 0,
         overallCostPerLead,
         leadToOpportunityRate: 0,
         opportunityToWinRate: 0,
@@ -439,31 +417,268 @@ export class AnalyticsOrchestrator {
         landingPageConversionRate: 0,
         formCompletionRate: 0,
         leadSourceBreakdown: []
-      };
+      }
+    };
+  }
 
-      debugLogger.info('AnalyticsOrchestrator', 'Final dashboard data', {
-        facebookMetrics: dashboardData.facebookMetrics,
-        facebookLeads: dashboardData.facebookMetrics?.leads,
-        facebookSpend: dashboardData.facebookMetrics?.spend,
-        facebookCostPerLead: dashboardData.facebookMetrics?.costPerLead,
-        googleCostPerLead: dashboardData.googleMetrics?.costPerLead,
-        totalLeads: dashboardData.totalLeads,
-        totalSpend: dashboardData.totalSpend,
-        overallCostPerLead: dashboardData.leadMetrics.overallCostPerLead
-      });
+  /**
+   * Build minimal dashboard data structure when client data isn't cached yet
+   * Returns immediately with empty structure
+   */
+  private static buildMinimalDashboardData(clientId: string, dateRange: DateRange): Partial<EventDashboardData> {
+    // Try to get cached data for each platform (fast, synchronous)
+    const facebookCacheKey = `facebook-${clientId}-${JSON.stringify(dateRange)}`;
+    const googleCacheKey = `google-${clientId}-${JSON.stringify(dateRange)}`;
+    const ghlCacheKey = `ghl-${clientId}-${JSON.stringify(dateRange)}`;
+    const leadsCacheKey = `leads-${clientId}-${JSON.stringify(dateRange)}`;
+    const monthlyLeadsCacheKey = `monthly-leads-${clientId}`;
 
+    return {
+      dateRange,
+      facebookMetrics: this.cache.get(facebookCacheKey) as FacebookMetricsWithTrends | undefined,
+      googleMetrics: this.cache.get(googleCacheKey) as GoogleMetricsWithTrends | undefined,
+      ghlMetrics: this.cache.get(ghlCacheKey) as GoHighLevelMetrics | undefined,
+      leadData: this.cache.get(leadsCacheKey),
+      monthlyLeadsData: this.cache.get<MonthlyLeadsData[]>(monthlyLeadsCacheKey),
+      totalLeads: 0,
+      totalSpend: 0,
+      totalRevenue: 0,
+      roi: 0,
+      overallConversionRate: 0,
+      leadMetrics: {
+        facebookCostPerLead: 0,
+        googleCostPerLead: 0,
+        overallCostPerLead: 0,
+        leadToOpportunityRate: 0,
+        opportunityToWinRate: 0,
+        averageEventValue: 0,
+        totalOpportunities: 0,
+        averageGuestsPerEvent: 0,
+        mostPopularEventType: 'Unknown',
+        seasonalTrends: [],
+        landingPageConversionRate: 0,
+        formCompletionRate: 0,
+        leadSourceBreakdown: []
+      }
+    };
+  }
 
-      // Cache with dependencies
-      this.cache.set(cacheKey, dashboardData, [
-        `client-${clientId}`,
-        `facebook-${clientId}`,
-        `google-${clientId}`,
-        `ghl-${clientId}`,
-        `leads-${clientId}`
-      ]);
+  /**
+   * Build initial dashboard data structure with cached data or empty structure
+   * Returns immediately without waiting for API calls
+   */
+  private static buildInitialDashboardData(clientData: Client, dateRange: DateRange): Partial<EventDashboardData> {
+    const clientId = clientData.id;
+    
+    // Try to get cached data for each platform (fast, synchronous)
+    const facebookCacheKey = `facebook-${clientId}-${JSON.stringify(dateRange)}`;
+    const googleCacheKey = `google-${clientId}-${JSON.stringify(dateRange)}`;
+    const ghlCacheKey = `ghl-${clientId}-${JSON.stringify(dateRange)}`;
+    const leadsCacheKey = `leads-${clientId}-${JSON.stringify(dateRange)}`;
+    const monthlyLeadsCacheKey = `monthly-leads-${clientId}`;
 
-      return dashboardData as EventDashboardData;
+    const dashboardData: Partial<EventDashboardData> = {
+      clientData,
+      clientAccounts: {
+        facebookAds: clientData.accounts?.facebookAds,
+        googleAds: clientData.accounts?.googleAds,
+        goHighLevel: clientData.accounts?.goHighLevel,
+        googleSheets: clientData.accounts?.googleSheets,
+        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
+      },
+      dateRange,
+      facebookMetrics: this.cache.get(facebookCacheKey) as FacebookMetricsWithTrends | undefined,
+      googleMetrics: this.cache.get(googleCacheKey) as GoogleMetricsWithTrends | undefined,
+      ghlMetrics: this.cache.get(ghlCacheKey) as GoHighLevelMetrics | undefined,
+      leadData: this.cache.get(leadsCacheKey),
+      monthlyLeadsData: this.cache.get<MonthlyLeadsData[]>(monthlyLeadsCacheKey),
+      totalLeads: 0,
+      totalSpend: 0,
+      totalRevenue: 0,
+      roi: 0,
+      overallConversionRate: 0
+    };
+
+    // Calculate totals from cached data
+    dashboardData.totalLeads = (dashboardData.facebookMetrics?.leads || 0) + 
+                               (dashboardData.googleMetrics?.leads || 0);
+    dashboardData.totalSpend = (dashboardData.facebookMetrics?.spend || 0) + 
+                               (dashboardData.googleMetrics?.cost || 0);
+
+    // Calculate cost per lead
+    if (dashboardData.facebookMetrics) {
+      dashboardData.facebookMetrics.costPerLead = dashboardData.facebookMetrics.leads > 0 
+        ? dashboardData.facebookMetrics.spend / dashboardData.facebookMetrics.leads 
+        : 0;
+    }
+    
+    if (dashboardData.googleMetrics) {
+      dashboardData.googleMetrics.costPerConversion = dashboardData.googleMetrics.conversions > 0 
+        ? dashboardData.googleMetrics.cost / dashboardData.googleMetrics.conversions 
+        : 0;
+    }
+
+    const overallCostPerLead = dashboardData.totalLeads > 0 
+      ? dashboardData.totalSpend / dashboardData.totalLeads 
+      : 0;
+
+    dashboardData.leadMetrics = {
+      facebookCostPerLead: dashboardData.facebookMetrics?.costPerLead || 0,
+      googleCostPerLead: dashboardData.googleMetrics?.costPerConversion || 0,
+      overallCostPerLead,
+      leadToOpportunityRate: 0,
+      opportunityToWinRate: 0,
+      averageEventValue: 0,
+      totalOpportunities: 0,
+      averageGuestsPerEvent: 0,
+      mostPopularEventType: 'Unknown',
+      seasonalTrends: [],
+      landingPageConversionRate: 0,
+      formCompletionRate: 0,
+      leadSourceBreakdown: []
+    };
+
+    if (dashboardData.leadData) {
+      const normalized = this.normalizeLeadMetrics(dashboardData.leadData);
+      Object.assign(dashboardData.leadMetrics, normalized);
+    }
+
+    return dashboardData;
+  }
+
+  /**
+   * Fetch all data sources independently in parallel (non-blocking)
+   * Each source updates its own cache when complete
+   */
+  private static async fetchAllDataSourcesIndependently(
+    clientId: string,
+    dateRange: DateRange,
+    clientData: Client,
+    dashboardData: Partial<EventDashboardData>
+  ): Promise<void> {
+    // BEST PRACTICE: Each data source fetches independently, doesn't block others
+    const independentFetches: Promise<void>[] = [];
+
+    // Facebook - independent fetch
+    if (clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none') {
+      independentFetches.push(
+        this.getFacebookData(clientId, dateRange, clientData)
+          .then(data => {
+            if (data) {
+              dashboardData.facebookMetrics = data;
+              this.updateDashboardTotals(dashboardData);
+            }
+          })
+          .catch(err => debugLogger.error('AnalyticsOrchestrator', 'Facebook fetch failed', err))
+      );
+    }
+
+    // Google Ads - independent fetch
+    if (clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none') {
+      independentFetches.push(
+        this.getGoogleData(clientId, dateRange, clientData)
+          .then(data => {
+            if (data) {
+              dashboardData.googleMetrics = data;
+              this.updateDashboardTotals(dashboardData);
+            }
+          })
+          .catch(err => debugLogger.error('AnalyticsOrchestrator', 'Google fetch failed', err))
+      );
+    }
+
+    // GoHighLevel - independent fetch
+    if (clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none') {
+      independentFetches.push(
+        this.getGoHighLevelData(clientId, dateRange, clientData)
+          .then(data => {
+            if (data) {
+              dashboardData.ghlMetrics = data;
+            }
+          })
+          .catch(err => debugLogger.error('AnalyticsOrchestrator', 'GHL fetch failed', err))
+      );
+    }
+
+    // Lead Data - independent fetch
+    if (clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none') {
+      independentFetches.push(
+        this.getLeadData(clientId, dateRange, clientData)
+          .then(data => {
+            if (data) {
+              dashboardData.leadData = data;
+              dashboardData.leadMetrics = this.normalizeLeadMetrics(data);
+            }
+          })
+          .catch(err => debugLogger.error('AnalyticsOrchestrator', 'Leads fetch failed', err))
+      );
+    }
+
+    // Monthly Leads - independent fetch
+    independentFetches.push(
+      this.getMonthlyLeadsData(clientId, clientData)
+        .then(data => {
+          if (data) {
+            dashboardData.monthlyLeadsData = data;
+          }
+        })
+        .catch(err => debugLogger.error('AnalyticsOrchestrator', 'Monthly leads fetch failed', err))
+    );
+
+    // Wait for all independent fetches (but don't block the initial return)
+    await Promise.allSettled(independentFetches);
+
+    // Update cache with complete data
+    const cacheKey = `dashboard-${clientId}-${JSON.stringify(dateRange)}`;
+    this.cache.set(cacheKey, dashboardData, [
+      `client-${clientId}`,
+      `facebook-${clientId}`,
+      `google-${clientId}`,
+      `ghl-${clientId}`,
+      `leads-${clientId}`
+    ]);
+
+    debugLogger.info('AnalyticsOrchestrator', 'All independent data sources fetched', {
+      facebookMetrics: !!dashboardData.facebookMetrics,
+      googleMetrics: !!dashboardData.googleMetrics,
+      ghlMetrics: !!dashboardData.ghlMetrics,
+      leadData: !!dashboardData.leadData,
+      monthlyLeadsData: !!dashboardData.monthlyLeadsData
     });
+  }
+
+  /**
+   * Update dashboard totals when individual metrics update
+   */
+  private static updateDashboardTotals(dashboardData: Partial<EventDashboardData>): void {
+    dashboardData.totalLeads = (dashboardData.facebookMetrics?.leads || 0) + 
+                               (dashboardData.googleMetrics?.leads || 0);
+    dashboardData.totalSpend = (dashboardData.facebookMetrics?.spend || 0) + 
+                               (dashboardData.googleMetrics?.cost || 0);
+
+    const overallCostPerLead = dashboardData.totalLeads > 0 
+      ? dashboardData.totalSpend / dashboardData.totalLeads 
+      : 0;
+
+    if (dashboardData.leadMetrics) {
+      dashboardData.leadMetrics.overallCostPerLead = overallCostPerLead;
+      dashboardData.leadMetrics.facebookCostPerLead = dashboardData.facebookMetrics?.costPerLead || 0;
+      dashboardData.leadMetrics.googleCostPerLead = dashboardData.googleMetrics?.costPerConversion || 0;
+    }
+  }
+
+  /**
+   * Refresh dashboard data in background (non-blocking)
+   */
+  private static async refreshDashboardDataInBackground(
+    clientId: string,
+    dateRange: DateRange
+  ): Promise<void> {
+    const clientData = await this.getClientData(clientId);
+    if (!clientData) return;
+
+    const dashboardData = this.buildInitialDashboardData(clientData, dateRange);
+    await this.fetchAllDataSourcesIndependently(clientId, dateRange, clientData, dashboardData);
   }
 
   /**
@@ -482,136 +697,71 @@ export class AnalyticsOrchestrator {
   }
 
   /**
-   * Get Facebook data with direct API calls and improvements
+   * Get Facebook data - SIMPLE: Direct API call
    */
   private static async getFacebookData(
-    clientId: string, 
+    _clientId: string, 
     dateRange: DateRange, 
     clientData: Client
   ): Promise<FacebookMetricsWithTrends | undefined> {
-    debugLogger.info('AnalyticsOrchestrator', 'Checking Facebook data requirements', {
-      clientId,
-      hasAccounts: !!clientData.accounts,
-      facebookAdsAccount: clientData.accounts?.facebookAds,
-      isNone: clientData.accounts?.facebookAds === 'none'
-    });
-
     if (!clientData.accounts?.facebookAds || clientData.accounts.facebookAds === 'none') {
-      debugLogger.warn('AnalyticsOrchestrator', 'No Facebook Ads account configured for client', {
-        clientId,
-        accounts: clientData.accounts
-      });
       return undefined;
     }
 
-    const cacheKey = `facebook-${clientId}-${JSON.stringify(dateRange)}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
+    try {
+      // Get access token from Supabase
+      const accessToken = await this.getFacebookAccessToken();
+      if (!accessToken) {
+        debugLogger.error('AnalyticsOrchestrator', 'Facebook access token not found');
+        return undefined;
+      }
 
-    return this.deduplicator.deduplicate(cacheKey, async () => {
-      return facebookCircuitBreaker.execute(async () => {
-        // Get access token from Supabase
-        const accessToken = await this.getFacebookAccessToken();
-        if (!accessToken) {
-          debugLogger.error('AnalyticsOrchestrator', 'Facebook access token not found');
-          throw new Error('Facebook access token not found');
-        }
+      // Format account ID (ensure it starts with 'act_')
+      const accountId = clientData.accounts.facebookAds.startsWith('act_') 
+        ? clientData.accounts.facebookAds 
+        : `act_${clientData.accounts.facebookAds}`;
 
-        debugLogger.info('AnalyticsOrchestrator', 'Fetching Facebook data with API calls', { 
-          clientId, 
-          accountId: clientData.accounts.facebookAds,
-          dateRange,
-          hasAccessToken: !!accessToken
-        });
+      // Build Facebook Insights API URL
+      const params = new URLSearchParams({
+        access_token: accessToken,
+        fields: 'impressions,clicks,spend,actions,ctr,cpc,cpm,reach,frequency,outbound_clicks,cost_per_action_type',
+        level: 'account',
+        time_range: JSON.stringify({
+          since: dateRange.start,
+          until: dateRange.end
+        })
+      });
 
-        // Format account ID (ensure it starts with 'act_')
-        const accountId = clientData.accounts.facebookAds.startsWith('act_') 
-          ? clientData.accounts.facebookAds 
-          : `act_${clientData.accounts.facebookAds}`;
+      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+      
+      // Make API call
+      const response = await this.makeFacebookApiCall(url);
+      
+      if (!response.data || response.data.length === 0) {
+        return undefined;
+      }
 
-        // Build Facebook Insights API URL with proper parameters
-        const params = new URLSearchParams({
-          access_token: accessToken,
-          fields: 'impressions,clicks,spend,actions,ctr,cpc,cpm,reach,frequency,outbound_clicks,cost_per_action_type',
-          level: 'account',
-          time_range: JSON.stringify({
-            since: dateRange.start,
-            until: dateRange.end
-          })
-        });
+      // Parse and normalize the data
+      const rawMetrics = response.data[0];
+      const normalizedData = this.normalizeFacebookMetrics(rawMetrics);
+      
+      // Fetch demographic and platform breakdown data
+      try {
+        const [demographicsResult, platformBreakdownResult] = await Promise.all([
+          this.getFacebookDemographics(accountId, dateRange, accessToken),
+          this.getFacebookPlatformBreakdown(accountId, dateRange, accessToken)
+        ]);
+        normalizedData.demographics = this.processDemographicData(demographicsResult);
+        normalizedData.platformBreakdown = this.processPlatformBreakdownData(platformBreakdownResult);
+      } catch (breakdownError) {
+        debugLogger.warn('AnalyticsOrchestrator', 'Breakdown data failed', breakdownError);
+      }
 
-        const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-        
-        debugLogger.info('AnalyticsOrchestrator', 'Making Facebook API call', {
-          url: url.replace(/access_token=[^&]+/, 'access_token=***'),
-          accountId,
-          dateRange
-        });
-        
-        // Make API call with improvements
-        const response = await this.makeFacebookApiCall(url);
-        
-        if (!response.data || response.data.length === 0) {
-          debugLogger.warn('AnalyticsOrchestrator', 'Facebook API returned empty data', {
-            accountId,
-            dateRange,
-            response
-          });
-          return undefined;
-        }
-
-        // Parse and normalize the data
-        const rawMetrics = response.data[0];
-        
-        const normalizedData = this.normalizeFacebookMetrics(rawMetrics);
-        
-        // Fetch demographic and platform breakdown data (with error handling)
-        let demographicsData: any[] = [];
-        let platformBreakdownData: any[] = [];
-        
-        try {
-          const [demographicsResult, platformBreakdownResult] = await Promise.all([
-            this.getFacebookDemographics(accountId, dateRange, accessToken),
-            this.getFacebookPlatformBreakdown(accountId, dateRange, accessToken)
-          ]);
-          demographicsData = demographicsResult;
-          platformBreakdownData = platformBreakdownResult;
-        } catch (breakdownError) {
-          console.warn('⚠️ Demographics/Platform breakdown failed, continuing with main data:', breakdownError);
-          // Continue with empty breakdown data - don't fail the entire request
-        }
-        
-        debugLogger.info('AnalyticsOrchestrator', 'Facebook breakdown data fetched', {
-          demographicsCount: demographicsData.length,
-          platformBreakdownCount: platformBreakdownData.length
-        });
-        
-        // Process demographic and platform breakdown data
-        try {
-          normalizedData.demographics = this.processDemographicData(demographicsData);
-          normalizedData.platformBreakdown = this.processPlatformBreakdownData(platformBreakdownData);
-        } catch (processingError) {
-          console.warn('⚠️ Demographics processing failed:', processingError);
-          // Don't set fallback data - let the component handle missing data
-        }
-        
-        debugLogger.info('AnalyticsOrchestrator', 'Facebook data normalized with breakdowns', {
-          demographics: normalizedData.demographics,
-          platformBreakdown: normalizedData.platformBreakdown
-        });
-        
-        // Cache with dependencies
-        this.cache.set(cacheKey, normalizedData, [`facebook-${clientId}`, `facebook-token-${clientId}`]);
-        
-        debugLogger.info('AnalyticsOrchestrator', 'Facebook data fetched successfully', {
-          leads: normalizedData.leads,
-          spend: normalizedData.spend,
-          impressions: normalizedData.impressions
-        });
-
-        return normalizedData;
-      }, `Facebook-${clientId}`);
-    });
+      return normalizedData;
+    } catch (error) {
+      debugLogger.error('AnalyticsOrchestrator', 'Facebook data fetch failed', error);
+      return undefined;
+    }
   }
 
   /**
@@ -1084,70 +1234,46 @@ export class AnalyticsOrchestrator {
       return undefined;
     }
 
-    const cacheKey = `google-${clientId}-${JSON.stringify(dateRange)}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
+    try {
+      // Import GoogleAdsService dynamically to avoid circular dependencies
+      const { GoogleAdsService } = await import('../api/googleAdsService');
+      
+      // Get main metrics
+      const mainMetrics = await GoogleAdsService.getAccountMetrics(
+        clientData.accounts.googleAds,
+        dateRange,
+        false
+      );
 
-    return this.deduplicator.deduplicate(cacheKey, async () => {
-      return googleCircuitBreaker.execute(async () => {
-        debugLogger.info('AnalyticsOrchestrator', 'Fetching Google Ads data', {
-          clientId,
-          customerId: clientData.accounts.googleAds,
-          dateRange
-        });
+      if (!mainMetrics) {
+        return undefined;
+      }
 
-        // Import GoogleAdsService dynamically to avoid circular dependencies
-        const { GoogleAdsService } = await import('../api/googleAdsService');
-        
-        // Get main metrics
-        const mainMetrics = await GoogleAdsService.getAccountMetrics(
-          clientData.accounts.googleAds,
-          dateRange,
-          false
-        );
+      // Normalize the main metrics
+      const normalizedData = this.normalizeGoogleMetrics(mainMetrics);
 
-        if (!mainMetrics) {
-          debugLogger.warn('AnalyticsOrchestrator', 'Google Ads API returned no data');
-          return undefined;
+      // Fetch demographic and campaign breakdown data in parallel
+      try {
+        const [demographicsResult, campaignBreakdownResult] = await Promise.all([
+          GoogleAdsService.getDemographicBreakdown(clientData.accounts.googleAds, dateRange).catch(() => null),
+          GoogleAdsService.getCampaignBreakdown(clientData.accounts.googleAds, dateRange).catch(() => null)
+        ]);
+
+        if (demographicsResult) {
+          normalizedData.demographics = demographicsResult;
         }
-
-        // Normalize the main metrics
-        const normalizedData = this.normalizeGoogleMetrics(mainMetrics);
-
-        // Fetch demographic and campaign breakdown data (with error handling)
-        let demographicsData: any = null;
-        let campaignBreakdownData: any = null;
-        
-        try {
-          const [demographicsResult, campaignBreakdownResult] = await Promise.all([
-            GoogleAdsService.getDemographicBreakdown(clientData.accounts.googleAds, dateRange),
-            GoogleAdsService.getCampaignBreakdown(clientData.accounts.googleAds, dateRange)
-          ]);
-          demographicsData = demographicsResult;
-          campaignBreakdownData = campaignBreakdownResult;
-        } catch (breakdownError) {
-          console.warn('⚠️ Google Ads breakdown data failed, continuing with main data:', breakdownError);
-          // Continue with empty breakdown data - don't fail the entire request
+        if (campaignBreakdownResult) {
+          normalizedData.campaignBreakdown = campaignBreakdownResult;
         }
-        
-        debugLogger.info('AnalyticsOrchestrator', 'Google Ads breakdown data fetched', {
-          hasDemographics: !!demographicsData,
-          hasCampaignBreakdown: !!campaignBreakdownData
-        });
-        
-        // Process demographic and campaign breakdown data
-        try {
-          normalizedData.demographics = demographicsData;
-          normalizedData.campaignBreakdown = campaignBreakdownData;
-        } catch (processingError) {
-          console.warn('⚠️ Google Ads processing failed:', processingError);
-          // Don't set fallback data - let the component handle missing data
-        }
+      } catch (breakdownError) {
+        debugLogger.warn('AnalyticsOrchestrator', 'Google Ads breakdown data failed', breakdownError);
+      }
 
-        this.cache.set(cacheKey, normalizedData, [`google-${clientId}`]);
-        return normalizedData;
-      }, `Google-${clientId}`);
-    });
+      return normalizedData;
+    } catch (error) {
+      debugLogger.error('AnalyticsOrchestrator', 'Google Ads data fetch failed', error);
+      return undefined;
+    }
   }
 
   /**

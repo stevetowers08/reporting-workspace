@@ -1,8 +1,8 @@
 # Google Ads Integration
 
-**Last Updated:** January 20, 2025  
-**Service Version:** v14 (V2 planned for v21)  
-**Implementation Status:** 🔄 **V2 IMPLEMENTATION PENDING**
+**Last Updated:** January 21, 2025  
+**Service Version:** v21 (Current Implementation)  
+**Implementation Status:** ✅ **V2 IMPLEMENTED - DATE RANGE PERIOD FIX APPLIED**
 
 ## V2 Architecture Implementation (Planned)
 
@@ -38,6 +38,12 @@
 - ✅ Cost Per Lead analysis with color coding
 - ✅ Enhanced reporting with proper API endpoints
 - ✅ Rate limiting and error handling
+- ✅ Date range period handling (7d, 14d, 30d, lastMonth)
+
+### Recent Updates (January 2025)
+- **Date Range Period Fix**: Fixed "Last 30 days" and "Last month" not working by properly passing `period` field through the data flow chain
+- **API Version**: Upgraded to v21 (previously v14)
+- **Service Location**: `src/services/api/googleAdsService.ts` (current implementation)
 
 ## Authentication Flow
 
@@ -61,10 +67,11 @@ VITE_GOOGLE_ADS_CLIENT_SECRET=your_google_ads_client_secret
 ## API Endpoints
 
 ### Base Configuration
-- **Base URL:** `https://googleads.googleapis.com/v14`
+- **Base URL:** `https://googleads.googleapis.com/v21` (upgraded from v14)
 - **Rate Limit:** 10,000 calls/day
 - **Authentication:** Bearer token in Authorization header
 - **Developer Token:** Required in X-Goog-Developer-Token header
+- **Date Range Support:** Supports both calculated dates (`BETWEEN`) and API presets (`DURING LAST_MONTH`)
 
 ### Available Endpoints
 
@@ -285,6 +292,46 @@ const performance = await GoogleAdsService.getCampaignPerformance(
   performanceQuery
 );
 ```
+
+### Date Range Handling
+```typescript
+// DateRange interface with period support
+interface DateRange {
+  start: string;        // YYYY-MM-DD format
+  end: string;          // YYYY-MM-DD format
+  period?: string;      // Optional: '7d', '14d', '30d', 'lastMonth', etc.
+}
+
+// Example: Get metrics for last 30 days
+const dateRange = {
+  start: '2025-10-06',
+  end: '2025-11-05',
+  period: '30d'  // ✅ Include period for proper handling
+};
+
+const metrics = await GoogleAdsService.getAccountMetrics(
+  customerId,
+  dateRange
+);
+
+// Example: Get metrics for last month (using API preset)
+const lastMonthRange = {
+  start: '',
+  end: '',
+  period: 'lastMonth'  // ✅ Uses DURING LAST_MONTH preset
+};
+
+const lastMonthMetrics = await GoogleAdsService.getAccountMetrics(
+  customerId,
+  lastMonthRange
+);
+```
+
+**Important Notes**:
+- Always include `period` field when available to enable proper date range handling
+- For 'lastMonth', use empty `start` and `end` with `period: 'lastMonth'` to use API preset
+- For calculated periods (7d, 14d, 30d), include both calculated dates and period field
+- The period field is passed through: `EventDashboard` → `useGoogleTabData` → `AnalyticsOrchestrator` → `GoogleAdsService`
 
 ### Handle Errors
 ```typescript

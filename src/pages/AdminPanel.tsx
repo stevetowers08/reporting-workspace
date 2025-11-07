@@ -29,6 +29,7 @@ const AgencyPanel = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -137,17 +138,17 @@ const AgencyPanel = () => {
       debugLogger.info('AgencyPanel', 'Client updated successfully');
       
       // Invalidate React Query cache to refresh client data
-      await queryClient.invalidateQueries({ queryKey: ['available-clients'] });
-      await queryClient.invalidateQueries({ queryKey: ['client-data', clientId] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboard-data', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['available-clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client-data', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-data', clientId] });
       
-      // Also refresh the local client list
-      await loadClients();
+      // Trigger refresh in AgencyPanel component (it will handle the actual reload)
+      setRefreshTrigger(prev => prev + 1);
       
       setShowEditClientModal(false);
       setEditingClient(null);
       
-      debugLogger.info('AgencyPanel', 'Cache invalidated and client list refreshed');
+      debugLogger.info('AgencyPanel', 'Cache invalidated, refresh triggered');
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to update client', error);
     }
@@ -174,6 +175,7 @@ const AgencyPanel = () => {
         onBackToDashboard={handleBackToDashboard}
         onAddClient={handleAddClient}
         onEditClient={handleEditClient}
+        refreshTrigger={refreshTrigger}
       />
 
       {/* Modals */}

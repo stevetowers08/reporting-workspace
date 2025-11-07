@@ -1,8 +1,7 @@
 import { HomePage } from "@/components/dashboard/HomePage";
-import { debugLogger } from "@/lib/debug";
 import { DatabaseService } from "@/services/data/databaseService";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 interface Client {
   id: string;

@@ -29,7 +29,17 @@ export class TokenManager {
     isConnected: boolean; 
     timestamp: number; 
   }>();
-  private static readonly CACHE_DURATION = 30 * 1000; // 30 seconds cache
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache (aligned with React Query staleTime)
+  
+  // Token cache to prevent repeated database queries for the same token
+  private static tokenCache = new Map<IntegrationPlatform, {
+    token: string | null;
+    timestamp: number;
+    expiresAt?: Date;
+  }>();
+  
+  // Request deduplication - prevent multiple concurrent requests for the same token
+  private static pendingTokenRequests = new Map<IntegrationPlatform, Promise<string | null>>();
   
   // Prevent infinite token refresh loops with proper mutex
   private static refreshInProgress = new Set<IntegrationPlatform>();
@@ -306,11 +316,67 @@ export class TokenManager {
   }
 
   /**
-   * Get access token for a platform
+   * Get access token for a platform with caching and deduplication
    */
   static async getAccessToken(platform: IntegrationPlatform, skipRefresh = false): Promise<string | null> {
     try {
-      DevLogger.info('TokenManager', `Getting access token for ${platform}`);
+      // Check if there's a pending request for this platform (deduplication)
+      if (this.pendingTokenRequests.has(platform)) {
+        DevLogger.debug('TokenManager', `Returning pending token request for ${platform}`);
+        return await this.pendingTokenRequests.get(platform)!;
+      }
+
+      // Check token cache first
+      const cachedToken = this.tokenCache.get(platform);
+      const now = Date.now();
+      
+      if (cachedToken && (now - cachedToken.timestamp) < this.CACHE_DURATION) {
+        // Check if token is expired (if we have expiry info)
+        if (cachedToken.expiresAt && cachedToken.expiresAt.getTime() < now) {
+          DevLogger.debug('TokenManager', `Cached token expired for ${platform}, fetching fresh`);
+          this.tokenCache.delete(platform);
+        } else {
+          DevLogger.debug('TokenManager', `Returning cached token for ${platform}`);
+          return cachedToken.token;
+        }
+      }
+
+      // Create the promise for this request (deduplication)
+      const tokenPromise = this.fetchTokenFromDatabase(platform, skipRefresh);
+      this.pendingTokenRequests.set(platform, tokenPromise);
+
+      try {
+        const result = await tokenPromise;
+        const token = result.token;
+        const expiresAt = result.expiresAt;
+        
+        // Cache the token result
+        this.tokenCache.set(platform, {
+          token,
+          timestamp: now,
+          expiresAt: expiresAt || undefined
+        });
+        
+        return token;
+      } finally {
+        // Always remove from pending requests when done
+        this.pendingTokenRequests.delete(platform);
+      }
+    } catch (error) {
+      DevLogger.error('TokenManager', `Failed to get access token for ${platform}`, error);
+      // Remove from pending requests on error
+      this.pendingTokenRequests.delete(platform);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch token from database (internal method)
+   * Returns both token and expiration date to avoid extra queries
+   */
+  private static async fetchTokenFromDatabase(platform: IntegrationPlatform, skipRefresh = false): Promise<{ token: string | null; expiresAt: Date | null }> {
+    try {
+      DevLogger.info('TokenManager', `Fetching access token for ${platform} from database`);
 
       const { data, error } = await supabase
         .from('integrations')
@@ -323,12 +389,14 @@ export class TokenManager {
       if (error) {
         if (error.code === 'PGRST116') {
           DevLogger.info('TokenManager', `No integration found for ${platform}`);
-          return null;
+          return { token: null, expiresAt: null };
         }
         throw error;
       }
 
       const config = data.config as IntegrationConfig;
+      const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
+      const expirationDate = expiresAt ? new Date(expiresAt) : null;
 
       // Check OAuth tokens first (handle both camelCase and snake_case)
       // Also check direct accessToken field for Facebook Ads
@@ -344,11 +412,9 @@ export class TokenManager {
         });
         
         // Check if token is expired or needs refresh
-        const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
-        if (expiresAt) {
-          const expiresAtDate = new Date(expiresAt);
+        if (expirationDate) {
           const now = new Date();
-          const timeUntilExpiry = expiresAtDate.getTime() - now.getTime();
+          const timeUntilExpiry = expirationDate.getTime() - now.getTime();
           
           if (timeUntilExpiry < this.TOKEN_REFRESH_THRESHOLD && !skipRefresh) {
             // Prevent infinite refresh loops with proper mutex
@@ -362,7 +428,8 @@ export class TokenManager {
                   const refreshedToken = await existingPromise;
                   if (refreshedToken) {
                     DevLogger.info('TokenManager', `Received refreshed token for ${platform} from concurrent request`);
-                    return refreshedToken;
+                    const updatedExpirationDate = await this.getTokenExpirationDateAfterRefresh(platform);
+                    return { token: refreshedToken, expiresAt: updatedExpirationDate };
                   }
                 } catch {
                   DevLogger.warn('TokenManager', `Concurrent refresh failed for ${platform}, proceeding with existing token`);
@@ -370,7 +437,7 @@ export class TokenManager {
               }
               
               // Fallback to existing token if concurrent refresh failed
-              return accessToken;
+              return { token: accessToken, expiresAt: expirationDate };
             }
             
             DevLogger.info('TokenManager', `Token needs refresh for ${platform}, attempting automatic refresh`);
@@ -383,7 +450,7 @@ export class TokenManager {
             
             if (!encryptedRefreshToken) {
               DevLogger.warn('TokenManager', `No refresh token available for ${platform}`);
-              return accessToken; // Return existing token if no refresh token
+              return { token: accessToken, expiresAt: expirationDate }; // Return existing token if no refresh token
             }
             
             // Mark refresh as in progress and create promise
@@ -393,8 +460,10 @@ export class TokenManager {
             const refreshPromise = this.refreshTokens(platform)
               .then(async () => {
                 DevLogger.info('TokenManager', `Token refreshed successfully for ${platform}`);
-                // Return the refreshed token by calling getAccessToken again with skipRefresh=true
-                return await this.getAccessToken(platform, true);
+                // Clear cache and fetch fresh token (with skipRefresh to avoid recursion)
+                this.tokenCache.delete(platform);
+                const freshResult = await this.fetchTokenFromDatabase(platform, true);
+                return freshResult.token;
               })
               .catch(refreshError => {
                 DevLogger.error('TokenManager', `Automatic token refresh failed for ${platform}`, refreshError);
@@ -409,31 +478,56 @@ export class TokenManager {
             // Store the promise for concurrent requests
             this.refreshPromises.set(platform, refreshPromise);
             
-            return await refreshPromise;
+            const refreshedToken = await refreshPromise;
+            // Get updated expiration date after refresh
+            const updatedExpirationDate = refreshedToken ? await this.getTokenExpirationDateAfterRefresh(platform) : expirationDate;
+            return { token: refreshedToken, expiresAt: updatedExpirationDate };
           }
         }
-        return accessToken;
+        return { token: accessToken, expiresAt: expirationDate };
       }
 
       // Check direct accessToken in config (for Facebook Ads)
       if ((config as any)?.accessToken) {
         DevLogger.info('TokenManager', `Found direct access token for ${platform}`);
-        DevLogger.info('TokenManager', `Found direct access token for ${platform}`);
-        return (config as any).accessToken;
+        return { token: (config as any).accessToken, expiresAt: expirationDate };
       }
 
       // Check API key (for Google AI - GoHighLevel is client-level, not account-level)
       if (config.apiKey?.apiKey) {
         DevLogger.info('TokenManager', `Found API key for ${platform}`);
-        DevLogger.info('TokenManager', `Found API key for ${platform}`);
-        return config.apiKey.apiKey;
+        return { token: config.apiKey.apiKey, expiresAt: null }; // API keys don't expire
       }
 
       DevLogger.info('TokenManager', `No valid token found for ${platform}`);
-      DevLogger.info('TokenManager', `No valid token found for ${platform}`);
-      return null;
+      return { token: null, expiresAt: null };
     } catch (error) {
-      DevLogger.error('TokenManager', `Failed to get access token for ${platform}`, error);
+      DevLogger.error('TokenManager', `Failed to fetch token from database for ${platform}`, error);
+      throw error;
+    }
+  }
+
+
+  /**
+   * Get token expiration date after refresh (helper to avoid recursion)
+   */
+  private static async getTokenExpirationDateAfterRefresh(platform: IntegrationPlatform): Promise<Date | null> {
+    try {
+      const { data } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', platform)
+        .eq('connected', true)
+        .limit(1)
+        .single();
+
+      if (!data) return null;
+
+      const config = data.config as IntegrationConfig;
+      const expiresAt = config.tokens?.expiresAt || (config.tokens as any)?.expires_at;
+      
+      return expiresAt ? new Date(expiresAt) : null;
+    } catch {
       return null;
     }
   }
@@ -622,10 +716,12 @@ export class TokenManager {
   static clearConnectionCache(platform?: IntegrationPlatform): void {
     if (platform) {
       this.connectionCache.delete(platform);
-      DevLogger.debug('TokenManager', `Cleared connection cache for ${platform}`);
+      this.tokenCache.delete(platform); // Also clear token cache
+      DevLogger.debug('TokenManager', `Cleared connection and token cache for ${platform}`);
     } else {
       this.connectionCache.clear();
-      DevLogger.debug('TokenManager', 'Cleared all connection cache');
+      this.tokenCache.clear(); // Also clear all token cache
+      DevLogger.debug('TokenManager', 'Cleared all connection and token cache');
     }
   }
 

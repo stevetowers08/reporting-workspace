@@ -60,7 +60,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
             onClick={onClose}
         >
             <Card 
-                className="w-full max-w-3xl mx-4 max-h-[75vh] overflow-y-auto"
+                className="w-full max-w-3xl mx-2 max-h-[75vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">

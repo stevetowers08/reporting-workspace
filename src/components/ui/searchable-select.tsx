@@ -83,14 +83,14 @@ export function SearchableSelect({
                             key={option.value}
                             type="button"
                             className={cn(
-                                "w-full text-left px-3 py-2 text-sm flex items-center",
+                                "w-full text-left px-3 py-1.5 text-sm flex items-center",
                                 value === option.value && "bg-blue-50 text-blue-600"
                             )}
                             onClick={() => handleSelect(option.value)}
                         >
                             <Check
                                 className={cn(
-                                    "mr-2 h-4 w-4",
+                                    "mr-2 h-3.5 w-3.5",
                                     value === option.value ? "opacity-100" : "opacity-0"
                                 )}
                             />

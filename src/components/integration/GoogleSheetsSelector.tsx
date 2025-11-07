@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { debugLogger } from '@/lib/debug';
 import { GoogleSheetsAccount, GoogleSheetsService } from '@/services/api/googleSheetsService';
 import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface GoogleSheetsSelectorProps {
   onSelectionComplete?: (_spreadsheetId: string, _sheetName: string) => void;
@@ -28,18 +28,38 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [loadingSheets, setLoadingSheets] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const fetchingRef = useRef<string | null>(null); // Track which spreadsheet is being fetched
 
   // Fetch Google Sheets accounts on component mount
   useEffect(() => {
     fetchSheetsAccounts();
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   // Load sheet names if initial spreadsheet is provided
   useEffect(() => {
-    if (initialSpreadsheetId && accounts.length > 0) {
+    if (initialSpreadsheetId && accounts.length > 0 && !loadingSheets && fetchingRef.current !== initialSpreadsheetId) {
       fetchSheetNames(initialSpreadsheetId);
     }
-  }, [initialSpreadsheetId, accounts]);
+  }, [initialSpreadsheetId, accounts.length]); // Only depend on accounts.length to avoid re-fetching
 
   const fetchSheetsAccounts = async () => {
     setLoading(true);
@@ -92,9 +112,16 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   };
 
   const handleSpreadsheetChange = (spreadsheetId: string) => {
+    // Don't do anything if selecting the same spreadsheet
+    if (selectedSpreadsheet === spreadsheetId && sheetNames.length > 0) {
+      setIsDropdownOpen(false);
+      return;
+    }
+
     setSelectedSpreadsheet(spreadsheetId);
     setSelectedSheet('');
     setSheetNames([]);
+    setIsDropdownOpen(false); // Close dropdown when spreadsheet is selected
     
     // Fetch sheet names for the selected spreadsheet
     if (spreadsheetId) {
@@ -103,8 +130,31 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
   };
 
   const fetchSheetNames = async (spreadsheetId: string) => {
+    // Prevent duplicate calls for the same spreadsheet
+    if (fetchingRef.current === spreadsheetId && loadingSheets) {
+      debugLogger.info('GoogleSheetsSelector', 'Already fetching sheet names for this spreadsheet', { spreadsheetId });
+      return;
+    }
+
+    // If we already have sheet names for this spreadsheet, don't fetch again
+    if (selectedSpreadsheet === spreadsheetId && sheetNames.length > 0) {
+      debugLogger.info('GoogleSheetsSelector', 'Sheet names already loaded for this spreadsheet', { spreadsheetId });
+      return;
+    }
+
+    fetchingRef.current = spreadsheetId;
     setLoadingSheets(true);
     setError(null);
+    
+    // Set a timeout to prevent infinite loading (10 seconds)
+    const timeoutId = setTimeout(() => {
+      if (fetchingRef.current === spreadsheetId) {
+        debugLogger.error('GoogleSheetsSelector', 'Timeout fetching sheet names', { spreadsheetId });
+        setError('Request timed out. Please try again.');
+        setLoadingSheets(false);
+        fetchingRef.current = null;
+      }
+    }, 10000);
     
     try {
       const accessToken = await GoogleSheetsService.getAccessToken();
@@ -137,8 +187,11 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
     } catch (error) {
       debugLogger.error('GoogleSheetsSelector', 'Failed to fetch sheet names', error);
       setError(`Failed to load sheet names: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setSheetNames([]); // Clear sheet names on error
     } finally {
+      clearTimeout(timeoutId);
       setLoadingSheets(false);
+      fetchingRef.current = null;
     }
   };
 
@@ -233,13 +286,6 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Select Google Sheets</h3>
-        <Button onClick={fetchSheetsAccounts} variant="outline" size="sm" disabled={loading}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -260,18 +306,25 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
             </label>
             
             {/* Custom Searchable Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
                 placeholder="Search spreadsheets..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               {searchTerm && (
                 <button
                   type="button"
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => {
+                    setSearchTerm('');
+                    setIsDropdownOpen(true);
+                  }}
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   ✕
@@ -280,6 +333,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
             </div>
             
             {/* Dropdown Results */}
+            {isDropdownOpen && (
             <div className="mt-2 border border-gray-300 rounded-md max-h-52 overflow-y-auto">
               {getFilteredSheets().map((sheet) => (
                 <button
@@ -290,14 +344,11 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
                     e.stopPropagation();
                     handleSpreadsheetChange(sheet.id);
                   }}
-                  className={`w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
+                  className={`w-full text-left px-3 py-1.5 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
                     selectedSpreadsheet === sheet.id ? 'bg-blue-50 text-blue-700' : ''
                   }`}
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm">{sheet.name}</span>
-                    <span className="text-xs text-gray-500">{sheet.id}</span>
-                  </div>
+                  <span className="text-sm">{sheet.name}</span>
                 </button>
               ))}
               {getFilteredSheets().length === 0 && searchTerm && (
@@ -306,6 +357,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -318,7 +370,7 @@ export const GoogleSheetsSelector: React.FC<GoogleSheetsSelectorProps> = ({
             {loadingSheets ? (
               <div className="flex items-center gap-2 p-3 border border-gray-300 rounded-md">
                 <Spinner size="sm" />
-                <span className="text-sm text-gray-600">Loading sheet names...</span>
+                <span className="text-xs text-gray-600">Loading sheet names...</span>
               </div>
             ) : sheetNames.length > 0 ? (
               <Select value={selectedSheet} onValueChange={handleSheetChange}>

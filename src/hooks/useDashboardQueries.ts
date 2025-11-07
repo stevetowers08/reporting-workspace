@@ -25,7 +25,8 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         facebookAds: clientData.accounts?.facebookAds,
         googleAds: clientData.accounts?.googleAds,
         goHighLevel: clientData.accounts?.goHighLevel,
-        googleSheets: clientData.accounts?.googleSheets
+        googleSheets: clientData.accounts?.googleSheets,
+        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
       };
       
       // Use provided date range or default to last 30 days

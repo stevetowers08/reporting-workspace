@@ -8,7 +8,7 @@ export const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 minutes
       gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 minutes
       refetchOnWindowFocus: false, // Don't refetch when window gains focus
-      refetchOnMount: true, // Refetch when component mounts (but respect staleTime)
+      refetchOnMount: false, // ✅ PERFORMANCE FIX: Don't refetch on mount if data is fresh (respects staleTime)
       refetchOnReconnect: true, // Refetch when network reconnects
       refetchInterval: false, // No automatic polling by default
       

@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 interface DateRange {
   start: string;
   end: string;
+  period?: string; // For API preset periods like 'lastMonth', '30d'
 }
 
 // Hook for Summary tab data
@@ -69,11 +70,11 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
       return { ...result, clientData };
     },
     enabled: !!clientId && !!clientData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 0, // Always fetch fresh data for reporting
+    gcTime: 0, // Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Always refetch on mount for fresh data
   });
 };
 
@@ -114,56 +115,44 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
       return { ...result, clientData };
     },
     enabled: !!clientId && !!clientData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 0, // Always fetch fresh data for reporting
+    gcTime: 0, // Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Always refetch on mount for fresh data
   });
 };
 
 // Hook for Google tab data
 export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  // Use React Query for client data
-  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  const { data: clientData } = useClientData(clientId);
+  
+  const finalDateRange = dateRange || (() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return {
+      start: startDate.toISOString().split('T')[0], 
+      end: endDate.toISOString().split('T')[0] 
+    };
+  })();
   
   return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
-      if (!clientId) {
-        throw new Error('Client ID is required');
-      }
+      if (!clientId) throw new Error('Client ID is required');
+      if (!clientData) throw new Error('Client not found');
       
-      if (!clientData) {
-        throw new Error('Client not found');
-      }
-      
-      const finalDateRange = dateRange || (() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
-        return {
-          start: startDate.toISOString().split('T')[0], 
-          end: endDate.toISOString().split('T')[0] 
-        };
-      })();
-      
-      // debugLogger.info('useGoogleTabData', 'Fetching google data', { clientId, finalDateRange });
-      
-      // Use AnalyticsOrchestrator with direct API calls
-      const result = await AnalyticsOrchestrator.getDashboardData(
-        clientId,
-        finalDateRange
-      );
-      
+      // Direct API call - no caching
+      const result = await AnalyticsOrchestrator.getDashboardData(clientId, finalDateRange);
       return { ...result, clientData };
     },
     enabled: !!clientId && !!clientData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 0, // Always fetch fresh data for reporting
+    gcTime: 0, // Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Always refetch on mount for fresh data
   });
 };
 
@@ -204,11 +193,11 @@ export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRa
       return { ...result, clientData };
     },
     enabled: !!clientId && !!clientData,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 0, // Always fetch fresh data for reporting
+    gcTime: 0, // Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Always refetch on mount for fresh data
   });
 };
 

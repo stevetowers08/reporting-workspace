@@ -1,19 +1,42 @@
 # Google Ads API Documentation
 
 **Last Updated:** January 21, 2025  
-**Version:** 2.1.0  
-**Status:** ✅ **PRODUCTION READY - TIMEZONE ISSUES RESOLVED**
+**Version:** 2.3.0  
+**Status:** ✅ **PRODUCTION READY - DATE RANGE PERIOD FIX APPLIED**
 
 ## Overview
 
-The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. The current implementation (v2.1.0) uses direct API calls with smart caching, simplified UTC-based date calculations, and proper error handling for consistent data across all charts.
+The Google Ads API integration provides comprehensive advertising analytics and campaign management capabilities. The current implementation (v2.2.0) uses direct API calls with smart caching, simplified UTC-based date calculations, and proper error handling for consistent data across all charts.
 
-### ✅ **Key Improvements in v2.1.0**
+### ✅ **Key Improvements in v2.3.0**
+- **Fixed "Last 30 Days" Display Issue**: Resolved React Query caching issue preventing data display for 30d period
+- **Simplified React Query Integration**: Removed React.memo wrapper and simplified queryKey structure
+- **Improved Hook Efficiency**: Matched working pattern from other tabs (Meta, Summary)
+
+### ✅ **Key Improvements in v2.2.0**
+- **Date Range Period Handling**: Fixed "Last 30 days" and "Last month" not working by passing `period` field through the entire data flow chain
 - **Simplified Timezone Handling**: Using UTC consistently for all date calculations
 - **Fixed Date Range Issues**: Resolved discrepancies between summary cards and monthly chart
 - **Better Error Handling**: Improved error messages and logging with debugLogger
 - **Production Ready**: All timezone-related bugs resolved
 - **Cleaner Code**: Removed complex timezone calculations
+
+### ✅ **Recent Fix (v2.2.0 - January 2025)**
+**Issue**: "Last 30 days" and "Last month" date ranges were not working, while "Last 7 days" and "Last 14 days" worked correctly.
+
+**Root Cause**: The `period` field was not being passed through the data flow chain from `EventDashboard.tsx` → `useGoogleTabData` → `AnalyticsOrchestrator` → `GoogleAdsService`, preventing the service from properly handling API preset periods like `LAST_MONTH`.
+
+**Solution**: 
+1. Updated `EventDashboard.tsx`'s `getDateRange` function to return `period` along with `start` and `end` dates
+2. Updated `DateRange` interfaces in `useTabSpecificData.ts` and `analyticsOrchestrator.ts` to include `period?: string`
+3. Added special handling for `'lastMonth'` to return empty date range with `period: 'lastMonth'`, allowing the API to handle it with presets
+
+**Files Changed**:
+- `src/pages/EventDashboard.tsx` - Added `period` field to date range return value
+- `src/hooks/useTabSpecificData.ts` - Updated `DateRange` interface to include `period?: string`
+- `src/services/data/analyticsOrchestrator.ts` - Updated `DateRange` interface to include `period?: string`
+
+**Result**: The `period` field is now properly passed through the entire chain, enabling correct handling of all date range periods including "Last 30 days" and "Last month".
 
 ## Current Service Architecture
 
@@ -170,12 +193,43 @@ const managerId = await GoogleAdsService.discoverManagerAccount(accessToken, dev
 const metrics = await GoogleAdsService.getAccountMetrics(customerId, dateRange);
 ```
 
-**GAQL Query**:
+**GAQL Query** (with period support - Best Practice):
 ```sql
+-- For preset periods (lastMonth, 30d) - BEST PRACTICE: Use API presets:
+SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks 
+FROM customer 
+WHERE segments.date DURING LAST_MONTH
+
+SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks 
+FROM customer 
+WHERE segments.date DURING LAST_30_DAYS
+
+-- For calculated date ranges (7d, 14d) - no preset available:
 SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks 
 FROM customer 
 WHERE segments.date BETWEEN 'start_date' AND 'end_date'
 ```
+
+**Best Practice**: Google Ads API recommends using predefined date ranges like `DURING LAST_30_DAYS` and `DURING LAST_MONTH` whenever possible, as they are:
+- More reliable (validated by API)
+- Less error-prone (no manual date calculation)
+- Better performance (optimized by Google)
+
+**Date Range Interface**:
+```typescript
+interface DateRange {
+  start: string;        // YYYY-MM-DD format
+  end: string;          // YYYY-MM-DD format
+  period?: string;      // Optional: '7d', '14d', '30d', 'lastMonth', etc.
+}
+```
+
+**Period Handling** (Best Practice - Using API Presets):
+- **'lastMonth'**: Uses `DURING LAST_MONTH` preset (most reliable)
+- **'30d'**: Uses `DURING LAST_30_DAYS` preset (best practice - more reliable than manual calculation)
+- **'14d', '7d'**: Uses calculated dates with `BETWEEN` clause (no API preset available for these periods)
+- When `period` is not provided, the service uses calculated dates with `BETWEEN` clause and validates format
+- **Best Practice**: Always prefer API presets (`DURING LAST_30_DAYS`, `DURING LAST_MONTH`) when available as they are more reliable and less error-prone than manual date calculations
 
 **Metrics Returned**:
 - Impressions
@@ -533,6 +587,52 @@ WHERE campaign.id = '123456789'
 
 ### Common Issues
 
+#### "Last 30 Days" Date Range Not Displaying Data (Fixed v2.3.0 - January 2025)
+
+**Symptoms:**
+- API calls succeed (200 status) but data doesn't appear on frontend
+- Other date ranges (7d, 14d) work correctly
+- Browser shows loading state indefinitely
+- Network requests show successful Google Ads API calls
+
+**Root Cause:**
+1. React Query's `queryKey` wasn't properly detecting dateRange changes when using serialized strings
+2. `enabled` condition requiring both `clientId` and `clientData` could block query execution
+3. React.memo comparison function could prevent re-renders when dateRange changed
+
+**Solution:**
+1. **Simplified queryKey**: Use `dateRange` object directly in queryKey instead of serialized string
+   ```typescript
+   // Before (problematic)
+   queryKey: ['google-tab-data', clientId, JSON.stringify(dateRange)]
+   
+   // After (fixed)
+   queryKey: ['google-tab-data', clientId, dateRange]
+   ```
+
+2. **Keep enabled condition**: Ensure both `clientId` and `clientData` are available
+   ```typescript
+   // Works correctly
+   enabled: !!clientId && !!clientData
+   ```
+
+3. **Removed React.memo**: Let React handle re-renders naturally when props change
+   ```typescript
+   // Before
+   export const GoogleTabContent = React.memo(({ ... }) => { ... }, comparisonFn)
+   
+   // After
+   export const GoogleTabContent = ({ ... }) => { ... }
+   ```
+
+4. **Simplified hook structure**: Match pattern used in working tabs (e.g., `useMetaTabData`)
+
+**Files Changed:**
+- `src/hooks/useTabSpecificData.ts` - Simplified `useGoogleTabData` hook
+- `src/components/dashboard/tabs/GoogleTabContent.tsx` - Removed React.memo wrapper
+
+**Result:** Date range changes now properly trigger React Query refetches, and data displays correctly for all periods including "Last 30 days".
+
 #### No Manager Account Found
 - Verify manager account permissions
 - Check customer access levels
@@ -552,6 +652,34 @@ WHERE campaign.id = '123456789'
 - Normalize customer IDs properly
 - Validate ID format
 - Check account access permissions
+
+#### Date Range Period Not Working
+**Symptoms**: "Last 30 days" or "Last month" returns no data, while shorter periods work.
+
+**Causes**:
+- `period` field not being passed through the data flow chain
+- Missing `period` in `DateRange` interface
+- Incorrect date calculation logic
+
+**Solution**:
+1. Verify `EventDashboard.tsx`'s `getDateRange` returns `period` field
+2. Check that `DateRange` interfaces include `period?: string`
+3. Ensure `period` is passed through: `EventDashboard` → `useGoogleTabData` → `AnalyticsOrchestrator` → `GoogleAdsService`
+4. For 'lastMonth', verify the service uses `DURING LAST_MONTH` preset
+5. For '30d', verify the service uses calculated dates with `BETWEEN` clause
+
+**Example Fix**:
+```typescript
+// EventDashboard.tsx
+const getDateRange = (period: string) => {
+  // ... date calculation ...
+  return {
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0],
+    period: period // ✅ Include period field
+  };
+};
+```
 
 ### Debug Commands
 ```typescript

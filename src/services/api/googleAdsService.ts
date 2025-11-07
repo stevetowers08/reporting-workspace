@@ -238,9 +238,25 @@ export class GoogleAdsService {
           }
         }
         
+        // Handle authentication errors (401)
+        if (response.status === 401) {
+          debugLogger.error('GoogleAdsService', 'Authentication failed - token may be expired', {
+            status: response.status,
+            responseText: text,
+            customerId: pathCid,
+            managerId: loginCid
+          });
+          SecureLogger.logSecurityEvent('GoogleAdsService', 'Authentication error - 401 Unauthorized', { 
+            status: response.status, 
+            text: text.substring(0, 500),
+            customerId: pathCid
+          });
+          throw new Error('Google Ads authentication failed. Please reconnect your Google Ads account.');
+        }
+        
         // Handle quota exhaustion
         if (response.status === 403) {
-          const errorText = await response.text();
+          const errorText = text;
           if (errorText.includes('RESOURCE_EXHAUSTED')) {
             SecureLogger.error('GoogleAdsService', 'Daily quota exhausted', { status: response.status, text: errorText });
             throw new Error('Google Ads API daily quota exhausted. Please try again tomorrow.');
@@ -254,7 +270,17 @@ export class GoogleAdsService {
           }
         }
         
-        // Log the actual error response for debugging
+        // Log the actual error response for debugging (especially 400 errors)
+        console.error('🔴 Google Ads API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: text.substring(0, 1000),
+          url: url,
+          customerId: pathCid,
+          managerId: loginCid,
+          gaql: gaql.substring(0, 200)
+        });
+        
         debugLogger.error('GoogleAdsService', 'Google Ads API Error Details', {
           status: response.status,
           statusText: response.statusText,
@@ -678,21 +704,45 @@ export class GoogleAdsService {
 
       let gaql: string;
       
-      // Handle preset periods
+      // Handle preset periods using Google Ads API v21 presets
       if (dateRange.period === 'lastMonth') {
-        // Calculate last month date range for Google Ads
-        const now = new Date();
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-        
-        const startDate = lastMonth.toISOString().split('T')[0];
-        const endDate = lastMonthEnd.toISOString().split('T')[0];
-        
-        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+        // Use LAST_MONTH preset - Google Ads API v21 supports this with DURING clause
+        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date DURING LAST_MONTH`;
       } else {
-        // Use provided date range
+        // For all other periods (7d, 14d, 30d, etc.), use BETWEEN with calculated dates
+        // Validate date format (YYYY-MM-DD) - required for custom date ranges
+        const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
+        
+        // Debug logging to help diagnose 30d issue
+        debugLogger.info('GoogleAdsService', 'Processing date range (not lastMonth)', {
+          period: dateRange.period,
+          start: dateRange.start,
+          end: dateRange.end,
+          startValid: dateRange.start && dateFormatRegex.test(dateRange.start),
+          endValid: dateRange.end && dateFormatRegex.test(dateRange.end)
+        });
+        
+        if (!dateRange.start || !dateFormatRegex.test(dateRange.start)) {
+          debugLogger.error('GoogleAdsService', 'Invalid start date format', { start: dateRange.start, dateRange });
+          throw new Error(`Invalid start date format: ${dateRange.start}. Expected YYYY-MM-DD`);
+        }
+        if (!dateRange.end || !dateFormatRegex.test(dateRange.end)) {
+          debugLogger.error('GoogleAdsService', 'Invalid end date format', { end: dateRange.end, dateRange });
+          throw new Error(`Invalid end date format: ${dateRange.end}. Expected YYYY-MM-DD`);
+        }
+        
+        // Use provided date range with BETWEEN for custom ranges (same as 14d which works)
         gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
       }
+      
+      debugLogger.info('GoogleAdsService', 'Fetching account metrics', {
+        customerId,
+        dateRange,
+        hasPeriod: !!dateRange.period,
+        gaql: gaql.substring(0, 100) + '...'
+      });
+      
+      debugLogger.debug('GoogleAdsService', 'GAQL query for account metrics', { gaql });
       const blocks = await this.makeApiRequest({
         accessToken,
         developerToken,
@@ -718,24 +768,28 @@ export class GoogleAdsService {
             metrics?: { 
               impressions?: string | number; 
               clicks?: string | number; 
-              costMicros?: string | number; 
+              costMicros?: string | number;
+              cost_micros?: string | number; // API returns with underscore
               conversions?: string | number;
               conversionsFromInteractionsRate?: string | number;
               averageCpc?: string | number;
             } 
           }).metrics || {};
           
+          // Google Ads API returns fields with underscores, check both formats
+          const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
+          
           debugLogger.debug('GoogleAdsService', 'Processing campaign result', {
             impressions: m.impressions,
             clicks: m.clicks,
-            costMicros: m.costMicros,
+            costMicros: costMicrosValue,
             conversions: m.conversions,
             rawMetrics: m
           });
           
           impressions += Number(m.impressions || 0);
           clicks += Number(m.clicks || 0);
-          costMicros += Number(m.costMicros || 0);
+          costMicros += Number(costMicrosValue);
           conversions += Number(m.conversions || 0);
         }
       }
@@ -801,14 +855,18 @@ export class GoogleAdsService {
                 metrics?: { 
                   impressions?: string | number; 
                   clicks?: string | number; 
-                  costMicros?: string | number; 
+                  costMicros?: string | number;
+                  cost_micros?: string | number; // API returns with underscore
                   conversions?: string | number;
                 } 
               }).metrics || {};
               
+              // Google Ads API returns fields with underscores, check both formats
+              const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
+              
               prevImpressions += Number(m.impressions || 0);
               prevClicks += Number(m.clicks || 0);
-              prevCostMicros += Number(m.costMicros || 0);
+              prevCostMicros += Number(costMicrosValue);
               prevConversions += Number(m.conversions || 0);
             }
           }
@@ -969,7 +1027,7 @@ export class GoogleAdsService {
    * Get demographic breakdown data from Google Ads
    * Uses separate queries for gender and age due to API limitations
    */
-  static async getDemographicBreakdown(customerId: string, dateRange: { start: string; end: string }): Promise<{
+  static async getDemographicBreakdown(customerId: string, dateRange: { start: string; end: string; period?: string }): Promise<{
     ageGroups: {
       '25-34': number;
       '35-44': number;
@@ -1022,13 +1080,22 @@ export class GoogleAdsService {
    */
   private static async getGenderBreakdown(
     customerId: string, 
-    dateRange: { start: string; end: string },
+    dateRange: { start: string; end: string; period?: string },
     accessToken: string,
     developerToken: string,
     managerAccountId: string
   ): Promise<{ female: number; male: number }> {
     try {
-      // Use gender_view for demographics (correct approach for v21)
+      // Handle preset periods using Google Ads API v21 presets
+      let dateClause: string;
+      if (dateRange.period === 'lastMonth') {
+        dateClause = `segments.date DURING LAST_MONTH`;
+      } else {
+        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
+        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      }
+      
+      // Use gender_view for demographics (working approach for v21)
       const gaql = `
         SELECT 
           ad_group_criterion.gender.type,
@@ -1037,7 +1104,7 @@ export class GoogleAdsService {
           metrics.impressions,
           metrics.clicks
         FROM gender_view 
-        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        WHERE ${dateClause}
         AND ad_group_criterion.status = 'ENABLED'
       `;
 
@@ -1061,13 +1128,22 @@ export class GoogleAdsService {
       
       // Fallback to ad_group_criterion approach
       try {
+        let dateClause: string;
+        if (dateRange.period === 'lastMonth') {
+          dateClause = `segments.date DURING LAST_MONTH`;
+        } else if (dateRange.period === '30d') {
+          dateClause = `segments.date DURING LAST_30_DAYS`;
+        } else {
+          dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+        }
+        
         const fallbackGaql = `
           SELECT 
             ad_group_criterion.gender.type,
             metrics.conversions,
             metrics.cost_micros
           FROM ad_group_criterion 
-          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+          WHERE ${dateClause}
           AND ad_group_criterion.type = 'GENDER'
           AND ad_group_criterion.status = 'ENABLED'
         `;
@@ -1099,13 +1175,22 @@ export class GoogleAdsService {
    */
   private static async getAgeBreakdown(
     customerId: string, 
-    dateRange: { start: string; end: string },
+    dateRange: { start: string; end: string; period?: string },
     accessToken: string,
     developerToken: string,
     managerAccountId: string
   ): Promise<{ '25-34': number; '35-44': number; '45-54': number; '55+': number }> {
     try {
-      // Use age_range_view for demographics (correct approach for v21)
+      // Handle preset periods using Google Ads API v21 presets
+      let dateClause: string;
+      if (dateRange.period === 'lastMonth') {
+        dateClause = `segments.date DURING LAST_MONTH`;
+      } else {
+        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
+        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      }
+      
+      // Use age_range_view for demographics (working approach for v21)
       const gaql = `
         SELECT 
           ad_group_criterion.age_range.type,
@@ -1114,7 +1199,7 @@ export class GoogleAdsService {
           metrics.impressions,
           metrics.clicks
         FROM age_range_view 
-        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        WHERE ${dateClause}
         AND ad_group_criterion.status = 'ENABLED'
       `;
 
@@ -1138,13 +1223,22 @@ export class GoogleAdsService {
       
       // Fallback to ad_group_criterion approach
       try {
+        let dateClause: string;
+        if (dateRange.period === 'lastMonth') {
+          dateClause = `segments.date DURING LAST_MONTH`;
+        } else if (dateRange.period === '30d') {
+          dateClause = `segments.date DURING LAST_30_DAYS`;
+        } else {
+          dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+        }
+        
         const fallbackGaql = `
           SELECT 
             ad_group_criterion.age_range.type,
             metrics.conversions,
             metrics.cost_micros
           FROM ad_group_criterion 
-          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+          WHERE ${dateClause}
           AND ad_group_criterion.type = 'AGE_RANGE'
           AND ad_group_criterion.status = 'ENABLED'
         `;
@@ -1175,7 +1269,7 @@ export class GoogleAdsService {
    * Get campaign breakdown data from Google Ads
    * Uses simplified GAQL query to avoid segments issues
    */
-  static async getCampaignBreakdown(customerId: string, dateRange: { start: string; end: string }): Promise<{
+  static async getCampaignBreakdown(customerId: string, dateRange: { start: string; end: string; period?: string }): Promise<{
     campaignTypes: {
       search: number;
       display: number;
@@ -1202,7 +1296,16 @@ export class GoogleAdsService {
         return null;
       }
 
-      // Simplified GAQL query without segments to avoid 400 errors
+      // Handle preset periods using Google Ads API v21 presets
+      let dateClause: string;
+      if (dateRange.period === 'lastMonth') {
+        dateClause = `segments.date DURING LAST_MONTH`;
+      } else {
+        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
+        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+      }
+      
+      // GAQL query for campaign breakdown by advertising channel type
       const gaql = `
         SELECT 
           campaign.advertising_channel_type,
@@ -1210,7 +1313,7 @@ export class GoogleAdsService {
           metrics.conversions,
           metrics.cost_micros
         FROM campaign 
-        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
+        WHERE ${dateClause}
         AND campaign.status = 'ENABLED'
       `;
 

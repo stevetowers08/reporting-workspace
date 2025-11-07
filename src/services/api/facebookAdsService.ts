@@ -113,30 +113,22 @@ export class FacebookAdsService {
   }
 
   // Get user access token from integrations table
+  // ✅ PERFORMANCE FIX: Now uses TokenManager for caching and deduplication
   static async getUserAccessToken(): Promise<string> {
     try {
-      const { supabase } = await import('@/lib/supabase');
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('config')
-        .eq('platform', 'facebookAds')
-        .eq('connected', true)
-        .single();
-
-      if (error) {
-        debugLogger.error('FacebookAdsService', 'Error fetching Facebook config from database', error);
-        throw new Error('No Facebook integration found in database');
+      // Use TokenManager which provides caching and request deduplication
+      const { TokenManager } = await import('@/services/auth/TokenManager');
+      const token = await TokenManager.getAccessToken('facebookAds');
+      
+      if (!token) {
+        debugLogger.error('FacebookAdsService', 'No Facebook access token found');
+        throw new Error('No Facebook access token found. Please authenticate first.');
       }
 
-      const config = data?.config;
-      if (!config?.accessToken) {
-        throw new Error('No Facebook access token found in database');
-      }
-
-      debugLogger.debug('FacebookAdsService', 'Using Facebook user access token from database');
-      return config.accessToken;
+      debugLogger.debug('FacebookAdsService', 'Using Facebook user access token from TokenManager (cached)');
+      return token;
     } catch (error) {
-      debugLogger.error('FacebookAdsService', 'Error getting user access token from database', error);
+      debugLogger.error('FacebookAdsService', 'Error getting user access token from TokenManager', error);
       throw error;
     }
   }

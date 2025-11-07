@@ -152,7 +152,40 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Get specific spreadsheet data
+   * Validate and normalize sheet range format
+   * Google Sheets API requires ranges in A1 notation: 'SheetName!A1:Z100' or 'SheetName!A:Z'
+   */
+  private static validateRange(range: string): string {
+    // Remove any leading/trailing whitespace
+    const trimmed = range.trim();
+    
+    // Check if range contains sheet name separator
+    if (!trimmed.includes('!')) {
+      DevLogger.warn('GoogleSheetsService', 'Range missing sheet name separator (!), adding default format', { range: trimmed });
+      // If no sheet name, assume it's just a range - this might cause issues
+      return trimmed;
+    }
+    
+    // Validate A1 notation format (basic check)
+    const parts = trimmed.split('!');
+    if (parts.length !== 2) {
+      DevLogger.warn('GoogleSheetsService', 'Invalid range format, multiple ! separators', { range: trimmed });
+      return trimmed; // Return as-is and let API handle error
+    }
+    
+    const [sheetName, cellRange] = parts;
+    
+    // Validate cell range format (should match A1:A1, A:Z, A1:Z100, etc.)
+    const cellRangePattern = /^[A-Z]+(\d+)?:[A-Z]+(\d+)?$/;
+    if (!cellRangePattern.test(cellRange)) {
+      DevLogger.warn('GoogleSheetsService', 'Cell range format may be invalid', { range: trimmed, cellRange });
+    }
+    
+    return trimmed;
+  }
+
+  /**
+   * Get specific spreadsheet data with improved error handling
    */
   static async getSpreadsheetData(spreadsheetId: string, range?: string): Promise<{ values?: string[][]; range?: string } | null> {
     try {
@@ -162,10 +195,29 @@ export class GoogleSheetsService {
         return null;
       }
 
-      const rangeParam = range ? `/${encodeURIComponent(range)}` : '';
+      // Validate spreadsheetId
+      if (!spreadsheetId || spreadsheetId.trim().length === 0) {
+        DevLogger.error('GoogleSheetsService', 'Invalid spreadsheet ID', { spreadsheetId });
+        return null;
+      }
+
+      // Validate and normalize range if provided
+      let normalizedRange = range;
+      if (range) {
+        normalizedRange = this.validateRange(range);
+      }
+
+      // Build URL with proper encoding
+      // Google Sheets API v4 format: /v4/spreadsheets/{spreadsheetId}/values/{range}
+      const rangeParam = normalizedRange ? `/${encodeURIComponent(normalizedRange)}` : '';
       const url = `${this.API_BASE_URL}/spreadsheets/${spreadsheetId}/values${rangeParam}`;
 
-      DevLogger.debug('GoogleSheetsService', 'Fetching spreadsheet data', { spreadsheetId, range });
+      DevLogger.debug('GoogleSheetsService', 'Fetching spreadsheet data', { 
+        spreadsheetId, 
+        originalRange: range,
+        normalizedRange,
+        url: url.replace(accessToken.substring(0, 20), 'TOKEN...') // Log URL without exposing token
+      });
 
       const response = await fetch(url, {
         headers: {
@@ -175,11 +227,32 @@ export class GoogleSheetsService {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = errorText;
+        }
+
         DevLogger.error('GoogleSheetsService', 'Failed to get spreadsheet data', { 
           status: response.status,
+          statusText: response.statusText,
           spreadsheetId,
-          range 
+          originalRange: range,
+          normalizedRange,
+          error: errorDetails
         });
+
+        // Provide helpful error messages
+        if (response.status === 400) {
+          DevLogger.error('GoogleSheetsService', 'Bad Request (400) - Likely invalid range format', {
+            range,
+            normalizedRange,
+            suggestion: 'Range should be in A1 notation: "SheetName!A1:Z100" or "SheetName!A:Z"'
+          });
+        }
+
         return null;
       }
 

@@ -132,9 +132,11 @@ const AdAccountsOverview = () => {
 
                 try {
                     // Get comprehensive metrics using the new orchestrator
+                    // Force refresh when period changes to ensure fresh data
                     const metrics = await AnalyticsOrchestrator.getDashboardData(
                         client.id,
-                        dateRange
+                        dateRange,
+                        true // forceRefresh to bypass cache when period changes
                     );
 
                     const accountData: AdAccountData = {
@@ -228,8 +230,9 @@ const AdAccountsOverview = () => {
     };
 
     const getDateRange = (period: string) => {
-        const end = new Date();
-        const start = new Date();
+        const now = new Date();
+        const end = new Date(now);
+        const start = new Date(now);
 
         switch (period) {
             case '7d':
@@ -241,12 +244,19 @@ const AdAccountsOverview = () => {
             case '30d':
                 start.setDate(end.getDate() - 30);
                 break;
-            case 'lastMonth':
+            case 'lastMonth': {
                 // Last month: e.g., if today is Oct 10th, show Sep 1st to Sep 30th
-                start.setMonth(end.getMonth() - 1);
-                start.setDate(1);
-                end.setDate(0); // Last day of previous month
-                break;
+                const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+                start.setTime(lastMonthStart.getTime());
+                end.setTime(lastMonthEnd.getTime());
+                // Return with period flag so Google Ads service can handle it correctly
+                return {
+                    start: start.toISOString().split('T')[0],
+                    end: end.toISOString().split('T')[0],
+                    period: 'lastMonth'
+                };
+            }
             case '90d':
                 start.setDate(end.getDate() - 90);
                 break;
