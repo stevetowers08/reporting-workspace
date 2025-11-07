@@ -188,12 +188,26 @@ const AgencyPanel = () => {
       {showEditClientModal && editingClient && (
           <EditClientModal
             isOpen={showEditClientModal}
-          client={editingClient}
+            client={editingClient}
             onClose={() => {
               setShowEditClientModal(false);
               setEditingClient(null);
             }}
-          onUpdateClient={handleUpdateClientSubmit}
+            onUpdateClient={handleUpdateClientSubmit}
+            onReloadClient={async () => {
+              // Reload the client data after GHL connection
+              if (editingClient?.id) {
+                debugLogger.info('AdminPanel', 'Reloading client data after GHL connection', { clientId: editingClient.id });
+                const updatedClient = await DatabaseService.getClient(editingClient.id);
+                if (updatedClient) {
+                  setEditingClient(updatedClient);
+                  debugLogger.info('AdminPanel', 'Client data reloaded', { 
+                    clientId: updatedClient.id,
+                    goHighLevel: updatedClient.accounts?.goHighLevel 
+                  });
+                }
+              }
+            }}
           />
         )}
     </IntegrationErrorBoundary>

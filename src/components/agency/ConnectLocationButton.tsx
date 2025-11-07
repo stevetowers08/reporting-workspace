@@ -6,13 +6,13 @@
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
 import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface ConnectLocationButtonProps {
   clientId?: string;
-  onConnected?: () => void;
+  onConnected?: (locationId?: string) => void;
 }
 
 export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
@@ -57,7 +57,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       
       // Open OAuth flow in popup window (centered)
-      const width = 600;
+      const width = 900;
       const height = 700;
       const left = (window.innerWidth - width) / 2;
       const top = (window.innerHeight - height) / 2;
@@ -89,20 +89,22 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
         
         if (event.data?.type === 'GHL_OAUTH_SUCCESS') {
           debugLogger.info('ConnectLocationButton', 'OAuth popup success', event.data);
+          const locationId = event.data.locationId;
           popup.close();
           window.removeEventListener('message', handleMessage);
           setIsConnecting(false);
           
-          // Call onConnected callback if provided
-          if (onConnected) {
-            onConnected();
-          }
-          
           // Invalidate React Query cache to refresh venue dashboard
           // This follows React Query best practices for OAuth success
-          debugLogger.info('ConnectLocationButton', 'Invalidating React Query cache to refresh venue dashboard');
+          debugLogger.info('ConnectLocationButton', 'Invalidating React Query cache to refresh venue dashboard', { locationId });
           queryClient.invalidateQueries({ queryKey: ['available-clients'] });
           queryClient.invalidateQueries({ queryKey: ['integration-status'] });
+          queryClient.invalidateQueries({ queryKey: ['client-data', clientId] });
+          
+          // Call onConnected callback if provided, passing the locationId
+          if (onConnected) {
+            onConnected(locationId);
+          }
         } else if (event.data?.type === 'GHL_OAUTH_ERROR') {
           debugLogger.error('ConnectLocationButton', 'OAuth popup error', event.data);
           popup.close();

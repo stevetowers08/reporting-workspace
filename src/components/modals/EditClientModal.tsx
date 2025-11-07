@@ -3,6 +3,7 @@ import { CreateClientForm } from "@/components/agency/CreateClientForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";
+import React, { useState, useEffect } from "react";
 
 interface Client {
     id: string;
@@ -32,14 +33,36 @@ interface EditClientModalProps {
     onUpdateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
     onCreateClient?: (clientData: { name: string; logo_url?: string; status: 'active' | 'paused' | 'inactive' }) => Promise<void>;
     client: Client | null;
+    onReloadClient?: () => Promise<void>;
 }
 
-const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, client }: EditClientModalProps) => {
+const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, client, onReloadClient }: EditClientModalProps) => {
+    const [currentClient, setCurrentClient] = useState<Client | null>(client);
+    
+    // Update currentClient when client prop changes (but don't force form re-render)
+    useEffect(() => {
+        setCurrentClient(client);
+    }, [client]);
+    
+    // Reload client data when onReloadClient is provided
+    const handleReloadClient = async () => {
+        if (onReloadClient && client?.id) {
+            await onReloadClient();
+            // The client prop will be updated by the parent, which will trigger the useEffect above
+        }
+    };
+    
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-3xl mx-4 max-h-[75vh] overflow-y-auto">
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={onClose}
+        >
+            <Card 
+                className="w-full max-w-3xl mx-4 max-h-[75vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-lg">
                         {client ? 'Edit Client & Connections' : 'Create New Client'}
@@ -66,25 +89,27 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                     ) : (
                         // Editing existing client - full form with all connections
                         <ClientForm
+                            key={currentClient?.id} // Only re-render if client ID changes (new client), not on data updates
                             initialData={{
-                                name: client.name,
-                                logo_url: client.logo_url || "",
+                                name: currentClient?.name || "",
+                                logo_url: currentClient?.logo_url || "",
                                 accounts: {
-                                    facebookAds: client.accounts.facebookAds || "none",
-                                    googleAds: client.accounts.googleAds || "none",
-                                    goHighLevel: client.accounts.goHighLevel || "none",
-                                    googleSheets: client.accounts.googleSheets || "none",
+                                    facebookAds: currentClient?.accounts.facebookAds || "none",
+                                    googleAds: currentClient?.accounts.googleAds || "none",
+                                    goHighLevel: currentClient?.accounts.goHighLevel || "none",
+                                    googleSheets: currentClient?.accounts.googleSheets || "none",
                                 },
                                 conversionActions: {
-                                    facebookAds: client.conversion_actions?.facebookAds || "lead",
-                                    googleAds: client.conversion_actions?.googleAds || "conversions",
+                                    facebookAds: currentClient?.conversion_actions?.facebookAds || "lead",
+                                    googleAds: currentClient?.conversion_actions?.googleAds || "conversions",
                                 },
-                                googleSheetsConfig: client.accounts?.googleSheetsConfig || undefined,
+                                googleSheetsConfig: currentClient?.accounts?.googleSheetsConfig || undefined,
                             }}
                             isEdit={true}
-                            clientId={client.id}
+                            clientId={currentClient?.id || ""}
+                            onClientDataReload={handleReloadClient}
                             onSubmit={async (formData) => {
-                                await onUpdateClient(client.id, {
+                                await onUpdateClient(currentClient?.id || "", {
                                     name: formData.name,
                                     logo_url: formData.logo_url,
                                     status: formData.status,

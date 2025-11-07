@@ -121,6 +121,7 @@ interface ClientFormProps {
   onSubmit: (formData: ClientFormData) => Promise<void>;
   onCancel: () => void;
   cancelLabel?: string;
+  onClientDataReload?: () => Promise<void>;
 }
 
 export const ClientForm: React.FC<ClientFormProps> = React.memo(({
@@ -129,7 +130,8 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   clientId,
   onSubmit,
   onCancel,
-  cancelLabel = "Cancel"
+  cancelLabel = "Cancel",
+  onClientDataReload
 }) => {
   debugLogger.info('ClientForm', 'Component loaded with initialData:', initialData);
   debugLogger.info('ClientForm', 'initialData.googleSheetsConfig:', initialData?.googleSheetsConfig);
@@ -191,6 +193,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   } | null>(null);
   const [googleSheetsSuccess, setGoogleSheetsSuccess] = useState<string | null>(null);
   const [spreadsheetName, setSpreadsheetName] = useState<string | null>(null);
+  const [spreadsheetLoading, setSpreadsheetLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   
@@ -198,31 +201,66 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   useEffect(() => {
     const fetchSpreadsheetName = async () => {
       if (googleSheetsConfig?.spreadsheetId) {
+        setSpreadsheetLoading(true);
         try {
+          debugLogger.info('ClientForm', 'Fetching spreadsheet name', { spreadsheetId: googleSheetsConfig.spreadsheetId });
+          console.log('📊 ClientForm: Fetching spreadsheet name for:', googleSheetsConfig.spreadsheetId);
+          
           const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
           const accessToken = await GoogleSheetsService.getAccessToken();
           
-          if (accessToken) {
-            const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              setSpreadsheetName(data.properties?.title || 'Unknown Spreadsheet');
-            } else {
-              setSpreadsheetName('Unknown Spreadsheet');
+          if (!accessToken) {
+            debugLogger.warn('ClientForm', 'No Google Sheets access token available');
+            console.warn('⚠️ ClientForm: No Google Sheets access token. Please connect Google Sheets first.');
+            setSpreadsheetName('Not connected');
+            setSpreadsheetLoading(false);
+            return;
+          }
+          
+          debugLogger.info('ClientForm', 'Fetching spreadsheet metadata', { 
+            spreadsheetId: googleSheetsConfig.spreadsheetId,
+            hasToken: !!accessToken 
+          });
+          console.log('📊 ClientForm: Fetching spreadsheet metadata with token');
+          
+          const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
             }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const title = data.properties?.title || 'Unknown Spreadsheet';
+            debugLogger.info('ClientForm', 'Successfully fetched spreadsheet name', { title });
+            console.log('✅ ClientForm: Spreadsheet name fetched:', title);
+            setSpreadsheetName(title);
+          } else {
+            const errorText = await response.text();
+            debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', { 
+              status: response.status, 
+              statusText: response.statusText,
+              error: errorText 
+            });
+            console.error('❌ ClientForm: Failed to fetch spreadsheet name', {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText,
+              spreadsheetId: googleSheetsConfig.spreadsheetId
+            });
+            setSpreadsheetName('Error loading spreadsheet');
           }
         } catch (error) {
           debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', error);
-          setSpreadsheetName('Unknown Spreadsheet');
+          console.error('❌ ClientForm: Exception while fetching spreadsheet name', error);
+          setSpreadsheetName('Error loading spreadsheet');
+        } finally {
+          setSpreadsheetLoading(false);
         }
       } else {
         setSpreadsheetName(null);
+        setSpreadsheetLoading(false);
       }
     };
 
@@ -1419,7 +1457,31 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
               <div className="text-center py-4">
                 <ConnectLocationButton 
                   clientId={clientId || 'new_client'}
-                  onConnected={async () => {
+                  onConnected={async (locationId) => {
+                    debugLogger.info('ClientForm', 'GHL connection successful, updating formData only', { locationId, clientId });
+                    
+                    // Only update the GHL connection in formData - don't reload entire form
+                    // This preserves all other form data (Facebook, Google Ads, etc.)
+                    if (locationId) {
+                      debugLogger.info('ClientForm', 'Updating formData.accounts.goHighLevel', { locationId });
+                      setFormData(prev => ({
+                        ...prev,
+                        accounts: {
+                          ...prev.accounts,
+                          goHighLevel: locationId
+                        }
+                      }));
+                      
+                      // Also update parent's client state in background (for consistency)
+                      if (onClientDataReload && clientId && clientId !== 'new_client') {
+                        debugLogger.info('ClientForm', 'Updating parent client state in background');
+                        onClientDataReload().catch(error => {
+                          debugLogger.error('ClientForm', 'Failed to update parent client state', error);
+                          // Don't throw - this is just for consistency, formData is already updated
+                        });
+                      }
+                    }
+                    
                     // Refresh GHL accounts to show updated connection status
                     setGhlAccountsLoaded(false);
                     await loadGHLAccounts();
@@ -1431,7 +1493,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                       .select('platform')
                       .eq('connected', true);
 
-                    const statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false };
+                    const statusMap: Record<string, boolean> = { facebookAds: false, googleAds: false, googleSheets: false, goHighLevel: false };
 
                     if (error) {
                       debugLogger.error('ClientForm', 'Failed to refresh integrations', error);
@@ -1557,7 +1619,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                   <div className="space-y-2">
                     <div className="bg-gray-50 p-2 rounded text-xs">
                       <div className="font-medium text-gray-700">
-                        Spreadsheet: {spreadsheetName || 'Loading...'}
+                        Spreadsheet: {spreadsheetLoading ? 'Loading...' : (spreadsheetName || 'Not configured')}
                       </div>
                       <div className="text-gray-500 mt-1">
                         Sheet: {googleSheetsConfig?.sheetName || 'No sheet configured'}
