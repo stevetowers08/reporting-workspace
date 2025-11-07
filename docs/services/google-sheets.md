@@ -1,6 +1,6 @@
 # Google Sheets Integration
 
-**Last Updated:** January 20, 2025  
+**Last Updated:** November 7, 2025  
 **Service Version:** v4  
 **Implementation Status:** ✅ Active
 
@@ -25,6 +25,9 @@
 - ✅ Lead data processing
 - ✅ Smart data parsing
 - ✅ Token refresh automation
+- ✅ Unified integration save pattern (consistent with Facebook/Google Ads)
+- ✅ Optimized performance with debounced API calls
+- ✅ Client-level spreadsheet configuration
 
 ## Authentication Flow
 
@@ -419,6 +422,104 @@ const isExpired = await GoogleSheetsOAuthService.isTokenExpired();
 if (isExpired) {
   await GoogleSheetsOAuthService.refreshToken();
 }
+```
+
+## Client Form Integration
+
+### Unified Save Pattern
+
+Google Sheets now uses the same save pattern as Facebook Ads and Google Ads for consistency:
+
+**Location:** `src/components/agency/ClientForm.tsx`
+
+```typescript
+// Unified save handler for all integrations
+const handleSaveIntegration = (platform: string) => {
+  const pendingValue = pendingChanges[platform];
+  
+  if (platform === 'googleSheets' && typeof pendingValue === 'object') {
+    // Update googleSheetsConfig state
+    setGoogleSheetsConfig({
+      spreadsheetId: pendingValue.spreadsheetId,
+      sheetName: pendingValue.sheetName
+    });
+    
+    // Update formData
+    setFormData(prev => ({
+      ...prev,
+      accounts: {
+        ...prev.accounts,
+        googleSheets: pendingValue.spreadsheetId || 'none',
+      },
+    }));
+  }
+};
+```
+
+### Performance Optimizations (November 2025)
+
+#### 1. Debounced Spreadsheet Name Fetching
+- **300ms debounce** prevents rapid API calls during state updates
+- Reduces unnecessary Google Sheets API requests
+- Improves save performance significantly
+
+```typescript
+// Debounced fetch to avoid rapid API calls
+useEffect(() => {
+  const timeoutId = setTimeout(async () => {
+    // Fetch spreadsheet name
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`);
+    // ...
+  }, 300); // 300ms debounce
+  
+  return () => clearTimeout(timeoutId);
+}, [googleSheetsConfig?.spreadsheetId]);
+```
+
+#### 2. Unified Save Button
+- Uses `handleSaveIntegration('googleSheets')` like other integrations
+- Consistent user experience across all platforms
+- Simplified codebase maintenance
+
+### Configuration Storage
+
+Google Sheets configuration is stored in the client's `accounts` JSONB field:
+
+```typescript
+interface Client {
+  accounts: {
+    googleSheets: string; // Spreadsheet ID
+    googleSheetsConfig?: {
+      spreadsheetId: string;
+      sheetName: string;
+    };
+  };
+}
+```
+
+**Database Schema:**
+- `clients.accounts.googleSheets` - Spreadsheet ID (string)
+- `clients.accounts.googleSheetsConfig` - Full config object with spreadsheetId and sheetName
+
+### Component Usage
+
+```typescript
+<GoogleSheetsSelector
+  initialSpreadsheetId={googleSheetsConfig?.spreadsheetId}
+  initialSheetName={googleSheetsConfig?.sheetName}
+  hideSaveButton={true}
+  onSelectionComplete={(spreadsheetId, sheetName) => {
+    // Store in pendingChanges
+    setPendingChanges(prev => ({
+      ...prev,
+      googleSheets: { spreadsheetId, sheetName }
+    }));
+  }}
+/>
+
+<Button onClick={() => handleSaveIntegration('googleSheets')}>
+  Save
+</Button>
 ```
 
 ## Future Enhancements

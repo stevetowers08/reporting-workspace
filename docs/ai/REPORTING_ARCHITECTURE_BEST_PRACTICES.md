@@ -1,7 +1,7 @@
 # Reporting Architecture Best Practices
 
-**Last Updated:** January 20, 2025  
-**Version:** 2.0.0  
+**Last Updated:** November 7, 2025  
+**Version:** 2.1.0  
 **Status:** ✅ **PRODUCTION IMPLEMENTED**  
 **Purpose:** Guidelines for building scalable, maintainable reporting dashboards
 
@@ -468,6 +468,87 @@ export const useDebouncedChartUpdate = (delay = 300) => {
     updateParams: setParams,
   };
 };
+```
+
+### 4. **Unified Integration Save Pattern** ✅ **IMPLEMENTED (November 2025)**
+
+All integrations (Facebook Ads, Google Ads, Google Sheets, GoHighLevel) now use a unified save pattern for consistency:
+
+**Location:** `src/components/agency/ClientForm.tsx`
+
+```typescript
+// ✅ GOOD: Unified save handler for all integrations
+const handleSaveIntegration = (platform: string) => {
+  const pendingValue = pendingChanges[platform];
+  
+  if (pendingValue !== undefined) {
+    setFormData(prev => {
+      // Platform-specific handling
+      if (platform === 'goHighLevel') {
+        // Handle GHL location object
+        return { ...prev, accounts: { ...prev.accounts, goHighLevel: pendingValue } };
+      }
+      
+      if (platform === 'googleSheets' && typeof pendingValue === 'object') {
+        // Handle Google Sheets config object
+        setGoogleSheetsConfig({
+          spreadsheetId: pendingValue.spreadsheetId,
+          sheetName: pendingValue.sheetName
+        });
+        return {
+          ...prev,
+          accounts: {
+            ...prev.accounts,
+            googleSheets: pendingValue.spreadsheetId || 'none',
+          },
+        };
+      }
+      
+      // Default handling for Facebook Ads, Google Ads (string values)
+      if (typeof pendingValue === 'string') {
+        return {
+          ...prev,
+          accounts: {
+            ...prev.accounts,
+            [platform]: pendingValue === "none" ? "" : pendingValue,
+          },
+        };
+      }
+      
+      return prev;
+    });
+  }
+  
+  // Clear edit state and pending changes
+  setEditingIntegrations(prev => ({ ...prev, [platform]: false }));
+  setPendingChanges(prev => {
+    const newPending = { ...prev };
+    delete newPending[platform];
+    return newPending;
+  });
+};
+```
+
+**Key Benefits:**
+- ✅ **Consistency**: All integrations follow the same pattern
+- ✅ **Maintainability**: Single function to update for all platforms
+- ✅ **Performance**: Debounced API calls prevent rapid requests
+- ✅ **User Experience**: Unified behavior across all integrations
+
+**Performance Optimization:**
+```typescript
+// ✅ GOOD: Debounce spreadsheet name fetching to avoid rapid API calls
+useEffect(() => {
+  if (!googleSheetsConfig?.spreadsheetId) return;
+  
+  const timeoutId = setTimeout(async () => {
+    // Fetch spreadsheet name
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`);
+    // ...
+  }, 300); // 300ms debounce
+  
+  return () => clearTimeout(timeoutId);
+}, [googleSheetsConfig?.spreadsheetId]);
 ```
 
 ---
