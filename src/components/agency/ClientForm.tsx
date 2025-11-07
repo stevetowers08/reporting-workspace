@@ -197,74 +197,77 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   
-  // Fetch spreadsheet name when googleSheetsConfig changes
+  // Fetch spreadsheet name when googleSheetsConfig changes (debounced to avoid rapid API calls)
   useEffect(() => {
-    const fetchSpreadsheetName = async () => {
-      if (googleSheetsConfig?.spreadsheetId) {
-        setSpreadsheetLoading(true);
-        try {
-          debugLogger.info('ClientForm', 'Fetching spreadsheet name', { spreadsheetId: googleSheetsConfig.spreadsheetId });
-          console.log('📊 ClientForm: Fetching spreadsheet name for:', googleSheetsConfig.spreadsheetId);
-          
-          const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
-          const accessToken = await GoogleSheetsService.getAccessToken();
-          
-          if (!accessToken) {
-            debugLogger.warn('ClientForm', 'No Google Sheets access token available');
-            console.warn('⚠️ ClientForm: No Google Sheets access token. Please connect Google Sheets first.');
-            setSpreadsheetName('Not connected');
-            setSpreadsheetLoading(false);
-            return;
-          }
-          
-          debugLogger.info('ClientForm', 'Fetching spreadsheet metadata', { 
-            spreadsheetId: googleSheetsConfig.spreadsheetId,
-            hasToken: !!accessToken 
-          });
-          console.log('📊 ClientForm: Fetching spreadsheet metadata with token');
-          
-          const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const title = data.properties?.title || 'Unknown Spreadsheet';
-            debugLogger.info('ClientForm', 'Successfully fetched spreadsheet name', { title });
-            console.log('✅ ClientForm: Spreadsheet name fetched:', title);
-            setSpreadsheetName(title);
-          } else {
-            const errorText = await response.text();
-            debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', { 
-              status: response.status, 
-              statusText: response.statusText,
-              error: errorText 
-            });
-            console.error('❌ ClientForm: Failed to fetch spreadsheet name', {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorText,
-              spreadsheetId: googleSheetsConfig.spreadsheetId
-            });
-            setSpreadsheetName('Error loading spreadsheet');
-          }
-        } catch (error) {
-          debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', error);
-          console.error('❌ ClientForm: Exception while fetching spreadsheet name', error);
-          setSpreadsheetName('Error loading spreadsheet');
-        } finally {
+    // Skip if we already have the name for this spreadsheet
+    if (!googleSheetsConfig?.spreadsheetId) {
+      setSpreadsheetName(null);
+      setSpreadsheetLoading(false);
+      return;
+    }
+    
+    // Debounce the API call to avoid rapid calls during state updates
+    const timeoutId = setTimeout(async () => {
+      setSpreadsheetLoading(true);
+      try {
+        debugLogger.info('ClientForm', 'Fetching spreadsheet name', { spreadsheetId: googleSheetsConfig.spreadsheetId });
+        console.log('📊 ClientForm: Fetching spreadsheet name for:', googleSheetsConfig.spreadsheetId);
+        
+        const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
+        const accessToken = await GoogleSheetsService.getAccessToken();
+        
+        if (!accessToken) {
+          debugLogger.warn('ClientForm', 'No Google Sheets access token available');
+          console.warn('⚠️ ClientForm: No Google Sheets access token. Please connect Google Sheets first.');
+          setSpreadsheetName('Not connected');
           setSpreadsheetLoading(false);
+          return;
         }
-      } else {
-        setSpreadsheetName(null);
+        
+        debugLogger.info('ClientForm', 'Fetching spreadsheet metadata', { 
+          spreadsheetId: googleSheetsConfig.spreadsheetId,
+          hasToken: !!accessToken 
+        });
+        console.log('📊 ClientForm: Fetching spreadsheet metadata with token');
+        
+        const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const title = data.properties?.title || 'Unknown Spreadsheet';
+          debugLogger.info('ClientForm', 'Successfully fetched spreadsheet name', { title });
+          console.log('✅ ClientForm: Spreadsheet name fetched:', title);
+          setSpreadsheetName(title);
+        } else {
+          const errorText = await response.text();
+          debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', { 
+            status: response.status, 
+            statusText: response.statusText,
+            error: errorText 
+          });
+          console.error('❌ ClientForm: Failed to fetch spreadsheet name', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+            spreadsheetId: googleSheetsConfig.spreadsheetId
+          });
+          setSpreadsheetName('Error loading spreadsheet');
+        }
+      } catch (error) {
+        debugLogger.error('ClientForm', 'Failed to fetch spreadsheet name', error);
+        console.error('❌ ClientForm: Exception while fetching spreadsheet name', error);
+        setSpreadsheetName('Error loading spreadsheet');
+      } finally {
         setSpreadsheetLoading(false);
       }
-    };
+    }, 300); // 300ms debounce to avoid rapid API calls
 
-    fetchSpreadsheetName();
+    return () => clearTimeout(timeoutId);
   }, [googleSheetsConfig?.spreadsheetId]);
   
   // Edit states for each integration
@@ -717,7 +720,25 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           }
         }
         
-        // Default handling for other platforms
+        // Handle Google Sheets - it stores an object with spreadsheetId and sheetName
+        if (platform === 'googleSheets' && typeof pendingValue === 'object' && pendingValue !== null && 'spreadsheetId' in pendingValue) {
+          debugLogger.info('ClientForm', 'handleSaveIntegration: Saving Google Sheets config', pendingValue);
+          // Update googleSheetsConfig state
+          setGoogleSheetsConfig({
+            spreadsheetId: pendingValue.spreadsheetId,
+            sheetName: pendingValue.sheetName
+          });
+          
+          return {
+            ...prev,
+            accounts: {
+              ...prev.accounts,
+              googleSheets: pendingValue.spreadsheetId || 'none',
+            },
+          };
+        }
+        
+        // Default handling for other platforms (Facebook Ads, Google Ads)
         if (typeof pendingValue === 'string') {
           return {
             ...prev,
@@ -730,6 +751,12 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         
         return prev;
       });
+      
+      // Show success message for Google Sheets
+      if (platform === 'googleSheets' && typeof pendingValue === 'object' && pendingValue !== null && 'sheetName' in pendingValue) {
+        setGoogleSheetsSuccess(`Configured: ${pendingValue.sheetName}`);
+        window.setTimeout(() => setGoogleSheetsSuccess(null), 3000);
+      }
     }
 
     // Clear edit state and pending changes
@@ -1571,35 +1598,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                       <Button 
                         type="button"
                         size="sm"
-                        onClick={() => {
-                          debugLogger.info('ClientForm', 'Save button clicked');
-                          debugLogger.info('ClientForm', 'Pending changes:', pendingChanges);
-                          const pending = pendingChanges.googleSheets;
-                          debugLogger.info('ClientForm', 'GoogleSheets pending:', pending);
-                          
-                          if (pending && typeof pending === 'object' && 'spreadsheetId' in pending) {
-                            debugLogger.info('ClientForm', 'Saving GoogleSheets config:', pending);
-                            setGoogleSheetsConfig(pending);
-                            setFormData(prev => ({
-                              ...prev,
-                              accounts: {
-                                ...prev.accounts,
-                                googleSheets: pending.spreadsheetId
-                              }
-                            }));
-                            setGoogleSheetsSuccess(`Configured: ${pending.sheetName}`);
-                            window.setTimeout(() => setGoogleSheetsSuccess(null), 3000);
-                            debugLogger.info('ClientForm', 'GoogleSheets config saved successfully');
-                          } else {
-                            debugLogger.info('ClientForm', 'No valid pending changes to save');
-                          }
-                          setEditingIntegrations(prev => ({ ...prev, googleSheets: false }));
-                          setPendingChanges(prev => {
-                            const newPending = { ...prev };
-                            delete newPending.googleSheets;
-                            return newPending;
-                          });
-                        }}
+                        onClick={() => handleSaveIntegration('googleSheets')}
                         className="flex-1"
                       >
                         Save
