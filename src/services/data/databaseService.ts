@@ -373,8 +373,47 @@ export class DatabaseService {
 
   static async updateClient(id: string, updates: Partial<Client>): Promise<Client> {
     try {
+      debugLogger.info('DatabaseService', 'Starting client update', { id, updates });
+      
+      // Handle googleSheetsConfig - merge it into accounts if provided
+      let processedUpdates = { ...updates };
+      let currentClient: Client | null = null;
+      
+      // Only fetch current client if we need to merge googleSheetsConfig
+      const needsMerge = ('googleSheetsConfig' in updates && updates.googleSheetsConfig) || 
+                         (updates.accounts && !updates.googleSheetsConfig);
+      
+      if (needsMerge) {
+        currentClient = await supabaseHelpers.getClient(id);
+        const currentAccounts = currentClient?.accounts || {};
+        
+        if ('googleSheetsConfig' in updates && updates.googleSheetsConfig) {
+          debugLogger.info('DatabaseService', 'Merging googleSheetsConfig into accounts', { googleSheetsConfig: updates.googleSheetsConfig });
+          
+          // Merge googleSheetsConfig into accounts
+          processedUpdates.accounts = {
+            ...currentAccounts,
+            ...(updates.accounts || {}),
+            googleSheetsConfig: updates.googleSheetsConfig
+          };
+          
+          // Remove googleSheetsConfig from top level since it's now in accounts
+          delete processedUpdates.googleSheetsConfig;
+          
+          debugLogger.info('DatabaseService', 'Merged accounts with googleSheetsConfig', { accounts: processedUpdates.accounts });
+        } else if (updates.accounts && currentAccounts.googleSheetsConfig) {
+          // Preserve existing googleSheetsConfig when updating other account fields
+          processedUpdates.accounts = {
+            ...currentAccounts,
+            ...updates.accounts,
+            googleSheetsConfig: currentAccounts.googleSheetsConfig
+          };
+          debugLogger.info('DatabaseService', 'Preserved existing googleSheetsConfig', { googleSheetsConfig: currentAccounts.googleSheetsConfig });
+        }
+      }
+      
       // Validate input data
-      const validatedUpdates = validateInput(ClientUpdateSchema, updates);
+      const validatedUpdates = validateInput(ClientUpdateSchema, processedUpdates);
       
       const client = await supabaseHelpers.updateClient(id, validatedUpdates);
       debugLogger.info('DatabaseService', 'Client updated successfully in database', { id, updates: validatedUpdates });

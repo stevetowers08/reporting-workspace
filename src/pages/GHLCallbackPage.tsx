@@ -191,17 +191,32 @@ export const GHLCallbackPage: React.FC = () => {
             debugLogger.info('GHLCallbackPage', 'Attempting to retrieve clientId from parent window');
             try {
               // Post a message to parent asking for the clientId
-              const messageChannel = new MessageChannel();
-              messageChannel.port1.onmessage = (event) => {
-                if (event.data.type === 'CLIENT_ID_RESPONSE') {
-                  targetClientId = event.data.clientId;
-                  debugLogger.info('GHLCallbackPage', 'Received clientId from parent', { targetClientId });
-                }
-              };
-              window.opener.postMessage({ type: 'GET_CLIENT_ID_REQUEST', state }, '*', [messageChannel.port2]);
+              window.opener.postMessage({ type: 'GET_CLIENT_ID_REQUEST', state }, window.location.origin);
               
-              // Wait a bit for response (but don't block too long)
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Wait for response with a promise
+              const clientIdPromise = new Promise<string | null>((resolve) => {
+                const messageHandler = (event: MessageEvent) => {
+                  if (event.origin !== window.location.origin) {
+                    return;
+                  }
+                  
+                  if (event.data?.type === 'CLIENT_ID_RESPONSE') {
+                    window.removeEventListener('message', messageHandler);
+                    resolve(event.data.clientId || null);
+                  }
+                };
+                
+                window.addEventListener('message', messageHandler);
+                
+                // Timeout after 2 seconds
+                setTimeout(() => {
+                  window.removeEventListener('message', messageHandler);
+                  resolve(null);
+                }, 2000);
+              });
+              
+              targetClientId = await clientIdPromise;
+              debugLogger.info('GHLCallbackPage', 'Received clientId from parent', { targetClientId });
             } catch (error) {
               debugLogger.error('GHLCallbackPage', 'Failed to get clientId from parent', error);
             }
@@ -240,48 +255,83 @@ export const GHLCallbackPage: React.FC = () => {
               // Get the current client
               const { data: currentClient, error: fetchError } = await supabase
                 .from('clients')
-                .select('accounts')
+                .select('accounts, id, name')
                 .eq('id', targetClientId)
                 .single();
               
               if (fetchError) {
-                debugLogger.error('GHLCallbackPage', 'Failed to fetch client', fetchError);
-              } else if (!currentClient || !currentClient.accounts) {
-                debugLogger.error('GHLCallbackPage', 'Client not found or missing accounts');
+                debugLogger.error('GHLCallbackPage', 'Failed to fetch client', { error: fetchError, clientId: targetClientId });
+                throw new Error(`Failed to fetch client: ${fetchError.message}`);
+              } else if (!currentClient) {
+                debugLogger.error('GHLCallbackPage', 'Client not found', { clientId: targetClientId });
+                throw new Error(`Client not found: ${targetClientId}`);
               } else {
                 // Update client's accounts.goHighLevel with the location ID
                 // GoHighLevel can be either a string (location ID) or an object
+                const currentAccounts = currentClient.accounts || {};
                 const updatedAccounts = {
-                  ...currentClient.accounts,
+                  ...currentAccounts,
                   goHighLevel: tokenData.locationId // Store as string location ID
                 };
                 
-                debugLogger.info('GHLCallbackPage', 'Updating client accounts', { targetClientId, locationId: tokenData.locationId, updatedAccounts });
+                debugLogger.info('GHLCallbackPage', 'Updating client accounts', { 
+                  targetClientId, 
+                  locationId: tokenData.locationId, 
+                  currentAccounts,
+                  updatedAccounts 
+                });
                 
-                const { error: updateError } = await supabase
+                const { data: updatedClient, error: updateError } = await supabase
                   .from('clients')
                   .update({ 
                     accounts: updatedAccounts,
                     updated_at: new Date().toISOString()
                   })
-                  .eq('id', targetClientId);
+                  .eq('id', targetClientId)
+                  .select()
+                  .single();
                 
                 if (updateError) {
-                  debugLogger.error('GHLCallbackPage', 'Failed to update client with location', updateError);
+                  debugLogger.error('GHLCallbackPage', 'Failed to update client with location', { 
+                    error: updateError, 
+                    clientId: targetClientId,
+                    locationId: tokenData.locationId 
+                  });
+                  throw new Error(`Failed to update client: ${updateError.message}`);
                 } else {
-                  debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client', { targetClientId, locationId: tokenData.locationId });
+                  debugLogger.info('GHLCallbackPage', 'Successfully assigned location to client', { 
+                    targetClientId, 
+                    locationId: tokenData.locationId,
+                    updatedClient: updatedClient?.id 
+                  });
+                  
                   // Cleanup the session keys to avoid cross-assignment
                   try {
-                    sessionStorage.removeItem(`ghl_oauth_client_id_${state}`);
+                    if (state) {
+                      sessionStorage.removeItem(`ghl_oauth_client_id_${state}`);
+                    }
                     sessionStorage.removeItem('oauth_state_goHighLevel');
-                  } catch (_cleanupErr) {}
+                  } catch (_cleanupErr) {
+                    debugLogger.warn('GHLCallbackPage', 'Failed to cleanup sessionStorage', _cleanupErr);
+                  }
                 }
               }
             } catch (error) {
-              debugLogger.error('GHLCallbackPage', 'Error assigning location to client', error);
+              debugLogger.error('GHLCallbackPage', 'Error assigning location to client', { 
+                error, 
+                clientId: targetClientId,
+                locationId: tokenData.locationId,
+                errorMessage: error instanceof Error ? error.message : 'Unknown error'
+              });
+              // Don't throw - we still want to show success even if client update fails
+              // The integration is saved, just the client assignment failed
             }
           } else {
-            debugLogger.error('GHLCallbackPage', 'No target client ID found', { targetClientId, hasState: !!state });
+            debugLogger.warn('GHLCallbackPage', 'No target client ID found - location saved to integrations but not assigned to client', { 
+              targetClientId, 
+              hasState: !!state,
+              locationId: tokenData.locationId 
+            });
           }
           
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 12: COMPLETE SUCCESS!');

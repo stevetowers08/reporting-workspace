@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Client } from '@/services/agency/agencyService';
-import { BarChart3, Edit, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
+import { BarChart3, Copy, Edit, ExternalLink, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface ClientManagementTabProps {
@@ -25,6 +25,18 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
   onOpenClient
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [copiedClientId, setCopiedClientId] = useState<string | null>(null);
+
+  const handleCopyShareLink = async (client: Client) => {
+    const shareUrl = client.shareable_link || `${window.location.origin}/share/${client.id}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedClientId(client.id);
+      setTimeout(() => setCopiedClientId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy share link:', error);
+    }
+  };
 
   const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -48,7 +60,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
           <Button 
             onClick={onAddClient}
             size="sm"
-            className="h-8"
+            className="h-8 bg-blue-600 text-white"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             Add Venue
@@ -84,6 +96,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Venue</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Platforms</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Share Link</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -145,6 +158,18 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                           />
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyShareLink(client)}
+                        className="h-7 px-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                        title="Copy Share Link"
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1.5" />
+                        {copiedClientId === client.id ? 'Copied!' : 'Copy'}
+                      </Button>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
