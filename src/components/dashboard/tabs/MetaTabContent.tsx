@@ -32,13 +32,28 @@ const MetaAdsPlatformBreakdown = lazy(() =>
 interface MetaTabContentProps {
   clientId: string;
   dateRange: { start: string; end: string };
+  clientData?: any;
 }
 
 export const MetaTabContent: React.FC<MetaTabContentProps> = React.memo(({
   clientId,
-  dateRange
+  dateRange,
+  clientData
 }) => {
-  const { data, isLoading, error } = useMetaTabData(clientId, dateRange);
+  const { data, isLoading, error, isFetching } = useMetaTabData(clientId, dateRange, clientData);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[MetaTabContent] State update', {
+      isLoading,
+      isFetching,
+      hasData: !!data,
+      hasError: !!error,
+      errorMessage: error?.message,
+      hasClientData: !!data?.clientData,
+      facebookAdsAccount: data?.clientData?.accounts?.facebookAds
+    });
+  }, [isLoading, isFetching, data, error]);
 
   if (error) {
     return (
@@ -46,6 +61,22 @@ export const MetaTabContent: React.FC<MetaTabContentProps> = React.memo(({
         <div className="text-center text-red-600">
           <h3 className="text-lg font-semibold mb-2">Error Loading Meta Data</h3>
           <p>{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if Facebook Ads integration is missing based on clientData
+  const hasFacebookAdsIntegration = data?.clientData?.accounts?.facebookAds && 
+    data.clientData.accounts.facebookAds !== 'none';
+
+  // Show message if no Facebook Ads integration (only after loading completes)
+  if (!isLoading && data && !hasFacebookAdsIntegration) {
+    return (
+      <div className="p-6">
+        <div className="text-center text-slate-500">
+          <h3 className="text-lg font-semibold mb-2">No Facebook Ads Integration</h3>
+          <p>Please connect a Facebook Ads account to view analytics data.</p>
         </div>
       </div>
     );

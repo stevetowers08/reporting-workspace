@@ -82,7 +82,6 @@ export const GoogleAdsDemographics: React.FC<GoogleAdsDemographicsProps> = ({ da
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Gender</h3>
-              <span className="text-xs text-slate-500">{totalLeads} total leads</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-8 relative overflow-hidden">
               <div className="bg-blue-500 h-8 rounded-l-full transition-all duration-700 ease-out flex items-center justify-center" style={{ width: `${gender.female}%` }}>

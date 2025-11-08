@@ -232,9 +232,20 @@ export class GoogleAdsTroubleshoot {
         accounts: accounts.map(a => ({ id: a.id, name: a.name }))
       });
       
+      // Map service accounts to common type format
+      const mappedAccounts: CommonGoogleAdsAccount[] = accounts.map(account => ({
+        id: account.id,
+        name: account.name,
+        status: account.status,
+        resourceName: `customers/${account.id}`,
+        currencyCode: account.currency || 'USD',
+        timeZone: account.timezone || 'UTC',
+        descriptiveName: account.name
+      }));
+      
       return {
         success: true,
-        accounts
+        accounts: mappedAccounts
       };
     } catch (error) {
       debugLogger.error('GoogleAdsTroubleshoot', 'Account fetching failed', error);

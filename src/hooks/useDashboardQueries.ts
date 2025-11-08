@@ -10,23 +10,31 @@ interface Client {
 }
 
 // Custom hook for fetching dashboard data with React Query
-export const useDashboardData = (clientId: string | undefined, dateRange?: { start: string; end: string }) => {
+export const useDashboardData = (clientId: string | undefined, dateRange?: { start: string; end: string }, clientData?: Client | null) => {
   return useQuery({
     queryKey: ['dashboard-data', clientId, dateRange, 'with-previous-period'],
-    queryFn: async (): Promise<EventDashboardData> => {
+    queryFn: async ({ signal }): Promise<EventDashboardData> => {
       if (!clientId) {throw new Error('Client ID is required');}
       
-      // Get client data first to extract account information
-      const clientData = await DatabaseService.getClientById(clientId);
-      if (!clientData) {throw new Error('Client not found');}
+      // Use provided client data or fetch if not available
+      let finalClientData = clientData;
+      if (!finalClientData) {
+        finalClientData = await DatabaseService.getClientById(clientId);
+      }
+      if (!finalClientData) {throw new Error('Client not found');}
+      
+      // Check for cancellation
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       
       // Extract account information from client data
       const clientAccounts = {
-        facebookAds: clientData.accounts?.facebookAds,
-        googleAds: clientData.accounts?.googleAds,
-        goHighLevel: clientData.accounts?.goHighLevel,
-        googleSheets: clientData.accounts?.googleSheets,
-        googleSheetsConfig: clientData.accounts?.googleSheetsConfig
+        facebookAds: finalClientData.accounts?.facebookAds,
+        googleAds: finalClientData.accounts?.googleAds,
+        goHighLevel: finalClientData.accounts?.goHighLevel,
+        googleSheets: finalClientData.accounts?.googleSheets,
+        googleSheetsConfig: finalClientData.accounts?.googleSheetsConfig
       };
       
       // Use provided date range or default to last 30 days
@@ -41,27 +49,26 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         };
       })();
       
-      
       console.log('🚀 useDashboardQueries calling EventMetricsService', { clientId, finalDateRange, clientAccounts });
       const result = await EventMetricsService.getComprehensiveMetrics(
         clientId,
         finalDateRange,
         clientAccounts,
         undefined, // clientConversionActions
-        true // includePreviousPeriod
+        true, // includePreviousPeriod
+        signal // Pass abort signal
       );
       console.log('✅ useDashboardQueries got result', result);
-      
       
       return result;
     },
     enabled: !!clientId,
     staleTime: 5 * 60 * 1000, // 5 minutes - standardized
     gcTime: 15 * 60 * 1000, // 15 minutes - standardized
-    retry: 2, // Reduced retries
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Reduced max delay
-    refetchOnWindowFocus: false, // Prevent refetch on window focus
-    refetchOnMount: false, // Prevent refetch on component mount if data is fresh
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 

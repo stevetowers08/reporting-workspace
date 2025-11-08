@@ -109,7 +109,8 @@ export class EventMetricsService {
       };
     },
     clientConversionActions?: { facebookAds?: string; googleAds?: string },
-    includePreviousPeriod: boolean = false
+    includePreviousPeriod: boolean = false,
+    signal?: AbortSignal
   ): Promise<EventDashboardData> {
     console.log('🚀 EventMetricsService.getComprehensiveMetrics called', { _clientId, dateRange, clientAccounts });
     try {
@@ -152,20 +153,30 @@ export class EventMetricsService {
       });
       const hasGoogleSheets = clientAccounts?.googleSheets && clientAccounts.googleSheets !== 'none';
 
-      if (hasFacebookAds && clientAccounts?.facebookAds) {
-        promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod));
+      // Check for cancellation before starting
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
       }
-      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds));}
+
+      if (hasFacebookAds && clientAccounts?.facebookAds) {
+        promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod, signal));
+      }
+      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds, signal));}
       if (hasGoHighLevel) {
         // Extract locationId from goHighLevel object if it's an object, otherwise use as string
         const locationId = typeof clientAccounts?.goHighLevel === 'object' 
           ? clientAccounts.goHighLevel?.locationId 
           : clientAccounts?.goHighLevel;
-        promises.push(this.getGHLMetrics(dateRange, locationId));
+        promises.push(this.getGHLMetrics(dateRange, locationId, signal));
       }
-      if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange, clientAccounts));}
+      if (hasGoogleSheets) {promises.push(this.getEventMetrics(dateRange, clientAccounts, signal));}
 
       const results = await Promise.allSettled(promises);
+      
+      // Check for cancellation after promises
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
 
       // Initialize metrics with default values
       let facebookMetrics: FacebookAdsMetrics = { 
@@ -376,7 +387,7 @@ export class EventMetricsService {
     }
   }
 
-  private static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false): Promise<FacebookAdsMetrics> {
+  private static async getFacebookMetrics(adAccountId: string, dateRange: { start: string; end: string }, conversionAction?: string, includePreviousPeriod: boolean = false, signal?: AbortSignal): Promise<FacebookAdsMetrics> {
     try {
       debugLogger.debug('EventMetricsService', 'Fetching Facebook metrics for account', { 
         adAccountId, 
@@ -404,8 +415,11 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics & { campaignBreakdown?: any }> {
+  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string, signal?: AbortSignal): Promise<GoogleAdsMetrics & { campaignBreakdown?: any }> {
     try {
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange, clientGoogleAdsAccount });
       
       // Import GoogleAdsService dynamically to avoid circular dependencies
@@ -523,8 +537,11 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGHLMetrics(dateRange: { start: string; end: string }, locationId?: string): Promise<any> {
+  private static async getGHLMetrics(dateRange: { start: string; end: string }, locationId?: string, signal?: AbortSignal): Promise<any> {
     try {
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       if (!locationId) {
         debugLogger.warn('EventMetricsService', 'No GoHighLevel location ID provided');
         return null;
@@ -559,9 +576,13 @@ export class EventMetricsService {
 
   private static async getEventMetrics(
     dateRange: { start: string; end: string },
-    clientAccounts?: { googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } }
+    clientAccounts?: { googleSheets?: string; googleSheetsConfig?: { spreadsheetId: string; sheetName: string } },
+    signal?: AbortSignal
   ): Promise<EventMetrics> {
     try {
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       // Use client-specific Google Sheets configuration if available
       if (!clientAccounts?.googleSheetsConfig) {
         debugLogger.warn('EventMetricsService', 'No Google Sheets configuration provided');

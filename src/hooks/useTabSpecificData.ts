@@ -4,9 +4,9 @@
  * Uses the same Supabase and API calls as V1, but with orchestration
  */
 
-import { useClientData } from '@/hooks/useDashboardQueries';
 import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
 import { useQuery } from '@tanstack/react-query';
+import { useIntegrationCheck } from './useIntegrationCheck';
 
 interface DateRange {
   start: string;
@@ -14,84 +14,67 @@ interface DateRange {
   period?: string; // For API preset periods like 'lastMonth', '30d'
 }
 
-// Hook for Summary tab data
-export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  // Use React Query for client data
-  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
-  
+// Hook for Summary tab data - OPTIMIZED: Only fetch Facebook, Google, MonthlyLeads (no GHL, no LeadData)
+export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
   return useQuery({
     queryKey: ['summary-tab-data', clientId, dateRange],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
-      
-      if (!clientData) {
-        throw new Error('Client not found');
-      }
-      
+
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(endDate.getDate() - 30);
         return {
-          start: startDate.toISOString().split('T')[0], 
-          end: endDate.toISOString().split('T')[0] 
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0]
         };
       })();
-      
-      // Only log errors in production, remove debug info logging
-      // debugLogger.info('useSummaryTabData', 'Fetching summary data', { 
-      //   clientId, 
-      //   finalDateRange,
-      //   clientAccounts: {
-      //     facebookAds: clientData.accounts?.facebookAds,
-      //     facebookAdsType: typeof clientData.accounts?.facebookAds,
-      //     facebookAdsIsNone: clientData.accounts?.facebookAds === 'none'
-      //   }
-      // });
-      
-      // Only fetch essential metrics for summary
-      const clientAccounts = {
-        facebookAds: clientData.accounts?.facebookAds,
-        googleAds: clientData.accounts?.googleAds,
-        goHighLevel: clientData.accounts?.goHighLevel,
-        googleSheets: clientData.accounts?.googleSheets
-      };
-      
-      // Removed debug logging for production performance
-      
-      // Use AnalyticsOrchestrator with direct API calls
-      const result = await AnalyticsOrchestrator.getDashboardData(
+
+      // Use provided client data or fetch if not available
+      let finalClientData = clientData;
+      if (!finalClientData) {
+        const { DatabaseService } = await import('@/services/data/databaseService');
+        finalClientData = await DatabaseService.getClientById(clientId);
+      }
+      if (!finalClientData) throw new Error('Client not found');
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
+
+      // OPTIMIZED: Only fetch what Summary tab needs (Facebook, Google, MonthlyLeads)
+      // No GHL, no LeadData - completely independent
+      const result = await AnalyticsOrchestrator.getSummaryDataOnly(
         clientId,
-        finalDateRange
+        finalDateRange,
+        finalClientData
       );
-      
-      return { ...result, clientData };
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
+
+      return result;
     },
-    enabled: !!clientId && !!clientData,
-    staleTime: 0, // Always fetch fresh data for reporting
-    gcTime: 0, // Don't cache for reporting
-    retry: 1,
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
+    retry: 2,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Always refetch on mount for fresh data
+    refetchOnMount: false,
   });
 };
 
-// Hook for Meta tab data
-export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  // Use React Query for client data
-  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
-  
+// Hook for Meta tab data - OPTIMIZED: Only fetch Facebook data, no blocking on other integrations
+export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
   return useQuery({
     queryKey: ['meta-tab-data', clientId, dateRange],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
-      }
-      
-      if (!clientData) {
-        throw new Error('Client not found');
       }
       
       const finalDateRange = dateRange || (() => {
@@ -104,29 +87,94 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         };
       })();
       
-      // debugLogger.info('useMetaTabData', 'Fetching meta data', { clientId, finalDateRange });
+      console.log('[useMetaTabData] Starting fetch', { clientId, finalDateRange });
       
-      // Use AnalyticsOrchestrator with direct API calls
-      const result = await AnalyticsOrchestrator.getDashboardData(
-        clientId,
-        finalDateRange
-      );
-      
-      return { ...result, clientData };
+      try {
+        // Use provided client data or fetch if not available
+        let finalClientData = clientData;
+        if (!finalClientData) {
+          const { DatabaseService } = await import('@/services/data/databaseService');
+          finalClientData = await DatabaseService.getClientById(clientId);
+        }
+        if (!finalClientData) throw new Error('Client not found');
+
+        if (signal?.aborted) {
+          throw new Error('Request cancelled');
+        }
+        
+        // OPTIMIZED: Only fetch Facebook data, not all dashboard data
+        // This prevents blocking on GHL or other integrations
+        const facebookData = await AnalyticsOrchestrator.getFacebookDataOnly(
+          clientId,
+          finalDateRange,
+          finalClientData
+        );
+
+        if (signal?.aborted) {
+          throw new Error('Request cancelled');
+        }
+        
+        // Build minimal response with just Facebook data
+        const result = {
+          clientData: finalClientData,
+          clientAccounts: {
+            facebookAds: finalClientData.accounts?.facebookAds,
+            googleAds: finalClientData.accounts?.googleAds,
+            goHighLevel: finalClientData.accounts?.goHighLevel,
+            googleSheets: finalClientData.accounts?.googleSheets,
+            googleSheetsConfig: finalClientData.accounts?.googleSheetsConfig
+          },
+          dateRange: finalDateRange,
+          facebookMetrics: facebookData,
+          googleMetrics: undefined,
+          ghlMetrics: undefined,
+          leadData: undefined,
+          monthlyLeadsData: undefined,
+          totalLeads: facebookData?.leads || 0,
+          totalSpend: facebookData?.spend || 0,
+          totalRevenue: 0,
+          roi: 0,
+          overallConversionRate: 0,
+          leadMetrics: {
+            facebookCostPerLead: facebookData?.costPerLead || 0,
+            googleCostPerLead: 0,
+            overallCostPerLead: facebookData?.costPerLead || 0,
+            leadToOpportunityRate: 0,
+            opportunityToWinRate: 0,
+            averageEventValue: 0,
+            totalOpportunities: 0,
+            averageGuestsPerEvent: 0,
+            mostPopularEventType: 'Unknown',
+            seasonalTrends: [],
+            landingPageConversionRate: 0,
+            formCompletionRate: 0,
+            leadSourceBreakdown: []
+          }
+        };
+        
+        console.log('[useMetaTabData] Fetch complete', { 
+          hasData: !!result,
+          hasFacebookMetrics: !!result?.facebookMetrics,
+          hasClientData: !!result?.clientData
+        });
+        
+        return result;
+      } catch (error) {
+        console.error('[useMetaTabData] Fetch error', error);
+        throw error;
+      }
     },
-    enabled: !!clientId && !!clientData,
-    staleTime: 0, // Always fetch fresh data for reporting
-    gcTime: 0, // Don't cache for reporting
-    retry: 1,
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
+    retry: 2,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Always refetch on mount for fresh data
+    refetchOnMount: false,
   });
 };
 
-// Hook for Google tab data
-export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
-  
+// Hook for Google tab data - OPTIMIZED: Independent loading, no blocking
+export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
   const finalDateRange = dateRange || (() => {
     const endDate = new Date();
     const startDate = new Date();
@@ -137,79 +185,131 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
     };
   })();
   
-  const query = useQuery({
+  return useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!clientId) throw new Error('Client ID is required');
-      if (!clientData) throw new Error('Client not found');
+      
+      // Use provided client data or fetch if not available
+      let finalClientData = clientData;
+      if (!finalClientData) {
+        const { DatabaseService } = await import('@/services/data/databaseService');
+        finalClientData = await DatabaseService.getClientById(clientId);
+      }
+      if (!finalClientData) throw new Error('Client not found');
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       
       // OPTIMIZED: Only fetch Google data, not all dashboard data
-      const googleData = await AnalyticsOrchestrator.getGoogleDataOnly(clientId, finalDateRange, clientData);
+      const googleData = await AnalyticsOrchestrator.getGoogleDataOnly(clientId, finalDateRange, finalClientData);
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
       
       return { 
         googleMetrics: googleData,
-        clientData 
+        clientData: finalClientData 
       };
     },
-    enabled: !!clientId && !!clientData,
-    staleTime: 0, // Always fetch fresh data for reporting (no caching)
-    gcTime: 0, // Don't cache for reporting
-    retry: 1,
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
+    retry: 2,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Always refetch on mount for fresh data
+    refetchOnMount: false,
   });
-  
-  // Return with combined loading state
-  // React Query's isLoading = isFetching && !data (already handles "no data yet")
-  // We also need to wait for client data before we can fetch Google data
-  return {
-    ...query,
-    isLoading: query.isLoading || clientLoading,
-  };
 };
 
-// Hook for Leads tab data
-export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  // Use React Query for client data
-  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
-  
+// Hook for Leads tab data - OPTIMIZED: Only fetch LeadData (Google Sheets), no other integrations
+export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
   return useQuery({
     queryKey: ['leads-tab-data', clientId, dateRange],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
-      
-      if (!clientData) {
-        throw new Error('Client not found');
-      }
-      
+
       const finalDateRange = dateRange || (() => {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(endDate.getDate() - 30);
         return {
-          start: startDate.toISOString().split('T')[0], 
-          end: endDate.toISOString().split('T')[0] 
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0]
         };
       })();
-      
-      // debugLogger.info('useLeadsTabData', 'Fetching leads data', { clientId, finalDateRange });
-      
-      // Use AnalyticsOrchestrator with direct API calls
-      const result = await AnalyticsOrchestrator.getDashboardData(
+
+      // Use provided client data or fetch if not available
+      let finalClientData = clientData;
+      if (!finalClientData) {
+        const { DatabaseService } = await import('@/services/data/databaseService');
+        finalClientData = await DatabaseService.getClientById(clientId);
+      }
+      if (!finalClientData) throw new Error('Client not found');
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
+
+      // OPTIMIZED: Only fetch LeadData (Google Sheets), not all dashboard data
+      // No Facebook, no Google, no GHL - completely independent
+      const leadData = await AnalyticsOrchestrator.getLeadDataOnly(
         clientId,
-        finalDateRange
+        finalDateRange,
+        finalClientData
       );
-      
-      return { ...result, clientData };
+
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
+
+      // Build minimal response with just LeadData
+      return {
+        clientData: finalClientData,
+        clientAccounts: {
+          facebookAds: finalClientData.accounts?.facebookAds,
+          googleAds: finalClientData.accounts?.googleAds,
+          goHighLevel: finalClientData.accounts?.goHighLevel,
+          googleSheets: finalClientData.accounts?.googleSheets,
+          googleSheetsConfig: finalClientData.accounts?.googleSheetsConfig
+        },
+        dateRange: finalDateRange,
+        facebookMetrics: undefined,
+        googleMetrics: undefined,
+        ghlMetrics: undefined,
+        leadData,
+        monthlyLeadsData: undefined,
+        totalLeads: leadData?.totalLeads || 0,
+        totalSpend: 0,
+        totalRevenue: 0,
+        roi: 0,
+        overallConversionRate: 0,
+        leadMetrics: {
+          facebookCostPerLead: 0,
+          googleCostPerLead: 0,
+          overallCostPerLead: 0,
+          leadToOpportunityRate: 0,
+          opportunityToWinRate: 0,
+          averageEventValue: 0,
+          totalOpportunities: 0,
+          averageGuestsPerEvent: 0,
+          mostPopularEventType: 'Unknown',
+          seasonalTrends: [],
+          landingPageConversionRate: 0,
+          formCompletionRate: 0,
+          leadSourceBreakdown: []
+        }
+      };
     },
-    enabled: !!clientId && !!clientData,
-    staleTime: 0, // Always fetch fresh data for reporting
-    gcTime: 0, // Don't cache for reporting
-    retry: 1,
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - standardized
+    gcTime: 15 * 60 * 1000, // 15 minutes - standardized
+    retry: 2,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Always refetch on mount for fresh data
+    refetchOnMount: false,
   });
 };
 

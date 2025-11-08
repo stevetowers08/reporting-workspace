@@ -24,13 +24,15 @@ const GoogleAdsCampaignBreakdown = lazy(() =>
 interface GoogleTabContentProps {
   clientId: string;
   dateRange: { start: string; end: string; period?: string };
+  clientData?: any;
 }
 
 export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
   clientId,
-  dateRange
+  dateRange,
+  clientData
 }) => {
-  const { data, isLoading, error } = useGoogleTabData(clientId, dateRange);
+  const { data, isLoading, error } = useGoogleTabData(clientId, dateRange, clientData);
 
   if (error) {
     return (
@@ -43,20 +45,13 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
     );
   }
 
-  // Check if Google Ads integration is missing
-  // Only check if data exists (query has completed)
+  // Check if Google Ads integration is missing based on clientData
   const hasGoogleAdsIntegration = data?.clientData?.accounts?.googleAds && 
     data.clientData.accounts.googleAds !== 'none';
   
-  // Show loading only if we're actually loading AND we have an integration (or don't know yet)
-  // If we know there's no integration, don't show loading
   const hasMainMetrics = !!data?.googleMetrics;
   const hasBreakdown = !!data?.googleMetrics?.campaignBreakdown;
   
-  // Show loading if:
-  // 1. We're still loading AND we don't know if there's an integration yet, OR
-  // 2. We're still loading AND there IS an integration (waiting for data)
-  const isDataLoading = isLoading && (hasGoogleAdsIntegration !== false);
   const breakdownLoading = hasMainMetrics && !hasBreakdown;
 
   // Show message if no Google Ads integration (only after loading completes)
@@ -73,9 +68,9 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
 
   return (
     <div>
-      <LoadingOverlay isLoading={isDataLoading} message="Loading Google Ads data...">
+      <LoadingOverlay isLoading={isLoading} message="Loading Google Ads data...">
         <Suspense fallback={<ComponentLoader />}>
-          <GoogleAdsMetricsCards data={data} isLoading={isDataLoading} />
+          <GoogleAdsMetricsCards data={data} isLoading={isLoading} />
         </Suspense>
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
           <Suspense fallback={<ComponentLoader />}>

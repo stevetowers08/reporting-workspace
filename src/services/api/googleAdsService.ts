@@ -1650,13 +1650,55 @@ export class GoogleAdsService {
         note: 'Performance Max uses asset_group_asset resource with segments.ad_network_type for channel breakdown'
       });
 
-      // Check if campaign types query failed - this is critical, return null if it fails
+      // BEST PRACTICE: Graceful degradation - return partial data if some queries succeed
+      // Only return null if ALL critical queries fail
+      const hasCampaignTypes = campaignBlocks.status === 'fulfilled';
+      const hasSearchAdFormats = searchAdFormatBlocks.status === 'fulfilled';
+      const hasPerformanceMaxData = performanceMaxAdFormatBlocks.status === 'fulfilled';
+      
+      // Log what we got
+      console.log('[GoogleAdsService] Breakdown query results:', {
+        campaignBlocksStatus: campaignBlocks.status,
+        campaignBlocksCount: hasCampaignTypes ? ((campaignBlocks as PromiseFulfilledResult<unknown[]>).value?.length || 0) : 0,
+        searchAdFormatBlocksStatus: searchAdFormatBlocks.status,
+        searchAdFormatBlocksCount: hasSearchAdFormats ? ((searchAdFormatBlocks as PromiseFulfilledResult<unknown[]>).value?.length || 0) : 0,
+        performanceMaxAdFormatBlocksStatus: performanceMaxAdFormatBlocks.status,
+        performanceMaxAdFormatBlocksCount: hasPerformanceMaxData ? ((performanceMaxAdFormatBlocks as PromiseFulfilledResult<unknown[]>).value?.length || 0) : 0,
+        hasAnyData: hasCampaignTypes || hasSearchAdFormats || hasPerformanceMaxData
+      });
+      
+      // Log failures but continue with partial data
       if (campaignBlocks.status === 'rejected') {
-        debugLogger.warn('GoogleAdsService', 'Campaign types query failed - returning null');
+        console.warn('[GoogleAdsService] Campaign types query failed (non-critical, will use empty data):', campaignBlocks.reason);
+        debugLogger.warn('GoogleAdsService', 'Campaign types query failed - using empty data for graceful degradation', {
+          reason: campaignBlocks.reason
+        });
+      }
+      if (searchAdFormatBlocks.status === 'rejected') {
+        console.warn('[GoogleAdsService] Search ad formats query failed (non-critical, will use empty data):', searchAdFormatBlocks.reason);
+        debugLogger.warn('GoogleAdsService', 'Search ad formats query failed - using empty data for graceful degradation', {
+          reason: searchAdFormatBlocks.reason
+        });
+      }
+      if (performanceMaxAdFormatBlocks.status === 'rejected') {
+        console.warn('[GoogleAdsService] Performance Max query failed (non-critical, will use empty data):', performanceMaxAdFormatBlocks.reason);
+        debugLogger.warn('GoogleAdsService', 'Performance Max query failed - using empty data for graceful degradation', {
+          reason: performanceMaxAdFormatBlocks.reason
+        });
+      }
+      
+      // Only return null if ALL queries failed (no data at all)
+      if (!hasCampaignTypes && !hasSearchAdFormats && !hasPerformanceMaxData) {
+        console.error('[GoogleAdsService] All breakdown queries failed - returning null');
+        debugLogger.error('GoogleAdsService', 'All breakdown queries failed', {
+          campaignBlocksReason: campaignBlocks.status === 'rejected' ? campaignBlocks.reason : null,
+          searchAdFormatBlocksReason: searchAdFormatBlocks.status === 'rejected' ? searchAdFormatBlocks.reason : null,
+          performanceMaxAdFormatBlocksReason: performanceMaxAdFormatBlocks.status === 'rejected' ? performanceMaxAdFormatBlocks.reason : null
+        });
         return null;
       }
 
-      // Process and combine the separate query results
+      // Process and combine the separate query results (use empty arrays for failed queries)
       // Search ad formats from ad_group_ad, Performance Max from asset_group
       const processedData = this.processCampaignBreakdownDataSeparate(
         campaignResults, 
@@ -1687,7 +1729,12 @@ export class GoogleAdsService {
       
       return processedData;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', error);
+      console.error('[GoogleAdsService] getCampaignBreakdown - ERROR CAUGHT:', error);
+      debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      });
       return null;
     }
   }

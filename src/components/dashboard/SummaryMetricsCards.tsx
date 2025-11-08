@@ -12,7 +12,9 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
     dashboardData, 
     facebookMetrics: dashboardData?.facebookMetrics,
     googleMetrics: dashboardData?.googleMetrics,
-    googleCostPerLead: dashboardData?.googleMetrics?.costPerLead,
+    googleCostPerConversion: dashboardData?.googleMetrics?.costPerConversion,
+    googleLeads: dashboardData?.googleMetrics?.leads,
+    googleCost: dashboardData?.googleMetrics?.cost,
     totalLeads: dashboardData?.totalLeads
   });
   
@@ -49,8 +51,10 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
               <div className="text-caption text-left mt-2">
                 Meta: {dashboardData?.facebookMetrics?.costPerLead !== undefined 
                   ? `$${dashboardData.facebookMetrics.costPerLead.toFixed(2)}`
-                  : '—'} • Google: {dashboardData?.googleMetrics?.costPerLead !== undefined
-                  ? `$${dashboardData.googleMetrics.costPerLead.toFixed(2)}`
+                  : '—'} • Google: {dashboardData?.googleMetrics?.costPerConversion !== undefined
+                  ? `$${dashboardData.googleMetrics.costPerConversion.toFixed(2)}`
+                  : dashboardData?.leadMetrics?.googleCostPerLead !== undefined
+                  ? `$${dashboardData.leadMetrics.googleCostPerLead.toFixed(2)}`
                   : '—'}
               </div>
             </div>

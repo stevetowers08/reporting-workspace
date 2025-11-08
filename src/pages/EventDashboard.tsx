@@ -6,11 +6,11 @@ import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingS
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
-
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
 import { simpleClientPDFService } from '@/services/export/simpleClientPDFService';
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 interface EventDashboardProps {
@@ -197,7 +197,30 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }, [clientId, urlClientId]);
 
   // Memoize date range to ensure React Query detects changes
-  const dateRange = useMemo(() => getDateRange(selectedPeriod), [selectedPeriod]);
+  const dateRange = useMemo(() => getDateRange(selectedPeriod), [selectedPeriod, getDateRange]);
+  
+  const queryClient = useQueryClient();
+
+  // Invalidate cache when date range changes
+  useEffect(() => {
+    if (actualClientId) {
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-data', actualClientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['summary-tab-data', actualClientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['meta-tab-data', actualClientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['google-tab-data', actualClientId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['leads-tab-data', actualClientId],
+      });
+    }
+  }, [dateRange, actualClientId, queryClient]);
 
   // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
@@ -393,6 +416,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             <SummaryTabContent
               clientId={actualClientId}
               dateRange={dateRange}
+              clientData={clientData}
             />
           </TabsContent>
 
@@ -401,6 +425,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             <MetaTabContent
               clientId={actualClientId}
               dateRange={dateRange}
+              clientData={clientData}
             />
           </TabsContent>
 
@@ -409,6 +434,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             <GoogleTabContent
               clientId={actualClientId}
               dateRange={dateRange}
+              clientData={clientData}
             />
           </TabsContent>
 
@@ -417,6 +443,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
             <LeadsTabContent
               clientId={actualClientId}
               dateRange={dateRange}
+              clientData={clientData}
             />
           </TabsContent>
 

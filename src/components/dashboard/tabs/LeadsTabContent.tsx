@@ -33,13 +33,15 @@ const GuestCountDistribution = lazy(() =>
 interface LeadsTabContentProps {
   clientId: string;
   dateRange: { start: string; end: string };
+  clientData?: any;
 }
 
 export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
   clientId,
-  dateRange
+  dateRange,
+  clientData
 }) => {
-  const { data, isLoading, error } = useLeadsTabData(clientId, dateRange);
+  const { data, isLoading, error } = useLeadsTabData(clientId, dateRange, clientData);
 
   if (error) {
     return (

@@ -41,13 +41,15 @@ const KeyInsights = lazy(() =>
 interface SummaryTabContentProps {
   clientId: string;
   dateRange: { start: string; end: string };
+  clientData?: any;
 }
 
 export const SummaryTabContent: React.FC<SummaryTabContentProps> = React.memo(({
   clientId,
-  dateRange
+  dateRange,
+  clientData
 }) => {
-  const { data, isLoading, error } = useSummaryTabData(clientId, dateRange);
+  const { data, isLoading, error } = useSummaryTabData(clientId, dateRange, clientData);
 
   if (error) {
     return (
