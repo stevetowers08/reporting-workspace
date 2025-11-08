@@ -682,7 +682,7 @@ export class GoogleAdsService {
 
       debugLogger.info('GoogleAdsService', 'Monthly metrics API request completed', {
         blockCount: blocks.length,
-        totalResults: blocks.reduce((sum, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
+        totalResults: blocks.reduce((sum: number, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
       });
 
       // Group results by month using segments.month
@@ -771,7 +771,7 @@ export class GoogleAdsService {
       conversions: number;
       conversionRate: number;
     };
-  }> {
+  } | null> {
     try {
       // OPTIMIZED: Fetch credentials in parallel (best practice)
       const [accessToken, developerToken, managerAccountId] = await Promise.all([
@@ -866,7 +866,7 @@ export class GoogleAdsService {
         clicks,
         costMicros,
         conversions,
-        resultCount: blocks.reduce((sum, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
+        resultCount: blocks.reduce((sum: number, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
       });
       
       // Debug: Log customer-level impressions for comparison with campaign breakdown
@@ -1189,17 +1189,17 @@ export class GoogleAdsService {
    * Uses separate queries for gender and age due to API limitations
    */
   static async getDemographicBreakdown(customerId: string, dateRange: { start: string; end: string }): Promise<{
-    ageGroups: {
-      '25-34': number;
-      '35-44': number;
-      '45-54': number;
-      '55+': number;
-    };
-    gender: {
-      female: number;
-      male: number;
-    };
-  }> {
+      ageGroups: {
+        '25-34': number;
+        '35-44': number;
+        '45-54': number;
+        '55+': number;
+      };
+      gender: {
+        female: number;
+        male: number;
+      };
+  } | null> {
     try {
       debugLogger.info('GoogleAdsService', 'Fetching demographic breakdown data', {
         customerId,
@@ -1910,11 +1910,9 @@ export class GoogleAdsService {
     };
 
     // Debug: Log first result structure to console for browser inspection
-    let totalResults = 0;
     if (blocks.length > 0 && blocks[0]) {
       const firstBlock = blocks[0] as any;
       const firstResults = firstBlock.results || [];
-      totalResults = firstResults.length;
       
       if (firstResults.length > 0) {
         const logData = {
@@ -1944,7 +1942,7 @@ export class GoogleAdsService {
     }
 
     let processedCount = 0;
-    let skippedCount = 0;
+    const skippedCount = 0;
     
     for (const block of blocks) {
       const results = (block as { results?: unknown[] }).results || [];

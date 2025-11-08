@@ -70,9 +70,6 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
       <Card className="h-full flex flex-col">
         <div className="pb-4 min-h-[60px]">
           <h3 className="text-lg font-semibold text-slate-900">Campaign Types</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Breakdown by Search and Performance Max campaigns
-          </p>
           {!hasCampaignTypesData && campaignBreakdown && (
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ No campaign type data found for this period
@@ -175,9 +172,6 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
       <Card className="h-full flex flex-col">
         <div className="pb-4 min-h-[60px]">
           <h3 className="text-lg font-semibold text-slate-900">Ad Formats</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Includes Search, Display, YouTube, and Performance Max campaigns
-          </p>
           {!hasAdFormatData && campaignBreakdown && (
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ No ad format data found for this period

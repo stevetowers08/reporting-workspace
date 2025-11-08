@@ -26,6 +26,15 @@ export default defineConfig(({ mode }) => {
   // Development optimizations
   const isDev = mode === 'development';
   
+  // CRITICAL: Ensure NODE_ENV is set correctly for React JSX runtime
+  // In production, React plugin must use jsx-runtime, not jsx-dev-runtime
+  // The React plugin automatically detects this from NODE_ENV
+  if (mode === 'production') {
+    process.env.NODE_ENV = 'production';
+  } else if (mode === 'development') {
+    process.env.NODE_ENV = 'development';
+  }
+  
   return {
     base: '/',
     server: {
@@ -53,13 +62,12 @@ export default defineConfig(({ mode }) => {
         logLevel: isDev ? 'info' : 'warn',
       }),
       react({
-        // Use automatic JSX runtime (will use jsx-runtime in prod, jsx-dev-runtime in dev)
+        // Use automatic JSX runtime
         jsxRuntime: 'automatic',
         jsxImportSource: 'react',
-        // Explicitly set development mode to ensure correct JSX runtime is used
-        // When false, uses jsx-runtime (production), when true uses jsx-dev-runtime (development)
-        development: isDev,
-        // Development optimizations
+        // Include all JSX/TSX files
+        include: '**/*.{jsx,tsx}',
+        // Only enable fast refresh in development
         ...(isDev && {
           fastRefresh: true,
         }),
@@ -153,19 +161,9 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
       sourcemap: isDev ? true : 'hidden',
       minify: 'esbuild', // Use esbuild for faster builds
+      // CRITICAL: Explicitly set mode to ensure correct JSX runtime
+      mode: mode,
         rollupOptions: {
-        // Production: Replace jsx-dev-runtime with jsx-runtime
-        plugins: !isDev ? [
-          {
-            name: 'replace-jsx-dev-runtime',
-            transform(code, id) {
-              // Replace any jsx-dev-runtime imports with jsx-runtime in production
-              if (!id.includes('node_modules') && code.includes('jsx-dev-runtime')) {
-                return code.replace(/from ['"]react\/jsx-dev-runtime['"]/g, 'from "react/jsx-runtime"');
-              }
-            },
-          },
-        ] : [],
         // Ensure React is NOT externalized - it must be bundled
         external: [],
         // Force React to be included in the main bundle to prevent loading order issues
