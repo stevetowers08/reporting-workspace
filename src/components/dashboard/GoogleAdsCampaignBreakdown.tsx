@@ -10,6 +10,13 @@ interface GoogleAdsCampaignBreakdownProps {
 export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProps> = ({ data }) => {
   const campaignBreakdown = data?.googleMetrics?.campaignBreakdown;
 
+  // Minimal debug logging (reduced for performance)
+  React.useEffect(() => {
+    if (!campaignBreakdown && data?.googleMetrics) {
+      console.warn('⚠️ [GoogleAdsCampaignBreakdown] campaignBreakdown is missing');
+    }
+  }, [data, campaignBreakdown]);
+
   // Prepare campaign types data for stacked bar chart
   // Only show Search and Performance Max
   const campaignTypesChartData = [

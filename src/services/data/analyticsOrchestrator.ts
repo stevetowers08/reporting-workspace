@@ -1250,9 +1250,9 @@ export class AnalyticsOrchestrator {
       
       // OPTIMIZED: Start both API calls in parallel with timeout to prevent hanging
       // This is much faster than sequential calls
-      // Breakdown queries are more complex (3 parallel API calls internally), so give them more time
-      const MAIN_METRICS_TIMEOUT = 30000; // 30 seconds for main metrics
-      const BREAKDOWN_TIMEOUT = 60000; // 60 seconds for breakdown (3 queries internally)
+      // Breakdown queries are more complex (3 parallel API calls internally), but we reduce timeout for better UX
+      const MAIN_METRICS_TIMEOUT = 20000; // 20 seconds for main metrics (reduced from 30s)
+      const BREAKDOWN_TIMEOUT = 30000; // 30 seconds for breakdown (reduced from 60s - show main metrics first)
       
       const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number, timeoutId?: { id?: NodeJS.Timeout }): Promise<T> => {
         return Promise.race([
@@ -1304,7 +1304,8 @@ export class AnalyticsOrchestrator {
       // Normalize the main metrics
       const normalizedData = this.normalizeGoogleMetrics(metrics);
 
-      // Add breakdown if available (from parallel call)
+      // Add breakdown if available (from parallel call) - non-blocking, show main metrics first
+      // Breakdown can load in background and update when ready
       if (breakdown.status === 'fulfilled' && breakdown.value) {
         normalizedData.campaignBreakdown = breakdown.value;
         
@@ -1321,38 +1322,8 @@ export class AnalyticsOrchestrator {
           hasPerformanceMax: !!(breakdown.value.campaignTypes.performanceMax?.conversions || breakdown.value.campaignTypes.performanceMax?.impressions)
         });
         
-        // Also log to console for immediate visibility
-        console.log('✅ AnalyticsOrchestrator - Campaign breakdown loaded:', {
-          search: breakdown.value.campaignTypes.search,
-          display: breakdown.value.campaignTypes.display,
-          youtube: breakdown.value.campaignTypes.youtube,
-          performanceMax: breakdown.value.campaignTypes.performanceMax,
-          adFormats: breakdown.value.adFormats
-        });
-        
-        // Debug: Compare overall impressions with breakdown sum
-        const breakdownTotalImpressions = (breakdown.value.campaignTypes.search.impressions || 0) + 
-                                         (breakdown.value.campaignTypes.display.impressions || 0) + 
-                                         (breakdown.value.campaignTypes.youtube.impressions || 0) +
-                                         (breakdown.value.campaignTypes.performanceMax?.impressions || 0);
-        const overallImpressions = metrics.impressions || 0;
-        const pmaxImpressions = breakdown.value.campaignTypes.performanceMax?.impressions || 0;
-        
-        console.log('🔍 IMPRESSIONS COMPARISON:');
-        console.log('  Overall impressions (customer resource):', overallImpressions.toLocaleString());
-        console.log('  Breakdown total (sum of all campaign types):', breakdownTotalImpressions.toLocaleString());
-        console.log('  Performance Max impressions (from breakdown):', pmaxImpressions.toLocaleString());
-        console.log('  Difference (overall - breakdown total):', (overallImpressions - breakdownTotalImpressions).toLocaleString());
-        console.log('  Performance Max % of overall:', overallImpressions > 0 ? ((pmaxImpressions / overallImpressions) * 100).toFixed(2) + '%' : 'N/A');
-        
-        if (Math.abs(overallImpressions - breakdownTotalImpressions) > 100) {
-          console.warn('⚠️ WARNING: Significant difference between overall and breakdown impressions!');
-          console.warn('  This could be due to:');
-          console.warn('    1. Customer resource includes REMOVED campaigns (no status filter)');
-          console.warn('    2. Campaign breakdown excludes REMOVED campaigns (status != REMOVED)');
-          console.warn('    3. Date range differences or data processing delays');
-          console.warn('    4. Other campaign types not included in breakdown');
-        }
+        // Log summary only (reduced logging for performance)
+        console.log('✅ AnalyticsOrchestrator - Campaign breakdown loaded');
       } else if (breakdown.status === 'rejected') {
         const errorReason = breakdown.reason;
         const isTimeout = errorReason instanceof Error && errorReason.message.includes('timeout');

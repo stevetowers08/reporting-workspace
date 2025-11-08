@@ -1544,7 +1544,6 @@ export class GoogleAdsService {
       // Execute queries in parallel: Campaign Types, Search Ad Formats, Performance Max Asset Groups
       // Add performance monitoring
       const startTime = Date.now();
-      console.log('⏱️ Starting campaign breakdown queries at:', new Date().toISOString());
       
       const [campaignBlocks, searchAdFormatBlocks, performanceMaxAdFormatBlocks] = await Promise.allSettled([
         (async () => {
@@ -1557,10 +1556,9 @@ export class GoogleAdsService {
               managerId: managerAccountId,
               gaql: campaignTypesQuery
             });
-            console.log(`✅ Campaign Types query completed in ${Date.now() - queryStart}ms`);
             return result;
           } catch (error) {
-            console.error(`❌ Campaign Types query failed after ${Date.now() - queryStart}ms:`, error);
+            debugLogger.error('GoogleAdsService', `Campaign Types query failed after ${Date.now() - queryStart}ms`, error);
             throw error;
           }
         })(),
@@ -1574,10 +1572,9 @@ export class GoogleAdsService {
               managerId: managerAccountId,
               gaql: searchAdFormatsQuery
             });
-            console.log(`✅ Search Ad Formats query completed in ${Date.now() - queryStart}ms`);
             return result;
           } catch (error) {
-            console.error(`❌ Search Ad Formats query failed after ${Date.now() - queryStart}ms:`, error);
+            debugLogger.error('GoogleAdsService', `Search Ad Formats query failed after ${Date.now() - queryStart}ms`, error);
             throw error;
           }
         })(),
@@ -1591,151 +1588,31 @@ export class GoogleAdsService {
               managerId: managerAccountId,
               gaql: performanceMaxAdFormatsQuery
             });
-            console.log(`✅ Performance Max Assets query completed in ${Date.now() - queryStart}ms`);
             return result;
           } catch (error) {
-            console.error(`❌ Performance Max Assets query failed after ${Date.now() - queryStart}ms:`, error);
+            debugLogger.error('GoogleAdsService', `Performance Max Assets query failed after ${Date.now() - queryStart}ms`, error);
             throw error;
           }
         })()
       ]);
       
       const totalTime = Date.now() - startTime;
-      console.log(`⏱️ All campaign breakdown queries completed in ${totalTime}ms`);
+      debugLogger.info('GoogleAdsService', `Campaign breakdown queries completed in ${totalTime}ms`);
 
       const campaignResults = campaignBlocks.status === 'fulfilled' ? campaignBlocks.value : [];
       const searchAdFormatResults = searchAdFormatBlocks.status === 'fulfilled' ? searchAdFormatBlocks.value : [];
       const performanceMaxAdFormatResults = performanceMaxAdFormatBlocks.status === 'fulfilled' ? performanceMaxAdFormatBlocks.value : [];
       
-      // Debug: Log query results
-      console.log('🔍 GoogleAdsService.getCampaignBreakdown - Query Results:');
-      console.log('  campaignBlocks.status:', campaignBlocks.status);
-      console.log('  campaignResults.length:', campaignResults.length);
-      console.log('  searchAdFormatBlocks.status:', searchAdFormatBlocks.status);
-      console.log('  searchAdFormatResults.length:', searchAdFormatResults.length);
-      console.log('  performanceMaxAdFormatBlocks.status:', performanceMaxAdFormatBlocks.status);
-      console.log('  performanceMaxAdFormatResults.length:', performanceMaxAdFormatResults.length);
-      
+      // Log query results summary (reduced logging for performance)
       if (campaignBlocks.status === 'rejected') {
-        console.error('❌ Campaign blocks query rejected:', campaignBlocks.reason);
+        debugLogger.error('GoogleAdsService', 'Campaign blocks query rejected', campaignBlocks.reason);
       }
       if (searchAdFormatBlocks.status === 'rejected') {
-        console.error('❌ Search ad format blocks query rejected:', searchAdFormatBlocks.reason);
+        debugLogger.error('GoogleAdsService', 'Search ad format blocks query rejected', searchAdFormatBlocks.reason);
       }
       if (performanceMaxAdFormatBlocks.status === 'rejected') {
-        console.error('❌ Performance Max blocks query rejected:', performanceMaxAdFormatBlocks.reason);
+        debugLogger.error('GoogleAdsService', 'Performance Max blocks query rejected', performanceMaxAdFormatBlocks.reason);
       }
-      
-      // Debug: Log raw API responses (detailed for browser console debugging)
-      console.log('🔍 RAW API RESPONSES (for browser debugging):');
-      console.log('='.repeat(80));
-      
-      console.log('\n📊 Campaign Types Query:');
-      console.log('   Status:', campaignBlocks.status);
-      if (campaignBlocks.status === 'fulfilled') {
-        console.log('   Blocks:', campaignResults.length);
-        const totalCampaignResults = campaignResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
-        console.log('   Total Results:', totalCampaignResults);
-        if (totalCampaignResults > 0) {
-          const firstResult = campaignResults[0]?.results?.[0];
-          console.log('   First Result Sample:', {
-            hasCampaign: !!firstResult?.campaign,
-            channelType: firstResult?.campaign?.advertisingChannelType || firstResult?.campaign?.advertising_channel_type,
-            conversions: firstResult?.metrics?.conversions,
-            impressions: firstResult?.metrics?.impressions,
-            clicks: firstResult?.metrics?.clicks,
-            costMicros: firstResult?.metrics?.costMicros || firstResult?.metrics?.cost_micros
-          });
-        }
-      } else {
-        console.log('   ❌ Error:', campaignBlocks.reason);
-        if (campaignBlocks.reason instanceof Error) {
-          console.log('   Error Message:', campaignBlocks.reason.message);
-          console.log('   Error Stack:', campaignBlocks.reason.stack);
-        }
-      }
-      
-      console.log('\n📊 Search Ad Formats Query:');
-      console.log('   Status:', searchAdFormatBlocks.status);
-      if (searchAdFormatBlocks.status === 'fulfilled') {
-        console.log('   Blocks:', searchAdFormatResults.length);
-        const totalSearchResults = searchAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
-        console.log('   Total Results:', totalSearchResults);
-        if (totalSearchResults > 0) {
-          const firstResult = searchAdFormatResults[0]?.results?.[0];
-          console.log('   First Result Sample:', {
-            hasAdGroupAd: !!(firstResult?.adGroupAd || firstResult?.ad_group_ad),
-            adType: firstResult?.adGroupAd?.ad?.type || firstResult?.ad_group_ad?.ad?.type,
-            conversions: firstResult?.metrics?.conversions,
-            impressions: firstResult?.metrics?.impressions
-          });
-        }
-      } else {
-        console.log('   ❌ Error:', searchAdFormatBlocks.reason);
-        if (searchAdFormatBlocks.reason instanceof Error) {
-          console.log('   Error Message:', searchAdFormatBlocks.reason.message);
-        }
-      }
-      
-      console.log('\n📊 Performance Max Assets Query:');
-      console.log('   Status:', performanceMaxAdFormatBlocks.status);
-      if (performanceMaxAdFormatBlocks.status === 'fulfilled') {
-        const totalPerformanceMaxResults = performanceMaxAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
-        console.log('   Blocks:', performanceMaxAdFormatResults.length);
-        console.log('   Total Results:', totalPerformanceMaxResults);
-        if (totalPerformanceMaxResults > 0) {
-          const firstResult = performanceMaxAdFormatResults[0]?.results?.[0];
-          console.log('   First Result Sample:', {
-            hasAsset: !!firstResult?.asset,
-            assetType: firstResult?.asset?.type,
-            adNetworkType: firstResult?.segments?.adNetworkType || firstResult?.segments?.ad_network_type,
-            conversions: firstResult?.metrics?.conversions,
-            impressions: firstResult?.metrics?.impressions,
-            clicks: firstResult?.metrics?.clicks
-          });
-        }
-      } else {
-        console.log('   ❌ Error:', performanceMaxAdFormatBlocks.reason);
-        if (performanceMaxAdFormatBlocks.reason instanceof Error) {
-          console.log('   Error Message:', performanceMaxAdFormatBlocks.reason.message);
-        }
-      }
-      
-      console.log('='.repeat(80));
-      
-      // Debug: Log query results with detailed information
-      const campaignTypesSample = campaignResults[0]?.results?.[0];
-      const searchAdFormatsSample = searchAdFormatResults[0]?.results?.[0];
-      
-      console.log('🔍 Campaign breakdown query results:', JSON.stringify({
-        campaignTypes: {
-          status: campaignBlocks.status,
-          blocksCount: campaignResults.length,
-          totalResults: campaignResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0),
-          firstResult: campaignTypesSample ? {
-            hasCampaign: !!campaignTypesSample.campaign,
-            advertisingChannelType: campaignTypesSample.campaign?.advertisingChannelType || campaignTypesSample.campaign?.advertising_channel_type,
-            conversions: campaignTypesSample.metrics?.conversions,
-            impressions: campaignTypesSample.metrics?.impressions
-          } : null
-        },
-        searchAdFormats: {
-          status: searchAdFormatBlocks.status,
-          blocksCount: searchAdFormatResults.length,
-          totalResults: searchAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0),
-          firstResult: searchAdFormatsSample ? {
-            hasAdGroupAd: !!searchAdFormatsSample.adGroupAd || !!searchAdFormatsSample.ad_group_ad,
-            adType: searchAdFormatsSample.adGroupAd?.ad?.type || searchAdFormatsSample.ad_group_ad?.ad?.type,
-            conversions: searchAdFormatsSample.metrics?.conversions,
-            impressions: searchAdFormatsSample.metrics?.impressions
-          } : null
-        },
-        performanceMaxAdFormats: {
-          status: performanceMaxAdFormatBlocks.status,
-          totalResults: performanceMaxAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0)
-        },
-        note: 'Performance Max uses asset_group resource (different from Search ad_group_ad)'
-      }, null, 2));
 
       if (campaignBlocks.status === 'rejected') {
         debugLogger.warn('GoogleAdsService', 'Campaign types query failed', campaignBlocks.reason);
@@ -1781,39 +1658,11 @@ export class GoogleAdsService {
 
       // Process and combine the separate query results
       // Search ad formats from ad_group_ad, Performance Max from asset_group
-      console.log('🔄 Processing campaign breakdown data...');
-      console.log('Input - Campaign Results Blocks:', campaignResults.length);
-      console.log('Input - Search Ad Format Blocks:', searchAdFormatResults.length);
-      console.log('Input - Performance Max Ad Format Blocks:', performanceMaxAdFormatResults.length);
-      
-      // Debug: Calculate total impressions from campaign query BEFORE processing
-      let totalCampaignQueryImpressions = 0;
-      let totalCampaignQueryPmaxImpressions = 0;
-      for (const block of campaignResults) {
-        const results = (block as { results?: unknown[] }).results || [];
-        for (const result of results) {
-          const data = result as any;
-          const impressions = parseInt(data.metrics?.impressions || '0');
-          totalCampaignQueryImpressions += impressions;
-          
-          const channelType = data.campaign?.advertisingChannelType || data.campaign?.advertising_channel_type;
-          if (channelType === 'PERFORMANCE_MAX' || (typeof channelType === 'object' && channelType?.name === 'PERFORMANCE_MAX')) {
-            totalCampaignQueryPmaxImpressions += impressions;
-          }
-        }
-      }
-      console.log('📊 Campaign Query Totals (BEFORE processing):');
-      console.log('  Total impressions from campaign query:', totalCampaignQueryImpressions.toLocaleString());
-      console.log('  Performance Max impressions from campaign query:', totalCampaignQueryPmaxImpressions.toLocaleString());
-      
       const processedData = this.processCampaignBreakdownDataSeparate(
         campaignResults, 
         searchAdFormatResults,
         performanceMaxAdFormatResults
       );
-      
-      console.log('✅ Processed Data:', JSON.stringify(processedData, null, 2));
-      console.log('📊 Processed Performance Max Impressions:', processedData.campaignTypes.performanceMax.impressions.toLocaleString());
       
       // Log the processed data to see what we're returning
       debugLogger.info('GoogleAdsService', 'Campaign breakdown processed data summary', {
@@ -1833,25 +1682,12 @@ export class GoogleAdsService {
         videoAdsImpressions: processedData.adFormats.videoAds.impressions
       });
       
-      // Also log to console for immediate visibility
-      console.log('✅ GoogleAdsService.getCampaignBreakdown - Returning data:', {
-        campaignTypes: {
-          search: processedData.campaignTypes.search,
-          display: processedData.campaignTypes.display,
-          youtube: processedData.campaignTypes.youtube,
-          performanceMax: processedData.campaignTypes.performanceMax
-        },
-        adFormats: processedData.adFormats
-      });
+      // Log summary only (reduced logging for performance)
+      debugLogger.info('GoogleAdsService', 'Campaign breakdown processed successfully');
       
       return processedData;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', error);
-      console.error('❌ GoogleAdsService.getCampaignBreakdown - Error:', error);
-      if (error instanceof Error) {
-        console.error('  Error message:', error.message);
-        console.error('  Error stack:', error.stack);
-      }
       return null;
     }
   }
@@ -2358,34 +2194,15 @@ export class GoogleAdsService {
     };
 
     // Process campaign types from campaign blocks
-    console.log('📊 Processing Campaign Types - Total blocks:', campaignBlocks.length);
-    let processedRows = 0;
     for (const block of campaignBlocks) {
       const results = (block as { results?: unknown[] }).results || [];
-      console.log('  Block has', results.length, 'results');
       for (const result of results) {
-        processedRows++;
         const data = result as any;
         const conversions = parseInt(data.metrics?.conversions || '0');
         const impressions = parseInt(data.metrics?.impressions || '0');
         const clicks = parseInt(data.metrics?.clicks || '0');
         const costMicros = parseFloat(data.metrics?.costMicros || data.metrics?.cost_micros || '0');
         const cost = costMicros / 1e6; // Convert micros to dollars
-        
-        if (processedRows <= 3) {
-          console.log(`  Row ${processedRows}:`, {
-            conversions,
-            impressions,
-            clicks,
-            cost,
-            campaign: data.campaign ? {
-              id: data.campaign.id,
-              name: data.campaign.name,
-              advertisingChannelType: data.campaign.advertisingChannelType || data.campaign.advertising_channel_type
-            } : 'NO CAMPAIGN',
-            metrics: data.metrics ? Object.keys(data.metrics) : 'NO METRICS'
-          });
-        }
         
         let channelType: string | undefined;
         // API returns advertisingChannelType in camelCase (e.g., "PERFORMANCE_MAX")
@@ -2415,16 +2232,6 @@ export class GoogleAdsService {
             fullCampaignData: JSON.stringify(data.campaign)
           });
           
-          // Also log to console for Performance Max specifically
-          if (channelType === 'PERFORMANCE_MAX') {
-            console.log('🎯 Processing Performance Max campaign:', {
-              channelType,
-              conversions,
-              impressions,
-              campaignId: data.campaign?.id,
-              campaignName: data.campaign?.name
-            });
-          }
         }
 
         if (channelType) {
@@ -2436,7 +2243,6 @@ export class GoogleAdsService {
             campaignTypes.performanceMax.impressions += impressions;
             campaignTypes.performanceMax.clicks += clicks;
             campaignTypes.performanceMax.cost += cost;
-            console.log('✅ Mapped to Performance Max:', { conversions, impressions, clicks, cost });
           } else if (channelType === 'SEARCH' || channelType === 'SEARCH_MOBILE_APP') {
             campaignTypes.search.conversions += conversions;
             campaignTypes.search.impressions += impressions;
@@ -2473,33 +2279,13 @@ export class GoogleAdsService {
 
     // Process ad formats from Search campaigns (ad_group_ad resource)
     // This gets traditional ad formats like RESPONSIVE_SEARCH_AD, EXPANDED_TEXT_AD, etc.
-    console.log('📊 Processing Ad Formats - Total blocks:', searchAdFormatBlocks.length);
-    let processedAdRows = 0;
     for (const block of searchAdFormatBlocks) {
       const results = (block as { results?: unknown[] }).results || [];
-      console.log('  Ad Format Block has', results.length, 'results');
       for (const result of results) {
-        processedAdRows++;
         const data = result as any;
         const conversions = parseInt(data.metrics?.conversions || '0');
         const impressions = parseInt(data.metrics?.impressions || '0');
         const clicks = parseInt(data.metrics?.clicks || '0');
-        
-        if (processedAdRows <= 3) {
-          console.log(`  Ad Row ${processedAdRows}:`, {
-            conversions,
-            impressions,
-            clicks,
-            adGroupAd: data.adGroupAd || data.ad_group_ad ? {
-              ad: {
-                type: (data.adGroupAd || data.ad_group_ad)?.ad?.type || (data.adGroupAd || data.ad_group_ad)?.ad?.type_
-              }
-            } : 'NO AD',
-            campaign: data.campaign ? {
-              advertisingChannelType: data.campaign.advertisingChannelType || data.campaign.advertising_channel_type
-            } : 'NO CAMPAIGN'
-          });
-        }
         
         let adType: string | undefined;
         const adGroupAd = data.adGroupAd || data.ad_group_ad;

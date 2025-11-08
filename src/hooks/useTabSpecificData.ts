@@ -145,6 +145,7 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
       
       // OPTIMIZED: Only fetch Google data, not all dashboard data
       const googleData = await AnalyticsOrchestrator.getGoogleDataOnly(clientId, finalDateRange, clientData);
+      
       return { 
         googleMetrics: googleData,
         clientData 

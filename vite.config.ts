@@ -53,8 +53,12 @@ export default defineConfig(({ mode }) => {
         logLevel: isDev ? 'info' : 'warn',
       }),
       react({
+        // Use automatic JSX runtime (will use jsx-runtime in prod, jsx-dev-runtime in dev)
         jsxRuntime: 'automatic',
         jsxImportSource: 'react',
+        // Explicitly set development mode to ensure correct JSX runtime is used
+        // When false, uses jsx-runtime (production), when true uses jsx-dev-runtime (development)
+        development: isDev,
         // Development optimizations
         ...(isDev && {
           fastRefresh: true,
@@ -150,6 +154,18 @@ export default defineConfig(({ mode }) => {
       sourcemap: isDev ? true : 'hidden',
       minify: 'esbuild', // Use esbuild for faster builds
         rollupOptions: {
+        // Production: Replace jsx-dev-runtime with jsx-runtime
+        plugins: !isDev ? [
+          {
+            name: 'replace-jsx-dev-runtime',
+            transform(code, id) {
+              // Replace any jsx-dev-runtime imports with jsx-runtime in production
+              if (!id.includes('node_modules') && code.includes('jsx-dev-runtime')) {
+                return code.replace(/from ['"]react\/jsx-dev-runtime['"]/g, 'from "react/jsx-runtime"');
+              }
+            },
+          },
+        ] : [],
         // Ensure React is NOT externalized - it must be bundled
         external: [],
         // Force React to be included in the main bundle to prevent loading order issues
