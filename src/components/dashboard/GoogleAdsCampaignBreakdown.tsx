@@ -5,10 +5,16 @@ import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } fro
 
 interface GoogleAdsCampaignBreakdownProps {
   data: EventDashboardData | null | undefined;
+  isLoading?: boolean;
 }
 
-export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProps> = ({ data }) => {
+export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProps> = ({ data, isLoading = false }) => {
   const campaignBreakdown = data?.googleMetrics?.campaignBreakdown;
+  
+  // Determine loading states for each chart
+  const hasMainMetrics = !!data?.googleMetrics;
+  const isLoadingCampaignTypes = isLoading || (hasMainMetrics && !campaignBreakdown?.campaignTypes);
+  const isLoadingAdFormats = isLoading || (hasMainMetrics && !campaignBreakdown?.adFormats);
 
   // Minimal debug logging (reduced for performance)
   React.useEffect(() => {
@@ -70,12 +76,12 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
       <Card className="h-full flex flex-col">
         <div className="pb-4 min-h-[60px]">
           <h3 className="text-lg font-semibold text-slate-900">Campaign Types</h3>
-          {!hasCampaignTypesData && campaignBreakdown && (
+          {!hasCampaignTypesData && campaignBreakdown && !isLoadingCampaignTypes && (
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ No campaign type data found for this period
             </p>
           )}
-          {!campaignBreakdown && (
+          {isLoadingCampaignTypes && (
             <p className="text-xs text-slate-500 mt-1">
               Loading campaign type breakdown data...
             </p>
@@ -83,7 +89,14 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
         </div>
         
         <div className="flex-1 min-h-0">
-          {hasCampaignTypesData ? (
+          {isLoadingCampaignTypes ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-sm text-slate-500">Loading campaign types...</p>
+              </div>
+            </div>
+          ) : hasCampaignTypesData ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -172,12 +185,12 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
       <Card className="h-full flex flex-col">
         <div className="pb-4 min-h-[60px]">
           <h3 className="text-lg font-semibold text-slate-900">Ad Formats</h3>
-          {!hasAdFormatData && campaignBreakdown && (
+          {!hasAdFormatData && campaignBreakdown && !isLoadingAdFormats && (
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ No ad format data found for this period
             </p>
           )}
-          {!campaignBreakdown && (
+          {isLoadingAdFormats && (
             <p className="text-xs text-slate-500 mt-1">
               Loading ad format breakdown data...
             </p>
@@ -185,7 +198,14 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
         </div>
         
         <div className="flex-1 min-h-0">
-          {hasAdFormatData ? (
+          {isLoadingAdFormats ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-sm text-slate-500">Loading ad formats...</p>
+              </div>
+            </div>
+          ) : hasAdFormatData ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart

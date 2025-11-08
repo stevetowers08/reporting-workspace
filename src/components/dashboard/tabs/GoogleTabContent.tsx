@@ -84,7 +84,7 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
                 <div className="text-sm text-slate-500">Loading campaign breakdown...</div>
               </div>
             ) : hasMainMetrics ? (
-              <GoogleAdsCampaignBreakdown data={data} />
+              <GoogleAdsCampaignBreakdown data={data} isLoading={breakdownLoading} />
             ) : (
               <div className="bg-white border border-slate-200 p-6 rounded-lg">
                 <div className="text-sm text-slate-500">Loading campaign breakdown...</div>
