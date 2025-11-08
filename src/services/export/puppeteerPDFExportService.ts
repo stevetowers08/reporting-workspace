@@ -9,7 +9,7 @@ import path from 'path';
 import { PDFDocument } from 'pdf-lib';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { promisify } from 'util';
-import { debugLogger } from '../../lib/debugLogger';
+import { debugLogger } from '../../lib/debug';
 
 const execAsync = promisify(exec);
 

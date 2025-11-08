@@ -1,12 +1,14 @@
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
-import React, { useEffect, useState } from 'react';
+import { EventDashboardData } from '@/types/dashboard';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Cell, Funnel, FunnelChart, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card } from '@/components/ui/card';
 
 interface GHLFunnelChartProps {
   locationId: string;
   dateRange?: { start: string; end: string };
+  dashboardData?: EventDashboardData | null;
 }
 
 interface FunnelData {
@@ -18,9 +20,14 @@ interface FunnelData {
 
 const FUNNEL_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, dateRange }) => {
+export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, dateRange, dashboardData }) => {
   const [funnelData, setFunnelData] = useState<FunnelData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Use contact count from dashboard data if available (prevents redundant API call)
+  const totalContactsFromData = useMemo(() => {
+    return dashboardData?.ghlMetrics?.totalContacts || 0;
+  }, [dashboardData?.ghlMetrics?.totalContacts]);
 
   useEffect(() => {
     const fetchFunnelData = async () => {
@@ -35,7 +42,11 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
         
         // Calculate funnel stages from actual funnel data
         const totalPageViews = funnelData.reduce((sum, funnel) => sum + funnel.views, 0);
-        const totalContacts = await GoHighLevelService.getContactCount(locationId, apiDateRange);
+        
+        // Use contact count from dashboard data if available, otherwise fetch
+        const totalContacts = totalContactsFromData > 0 
+          ? totalContactsFromData 
+          : await GoHighLevelService.getContactCount(locationId, apiDateRange);
         
         // Only show real data - no estimated calculations
         const funnelStages: FunnelData[] = [
@@ -62,7 +73,7 @@ export const GHLFunnelChart: React.FC<GHLFunnelChartProps> = ({ locationId, date
     };
 
     fetchFunnelData();
-  }, [locationId, dateRange]);
+  }, [locationId, dateRange, totalContactsFromData]);
 
   if (loading) {
     return (

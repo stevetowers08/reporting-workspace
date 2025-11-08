@@ -13,7 +13,7 @@ export interface GoogleAdsAccount {
 }
 
 export class GoogleAdsService {
-  private static readonly API_VERSION = 'v21';
+  private static readonly API_VERSION = 'v22';
   private static readonly BASE_URL = `https://googleads.googleapis.com/${this.API_VERSION}`;
   
   // Enhanced rate limiter with dynamic quota adaptation
@@ -177,6 +177,25 @@ export class GoogleAdsService {
     managerId?: string | number;
     gaql: string;
   }, retryCount = 0): Promise<unknown[]> {
+    // Validate accessToken is a string
+    if (!accessToken || typeof accessToken !== 'string') {
+      const error = new Error(`Invalid access token: expected string, got ${typeof accessToken}`);
+      debugLogger.error('GoogleAdsService', 'Invalid access token type', { 
+        accessTokenType: typeof accessToken,
+        accessTokenValue: accessToken 
+      });
+      throw error;
+    }
+
+    // Validate developerToken is a string
+    if (!developerToken || typeof developerToken !== 'string') {
+      const error = new Error(`Invalid developer token: expected string, got ${typeof developerToken}`);
+      debugLogger.error('GoogleAdsService', 'Invalid developer token type', { 
+        developerTokenType: typeof developerToken 
+      });
+      throw error;
+    }
+
     // Use token bucket rate limiter
     await this.waitForToken();
     
@@ -240,22 +259,71 @@ export class GoogleAdsService {
         
         // Handle authentication errors (401)
         if (response.status === 401) {
-          debugLogger.error('GoogleAdsService', 'Authentication failed - token may be expired', {
+          // Use the already-read text instead of reading response.text() again
+          const errorText = text;
+          
+          // Parse JSON error response if available
+          let parsedError: any = null;
+          let errorMessage = 'Unknown authentication error';
+          try {
+            parsedError = JSON.parse(errorText);
+            if (parsedError?.error?.message) {
+              errorMessage = parsedError.error.message;
+            } else if (parsedError?.error?.code) {
+              errorMessage = `Error code: ${parsedError.error.code}`;
+            }
+          } catch {
+            // Not JSON, use raw text
+            errorMessage = errorText.substring(0, 200);
+          }
+          
+          const errorDetails = {
             status: response.status,
-            responseText: text,
+            errorMessage,
+            rawError: errorText.substring(0, 500),
+            url,
             customerId: pathCid,
-            managerId: loginCid
-          });
+            managerId: loginCid,
+            hasAccessToken: !!accessToken,
+            hasDeveloperToken: !!developerToken,
+            accessTokenType: typeof accessToken,
+            accessTokenLength: (typeof accessToken === 'string' ? accessToken.length : 0),
+            accessTokenPrefix: (typeof accessToken === 'string' && accessToken) ? `${accessToken.substring(0, 20)}...` : 'N/A',
+            developerTokenLength: (typeof developerToken === 'string' ? developerToken.length : 0),
+            developerTokenPrefix: (typeof developerToken === 'string' && developerToken) ? `${developerToken.substring(0, 10)}...` : 'N/A',
+            parsedError
+          };
+          
+          console.error('❌ Google Ads API 401 Authentication Error:', errorDetails);
+          
           SecureLogger.logSecurityEvent('GoogleAdsService', 'Authentication error - 401 Unauthorized', { 
             status: response.status, 
-            text: text.substring(0, 500),
+            errorMessage,
+            text: errorText.substring(0, 500),
+            url,
             customerId: pathCid
           });
-          throw new Error('Google Ads authentication failed. Please reconnect your Google Ads account.');
+          
+          debugLogger.error('GoogleAdsService', 'Google Ads API 401 Authentication Error', errorDetails);
+          
+          // Provide more specific error message
+          let userFriendlyError = `Google Ads API authentication failed (401). `;
+          if (errorMessage.includes('invalid') || errorMessage.includes('expired')) {
+            userFriendlyError += `Token may be expired or invalid. Please reconnect your Google Ads account.`;
+          } else if (errorMessage.includes('developer-token')) {
+            userFriendlyError += `Developer token issue. Please check your Google Ads API configuration.`;
+          } else if (errorMessage.includes('login-customer-id')) {
+            userFriendlyError += `Manager account ID issue. Please check your account configuration.`;
+          } else {
+            userFriendlyError += `Error: ${errorMessage}`;
+          }
+          
+          throw new Error(userFriendlyError);
         }
         
-        // Handle quota exhaustion
+        // Handle quota exhaustion and other 403 errors
         if (response.status === 403) {
+          // Use the already-read text instead of reading response.text() again
           const errorText = text;
           if (errorText.includes('RESOURCE_EXHAUSTED')) {
             SecureLogger.error('GoogleAdsService', 'Daily quota exhausted', { status: response.status, text: errorText });
@@ -270,17 +338,7 @@ export class GoogleAdsService {
           }
         }
         
-        // Log the actual error response for debugging (especially 400 errors)
-        console.error('🔴 Google Ads API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          responseText: text.substring(0, 1000),
-          url: url,
-          customerId: pathCid,
-          managerId: loginCid,
-          gaql: gaql.substring(0, 200)
-        });
-        
+        // Log the actual error response for debugging
         debugLogger.error('GoogleAdsService', 'Google Ads API Error Details', {
           status: response.status,
           statusText: response.statusText,
@@ -515,10 +573,21 @@ export class GoogleAdsService {
     }
   }
 
+  // Cache for manager account ID to prevent duplicate queries
+  private static managerAccountIdCache: { id: string | null; timestamp: number } | null = null;
+  private static readonly MANAGER_ID_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   /**
-   * Get manager account ID from database
+   * Get manager account ID from database (with caching)
    */
   private static async getManagerAccountId(): Promise<string | null> {
+    // Check cache first
+    const now = Date.now();
+    if (this.managerAccountIdCache && (now - this.managerAccountIdCache.timestamp) < this.MANAGER_ID_CACHE_DURATION) {
+      debugLogger.debug('GoogleAdsService', 'Returning cached manager account ID');
+      return this.managerAccountIdCache.id;
+    }
+
     try {
       const { data: integration } = await supabase
         .from('integrations')
@@ -528,13 +597,21 @@ export class GoogleAdsService {
         .single();
 
       if (!integration?.account_id) {
+        this.managerAccountIdCache = { id: null, timestamp: now };
         return null;
       }
 
       const normalizedId = this.normalizeCid(String(integration.account_id));
-      return normalizedId.length >= 10 ? normalizedId : null;
+      const result = normalizedId.length >= 10 ? normalizedId : null;
+      
+      // Cache the result
+      this.managerAccountIdCache = { id: result, timestamp: now };
+      
+      return result;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to get manager account ID', error);
+      // Cache null result to prevent repeated failed queries
+      this.managerAccountIdCache = { id: null, timestamp: now };
       return null;
     }
   }
@@ -583,9 +660,12 @@ export class GoogleAdsService {
         ORDER BY segments.month
       `;
 
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-      const managerAccountId = await this.getManagerAccountId();
+      // OPTIMIZED: Fetch credentials in parallel (best practice)
+      const [accessToken, developerToken, managerAccountId] = await Promise.all([
+        this.ensureValidToken(),
+        this.getDeveloperToken(),
+        this.getManagerAccountId()
+      ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
         debugLogger.warn('GoogleAdsService', 'Missing required credentials for monthly metrics');
@@ -693,9 +773,12 @@ export class GoogleAdsService {
     };
   }> {
     try {
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-      const managerAccountId = await this.getManagerAccountId();
+      // OPTIMIZED: Fetch credentials in parallel (best practice)
+      const [accessToken, developerToken, managerAccountId] = await Promise.all([
+        this.ensureValidToken(),
+        this.getDeveloperToken(),
+        this.getManagerAccountId()
+      ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
         debugLogger.warn('GoogleAdsService', 'Missing required credentials for metrics');
@@ -704,45 +787,26 @@ export class GoogleAdsService {
 
       let gaql: string;
       
-      // Handle preset periods using Google Ads API v21 presets
+      // OPTIMIZED: Use customer resource for account-level aggregated metrics (faster, single query)
+      // This is the recommended approach per Google Ads API documentation for account-level metrics
+      // NOTE: If customer resource returns no data, we'll fallback to campaign aggregation
       if (dateRange.period === 'lastMonth') {
-        // Use LAST_MONTH preset - Google Ads API v21 supports this with DURING clause
-        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date DURING LAST_MONTH`;
+        // Use API preset for last month (more reliable than manual calculation)
+        gaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM customer WHERE segments.date DURING LAST_MONTH`;
+      } else if (dateRange.period === '30d') {
+        // Use API preset for last 30 days
+        gaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM customer WHERE segments.date DURING LAST_30_DAYS`;
       } else {
-        // For all other periods (7d, 14d, 30d, etc.), use BETWEEN with calculated dates
-        // Validate date format (YYYY-MM-DD) - required for custom date ranges
-        const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
-        
-        // Debug logging to help diagnose 30d issue
-        debugLogger.info('GoogleAdsService', 'Processing date range (not lastMonth)', {
-          period: dateRange.period,
-          start: dateRange.start,
-          end: dateRange.end,
-          startValid: dateRange.start && dateFormatRegex.test(dateRange.start),
-          endValid: dateRange.end && dateFormatRegex.test(dateRange.end)
-        });
-        
-        if (!dateRange.start || !dateFormatRegex.test(dateRange.start)) {
-          debugLogger.error('GoogleAdsService', 'Invalid start date format', { start: dateRange.start, dateRange });
-          throw new Error(`Invalid start date format: ${dateRange.start}. Expected YYYY-MM-DD`);
-        }
-        if (!dateRange.end || !dateFormatRegex.test(dateRange.end)) {
-          debugLogger.error('GoogleAdsService', 'Invalid end date format', { end: dateRange.end, dateRange });
-          throw new Error(`Invalid end date format: ${dateRange.end}. Expected YYYY-MM-DD`);
-        }
-        
-        // Use provided date range with BETWEEN for custom ranges (same as 14d which works)
-        gaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+        // For custom date ranges, use BETWEEN with customer resource
+        gaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM customer WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
       }
       
-      debugLogger.info('GoogleAdsService', 'Fetching account metrics', {
-        customerId,
+      debugLogger.info('GoogleAdsService', 'Using GAQL query for account metrics', {
+        customerId: this.normalizeCid(customerId),
+        gaql,
         dateRange,
-        hasPeriod: !!dateRange.period,
-        gaql: gaql.substring(0, 100) + '...'
+        period: dateRange.period
       });
-      
-      debugLogger.debug('GoogleAdsService', 'GAQL query for account metrics', { gaql });
       const blocks = await this.makeApiRequest({
         accessToken,
         developerToken,
@@ -757,10 +821,13 @@ export class GoogleAdsService {
         blockCount: blocks.length,
         blocks: blocks.map(block => ({
           hasResults: !!(block as { results?: unknown[] }).results,
-          resultCount: ((block as { results?: unknown[] }).results || []).length
+          resultCount: ((block as { results?: unknown[] }).results || []).length,
+          firstResult: ((block as { results?: unknown[] }).results || [])[0] || null
         }))
       });
       
+      // OPTIMIZED: Customer resource returns aggregated data, so we typically get 1 result per date
+      // Aggregate all results (in case there are multiple dates)
       for (const block of blocks) {
         const results = (block as { results?: unknown[] }).results || [];
         for (const result of results) {
@@ -768,18 +835,18 @@ export class GoogleAdsService {
             metrics?: { 
               impressions?: string | number; 
               clicks?: string | number; 
-              costMicros?: string | number;
-              cost_micros?: string | number; // API returns with underscore
+              costMicros?: string | number; 
+              cost_micros?: string | number; // API may return with underscore
               conversions?: string | number;
               conversionsFromInteractionsRate?: string | number;
               averageCpc?: string | number;
             } 
           }).metrics || {};
           
-          // Google Ads API returns fields with underscores, check both formats
+          // Handle both camelCase and snake_case field names from API
           const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
           
-          debugLogger.debug('GoogleAdsService', 'Processing campaign result', {
+          debugLogger.debug('GoogleAdsService', 'Processing customer result', {
             impressions: m.impressions,
             clicks: m.clicks,
             costMicros: costMicrosValue,
@@ -798,8 +865,83 @@ export class GoogleAdsService {
         impressions,
         clicks,
         costMicros,
-        conversions
+        conversions,
+        resultCount: blocks.reduce((sum, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
       });
+      
+      // Debug: Log customer-level impressions for comparison with campaign breakdown
+      console.log('📊 Customer Resource Query Results:');
+      console.log('  Total impressions (customer level):', impressions.toLocaleString());
+      console.log('  Total clicks:', clicks.toLocaleString());
+      console.log('  Total conversions:', conversions.toLocaleString());
+      console.log('  Note: Customer resource includes ALL campaigns (no status filter)');
+
+      // OPTIMIZED: Only try fallback if we got zero results AND it's a custom date range
+      // For API presets, trust the API response (it's more reliable)
+      const shouldTryFallback = impressions === 0 && clicks === 0 && costMicros === 0 && conversions === 0 
+        && !dateRange.period; // Only for custom date ranges, not presets
+      
+      if (shouldTryFallback) {
+        debugLogger.warn('GoogleAdsService', 'Customer resource returned no data, trying campaign-level aggregation');
+        
+        // Fallback to campaign-level query with timeout
+        const fallbackGaql = `SELECT metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}' AND campaign.status = 'ENABLED'`;
+        
+        try {
+          // Add timeout to prevent hanging
+          const fallbackPromise = this.makeApiRequest({
+            accessToken,
+            developerToken,
+            customerId: this.normalizeCid(customerId),
+            managerId: managerAccountId,
+            gaql: fallbackGaql
+          });
+
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Fallback query timeout')), 5000)
+          );
+
+          const fallbackBlocks = await Promise.race([fallbackPromise, timeoutPromise]);
+
+          // Reset counters
+          impressions = 0;
+          clicks = 0;
+          costMicros = 0;
+          conversions = 0;
+
+          for (const block of fallbackBlocks) {
+            const results = (block as { results?: unknown[] }).results || [];
+            for (const result of results) {
+              const m = (result as { 
+                metrics?: { 
+                  impressions?: string | number; 
+                  clicks?: string | number; 
+                  costMicros?: string | number; 
+                  cost_micros?: string | number;
+                  conversions?: string | number;
+                } 
+              }).metrics || {};
+              
+              const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
+              
+              impressions += Number(m.impressions || 0);
+              clicks += Number(m.clicks || 0);
+              costMicros += Number(costMicrosValue);
+              conversions += Number(m.conversions || 0);
+            }
+          }
+
+          debugLogger.info('GoogleAdsService', 'Campaign-level fallback aggregated data', {
+            impressions,
+            clicks,
+            costMicros,
+            conversions
+          });
+        } catch (fallbackError) {
+          debugLogger.debug('GoogleAdsService', 'Campaign-level fallback failed or timed out', fallbackError);
+          // Continue with zeros - better than hanging
+        }
+      }
 
       // Convert cost from micros to dollars
       const cost = costMicros / 1e6;
@@ -811,14 +953,8 @@ export class GoogleAdsService {
       // Calculate average CPC: cost / clicks (already in dollars)
       const averageCpc = clicks > 0 ? cost / clicks : 0;
 
-      debugLogger.info('GoogleAdsService', 'Conversion rate calculation', {
-        conversions,
-        clicks,
-        conversionRate,
-        impressions,
-        ctr: (clicks / impressions) * 100
-      });
-
+      const hasData = impressions > 0 || clicks > 0 || cost > 0 || conversions > 0;
+      
       debugLogger.info('GoogleAdsService', 'Final metrics being returned', {
         impressions,
         clicks,
@@ -827,69 +963,91 @@ export class GoogleAdsService {
         conversions,
         ctr,
         averageCpc,
-        conversionRate
+        conversionRate,
+        hasData,
+        usedFallback: shouldTryFallback && hasData
       });
+
+      // OPTIMIZED: Early return if we have data - no need to fetch previous period if not requested
+      if (!includePreviousPeriod) {
+        return { 
+          impressions, 
+          clicks, 
+          cost, 
+          leads: conversions, 
+          ctr, 
+          averageCpc, 
+          conversions,
+          conversionRate,
+          previousPeriod: undefined
+        };
+      }
 
       // Fetch previous period data if requested
       let previousPeriod;
-      if (includePreviousPeriod) {
-        try {
-          const { getPreviousDateRange } = await import('@/lib/dateUtils');
-          const previousDateRange = getPreviousDateRange('30d'); // Default to 30d for now
-          
-          const previousGaql = `SELECT campaign.id, campaign.name, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'`;
-          const previousBlocks = await this.makeApiRequest({
-            accessToken,
-            developerToken,
-            customerId: this.normalizeCid(customerId),
-            managerId: managerAccountId,
-            gaql: previousGaql
-          });
+      try {
+        const { getPreviousDateRange } = await import('@/lib/dateUtils');
+        const previousDateRange = getPreviousDateRange('30d'); // Default to 30d for now
+        
+        // OPTIMIZED: Use customer resource for previous period (faster, aggregated)
+        const previousGaql = `SELECT 
+          metrics.conversions, 
+          metrics.cost_micros, 
+          metrics.impressions, 
+          metrics.clicks 
+        FROM customer 
+        WHERE segments.date BETWEEN '${previousDateRange.start}' AND '${previousDateRange.end}'`;
+        const previousBlocks = await this.makeApiRequest({
+          accessToken,
+          developerToken,
+          customerId: this.normalizeCid(customerId),
+          managerId: managerAccountId,
+          gaql: previousGaql
+        });
 
-          let prevImpressions = 0, prevClicks = 0, prevCostMicros = 0, prevConversions = 0;
-          
-          for (const block of previousBlocks) {
-            const results = (block as { results?: unknown[] }).results || [];
-            for (const result of results) {
-              const m = (result as { 
-                metrics?: { 
-                  impressions?: string | number; 
-                  clicks?: string | number; 
-                  costMicros?: string | number;
-                  cost_micros?: string | number; // API returns with underscore
-                  conversions?: string | number;
-                } 
-              }).metrics || {};
-              
-              // Google Ads API returns fields with underscores, check both formats
-              const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
-              
-              prevImpressions += Number(m.impressions || 0);
-              prevClicks += Number(m.clicks || 0);
-              prevCostMicros += Number(costMicrosValue);
-              prevConversions += Number(m.conversions || 0);
-            }
+        let prevImpressions = 0, prevClicks = 0, prevCostMicros = 0, prevConversions = 0;
+        
+        for (const block of previousBlocks) {
+          const results = (block as { results?: unknown[] }).results || [];
+          for (const result of results) {
+            const m = (result as { 
+              metrics?: { 
+                impressions?: string | number; 
+                clicks?: string | number; 
+                costMicros?: string | number;
+                cost_micros?: string | number; // API returns with underscore
+                conversions?: string | number;
+              } 
+            }).metrics || {};
+            
+            // Google Ads API returns fields with underscores, check both formats
+            const costMicrosValue = (m as any).cost_micros || m.costMicros || 0;
+            
+            prevImpressions += Number(m.impressions || 0);
+            prevClicks += Number(m.clicks || 0);
+            prevCostMicros += Number(costMicrosValue);
+            prevConversions += Number(m.conversions || 0);
           }
-
-          const prevCost = Math.round(prevCostMicros / 1e6);
-          const prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
-          const prevConversionRate = prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0;
-          const prevAverageCpc = prevClicks > 0 ? prevCost / prevClicks : 0;
-
-          previousPeriod = {
-            impressions: prevImpressions,
-            clicks: prevClicks,
-            cost: prevCost,
-            leads: prevConversions,
-            ctr: prevCtr,
-            averageCpc: prevAverageCpc,
-            conversions: prevConversions,
-            conversionRate: prevConversionRate
-          };
-        } catch (error) {
-          debugLogger.warn('GoogleAdsService', 'Failed to fetch previous period data', error);
-          // Continue without previous period data
         }
+
+        const prevCost = Math.round(prevCostMicros / 1e6);
+        const prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
+        const prevConversionRate = prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0;
+        const prevAverageCpc = prevClicks > 0 ? prevCost / prevClicks : 0;
+
+        previousPeriod = {
+          impressions: prevImpressions,
+          clicks: prevClicks,
+          cost: prevCost,
+          leads: prevConversions,
+          ctr: prevCtr,
+          averageCpc: prevAverageCpc,
+          conversions: prevConversions,
+          conversionRate: prevConversionRate
+        };
+      } catch (error) {
+        debugLogger.warn('GoogleAdsService', 'Failed to fetch previous period data', error);
+        // Continue without previous period data
       }
 
       return { 
@@ -919,9 +1077,12 @@ export class GoogleAdsService {
     type: string;
   }>> {
     try {
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-      const managerAccountId = await this.getManagerAccountId();
+      // OPTIMIZED: Fetch credentials in parallel (best practice)
+      const [accessToken, developerToken, managerAccountId] = await Promise.all([
+        this.ensureValidToken(),
+        this.getDeveloperToken(),
+        this.getManagerAccountId()
+      ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
         return [];
@@ -1027,7 +1188,7 @@ export class GoogleAdsService {
    * Get demographic breakdown data from Google Ads
    * Uses separate queries for gender and age due to API limitations
    */
-  static async getDemographicBreakdown(customerId: string, dateRange: { start: string; end: string; period?: string }): Promise<{
+  static async getDemographicBreakdown(customerId: string, dateRange: { start: string; end: string }): Promise<{
     ageGroups: {
       '25-34': number;
       '35-44': number;
@@ -1045,9 +1206,12 @@ export class GoogleAdsService {
         dateRange
       });
 
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-      const managerAccountId = await this.getManagerAccountId();
+      // OPTIMIZED: Fetch credentials in parallel (best practice)
+      const [accessToken, developerToken, managerAccountId] = await Promise.all([
+        this.ensureValidToken(),
+        this.getDeveloperToken(),
+        this.getManagerAccountId()
+      ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
         debugLogger.warn('GoogleAdsService', 'Missing required credentials for demographics');
@@ -1080,22 +1244,13 @@ export class GoogleAdsService {
    */
   private static async getGenderBreakdown(
     customerId: string, 
-    dateRange: { start: string; end: string; period?: string },
+    dateRange: { start: string; end: string },
     accessToken: string,
     developerToken: string,
     managerAccountId: string
   ): Promise<{ female: number; male: number }> {
     try {
-      // Handle preset periods using Google Ads API v21 presets
-      let dateClause: string;
-      if (dateRange.period === 'lastMonth') {
-        dateClause = `segments.date DURING LAST_MONTH`;
-      } else {
-        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
-        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
-      }
-      
-      // Use gender_view for demographics (working approach for v21)
+      // Use gender_view for demographics (correct approach for v21)
       const gaql = `
         SELECT 
           ad_group_criterion.gender.type,
@@ -1104,7 +1259,7 @@ export class GoogleAdsService {
           metrics.impressions,
           metrics.clicks
         FROM gender_view 
-        WHERE ${dateClause}
+        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
         AND ad_group_criterion.status = 'ENABLED'
       `;
 
@@ -1128,22 +1283,13 @@ export class GoogleAdsService {
       
       // Fallback to ad_group_criterion approach
       try {
-        let dateClause: string;
-        if (dateRange.period === 'lastMonth') {
-          dateClause = `segments.date DURING LAST_MONTH`;
-        } else if (dateRange.period === '30d') {
-          dateClause = `segments.date DURING LAST_30_DAYS`;
-        } else {
-          dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
-        }
-        
         const fallbackGaql = `
           SELECT 
             ad_group_criterion.gender.type,
             metrics.conversions,
             metrics.cost_micros
           FROM ad_group_criterion 
-          WHERE ${dateClause}
+          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
           AND ad_group_criterion.type = 'GENDER'
           AND ad_group_criterion.status = 'ENABLED'
         `;
@@ -1175,22 +1321,13 @@ export class GoogleAdsService {
    */
   private static async getAgeBreakdown(
     customerId: string, 
-    dateRange: { start: string; end: string; period?: string },
+    dateRange: { start: string; end: string },
     accessToken: string,
     developerToken: string,
     managerAccountId: string
   ): Promise<{ '25-34': number; '35-44': number; '45-54': number; '55+': number }> {
     try {
-      // Handle preset periods using Google Ads API v21 presets
-      let dateClause: string;
-      if (dateRange.period === 'lastMonth') {
-        dateClause = `segments.date DURING LAST_MONTH`;
-      } else {
-        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
-        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
-      }
-      
-      // Use age_range_view for demographics (working approach for v21)
+      // Use age_range_view for demographics (correct approach for v21)
       const gaql = `
         SELECT 
           ad_group_criterion.age_range.type,
@@ -1199,7 +1336,7 @@ export class GoogleAdsService {
           metrics.impressions,
           metrics.clicks
         FROM age_range_view 
-        WHERE ${dateClause}
+        WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
         AND ad_group_criterion.status = 'ENABLED'
       `;
 
@@ -1223,22 +1360,13 @@ export class GoogleAdsService {
       
       // Fallback to ad_group_criterion approach
       try {
-        let dateClause: string;
-        if (dateRange.period === 'lastMonth') {
-          dateClause = `segments.date DURING LAST_MONTH`;
-        } else if (dateRange.period === '30d') {
-          dateClause = `segments.date DURING LAST_30_DAYS`;
-        } else {
-          dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
-        }
-        
         const fallbackGaql = `
           SELECT 
             ad_group_criterion.age_range.type,
             metrics.conversions,
             metrics.cost_micros
           FROM ad_group_criterion 
-          WHERE ${dateClause}
+          WHERE segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'
           AND ad_group_criterion.type = 'AGE_RANGE'
           AND ad_group_criterion.status = 'ENABLED'
         `;
@@ -1267,77 +1395,463 @@ export class GoogleAdsService {
 
   /**
    * Get campaign breakdown data from Google Ads
+   * OPTIMIZED: This is optional and non-blocking - can be loaded separately
    * Uses simplified GAQL query to avoid segments issues
    */
   static async getCampaignBreakdown(customerId: string, dateRange: { start: string; end: string; period?: string }): Promise<{
     campaignTypes: {
-      search: number;
-      display: number;
-      youtube: number;
+      search: { conversions: number; impressions: number; conversionRate: number };
+      display: { conversions: number; impressions: number; conversionRate: number };
+      youtube: { conversions: number; impressions: number; conversionRate: number };
+      performanceMax: { conversions: number; impressions: number; conversionRate: number };
     };
     adFormats: {
-      textAds: number;
-      responsiveDisplay: number;
-      videoAds: number;
+      textAds: { conversions: number; impressions: number; conversionRate: number };
+      responsiveDisplay: { conversions: number; impressions: number; conversionRate: number };
+      videoAds: { conversions: number; impressions: number; conversionRate: number };
+      assetTypes: Record<string, { conversions: number; impressions: number; conversionRate: number }>;
     };
-  }> {
+  } | null> {
     try {
       debugLogger.info('GoogleAdsService', 'Fetching campaign breakdown data', {
         customerId,
-        dateRange
+        dateRange,
+        hasPeriod: !!dateRange.period,
+        period: dateRange.period,
+        start: dateRange.start,
+        end: dateRange.end
       });
 
-      const accessToken = await this.ensureValidToken();
-      const developerToken = await this.getDeveloperToken();
-      const managerAccountId = await this.getManagerAccountId();
+      // OPTIMIZED: Fetch credentials in parallel (best practice)
+      const [accessToken, developerToken, managerAccountId] = await Promise.all([
+        this.ensureValidToken(),
+        this.getDeveloperToken(),
+        this.getManagerAccountId()
+      ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
-        debugLogger.warn('GoogleAdsService', 'Missing required credentials for campaign breakdown');
+        debugLogger.warn('GoogleAdsService', 'Missing required credentials for campaign breakdown', {
+          hasAccessToken: !!accessToken,
+          accessTokenType: typeof accessToken,
+          hasDeveloperToken: !!developerToken,
+          developerTokenType: typeof developerToken,
+          hasManagerAccountId: !!managerAccountId
+        });
         return null;
       }
 
-      // Handle preset periods using Google Ads API v21 presets
+      // Validate accessToken is a string
+      if (typeof accessToken !== 'string') {
+        debugLogger.error('GoogleAdsService', 'Invalid access token type for campaign breakdown', {
+          accessTokenType: typeof accessToken,
+          accessTokenValue: accessToken
+        });
+        return null;
+      }
+
+      // Validate developerToken is a string
+      if (typeof developerToken !== 'string') {
+        debugLogger.error('GoogleAdsService', 'Invalid developer token type for campaign breakdown', {
+          developerTokenType: typeof developerToken
+        });
+        return null;
+      }
+
+      // Handle preset periods using Google Ads API v22 presets
       let dateClause: string;
       if (dateRange.period === 'lastMonth') {
         dateClause = `segments.date DURING LAST_MONTH`;
+      } else if (dateRange.period === 'last30Days') {
+        dateClause = `segments.date DURING LAST_30_DAYS`;
       } else {
-        // For all other periods (7d, 14d, 30d), use BETWEEN with calculated dates (same as 14d which works)
+        // For all other periods, use BETWEEN with calculated dates
         dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
       }
       
-      // GAQL query for campaign breakdown by advertising channel type
-      const gaql = `
-        SELECT 
+      // GAQL queries for campaign breakdown - MUST use separate queries
+      // Google Ads API v22 does NOT support nested paths like ad_group_ad.ad_group.campaign.advertising_channel_type
+      // Query 1: Get campaign types from campaign resource
+      const campaignTypesQuery = `
+        SELECT
+          segments.date,
           campaign.advertising_channel_type,
-          campaign.name,
+          metrics.impressions,
+          metrics.clicks,
           metrics.conversions,
           metrics.cost_micros
-        FROM campaign 
+        FROM campaign
         WHERE ${dateClause}
-        AND campaign.status = 'ENABLED'
-      `;
+          AND campaign.status != 'REMOVED'
+        ORDER BY metrics.conversions DESC
+      `.trim();
+      
+      // Query 2: Get ad formats from ad_group_ad resource for Search campaigns only
+      // This gets traditional ad formats (Text Ads, Responsive Search Ads, etc.) from Search campaigns
+      const searchAdFormatsQuery = `
+        SELECT
+          segments.date,
+          ad_group_ad.ad.type,
+          campaign.advertising_channel_type,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.conversions,
+          metrics.cost_micros
+        FROM ad_group_ad
+        WHERE ${dateClause}
+          AND campaign.advertising_channel_type = 'SEARCH'
+          AND campaign.status != 'REMOVED'
+        ORDER BY metrics.conversions DESC
+      `.trim();
+      
+      // Query 3: Get Performance Max asset-level data with channel breakdown
+      // Uses asset_group_asset resource to get asset-level metrics
+      // IMPORTANT: This data is "non-summable" - multiple assets in same ad will inflate totals
+      // Use asset.type to categorize ad formats (TEXT, IMAGE, VIDEO)
+      // Use segments.ad_network_type for channel insights (SEARCH, YOUTUBE, DISPLAY)
+      // For ad formats breakdown, we use asset.type to map to our categories
+      const performanceMaxAdFormatsQuery = `
+        SELECT
+          segments.date,
+          segments.ad_network_type,
+          campaign.id,
+          asset_group.id,
+          asset.id,
+          asset.name,
+          asset.type,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.conversions,
+          metrics.cost_micros
+        FROM asset_group_asset
+        WHERE ${dateClause}
+          AND campaign.advertising_channel_type = 'PERFORMANCE_MAX'
+          AND campaign.status != 'REMOVED'
+        ORDER BY metrics.conversions DESC
+      `.trim();
 
-      const blocks = await this.makeApiRequest({
-        accessToken,
-        developerToken,
-        customerId: this.normalizeCid(customerId),
+      const normalizedCustomerId = this.normalizeCid(customerId);
+      const apiUrl = `${this.BASE_URL}/customers/${normalizedCustomerId}/googleAds:searchStream`;
+      
+      debugLogger.info('GoogleAdsService', 'Campaign breakdown - Using separate queries', {
+        method: 'POST',
+        url: apiUrl,
+        customerId: normalizedCustomerId,
         managerId: managerAccountId,
-        gaql
+        dateClause: dateClause,
+        dateRange: dateRange
+      });
+
+      // Execute queries in parallel: Campaign Types, Search Ad Formats, Performance Max Asset Groups
+      // Add performance monitoring
+      const startTime = Date.now();
+      console.log('⏱️ Starting campaign breakdown queries at:', new Date().toISOString());
+      
+      const [campaignBlocks, searchAdFormatBlocks, performanceMaxAdFormatBlocks] = await Promise.allSettled([
+        (async () => {
+          const queryStart = Date.now();
+          try {
+            const result = await this.makeApiRequest({
+              accessToken,
+              developerToken,
+              customerId: normalizedCustomerId,
+              managerId: managerAccountId,
+              gaql: campaignTypesQuery
+            });
+            console.log(`✅ Campaign Types query completed in ${Date.now() - queryStart}ms`);
+            return result;
+          } catch (error) {
+            console.error(`❌ Campaign Types query failed after ${Date.now() - queryStart}ms:`, error);
+            throw error;
+          }
+        })(),
+        (async () => {
+          const queryStart = Date.now();
+          try {
+            const result = await this.makeApiRequest({
+              accessToken,
+              developerToken,
+              customerId: normalizedCustomerId,
+              managerId: managerAccountId,
+              gaql: searchAdFormatsQuery
+            });
+            console.log(`✅ Search Ad Formats query completed in ${Date.now() - queryStart}ms`);
+            return result;
+          } catch (error) {
+            console.error(`❌ Search Ad Formats query failed after ${Date.now() - queryStart}ms:`, error);
+            throw error;
+          }
+        })(),
+        (async () => {
+          const queryStart = Date.now();
+          try {
+            const result = await this.makeApiRequest({
+              accessToken,
+              developerToken,
+              customerId: normalizedCustomerId,
+              managerId: managerAccountId,
+              gaql: performanceMaxAdFormatsQuery
+            });
+            console.log(`✅ Performance Max Assets query completed in ${Date.now() - queryStart}ms`);
+            return result;
+          } catch (error) {
+            console.error(`❌ Performance Max Assets query failed after ${Date.now() - queryStart}ms:`, error);
+            throw error;
+          }
+        })()
+      ]);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`⏱️ All campaign breakdown queries completed in ${totalTime}ms`);
+
+      const campaignResults = campaignBlocks.status === 'fulfilled' ? campaignBlocks.value : [];
+      const searchAdFormatResults = searchAdFormatBlocks.status === 'fulfilled' ? searchAdFormatBlocks.value : [];
+      const performanceMaxAdFormatResults = performanceMaxAdFormatBlocks.status === 'fulfilled' ? performanceMaxAdFormatBlocks.value : [];
+      
+      // Debug: Log query results
+      console.log('🔍 GoogleAdsService.getCampaignBreakdown - Query Results:');
+      console.log('  campaignBlocks.status:', campaignBlocks.status);
+      console.log('  campaignResults.length:', campaignResults.length);
+      console.log('  searchAdFormatBlocks.status:', searchAdFormatBlocks.status);
+      console.log('  searchAdFormatResults.length:', searchAdFormatResults.length);
+      console.log('  performanceMaxAdFormatBlocks.status:', performanceMaxAdFormatBlocks.status);
+      console.log('  performanceMaxAdFormatResults.length:', performanceMaxAdFormatResults.length);
+      
+      if (campaignBlocks.status === 'rejected') {
+        console.error('❌ Campaign blocks query rejected:', campaignBlocks.reason);
+      }
+      if (searchAdFormatBlocks.status === 'rejected') {
+        console.error('❌ Search ad format blocks query rejected:', searchAdFormatBlocks.reason);
+      }
+      if (performanceMaxAdFormatBlocks.status === 'rejected') {
+        console.error('❌ Performance Max blocks query rejected:', performanceMaxAdFormatBlocks.reason);
+      }
+      
+      // Debug: Log raw API responses (detailed for browser console debugging)
+      console.log('🔍 RAW API RESPONSES (for browser debugging):');
+      console.log('='.repeat(80));
+      
+      console.log('\n📊 Campaign Types Query:');
+      console.log('   Status:', campaignBlocks.status);
+      if (campaignBlocks.status === 'fulfilled') {
+        console.log('   Blocks:', campaignResults.length);
+        const totalCampaignResults = campaignResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
+        console.log('   Total Results:', totalCampaignResults);
+        if (totalCampaignResults > 0) {
+          const firstResult = campaignResults[0]?.results?.[0];
+          console.log('   First Result Sample:', {
+            hasCampaign: !!firstResult?.campaign,
+            channelType: firstResult?.campaign?.advertisingChannelType || firstResult?.campaign?.advertising_channel_type,
+            conversions: firstResult?.metrics?.conversions,
+            impressions: firstResult?.metrics?.impressions,
+            clicks: firstResult?.metrics?.clicks,
+            costMicros: firstResult?.metrics?.costMicros || firstResult?.metrics?.cost_micros
+          });
+        }
+      } else {
+        console.log('   ❌ Error:', campaignBlocks.reason);
+        if (campaignBlocks.reason instanceof Error) {
+          console.log('   Error Message:', campaignBlocks.reason.message);
+          console.log('   Error Stack:', campaignBlocks.reason.stack);
+        }
+      }
+      
+      console.log('\n📊 Search Ad Formats Query:');
+      console.log('   Status:', searchAdFormatBlocks.status);
+      if (searchAdFormatBlocks.status === 'fulfilled') {
+        console.log('   Blocks:', searchAdFormatResults.length);
+        const totalSearchResults = searchAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
+        console.log('   Total Results:', totalSearchResults);
+        if (totalSearchResults > 0) {
+          const firstResult = searchAdFormatResults[0]?.results?.[0];
+          console.log('   First Result Sample:', {
+            hasAdGroupAd: !!(firstResult?.adGroupAd || firstResult?.ad_group_ad),
+            adType: firstResult?.adGroupAd?.ad?.type || firstResult?.ad_group_ad?.ad?.type,
+            conversions: firstResult?.metrics?.conversions,
+            impressions: firstResult?.metrics?.impressions
+          });
+        }
+      } else {
+        console.log('   ❌ Error:', searchAdFormatBlocks.reason);
+        if (searchAdFormatBlocks.reason instanceof Error) {
+          console.log('   Error Message:', searchAdFormatBlocks.reason.message);
+        }
+      }
+      
+      console.log('\n📊 Performance Max Assets Query:');
+      console.log('   Status:', performanceMaxAdFormatBlocks.status);
+      if (performanceMaxAdFormatBlocks.status === 'fulfilled') {
+        const totalPerformanceMaxResults = performanceMaxAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0);
+        console.log('   Blocks:', performanceMaxAdFormatResults.length);
+        console.log('   Total Results:', totalPerformanceMaxResults);
+        if (totalPerformanceMaxResults > 0) {
+          const firstResult = performanceMaxAdFormatResults[0]?.results?.[0];
+          console.log('   First Result Sample:', {
+            hasAsset: !!firstResult?.asset,
+            assetType: firstResult?.asset?.type,
+            adNetworkType: firstResult?.segments?.adNetworkType || firstResult?.segments?.ad_network_type,
+            conversions: firstResult?.metrics?.conversions,
+            impressions: firstResult?.metrics?.impressions,
+            clicks: firstResult?.metrics?.clicks
+          });
+        }
+      } else {
+        console.log('   ❌ Error:', performanceMaxAdFormatBlocks.reason);
+        if (performanceMaxAdFormatBlocks.reason instanceof Error) {
+          console.log('   Error Message:', performanceMaxAdFormatBlocks.reason.message);
+        }
+      }
+      
+      console.log('='.repeat(80));
+      
+      // Debug: Log query results with detailed information
+      const campaignTypesSample = campaignResults[0]?.results?.[0];
+      const searchAdFormatsSample = searchAdFormatResults[0]?.results?.[0];
+      
+      console.log('🔍 Campaign breakdown query results:', JSON.stringify({
+        campaignTypes: {
+          status: campaignBlocks.status,
+          blocksCount: campaignResults.length,
+          totalResults: campaignResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0),
+          firstResult: campaignTypesSample ? {
+            hasCampaign: !!campaignTypesSample.campaign,
+            advertisingChannelType: campaignTypesSample.campaign?.advertisingChannelType || campaignTypesSample.campaign?.advertising_channel_type,
+            conversions: campaignTypesSample.metrics?.conversions,
+            impressions: campaignTypesSample.metrics?.impressions
+          } : null
+        },
+        searchAdFormats: {
+          status: searchAdFormatBlocks.status,
+          blocksCount: searchAdFormatResults.length,
+          totalResults: searchAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0),
+          firstResult: searchAdFormatsSample ? {
+            hasAdGroupAd: !!searchAdFormatsSample.adGroupAd || !!searchAdFormatsSample.ad_group_ad,
+            adType: searchAdFormatsSample.adGroupAd?.ad?.type || searchAdFormatsSample.ad_group_ad?.ad?.type,
+            conversions: searchAdFormatsSample.metrics?.conversions,
+            impressions: searchAdFormatsSample.metrics?.impressions
+          } : null
+        },
+        performanceMaxAdFormats: {
+          status: performanceMaxAdFormatBlocks.status,
+          totalResults: performanceMaxAdFormatResults.reduce((sum: number, block: any) => sum + (block?.results?.length || 0), 0)
+        },
+        note: 'Performance Max uses asset_group resource (different from Search ad_group_ad)'
+      }, null, 2));
+
+      if (campaignBlocks.status === 'rejected') {
+        debugLogger.warn('GoogleAdsService', 'Campaign types query failed', campaignBlocks.reason);
+      }
+      if (searchAdFormatBlocks.status === 'rejected') {
+        debugLogger.warn('GoogleAdsService', 'Search ad formats query failed', searchAdFormatBlocks.reason);
+      }
+      if (performanceMaxAdFormatBlocks.status === 'rejected') {
+        debugLogger.debug('GoogleAdsService', 'Performance Max asset group query failed', performanceMaxAdFormatBlocks.reason);
+      }
+
+      // Check if we have Performance Max campaigns
+      const hasPerformanceMax = campaignResults.some((block: any) => {
+        const results = block?.results || [];
+        return results.some((result: any) => 
+          result.campaign?.advertisingChannelType === 'PERFORMANCE_MAX' ||
+          result.campaign?.advertising_channel_type === 'PERFORMANCE_MAX'
+        );
       });
 
       debugLogger.info('GoogleAdsService', 'Campaign breakdown API response', {
-        blockCount: blocks.length,
-        hasData: blocks.length > 0
+        campaignBlocksCount: campaignResults.length,
+        searchAdFormatBlocksCount: searchAdFormatResults.length,
+        performanceMaxAdFormatBlocksCount: performanceMaxAdFormatResults.length,
+        campaignHasData: campaignResults.length > 0,
+        searchAdFormatHasData: searchAdFormatResults.length > 0,
+        performanceMaxAdFormatHasData: performanceMaxAdFormatResults.length > 0,
+        hasPerformanceMax,
+        campaignBlocksStatus: campaignBlocks.status,
+        searchAdFormatBlocksStatus: searchAdFormatBlocks.status,
+        performanceMaxAdFormatBlocksStatus: performanceMaxAdFormatBlocks.status,
+        campaignBlocksError: campaignBlocks.status === 'rejected' ? String(campaignBlocks.reason) : null,
+        searchAdFormatBlocksError: searchAdFormatBlocks.status === 'rejected' ? String(searchAdFormatBlocks.reason) : null,
+        performanceMaxAdFormatBlocksError: performanceMaxAdFormatBlocks.status === 'rejected' ? String(performanceMaxAdFormatBlocks.reason) : null,
+        note: 'Performance Max uses asset_group_asset resource with segments.ad_network_type for channel breakdown'
       });
 
-      if (blocks.length === 0) {
-        debugLogger.warn('GoogleAdsService', 'No campaign breakdown data returned from API');
+      // Check if campaign types query failed - this is critical, return null if it fails
+      if (campaignBlocks.status === 'rejected') {
+        debugLogger.warn('GoogleAdsService', 'Campaign types query failed - returning null');
         return null;
       }
 
-      return this.processCampaignBreakdownData(blocks);
+      // Process and combine the separate query results
+      // Search ad formats from ad_group_ad, Performance Max from asset_group
+      console.log('🔄 Processing campaign breakdown data...');
+      console.log('Input - Campaign Results Blocks:', campaignResults.length);
+      console.log('Input - Search Ad Format Blocks:', searchAdFormatResults.length);
+      console.log('Input - Performance Max Ad Format Blocks:', performanceMaxAdFormatResults.length);
+      
+      // Debug: Calculate total impressions from campaign query BEFORE processing
+      let totalCampaignQueryImpressions = 0;
+      let totalCampaignQueryPmaxImpressions = 0;
+      for (const block of campaignResults) {
+        const results = (block as { results?: unknown[] }).results || [];
+        for (const result of results) {
+          const data = result as any;
+          const impressions = parseInt(data.metrics?.impressions || '0');
+          totalCampaignQueryImpressions += impressions;
+          
+          const channelType = data.campaign?.advertisingChannelType || data.campaign?.advertising_channel_type;
+          if (channelType === 'PERFORMANCE_MAX' || (typeof channelType === 'object' && channelType?.name === 'PERFORMANCE_MAX')) {
+            totalCampaignQueryPmaxImpressions += impressions;
+          }
+        }
+      }
+      console.log('📊 Campaign Query Totals (BEFORE processing):');
+      console.log('  Total impressions from campaign query:', totalCampaignQueryImpressions.toLocaleString());
+      console.log('  Performance Max impressions from campaign query:', totalCampaignQueryPmaxImpressions.toLocaleString());
+      
+      const processedData = this.processCampaignBreakdownDataSeparate(
+        campaignResults, 
+        searchAdFormatResults,
+        performanceMaxAdFormatResults
+      );
+      
+      console.log('✅ Processed Data:', JSON.stringify(processedData, null, 2));
+      console.log('📊 Processed Performance Max Impressions:', processedData.campaignTypes.performanceMax.impressions.toLocaleString());
+      
+      // Log the processed data to see what we're returning
+      debugLogger.info('GoogleAdsService', 'Campaign breakdown processed data summary', {
+        searchConversions: processedData.campaignTypes.search.conversions,
+        searchImpressions: processedData.campaignTypes.search.impressions,
+        displayConversions: processedData.campaignTypes.display.conversions,
+        displayImpressions: processedData.campaignTypes.display.impressions,
+        youtubeConversions: processedData.campaignTypes.youtube.conversions,
+        youtubeImpressions: processedData.campaignTypes.youtube.impressions,
+        performanceMaxConversions: processedData.campaignTypes.performanceMax.conversions,
+        performanceMaxImpressions: processedData.campaignTypes.performanceMax.impressions,
+        textAdsConversions: processedData.adFormats.textAds.conversions,
+        textAdsImpressions: processedData.adFormats.textAds.impressions,
+        responsiveDisplayConversions: processedData.adFormats.responsiveDisplay.conversions,
+        responsiveDisplayImpressions: processedData.adFormats.responsiveDisplay.impressions,
+        videoAdsConversions: processedData.adFormats.videoAds.conversions,
+        videoAdsImpressions: processedData.adFormats.videoAds.impressions
+      });
+      
+      // Also log to console for immediate visibility
+      console.log('✅ GoogleAdsService.getCampaignBreakdown - Returning data:', {
+        campaignTypes: {
+          search: processedData.campaignTypes.search,
+          display: processedData.campaignTypes.display,
+          youtube: processedData.campaignTypes.youtube,
+          performanceMax: processedData.campaignTypes.performanceMax
+        },
+        adFormats: processedData.adFormats
+      });
+      
+      return processedData;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', error);
+      console.error('❌ GoogleAdsService.getCampaignBreakdown - Error:', error);
+      if (error instanceof Error) {
+        console.error('  Error message:', error.message);
+        console.error('  Error stack:', error.stack);
+      }
       return null;
     }
   }
@@ -1522,70 +2036,927 @@ export class GoogleAdsService {
 
   /**
    * Process campaign breakdown data from API response
-   * Simplified to match working pattern
+   * Based on Google Ads API v22 documentation
    */
   private static processCampaignBreakdownData(blocks: any[]): {
     campaignTypes: {
-      search: number;
-      display: number;
-      youtube: number;
+      search: { conversions: number; impressions: number; conversionRate: number };
+      display: { conversions: number; impressions: number; conversionRate: number };
+      youtube: { conversions: number; impressions: number; conversionRate: number };
     };
     adFormats: {
-      textAds: number;
-      responsiveDisplay: number;
-      videoAds: number;
+      textAds: { conversions: number; impressions: number; conversionRate: number };
+      responsiveDisplay: { conversions: number; impressions: number; conversionRate: number };
+      videoAds: { conversions: number; impressions: number; conversionRate: number };
     };
   } {
     const campaignTypes = {
-      search: 0,
-      display: 0,
-      youtube: 0
+      search: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      display: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      youtube: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 }
     };
     const adFormats = {
-      textAds: 0,
-      responsiveDisplay: 0,
-      videoAds: 0
+      textAds: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      responsiveDisplay: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      videoAds: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 }
     };
-    let totalLeads = 0;
 
+    // Ad type mapping (v22)
+    // Maps Google Ads ad types to our ad format categories
+    const adTypeMapping: Record<string, 'textAds' | 'responsiveDisplay' | 'videoAds'> = {
+      'RESPONSIVE_SEARCH_AD': 'textAds',
+      'EXPANDED_TEXT_AD': 'textAds',
+      'TEXT_AD': 'textAds', // Legacy text ads
+      'RESPONSIVE_DISPLAY_AD': 'responsiveDisplay',
+      'IMAGE_AD': 'responsiveDisplay', // Image ads from Display campaigns
+      'VIDEO_RESPONSIVE_AD': 'videoAds',
+      'VIDEO_AD': 'videoAds'
+    };
+
+    // Debug: Log first result structure to console for browser inspection
+    let totalResults = 0;
+    if (blocks.length > 0 && blocks[0]) {
+      const firstBlock = blocks[0] as any;
+      const firstResults = firstBlock.results || [];
+      totalResults = firstResults.length;
+      
+      if (firstResults.length > 0) {
+        const logData = {
+          totalBlocks: blocks.length,
+          resultsInFirstBlock: firstResults.length,
+          hasCampaign: !!firstResults[0].campaign,
+          hasAdGroupAd: !!(firstResults[0].adGroupAd || firstResults[0].ad_group_ad),
+          hasMetrics: !!firstResults[0].metrics,
+          campaignKeys: firstResults[0].campaign ? Object.keys(firstResults[0].campaign) : [],
+          adGroupAdKeys: (firstResults[0].adGroupAd || firstResults[0].ad_group_ad) ? Object.keys(firstResults[0].adGroupAd || firstResults[0].ad_group_ad || {}) : [],
+          metricsKeys: firstResults[0].metrics ? Object.keys(firstResults[0].metrics) : [],
+          sampleData: JSON.stringify(firstResults[0]).substring(0, 500),
+          fullFirstResult: JSON.stringify(firstResults[0], null, 2)
+        };
+        debugLogger.info('GoogleAdsService', 'Campaign breakdown - First result structure', logData);
+      } else {
+        debugLogger.warn('GoogleAdsService', 'Campaign breakdown - First block has no results', {
+          blockCount: blocks.length,
+          firstBlockKeys: Object.keys(firstBlock),
+          firstBlockSample: JSON.stringify(firstBlock).substring(0, 500)
+        });
+      }
+    } else {
+      debugLogger.warn('GoogleAdsService', 'Campaign breakdown - No blocks received', {
+        blockCount: blocks.length
+      });
+    }
+
+    let processedCount = 0;
+    let skippedCount = 0;
+    
     for (const block of blocks) {
       const results = (block as { results?: unknown[] }).results || [];
       for (const result of results) {
         const data = result as any;
-        const leads = parseInt(data.metrics?.conversions || '0');
-        totalLeads += leads;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        const impressions = parseInt(data.metrics?.impressions || '0');
+        const clicks = parseInt(data.metrics?.clicks || '0');
+        
+        processedCount++;
+        
+        // Log first few results for debugging
+        if (processedCount <= 3) {
+          debugLogger.debug('GoogleAdsService', `Campaign breakdown - Processing result #${processedCount}`, {
+            conversions,
+            impressions,
+            hasCampaign: !!data.campaign,
+            hasAdGroupAd: !!(data.adGroupAd || data.ad_group_ad),
+            hasAdGroup: !!(data.adGroupAd?.adGroup || data.ad_group_ad?.ad_group),
+            rawChannelType: 
+              data.adGroupAd?.adGroup?.campaign?.advertisingChannelType ||
+              data.adGroupAd?.adGroup?.campaign?.advertising_channel_type ||
+              data.ad_group_ad?.ad_group?.campaign?.advertisingChannelType ||
+              data.ad_group_ad?.ad_group?.campaign?.advertising_channel_type ||
+              data.campaign?.advertisingChannelType ||
+              data.campaign?.advertising_channel_type,
+            rawAdType: (data.adGroupAd || data.ad_group_ad)?.ad?.type || (data.adGroupAd || data.ad_group_ad)?.ad?.type_,
+            fullData: JSON.stringify(data).substring(0, 500)
+          });
+        }
 
-        // Process campaign types
-        const channelType = data.campaign?.advertising_channel_type;
+        // Process campaign types from advertising_channel_type
+        // When querying FROM ad_group_ad, the path is: ad_group_ad.ad_group.campaign.advertising_channel_type
+        // Handle both camelCase (advertisingChannelType) and snake_case (advertising_channel_type)
+        // Also handle both string and enum object formats
+        // Try multiple possible paths for compatibility
+        let channelType: string | undefined;
+        const rawChannelType = 
+          data.adGroupAd?.adGroup?.campaign?.advertisingChannelType ||
+          data.adGroupAd?.adGroup?.campaign?.advertising_channel_type ||
+          data.ad_group_ad?.ad_group?.campaign?.advertisingChannelType ||
+          data.ad_group_ad?.ad_group?.campaign?.advertising_channel_type ||
+          data.campaign?.advertisingChannelType ||
+          data.campaign?.advertising_channel_type;
+        
+        if (typeof rawChannelType === 'string') {
+          channelType = rawChannelType;
+        } else if (rawChannelType?.name) {
+          channelType = rawChannelType.name;
+        } else if (rawChannelType) {
+          channelType = String(rawChannelType);
+        }
+
+        // Debug log for first few entries
+        if (conversions > 0 && !channelType) {
+          debugLogger.warn('GoogleAdsService', 'Campaign breakdown - Missing channel type', {
+            conversions,
+            hasCampaign: !!data.campaign,
+            hasAdGroupAd: !!(data.adGroupAd || data.ad_group_ad),
+            hasAdGroup: !!(data.adGroupAd?.adGroup || data.ad_group_ad?.ad_group),
+            campaignKeys: data.campaign ? Object.keys(data.campaign) : [],
+            adGroupAdKeys: (data.adGroupAd || data.ad_group_ad) ? Object.keys(data.adGroupAd || data.ad_group_ad || {}) : [],
+            rawChannelType,
+            sampleData: JSON.stringify(data).substring(0, 500)
+          });
+        }
+
         if (channelType) {
-          if (channelType === 'SEARCH') {
-            campaignTypes.search += leads;
-          } else if (channelType === 'DISPLAY') {
-            campaignTypes.display += leads;
-          } else if (channelType === 'VIDEO') {
-            campaignTypes.youtube += leads;
+          if (channelType === 'SEARCH' || channelType === 'SEARCH_MOBILE_APP') {
+            campaignTypes.search.conversions += conversions;
+            campaignTypes.search.impressions += impressions;
+            campaignTypes.search.clicks += clicks;
+          } else if (channelType === 'DISPLAY' || channelType === 'DISPLAY_MOBILE_APP') {
+            campaignTypes.display.conversions += conversions;
+            campaignTypes.display.impressions += impressions;
+            campaignTypes.display.clicks += clicks;
+          } else if (channelType === 'VIDEO' || channelType === 'VIDEO_MOBILE_APP') {
+            campaignTypes.youtube.conversions += conversions;
+            campaignTypes.youtube.impressions += impressions;
+            campaignTypes.youtube.clicks += clicks;
+          } else {
+            debugLogger.warn('GoogleAdsService', 'Campaign breakdown - Unknown channel type', {
+              channelType,
+              conversions
+            });
+          }
+        }
+
+        // Process ad formats from ad_group_ad.ad.type
+        // Handle both camelCase (adGroupAd) and snake_case (ad_group_ad)
+        // Also handle both string and enum object formats
+        // Use impressions for ad formats (reach/visibility metric)
+        let adType: string | undefined;
+        const adGroupAd = data.adGroupAd || data.ad_group_ad;
+        const rawAdType = adGroupAd?.ad?.type || adGroupAd?.ad?.type_;
+        
+        if (typeof rawAdType === 'string') {
+          adType = rawAdType;
+        } else if (rawAdType?.name) {
+          adType = rawAdType.name;
+        } else if (rawAdType) {
+          adType = String(rawAdType);
+        }
+
+        if (adType) {
+          const mappedFormat = adTypeMapping[adType];
+          if (mappedFormat) {
+            adFormats[mappedFormat].conversions += conversions;
+            adFormats[mappedFormat].impressions += impressions;
+            adFormats[mappedFormat].clicks += clicks;
+          } else {
+            debugLogger.warn('GoogleAdsService', 'Campaign breakdown - Unknown ad type', {
+              adType,
+              impressions,
+              availableTypes: Object.keys(adTypeMapping)
+            });
           }
         }
       }
     }
 
-    // Convert to percentages
-    if (totalLeads > 0) {
-      const campaignTotal = campaignTypes.search + campaignTypes.display + campaignTypes.youtube;
-      if (campaignTotal > 0) {
-        campaignTypes.search = Math.round((campaignTypes.search / campaignTotal) * 100);
-        campaignTypes.display = Math.round((campaignTypes.display / campaignTotal) * 100);
-        campaignTypes.youtube = Math.round((campaignTypes.youtube / campaignTotal) * 100);
+    // Calculate conversion rates for campaign types
+    // Conversion rate = (conversions / clicks) * 100 (Google Ads standard)
+    if (campaignTypes.search.clicks > 0) {
+      campaignTypes.search.conversionRate = (campaignTypes.search.conversions / campaignTypes.search.clicks) * 100;
+    }
+    if (campaignTypes.display.clicks > 0) {
+      campaignTypes.display.conversionRate = (campaignTypes.display.conversions / campaignTypes.display.clicks) * 100;
+    }
+    if (campaignTypes.youtube.clicks > 0) {
+      campaignTypes.youtube.conversionRate = (campaignTypes.youtube.conversions / campaignTypes.youtube.clicks) * 100;
+    }
+
+    // Calculate conversion rates for ad formats
+    // Conversion rate = (conversions / clicks) * 100 (Google Ads standard)
+    if (adFormats.textAds.clicks > 0) {
+      adFormats.textAds.conversionRate = (adFormats.textAds.conversions / adFormats.textAds.clicks) * 100;
+    }
+    if (adFormats.responsiveDisplay.clicks > 0) {
+      adFormats.responsiveDisplay.conversionRate = (adFormats.responsiveDisplay.conversions / adFormats.responsiveDisplay.clicks) * 100;
+    }
+    if (adFormats.videoAds.clicks > 0) {
+      adFormats.videoAds.conversionRate = (adFormats.videoAds.conversions / adFormats.videoAds.clicks) * 100;
+    }
+
+    const finalData = {
+      campaignTypes,
+      adFormats,
+      blocksProcessed: blocks.length,
+      totalResults: blocks.reduce((sum, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0),
+      processedCount,
+      skippedCount
+    };
+    
+    debugLogger.info('GoogleAdsService', 'Processed campaign breakdown data', finalData);
+
+    // Warn if no data was processed
+    if (processedCount === 0) {
+      debugLogger.warn('GoogleAdsService', 'Campaign breakdown - No results processed from API response', {
+        blockCount: blocks.length,
+        totalResults: finalData.totalResults,
+        firstBlockSample: blocks.length > 0 ? JSON.stringify(blocks[0]).substring(0, 500) : 'No blocks'
+      });
+    }
+
+    // Remove clicks from return (only used for calculation)
+    const returnCampaignTypes = {
+      search: { conversions: campaignTypes.search.conversions, impressions: campaignTypes.search.impressions, conversionRate: campaignTypes.search.conversionRate },
+      display: { conversions: campaignTypes.display.conversions, impressions: campaignTypes.display.impressions, conversionRate: campaignTypes.display.conversionRate },
+      youtube: { conversions: campaignTypes.youtube.conversions, impressions: campaignTypes.youtube.impressions, conversionRate: campaignTypes.youtube.conversionRate }
+    };
+    const returnAdFormats = {
+      textAds: { conversions: adFormats.textAds.conversions, impressions: adFormats.textAds.impressions, conversionRate: adFormats.textAds.conversionRate },
+      responsiveDisplay: { conversions: adFormats.responsiveDisplay.conversions, impressions: adFormats.responsiveDisplay.impressions, conversionRate: adFormats.responsiveDisplay.conversionRate },
+      videoAds: { conversions: adFormats.videoAds.conversions, impressions: adFormats.videoAds.impressions, conversionRate: adFormats.videoAds.conversionRate }
+    };
+    
+    return { campaignTypes: returnCampaignTypes, adFormats: returnAdFormats };
+  }
+
+  /**
+   * Process campaign breakdown data from separate queries
+   * Combines data from:
+   * - campaign (campaign types)
+   * - ad_group_ad (Search ad formats)
+   * - asset_group (Performance Max ad formats)
+   */
+  private static processCampaignBreakdownDataSeparate(
+    campaignBlocks: any[],
+    searchAdFormatBlocks: any[],
+    performanceMaxAdFormatBlocks: any[] = []
+  ): {
+    campaignTypes: {
+      search: { conversions: number; impressions: number; conversionRate: number; cost: number; costPerLead: number };
+      display: { conversions: number; impressions: number; conversionRate: number; cost: number; costPerLead: number };
+      youtube: { conversions: number; impressions: number; conversionRate: number; cost: number; costPerLead: number };
+      performanceMax: { conversions: number; impressions: number; conversionRate: number; cost: number; costPerLead: number };
+    };
+    adFormats: {
+      textAds: { conversions: number; impressions: number; conversionRate: number };
+      responsiveDisplay: { conversions: number; impressions: number; conversionRate: number };
+      videoAds: { conversions: number; impressions: number; conversionRate: number };
+      assetTypes: Record<string, { conversions: number; impressions: number; conversionRate: number }>;
+      networkBreakdown: Record<string, { conversions: number; impressions: number; conversionRate: number }>;
+      individualAssets: Record<string, { name: string; type: string; conversions: number; impressions: number; conversionRate: number }>;
+      assetTypeNetworkCombos: Record<string, { conversions: number; impressions: number; conversionRate: number }>;
+    };
+  } {
+    const campaignTypes = {
+      search: { conversions: 0, impressions: 0, clicks: 0, cost: 0, conversionRate: 0, costPerLead: 0 },
+      display: { conversions: 0, impressions: 0, clicks: 0, cost: 0, conversionRate: 0, costPerLead: 0 },
+      youtube: { conversions: 0, impressions: 0, clicks: 0, cost: 0, conversionRate: 0, costPerLead: 0 },
+      performanceMax: { conversions: 0, impressions: 0, clicks: 0, cost: 0, conversionRate: 0, costPerLead: 0 }
+    };
+    const adFormats = {
+      textAds: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      responsiveDisplay: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 },
+      videoAds: { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 }
+    };
+    
+    // Track actual asset types from Performance Max (raw API output)
+    // This will contain the actual asset.type values from the API (TEXT, IMAGE, VIDEO, etc.)
+    const assetTypes: Record<string, { conversions: number; impressions: number; clicks: number; conversionRate: number }> = {};
+    
+    // Track network breakdown for Performance Max assets (SEARCH, YOUTUBE, DISPLAY, etc.)
+    // This shows which networks each asset type is performing on
+    const networkBreakdown: Record<string, { conversions: number; impressions: number; clicks: number; conversionRate: number }> = {};
+    
+    // Track individual assets (asset vs asset comparison)
+    // Key: assetId, Value: { name, type, conversions, impressions, clicks, conversionRate }
+    const individualAssets: Record<string, { name: string; type: string; conversions: number; impressions: number; clicks: number; conversionRate: number }> = {};
+    
+    // Track asset type × network combinations (e.g., IMAGE on DISCOVER vs IMAGE on DISPLAY)
+    // Key: assetType_network (e.g., "IMAGE_DISCOVER"), Value: { conversions, impressions, clicks, conversionRate }
+    const assetTypeNetworkCombos: Record<string, { conversions: number; impressions: number; clicks: number; conversionRate: number }> = {};
+
+    // Ad type mapping (v22)
+    // Maps Google Ads ad types to our ad format categories
+    const adTypeMapping: Record<string, 'textAds' | 'responsiveDisplay' | 'videoAds'> = {
+      'RESPONSIVE_SEARCH_AD': 'textAds',
+      'EXPANDED_TEXT_AD': 'textAds',
+      'TEXT_AD': 'textAds', // Legacy text ads
+      'RESPONSIVE_DISPLAY_AD': 'responsiveDisplay',
+      'IMAGE_AD': 'responsiveDisplay', // Image ads from Display campaigns
+      'VIDEO_RESPONSIVE_AD': 'videoAds',
+      'VIDEO_AD': 'videoAds'
+    };
+
+    // Process campaign types from campaign blocks
+    console.log('📊 Processing Campaign Types - Total blocks:', campaignBlocks.length);
+    let processedRows = 0;
+    for (const block of campaignBlocks) {
+      const results = (block as { results?: unknown[] }).results || [];
+      console.log('  Block has', results.length, 'results');
+      for (const result of results) {
+        processedRows++;
+        const data = result as any;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        const impressions = parseInt(data.metrics?.impressions || '0');
+        const clicks = parseInt(data.metrics?.clicks || '0');
+        const costMicros = parseFloat(data.metrics?.costMicros || data.metrics?.cost_micros || '0');
+        const cost = costMicros / 1e6; // Convert micros to dollars
+        
+        if (processedRows <= 3) {
+          console.log(`  Row ${processedRows}:`, {
+            conversions,
+            impressions,
+            clicks,
+            cost,
+            campaign: data.campaign ? {
+              id: data.campaign.id,
+              name: data.campaign.name,
+              advertisingChannelType: data.campaign.advertisingChannelType || data.campaign.advertising_channel_type
+            } : 'NO CAMPAIGN',
+            metrics: data.metrics ? Object.keys(data.metrics) : 'NO METRICS'
+          });
+        }
+        
+        let channelType: string | undefined;
+        // API returns advertisingChannelType in camelCase (e.g., "PERFORMANCE_MAX")
+        // Handle both camelCase and snake_case field names
+        const rawChannelType = data.campaign?.advertisingChannelType || 
+                               data.campaign?.advertising_channel_type ||
+                               data.campaign?.advertisingChannelType?.name ||
+                               data.campaign?.advertising_channel_type?.name;
+        
+        if (typeof rawChannelType === 'string') {
+          channelType = rawChannelType;
+        } else if (rawChannelType?.name) {
+          channelType = rawChannelType.name;
+        } else if (rawChannelType) {
+          channelType = String(rawChannelType);
+        }
+        
+        // Debug log to verify we're reading the channel type correctly
+        if (conversions > 0 || impressions > 0) {
+          debugLogger.debug('GoogleAdsService', 'Processing campaign type', {
+            rawChannelType,
+            channelType,
+            conversions,
+            impressions,
+            campaignId: data.campaign?.id,
+            campaignName: data.campaign?.name,
+            fullCampaignData: JSON.stringify(data.campaign)
+          });
+          
+          // Also log to console for Performance Max specifically
+          if (channelType === 'PERFORMANCE_MAX') {
+            console.log('🎯 Processing Performance Max campaign:', {
+              channelType,
+              conversions,
+              impressions,
+              campaignId: data.campaign?.id,
+              campaignName: data.campaign?.name
+            });
+          }
+        }
+
+        if (channelType) {
+          // Map Google Ads API channel types to our categories
+          // IMPORTANT: Check PERFORMANCE_MAX FIRST before other types
+          if (channelType === 'PERFORMANCE_MAX') {
+            // Performance Max campaigns are their own category
+            campaignTypes.performanceMax.conversions += conversions;
+            campaignTypes.performanceMax.impressions += impressions;
+            campaignTypes.performanceMax.clicks += clicks;
+            campaignTypes.performanceMax.cost += cost;
+            console.log('✅ Mapped to Performance Max:', { conversions, impressions, clicks, cost });
+          } else if (channelType === 'SEARCH' || channelType === 'SEARCH_MOBILE_APP') {
+            campaignTypes.search.conversions += conversions;
+            campaignTypes.search.impressions += impressions;
+            campaignTypes.search.clicks += clicks;
+            campaignTypes.search.cost += cost;
+          } else if (channelType === 'DISPLAY' || channelType === 'DISPLAY_MOBILE_APP') {
+            campaignTypes.display.conversions += conversions;
+            campaignTypes.display.impressions += impressions;
+            campaignTypes.display.clicks += clicks;
+            campaignTypes.display.cost += cost;
+          } else if (channelType === 'VIDEO' || channelType === 'VIDEO_MOBILE_APP') {
+            campaignTypes.youtube.conversions += conversions;
+            campaignTypes.youtube.impressions += impressions;
+            campaignTypes.youtube.clicks += clicks;
+            campaignTypes.youtube.cost += cost;
+          } else {
+            console.warn('⚠️ Unmapped channel type:', { channelType, conversions, impressions });
+            debugLogger.debug('GoogleAdsService', 'Campaign breakdown - Unmapped channel type', {
+              channelType,
+              conversions,
+              impressions
+            });
+          }
+        } else {
+          console.warn('⚠️ No channel type found for campaign:', {
+            conversions,
+            impressions,
+            campaignId: data.campaign?.id,
+            campaignData: data.campaign
+          });
+        }
       }
     }
 
-    // For ad formats, use simple distribution based on campaign types
-    // This is a simplified approach following best practices
-    adFormats.textAds = Math.round(campaignTypes.search * 0.8); // Most search campaigns use text ads
-    adFormats.responsiveDisplay = Math.round(campaignTypes.display * 0.9); // Most display campaigns use responsive display
-    adFormats.videoAds = campaignTypes.youtube; // Video campaigns use video ads
+    // Process ad formats from Search campaigns (ad_group_ad resource)
+    // This gets traditional ad formats like RESPONSIVE_SEARCH_AD, EXPANDED_TEXT_AD, etc.
+    console.log('📊 Processing Ad Formats - Total blocks:', searchAdFormatBlocks.length);
+    let processedAdRows = 0;
+    for (const block of searchAdFormatBlocks) {
+      const results = (block as { results?: unknown[] }).results || [];
+      console.log('  Ad Format Block has', results.length, 'results');
+      for (const result of results) {
+        processedAdRows++;
+        const data = result as any;
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        const impressions = parseInt(data.metrics?.impressions || '0');
+        const clicks = parseInt(data.metrics?.clicks || '0');
+        
+        if (processedAdRows <= 3) {
+          console.log(`  Ad Row ${processedAdRows}:`, {
+            conversions,
+            impressions,
+            clicks,
+            adGroupAd: data.adGroupAd || data.ad_group_ad ? {
+              ad: {
+                type: (data.adGroupAd || data.ad_group_ad)?.ad?.type || (data.adGroupAd || data.ad_group_ad)?.ad?.type_
+              }
+            } : 'NO AD',
+            campaign: data.campaign ? {
+              advertisingChannelType: data.campaign.advertisingChannelType || data.campaign.advertising_channel_type
+            } : 'NO CAMPAIGN'
+          });
+        }
+        
+        let adType: string | undefined;
+        const adGroupAd = data.adGroupAd || data.ad_group_ad;
+        const rawAdType = adGroupAd?.ad?.type || adGroupAd?.ad?.type_;
+        
+        if (typeof rawAdType === 'string') {
+          adType = rawAdType;
+        } else if (rawAdType?.name) {
+          adType = rawAdType.name;
+        } else if (rawAdType) {
+          adType = String(rawAdType);
+        }
 
-    return { campaignTypes, adFormats };
+        if (adType) {
+          const mappedFormat = adTypeMapping[adType];
+          if (mappedFormat) {
+            adFormats[mappedFormat].conversions += conversions;
+            adFormats[mappedFormat].impressions += impressions;
+            adFormats[mappedFormat].clicks += clicks;
+            debugLogger.debug('GoogleAdsService', 'Processed Search ad format', {
+              adType,
+              mappedFormat,
+              conversions,
+              impressions,
+              clicks
+            });
+          } else {
+            // Log unmapped ad types to help identify missing mappings
+            if (conversions > 0 || impressions > 0) {
+              console.warn(`⚠️ Unmapped Search ad type: ${adType} (${conversions} conversions, ${impressions} impressions)`);
+              debugLogger.debug('GoogleAdsService', 'Campaign breakdown - Unmapped Search ad type', {
+                adType,
+                conversions,
+                impressions,
+                availableTypes: Object.keys(adTypeMapping)
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Process Performance Max asset-level data
+    // IMPORTANT: This query ONLY gets data from PERFORMANCE_MAX campaigns (filter: campaign.advertising_channel_type = 'PERFORMANCE_MAX')
+    // CRITICAL: This data is "non-summable" - multiple assets in same ad will inflate totals
+    // Use asset.type to categorize ad formats (TEXT, IMAGE, YOUTUBE_VIDEO)
+    // Use segments.ad_network_type for channel insights (SEARCH, YOUTUBE, DISPLAY)
+    // 
+    // Key Understanding:
+    // - Query returns one row per asset per asset_group per ad_network_type per day
+    // - Same asset can appear in multiple asset groups → multiple rows
+    // - Same asset can serve on multiple networks → multiple rows (with segments.ad_network_type)
+    // - Multiple assets in same ad → metrics are attributed to each asset (non-summable)
+    //
+    // For ad formats breakdown:
+    // - We aggregate by asset.type (TEXT, IMAGE, VIDEO) across all networks
+    // - We sum metrics for each asset.type category
+    // - Note: Totals will be higher than campaign-level metrics (expected, due to non-summable nature)
+    console.log('📊 Processing Performance Max Asset Groups - Total blocks:', performanceMaxAdFormatBlocks.length);
+    
+    // Deduplication map: key = assetId_date_adNetwork, value = { conversions, impressions, clicks, assetType, adNetworkType, assetName }
+    // We deduplicate by asset+date+network to avoid counting same asset+network+date multiple times
+    // But we still sum across different networks (SEARCH, YOUTUBE, DISPLAY) for the same asset
+    const assetDedupeMap = new Map<string, { conversions: number; impressions: number; clicks: number; assetType: string; adNetworkType: string; assetName: string; assetId: string }>();
+    
+    let processedPmaxRows = 0;
+    for (const block of performanceMaxAdFormatBlocks) {
+      const results = (block as { results?: unknown[] }).results || [];
+      console.log('  Performance Max Asset Group Block has', results.length, 'results');
+      for (const result of results) {
+        processedPmaxRows++;
+        const data = result as any;
+        const assetId = data.asset?.id || data.asset?.id_ || '';
+        const date = data.segments?.date || '';
+        const adNetworkType = data.segments?.adNetworkType || data.segments?.ad_network_type || 'UNKNOWN';
+        const conversions = parseInt(data.metrics?.conversions || '0');
+        const impressions = parseInt(data.metrics?.impressions || '0');
+        const clicks = parseInt(data.metrics?.clicks || '0');
+        
+        // Get asset type (TEXT, IMAGE, VIDEO, etc.) - this determines the ad format
+        const assetType = data.asset?.type || 
+                         data.asset?.type_ ||
+                         data.asset?.type?.name ||
+                         data.asset?.type_?.name;
+        
+        // Get asset name for individual asset tracking
+        const assetName = data.asset?.name || data.asset?.name_ || `Asset ${assetId}` || 'Unknown Asset';
+        
+        // Create unique key for deduplication: assetId_date_adNetwork
+        // This ensures we don't double-count the same asset on the same network on the same day
+        // But we DO sum across different networks (which is correct - asset can serve on multiple networks)
+        if (assetId && date) {
+          const dedupeKey = `${assetId}_${date}_${adNetworkType}`;
+          const existing = assetDedupeMap.get(dedupeKey);
+          if (existing) {
+            // If we already have this asset+date+network combo, take the max (safest for duplicates)
+            // This handles cases where API might return duplicate rows for same asset+date+network
+            existing.conversions = Math.max(existing.conversions, conversions);
+            existing.impressions = Math.max(existing.impressions, impressions);
+            existing.clicks = Math.max(existing.clicks, clicks);
+          } else {
+            assetDedupeMap.set(dedupeKey, { conversions, impressions, clicks, assetType: assetType || '', adNetworkType, assetName, assetId });
+          }
+        } else {
+          // If we don't have assetId or date, we can't deduplicate properly
+          // Log a warning but still process it (fallback to old behavior)
+          if (processedPmaxRows <= 10) {
+            console.warn(`⚠️ Performance Max row missing assetId or date:`, { assetId, date, adNetworkType, conversions, impressions });
+          }
+        }
+        
+        // Debug first few rows (before deduplication)
+        if (processedPmaxRows <= 5) {
+          console.log(`  Performance Max Row ${processedPmaxRows} (before dedupe):`, {
+            assetType,
+            assetId,
+            date,
+            adNetworkType,
+            asset: data.asset ? {
+              type: data.asset.type || data.asset.type_,
+              id: data.asset.id,
+              name: data.asset.name
+            } : 'NO ASSET',
+            conversions,
+            impressions,
+            clicks
+          });
+        }
+      }
+    }
+    
+    // Now process deduplicated assets and aggregate by asset.type and network
+    console.log(`✅ Deduplicated ${assetDedupeMap.size} unique asset+date+network combinations from ${processedPmaxRows} total rows`);
+    let dedupeCount = 0;
+    for (const [dedupeKey, assetData] of assetDedupeMap.entries()) {
+      dedupeCount++;
+      const { conversions, impressions, clicks, assetType, adNetworkType, assetName, assetId } = assetData;
+      
+      // Track network breakdown (SEARCH, YOUTUBE, DISPLAY, etc.)
+      // Normalize network type names
+      const normalizedNetwork = adNetworkType === 'SEARCH' || adNetworkType === 'GOOGLE_SEARCH' ? 'SEARCH' :
+                                adNetworkType === 'YOUTUBE' || adNetworkType === 'YOUTUBE_SEARCH' ? 'YOUTUBE' :
+                                adNetworkType === 'DISPLAY' || adNetworkType === 'GOOGLE_DISPLAY' ? 'DISPLAY' :
+                                adNetworkType === 'DISCOVER' ? 'DISCOVER' :
+                                adNetworkType === 'GMAIL' ? 'GMAIL' :
+                                adNetworkType === 'MIXED' ? 'MIXED' :
+                                adNetworkType || 'OTHER';
+      
+      if (!networkBreakdown[normalizedNetwork]) {
+        networkBreakdown[normalizedNetwork] = { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 };
+      }
+      networkBreakdown[normalizedNetwork].conversions += conversions;
+      networkBreakdown[normalizedNetwork].impressions += impressions;
+      networkBreakdown[normalizedNetwork].clicks += clicks;
+      
+      // Debug first few deduplicated rows
+      if (dedupeCount <= 5) {
+        console.log(`  Deduplicated Row ${dedupeCount}:`, {
+          key: dedupeKey,
+          assetType,
+          conversions,
+          impressions,
+          clicks
+        });
+      }
+      
+      // Track actual asset type (raw API output)
+      if (assetType) {
+        if (!assetTypes[assetType]) {
+          assetTypes[assetType] = { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 };
+        }
+        assetTypes[assetType].conversions += conversions;
+        assetTypes[assetType].impressions += impressions;
+        assetTypes[assetType].clicks += clicks;
+      }
+      
+      // Track individual assets (asset vs asset comparison)
+      if (assetId) {
+        if (!individualAssets[assetId]) {
+          individualAssets[assetId] = { 
+            name: assetName, 
+            type: assetType || '', 
+            conversions: 0, 
+            impressions: 0, 
+            clicks: 0, 
+            conversionRate: 0 
+          };
+        }
+        individualAssets[assetId].conversions += conversions;
+        individualAssets[assetId].impressions += impressions;
+        individualAssets[assetId].clicks += clicks;
+      }
+      
+      // Track asset type × network combinations (e.g., IMAGE on DISCOVER vs IMAGE on DISPLAY)
+      if (assetType && normalizedNetwork) {
+        const comboKey = `${assetType}_${normalizedNetwork}`;
+        if (!assetTypeNetworkCombos[comboKey]) {
+          assetTypeNetworkCombos[comboKey] = { conversions: 0, impressions: 0, clicks: 0, conversionRate: 0 };
+        }
+        assetTypeNetworkCombos[comboKey].conversions += conversions;
+        assetTypeNetworkCombos[comboKey].impressions += impressions;
+        assetTypeNetworkCombos[comboKey].clicks += clicks;
+      }
+      
+      // Map Performance Max assets to adFormats categories
+      // Per Google Ads API official documentation:
+      // - TEXT → textAds (headlines/descriptions)
+      // - IMAGE → responsiveDisplay (image/display ads)
+      // - YOUTUBE_VIDEO → videoAds (video ads)
+      // Official docs: https://developers.google.com/google-ads/api/fields/v22/asset_group_asset
+      // AssetType enum: https://developers.google.com/google-ads/api/reference/rpc/v22/AssetTypeEnum
+      // 
+      // ⚠️ CRITICAL: These metrics are NON-SUMMABLE per Google's official warning:
+      // "the sum of individual asset impressions, clicks, or costs may not directly match 
+      // the corresponding metrics... at the asset group level"
+      // Source: https://support.google.com/google-ads/answer/13197517
+      // 
+      // Expected behavior: Ad formats totals will be higher than campaign-level metrics
+      // This is expected and acceptable - use for directional insights and relative comparisons
+      if (assetType === 'TEXT') {
+        adFormats.textAds.conversions += conversions;
+        adFormats.textAds.impressions += impressions;
+        adFormats.textAds.clicks += clicks;
+      } else if (assetType === 'IMAGE' || assetType === 'MEDIA_BUNDLE') {
+        adFormats.responsiveDisplay.conversions += conversions;
+        adFormats.responsiveDisplay.impressions += impressions;
+        adFormats.responsiveDisplay.clicks += clicks;
+      } else if (assetType === 'YOUTUBE_VIDEO') {
+        adFormats.videoAds.conversions += conversions;
+        adFormats.videoAds.impressions += impressions;
+        adFormats.videoAds.clicks += clicks;
+      }
+    }
+    console.log('✅ Processed Performance Max assets:', {
+      totalRows: processedPmaxRows,
+      uniqueAssetDateNetworkCombos: assetDedupeMap.size,
+      assetTypes: Object.keys(assetTypes).map(type => ({
+        type,
+        conversions: assetTypes[type].conversions,
+        impressions: assetTypes[type].impressions
+      })),
+      networks: Object.keys(networkBreakdown).map(network => ({
+        network,
+        conversions: networkBreakdown[network].conversions,
+        impressions: networkBreakdown[network].impressions
+      })),
+      note: 'Performance Max assets are mapped to adFormats (TEXT→textAds, IMAGE→responsiveDisplay, YOUTUBE_VIDEO→videoAds). Totals may be inflated due to non-summable nature - this is expected.'
+    });
+
+    // Calculate conversion rates and cost per lead for campaign types
+    // Conversion rate = (conversions / clicks) * 100 (Google Ads standard)
+    // Cost per lead = cost / conversions
+    if (campaignTypes.search.clicks > 0) {
+      campaignTypes.search.conversionRate = (campaignTypes.search.conversions / campaignTypes.search.clicks) * 100;
+    }
+    if (campaignTypes.search.conversions > 0) {
+      campaignTypes.search.costPerLead = campaignTypes.search.cost / campaignTypes.search.conversions;
+    }
+    
+    if (campaignTypes.display.clicks > 0) {
+      campaignTypes.display.conversionRate = (campaignTypes.display.conversions / campaignTypes.display.clicks) * 100;
+    }
+    if (campaignTypes.display.conversions > 0) {
+      campaignTypes.display.costPerLead = campaignTypes.display.cost / campaignTypes.display.conversions;
+    }
+    
+    if (campaignTypes.youtube.clicks > 0) {
+      campaignTypes.youtube.conversionRate = (campaignTypes.youtube.conversions / campaignTypes.youtube.clicks) * 100;
+    }
+    if (campaignTypes.youtube.conversions > 0) {
+      campaignTypes.youtube.costPerLead = campaignTypes.youtube.cost / campaignTypes.youtube.conversions;
+    }
+    
+    if (campaignTypes.performanceMax.clicks > 0) {
+      campaignTypes.performanceMax.conversionRate = (campaignTypes.performanceMax.conversions / campaignTypes.performanceMax.clicks) * 100;
+    }
+    if (campaignTypes.performanceMax.conversions > 0) {
+      campaignTypes.performanceMax.costPerLead = campaignTypes.performanceMax.cost / campaignTypes.performanceMax.conversions;
+    }
+
+    // Calculate conversion rates for ad formats
+    // Conversion rate = (conversions / clicks) * 100 (Google Ads standard)
+    if (adFormats.textAds.clicks > 0) {
+      adFormats.textAds.conversionRate = (adFormats.textAds.conversions / adFormats.textAds.clicks) * 100;
+    }
+    if (adFormats.responsiveDisplay.clicks > 0) {
+      adFormats.responsiveDisplay.conversionRate = (adFormats.responsiveDisplay.conversions / adFormats.responsiveDisplay.clicks) * 100;
+    }
+    if (adFormats.videoAds.clicks > 0) {
+      adFormats.videoAds.conversionRate = (adFormats.videoAds.conversions / adFormats.videoAds.clicks) * 100;
+    }
+    
+    // Calculate conversion rates for actual asset types
+    Object.keys(assetTypes).forEach(assetType => {
+      if (assetTypes[assetType].clicks > 0) {
+        assetTypes[assetType].conversionRate = (assetTypes[assetType].conversions / assetTypes[assetType].clicks) * 100;
+      }
+    });
+    
+    // Calculate conversion rates for network breakdown
+    Object.keys(networkBreakdown).forEach(network => {
+      if (networkBreakdown[network].clicks > 0) {
+        networkBreakdown[network].conversionRate = (networkBreakdown[network].conversions / networkBreakdown[network].clicks) * 100;
+      }
+    });
+    
+    // Calculate conversion rates for individual assets
+    Object.keys(individualAssets).forEach(assetId => {
+      if (individualAssets[assetId].clicks > 0) {
+        individualAssets[assetId].conversionRate = (individualAssets[assetId].conversions / individualAssets[assetId].clicks) * 100;
+      }
+    });
+    
+    // Calculate conversion rates for asset type × network combinations
+    Object.keys(assetTypeNetworkCombos).forEach(comboKey => {
+      if (assetTypeNetworkCombos[comboKey].clicks > 0) {
+        assetTypeNetworkCombos[comboKey].conversionRate = (assetTypeNetworkCombos[comboKey].conversions / assetTypeNetworkCombos[comboKey].clicks) * 100;
+      }
+    });
+
+    // Log warning if no ad format data (common for Performance Max campaigns)
+    // Note: Performance Max campaigns don't use traditional ad formats, so this is expected
+    const hasAdFormatData = adFormats.textAds.impressions > 0 || 
+                            adFormats.responsiveDisplay.impressions > 0 || 
+                            adFormats.videoAds.impressions > 0;
+    
+    if (!hasAdFormatData && campaignBlocks.length > 0) {
+      debugLogger.info('GoogleAdsService', 'No ad format data found - account may only have Performance Max campaigns', {
+        campaignBlocksProcessed: campaignBlocks.length,
+        searchAdFormatBlocksProcessed: searchAdFormatBlocks.length,
+        campaignTypes: Object.keys(campaignTypes).map(key => ({
+          type: key,
+          impressions: campaignTypes[key as keyof typeof campaignTypes].impressions
+        }))
+      });
+    }
+
+    debugLogger.info('GoogleAdsService', 'Processed campaign breakdown data (separate queries)', {
+      campaignTypes,
+      adFormats,
+      campaignBlocksProcessed: campaignBlocks.length,
+      searchAdFormatBlocksProcessed: searchAdFormatBlocks.length,
+      hasAdFormatData,
+      note: 'Performance Max query removed - PMax returns ad_network_type="MIXED" which cannot be broken down into ad formats'
+    });
+
+    console.log('\n' + '='.repeat(80));
+    console.log('📈 FINAL AGGREGATED DATA (for browser debugging)');
+    console.log('='.repeat(80));
+    
+    console.log('\n📊 Campaign Types:');
+    console.log(`   Search: ${campaignTypes.search.conversions} conversions, ${campaignTypes.search.impressions.toLocaleString()} impressions, $${campaignTypes.search.cost.toFixed(2)}, ${campaignTypes.search.conversionRate.toFixed(2)}% conv rate`);
+    console.log(`   Display: ${campaignTypes.display.conversions} conversions, ${campaignTypes.display.impressions.toLocaleString()} impressions, $${campaignTypes.display.cost.toFixed(2)}, ${campaignTypes.display.conversionRate.toFixed(2)}% conv rate`);
+    console.log(`   YouTube: ${campaignTypes.youtube.conversions} conversions, ${campaignTypes.youtube.impressions.toLocaleString()} impressions, $${campaignTypes.youtube.cost.toFixed(2)}, ${campaignTypes.youtube.conversionRate.toFixed(2)}% conv rate`);
+    console.log(`   Performance Max: ${campaignTypes.performanceMax.conversions} conversions, ${campaignTypes.performanceMax.impressions.toLocaleString()} impressions, $${campaignTypes.performanceMax.cost.toFixed(2)}, ${campaignTypes.performanceMax.conversionRate.toFixed(2)}% conv rate, $${campaignTypes.performanceMax.costPerLead.toFixed(2)} CPL`);
+    
+    console.log('\n🎨 Ad Formats (Mapped Categories):');
+    console.log(`   Text Ads: ${adFormats.textAds.conversions} conversions, ${adFormats.textAds.impressions.toLocaleString()} impressions, ${adFormats.textAds.conversionRate.toFixed(2)}% conv rate`);
+    console.log(`   Responsive Display: ${adFormats.responsiveDisplay.conversions} conversions, ${adFormats.responsiveDisplay.impressions.toLocaleString()} impressions, ${adFormats.responsiveDisplay.conversionRate.toFixed(2)}% conv rate`);
+    console.log(`   Video Ads: ${adFormats.videoAds.conversions} conversions, ${adFormats.videoAds.impressions.toLocaleString()} impressions, ${adFormats.videoAds.conversionRate.toFixed(2)}% conv rate`);
+    
+    console.log('\n🔧 Ad Formats (Actual Asset Types from Performance Max):');
+    const assetTypeKeys = Object.keys(assetTypes);
+    if (assetTypeKeys.length > 0) {
+      for (const assetType of assetTypeKeys) {
+        const data = assetTypes[assetType];
+        console.log(`   ${assetType}: ${data.conversions} conversions, ${data.impressions.toLocaleString()} impressions, ${data.clicks.toLocaleString()} clicks, ${data.conversionRate.toFixed(2)}% conv rate`);
+      }
+    } else {
+      console.log('   (No asset types found)');
+    }
+    
+    console.log('='.repeat(80));
+    
+    // Remove clicks and cost from return (only used for calculation)
+    const returnCampaignTypes = {
+      search: { 
+        conversions: campaignTypes.search.conversions, 
+        impressions: campaignTypes.search.impressions, 
+        conversionRate: campaignTypes.search.conversionRate,
+        cost: campaignTypes.search.cost,
+        costPerLead: campaignTypes.search.costPerLead
+      },
+      display: { 
+        conversions: campaignTypes.display.conversions, 
+        impressions: campaignTypes.display.impressions, 
+        conversionRate: campaignTypes.display.conversionRate,
+        cost: campaignTypes.display.cost,
+        costPerLead: campaignTypes.display.costPerLead
+      },
+      youtube: { 
+        conversions: campaignTypes.youtube.conversions, 
+        impressions: campaignTypes.youtube.impressions, 
+        conversionRate: campaignTypes.youtube.conversionRate,
+        cost: campaignTypes.youtube.cost,
+        costPerLead: campaignTypes.youtube.costPerLead
+      },
+      performanceMax: { 
+        conversions: campaignTypes.performanceMax.conversions, 
+        impressions: campaignTypes.performanceMax.impressions, 
+        conversionRate: campaignTypes.performanceMax.conversionRate,
+        cost: campaignTypes.performanceMax.cost,
+        costPerLead: campaignTypes.performanceMax.costPerLead
+      }
+    };
+    const returnAdFormats = {
+      textAds: { conversions: adFormats.textAds.conversions, impressions: adFormats.textAds.impressions, conversionRate: adFormats.textAds.conversionRate },
+      responsiveDisplay: { conversions: adFormats.responsiveDisplay.conversions, impressions: adFormats.responsiveDisplay.impressions, conversionRate: adFormats.responsiveDisplay.conversionRate },
+      videoAds: { conversions: adFormats.videoAds.conversions, impressions: adFormats.videoAds.impressions, conversionRate: adFormats.videoAds.conversionRate },
+      // Return actual asset types from Performance Max (raw API output)
+      assetTypes: Object.keys(assetTypes).reduce((acc, key) => {
+        acc[key] = {
+          conversions: assetTypes[key].conversions,
+          impressions: assetTypes[key].impressions,
+          conversionRate: assetTypes[key].conversionRate
+        };
+        return acc;
+      }, {} as Record<string, { conversions: number; impressions: number; conversionRate: number }>),
+      // Return network breakdown for Performance Max assets
+      networkBreakdown: Object.keys(networkBreakdown).reduce((acc, key) => {
+        acc[key] = {
+          conversions: networkBreakdown[key].conversions,
+          impressions: networkBreakdown[key].impressions,
+          conversionRate: networkBreakdown[key].conversionRate
+        };
+        return acc;
+      }, {} as Record<string, { conversions: number; impressions: number; conversionRate: number }>),
+      // Return individual assets for asset vs asset comparison
+      individualAssets: Object.keys(individualAssets).reduce((acc, key) => {
+        acc[key] = {
+          name: individualAssets[key].name,
+          type: individualAssets[key].type,
+          conversions: individualAssets[key].conversions,
+          impressions: individualAssets[key].impressions,
+          conversionRate: individualAssets[key].conversionRate
+        };
+        return acc;
+      }, {} as Record<string, { name: string; type: string; conversions: number; impressions: number; conversionRate: number }>),
+      // Return asset type × network combinations (e.g., IMAGE on DISCOVER vs IMAGE on DISPLAY)
+      assetTypeNetworkCombos: Object.keys(assetTypeNetworkCombos).reduce((acc, key) => {
+        acc[key] = {
+          conversions: assetTypeNetworkCombos[key].conversions,
+          impressions: assetTypeNetworkCombos[key].impressions,
+          conversionRate: assetTypeNetworkCombos[key].conversionRate
+        };
+        return acc;
+      }, {} as Record<string, { conversions: number; impressions: number; conversionRate: number }>)
+    };
+    
+    console.log('✅ Returning final data (without clicks):', JSON.stringify({ campaignTypes: returnCampaignTypes, adFormats: returnAdFormats }, null, 2));
+    console.log('📊 Actual Asset Types from API:', Object.keys(assetTypes).map(type => ({
+      type,
+      conversions: assetTypes[type].conversions,
+      impressions: assetTypes[type].impressions
+    })));
+    
+    return { campaignTypes: returnCampaignTypes, adFormats: returnAdFormats };
   }
 
 }

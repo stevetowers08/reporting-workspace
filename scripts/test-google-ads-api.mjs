@@ -22,8 +22,8 @@ const __dirname = dirname(__filename);
 const envPath = join(__dirname, '..', '.env.local');
 config({ path: envPath });
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing Supabase credentials');
@@ -34,7 +34,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const API_VERSION = 'v21';
-const DEVELOPER_TOKEN = process.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
+const DEVELOPER_TOKEN = process.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
 
 if (!DEVELOPER_TOKEN) {
   console.error('❌ Missing VITE_GOOGLE_ADS_DEVELOPER_TOKEN');
@@ -43,22 +43,17 @@ if (!DEVELOPER_TOKEN) {
 
 async function getAccessToken() {
   try {
-    const { data: integration } = await supabase
-      .from('integrations')
-      .select('tokens')
-      .eq('platform', 'googleAds')
-      .eq('connected', true)
+    const { data: auth } = await supabase
+      .from('user_google_ads_auth')
+      .select('*')
+      .limit(1)
       .single();
 
-    if (!integration?.tokens) {
-      throw new Error('No Google Ads integration found');
+    if (!auth || !auth.access_token) {
+      throw new Error('No Google Ads auth found');
     }
 
-    const tokens = typeof integration.tokens === 'string' 
-      ? JSON.parse(integration.tokens) 
-      : integration.tokens;
-
-    return tokens.access_token;
+    return auth.access_token;
   } catch (error) {
     console.error('❌ Failed to get access token:', error.message);
     throw error;
@@ -67,18 +62,17 @@ async function getAccessToken() {
 
 async function getManagerAccountId() {
   try {
-    const { data: integration } = await supabase
-      .from('integrations')
-      .select('account_id')
-      .eq('platform', 'googleAds')
-      .eq('connected', true)
+    const { data: config } = await supabase
+      .from('google_ads_configs')
+      .select('*')
+      .eq('is_active', true)
       .single();
 
-    if (!integration?.account_id) {
-      throw new Error('No manager account ID found');
+    if (!config) {
+      throw new Error('No active Google Ads config found');
     }
 
-    return String(integration.account_id).replace(/\D/g, '');
+    return String(config.manager_account_id || config.managerAccountId || '3791504588').replace(/\D/g, '');
   } catch (error) {
     console.error('❌ Failed to get manager account ID:', error.message);
     throw error;
@@ -174,16 +168,23 @@ async function main() {
 
   // Normalize customer ID
   const normalizedCustomerId = String(customerId).replace(/\D/g, '');
-  const dateStart = '2024-10-01';
-  const dateEnd = '2024-10-31';
+  
+  // Use recent date range (last 30 days)
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 30);
+  const dateStart = startDate.toISOString().split('T')[0];
+  const dateEnd = endDate.toISOString().split('T')[0];
 
-  // Test 1: Gender Demographics
-  const genderQuery = `SELECT segments.gender, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}' AND campaign.status = 'ENABLED' AND segments.gender IS NOT NULL`;
-  await testApiCall(normalizedCustomerId, managerId, accessToken, genderQuery, '1️⃣ Testing Gender Demographics (segments.gender)');
+  console.log(`Date Range: ${dateStart} to ${dateEnd}\n`);
 
-  // Test 2: Age Demographics
-  const ageQuery = `SELECT segments.age_range, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}' AND campaign.status = 'ENABLED' AND segments.age_range IS NOT NULL`;
-  await testApiCall(normalizedCustomerId, managerId, accessToken, ageQuery, '2️⃣ Testing Age Demographics (segments.age_range)');
+  // Test 1: Gender Demographics using gender_view (same as code)
+  const genderQuery = `SELECT ad_group_criterion.gender.type, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM gender_view WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}' AND ad_group_criterion.status = 'ENABLED'`;
+  await testApiCall(normalizedCustomerId, managerId, accessToken, genderQuery, '1️⃣ Testing Gender Demographics (gender_view)');
+
+  // Test 2: Age Demographics using age_range_view (same as code)
+  const ageQuery = `SELECT ad_group_criterion.age_range.type, metrics.conversions, metrics.cost_micros, metrics.impressions, metrics.clicks FROM age_range_view WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}' AND ad_group_criterion.status = 'ENABLED'`;
+  await testApiCall(normalizedCustomerId, managerId, accessToken, ageQuery, '2️⃣ Testing Age Demographics (age_range_view)');
 
   // Test 3: Campaign Breakdown
   const campaignQuery = `SELECT campaign.advertising_channel_type, campaign.name, metrics.conversions, metrics.cost_micros FROM campaign WHERE segments.date BETWEEN '${dateStart}' AND '${dateEnd}' AND campaign.status = 'ENABLED'`;

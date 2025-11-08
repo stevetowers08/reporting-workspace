@@ -1,10 +1,12 @@
 import { Card } from '@/components/ui/card';
 import { calculatePercentageChange, formatPercentageChange } from '@/lib/dateUtils';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
+import { CardSkeleton } from '@/components/ui/EnhancedLoadingSystem';
 import React from 'react';
 
 interface GoogleAdsMetricsCardsProps {
   data: EventDashboardData | null | undefined;
+  isLoading?: boolean;
 }
 
 // Helper component for percentage display
@@ -25,7 +27,24 @@ const PercentageChange: React.FC<{ current: number; previous: number }> = ({ cur
   );
 };
 
-export const GoogleAdsMetricsCards: React.FC<GoogleAdsMetricsCardsProps> = ({ data }) => {
+export const GoogleAdsMetricsCards: React.FC<GoogleAdsMetricsCardsProps> = ({ data, isLoading }) => {
+  // Show skeleton while loading
+  if (isLoading || !data) {
+    return (
+      <div className="mb-6">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mb-6">
       {/* First Row - 4 Cards */}

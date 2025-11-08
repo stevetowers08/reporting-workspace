@@ -152,8 +152,13 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         startDate.setDate(endDate.getDate() - 14);
         break;
       case '30d':
+        // OPTIMIZED: Include period for API preset optimization
         startDate.setDate(endDate.getDate() - 30);
-        break;
+        return {
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0],
+          period: '30d'
+        };
       case 'lastMonth':
         // For lastMonth, let the API handle it with date_preset
         return {
@@ -191,8 +196,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     return clientId;
   }, [clientId, urlClientId]);
 
-  // Use React Query hooks for data fetching
-  const _dateRange = getDateRange(selectedPeriod);
+  // Memoize date range to ensure React Query detects changes
+  const dateRange = useMemo(() => getDateRange(selectedPeriod), [selectedPeriod]);
 
   // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
@@ -227,7 +232,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           { id: 'google', name: 'Google', url: `${window.location.origin}/dashboard/${clientData.id}?tab=google&shared=true` },
           { id: 'leads', name: 'Leads', url: `${window.location.origin}/dashboard/${clientData.id}?tab=leads&shared=true` }
         ],
-        dateRange: getDateRange(selectedPeriod),
+        dateRange: dateRange,
         quality: options.quality || 'email'
       }, (message) => {
         console.log('Export progress:', message);
@@ -387,7 +392,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <TabsContent value="summary" className="mt-6" ref={summaryTabRef}>
             <SummaryTabContent
               clientId={actualClientId}
-              dateRange={getDateRange(selectedPeriod)}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -395,7 +400,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <TabsContent value="meta" className="mt-6" ref={metaTabRef}>
             <MetaTabContent
               clientId={actualClientId}
-              dateRange={getDateRange(selectedPeriod)}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -403,7 +408,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <TabsContent value="google" className="mt-6" ref={googleTabRef}>
             <GoogleTabContent
               clientId={actualClientId}
-              dateRange={getDateRange(selectedPeriod)}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -411,7 +416,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           <TabsContent value="leads" className="mt-6" ref={leadsTabRef}>
             <LeadsTabContent
               clientId={actualClientId}
-              dateRange={getDateRange(selectedPeriod)}
+              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -425,7 +430,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         onClose={() => setShowExportModal(false)}
         onExport={handleExportWithOptions}
         clientName={clientData?.name || ''}
-        dateRange={getDateRange(selectedPeriod)}
+        dateRange={dateRange}
         availableTabs={['summary', 'meta', 'google', 'leads']}
         isExporting={exportingPDF}
       />

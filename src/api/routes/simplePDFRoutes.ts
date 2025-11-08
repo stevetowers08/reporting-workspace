@@ -4,7 +4,7 @@
  */
 
 import express, { Request, Response } from 'express';
-import { debugLogger } from '../lib/debugLogger';
+import { debugLogger } from '../lib/debug';
 import { SimpleExportConfig, SimplePuppeteerPDFService } from '../services/export/simplePuppeteerPDFService';
 
 const router = express.Router();

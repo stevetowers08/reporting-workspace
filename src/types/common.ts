@@ -72,6 +72,8 @@ export interface GoogleMetricsWithTrends {
   clicks: number;
   ctr: number;
   cpc: number;
+  conversionRate: number;
+  costPerLead: number;
   demographics?: {
     ageGroups: {
       '25-34': number;
@@ -86,14 +88,14 @@ export interface GoogleMetricsWithTrends {
   };
   campaignBreakdown?: {
     campaignTypes: {
-      search: number;
-      display: number;
-      youtube: number;
+      search: { conversions: number; impressions: number; conversionRate: number };
+      display: { conversions: number; impressions: number; conversionRate: number };
+      youtube: { conversions: number; impressions: number; conversionRate: number };
     };
     adFormats: {
-      textAds: number;
-      responsiveDisplay: number;
-      videoAds: number;
+      textAds: { conversions: number; impressions: number; conversionRate: number };
+      responsiveDisplay: { conversions: number; impressions: number; conversionRate: number };
+      videoAds: { conversions: number; impressions: number; conversionRate: number };
     };
   };
   previousPeriod?: GoogleMetricsWithTrends;

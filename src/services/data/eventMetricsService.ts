@@ -172,7 +172,7 @@ export class EventMetricsService {
         impressions: 0, clicks: 0, spend: 0, leads: 0, conversions: 0, 
         ctr: 0, cpc: 0, cpm: 0, roas: 0, reach: 0, frequency: 0 
       };
-      let googleMetrics: GoogleAdsMetrics = { 
+      let googleMetrics: GoogleAdsMetrics & { campaignBreakdown?: any } = { 
         impressions: 0, clicks: 0, cost: 0, leads: 0, conversions: 0, 
         ctr: 0, cpc: 0, conversionRate: 0, costPerConversion: 0, 
         searchImpressionShare: 0, qualityScore: 0 
@@ -238,6 +238,7 @@ export class EventMetricsService {
           const googleAdsResult = result.value as any;
           
           // Map the fields from GoogleAdsService to the expected GoogleAdsMetrics format
+          // Include campaignBreakdown if available
           googleMetrics = {
             impressions: googleAdsResult.impressions || 0,
             clicks: googleAdsResult.clicks || 0,
@@ -250,6 +251,8 @@ export class EventMetricsService {
             costPerConversion: googleAdsResult.costPerConversion || 0,
             searchImpressionShare: 0, // Not available in current API
             qualityScore: 0, // Not available in current API
+            // Include campaignBreakdown if available
+            campaignBreakdown: googleAdsResult.campaignBreakdown,
             // Include previous period data if available
             previousPeriod: googleAdsResult.previousPeriod ? {
               impressions: googleAdsResult.previousPeriod.impressions || 0,
@@ -264,7 +267,7 @@ export class EventMetricsService {
               searchImpressionShare: 0,
               qualityScore: 0
             } : undefined
-          };
+          } as any; // Cast to any to allow campaignBreakdown on GoogleAdsMetrics
           
           debugLogger.debug('EventMetricsService', 'Google metrics loaded:', {
             leads: googleMetrics.leads,
@@ -401,7 +404,7 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics> {
+  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string): Promise<GoogleAdsMetrics & { campaignBreakdown?: any }> {
     try {
       debugLogger.debug('EventMetricsService', 'Fetching Google Ads metrics', { dateRange, clientGoogleAdsAccount });
       
@@ -444,16 +447,68 @@ export class EventMetricsService {
         willUseManagerAccount: targetAccountId === managerAccountId
       });
       
-      // Use the client account ID for the API call (manager account is used for login-customer-id header)
-      const metrics = await GoogleAdsService.getAccountMetrics(targetAccountId, dateRange, true); // Include previous period data
-      debugLogger.debug('EventMetricsService', 'Google Ads metrics result', metrics);
+      // OPTIMIZED: Fetch main metrics and breakdown in parallel with timeout to prevent hanging
+      const API_TIMEOUT = 30000; // 30 seconds max per call
+      
+      const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+        return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => 
+            setTimeout(() => reject(new Error(`API call timeout after ${timeoutMs}ms`)), timeoutMs)
+          )
+        ]);
+      };
+      
+      const [mainMetrics, breakdown] = await Promise.allSettled([
+        createTimeoutPromise(
+          GoogleAdsService.getAccountMetrics(targetAccountId, dateRange, true), // Include previous period data
+          API_TIMEOUT
+        ),
+        createTimeoutPromise(
+          GoogleAdsService.getCampaignBreakdown(targetAccountId, dateRange),
+          API_TIMEOUT
+        )
+      ]);
+      
+      // Extract main metrics
+      const metrics = mainMetrics.status === 'fulfilled' ? mainMetrics.value : null;
+      if (!metrics) {
+        const errorReason = mainMetrics.status === 'rejected' ? mainMetrics.reason : 'Unknown error';
+        debugLogger.warn('EventMetricsService', 'No Google Ads metrics returned', { error: errorReason });
+        return null;
+      }
+      
+      // Add breakdown if available (from parallel call)
+      const result = { ...metrics };
+      if (breakdown.status === 'fulfilled' && breakdown.value) {
+        result.campaignBreakdown = breakdown.value;
+        debugLogger.info('EventMetricsService', 'Campaign breakdown loaded in parallel', {
+          breakdownDetails: breakdown.value,
+          hasPerformanceMax: !!(breakdown.value.campaignTypes.performanceMax?.conversions || breakdown.value.campaignTypes.performanceMax?.impressions)
+        });
+        console.log('✅ EventMetricsService - Campaign breakdown loaded:', {
+          search: breakdown.value.campaignTypes.search,
+          display: breakdown.value.campaignTypes.display,
+          youtube: breakdown.value.campaignTypes.youtube,
+          performanceMax: breakdown.value.campaignTypes.performanceMax,
+          adFormats: breakdown.value.adFormats
+        });
+      } else if (breakdown.status === 'rejected') {
+        debugLogger.warn('EventMetricsService', 'Campaign breakdown failed (non-critical)', breakdown.reason);
+        console.error('❌ EventMetricsService - Campaign breakdown failed:', breakdown.reason);
+      } else {
+        debugLogger.warn('EventMetricsService', 'Campaign breakdown returned null/undefined');
+        console.warn('⚠️ EventMetricsService - Campaign breakdown is null/undefined');
+      }
+      
+      debugLogger.debug('EventMetricsService', 'Google Ads metrics result', result);
       
       // Log if we got empty data
       if (!metrics || (metrics.leads === 0 && metrics.cost === 0 && metrics.impressions === 0)) {
         debugLogger.warn('EventMetricsService', 'Google Ads API returned empty data - no active campaigns or data for date range');
       }
       
-      return metrics;
+      return result;
     } catch (error) {
       debugLogger.error('EventMetricsService', 'Google Ads metrics error', error);
       

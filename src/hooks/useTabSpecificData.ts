@@ -125,7 +125,7 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
 
 // Hook for Google tab data
 export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  const { data: clientData } = useClientData(clientId);
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
   
   const finalDateRange = dateRange || (() => {
     const endDate = new Date();
@@ -137,23 +137,34 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
     };
   })();
   
-  return useQuery({
+  const query = useQuery({
     queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
       if (!clientId) throw new Error('Client ID is required');
       if (!clientData) throw new Error('Client not found');
       
-      // Direct API call - no caching
-      const result = await AnalyticsOrchestrator.getDashboardData(clientId, finalDateRange);
-      return { ...result, clientData };
+      // OPTIMIZED: Only fetch Google data, not all dashboard data
+      const googleData = await AnalyticsOrchestrator.getGoogleDataOnly(clientId, finalDateRange, clientData);
+      return { 
+        googleMetrics: googleData,
+        clientData 
+      };
     },
     enabled: !!clientId && !!clientData,
-    staleTime: 0, // Always fetch fresh data for reporting
+    staleTime: 0, // Always fetch fresh data for reporting (no caching)
     gcTime: 0, // Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
     refetchOnMount: true, // Always refetch on mount for fresh data
   });
+  
+  // Return with combined loading state
+  // React Query's isLoading = isFetching && !data (already handles "no data yet")
+  // We also need to wait for client data before we can fetch Google data
+  return {
+    ...query,
+    isLoading: query.isLoading || clientLoading,
+  };
 };
 
 // Hook for Leads tab data

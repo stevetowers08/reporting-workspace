@@ -27,6 +27,11 @@ export class DevLogger {
     if (DEBUG_CONFIG.logLevel === 'error' || DEBUG_CONFIG.logLevel === 'warn') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'debug');
+    if (data) {
+      console.debug(formattedMessage, data);
+    } else {
+      console.debug(formattedMessage);
+    }
   }
 
   // Info level logging
@@ -35,6 +40,11 @@ export class DevLogger {
     if (DEBUG_CONFIG.logLevel === 'error') {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'info');
+    if (data) {
+      console.info(formattedMessage, data);
+    } else {
+      console.info(formattedMessage);
+    }
   }
 
   // Warning level logging
@@ -42,6 +52,11 @@ export class DevLogger {
     if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'warn');
+    if (data) {
+      console.warn(formattedMessage, data);
+    } else {
+      console.warn(formattedMessage);
+    }
   }
 
   // Error level logging
@@ -49,6 +64,11 @@ export class DevLogger {
     if (!this.shouldLog(debugPlatform, debugFeature)) {return;}
     
     const formattedMessage = this.formatMessage(platform, message, 'error');
+    if (error) {
+      console.error(formattedMessage, error);
+    } else {
+      console.error(formattedMessage);
+    }
   }
 
   // Success level logging

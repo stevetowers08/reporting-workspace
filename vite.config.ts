@@ -72,6 +72,8 @@ export default defineConfig(({ mode }) => {
       include: [
         'react',
         'react-dom',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
         '@tanstack/react-query',
         '@supabase/supabase-js',
         'recharts',
@@ -98,21 +100,38 @@ export default defineConfig(({ mode }) => {
         }),
       },
       // Critical: Prevent multiple React instances that cause hydration errors
-      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-is'],
+      // Must include all React-related modules
+      dedupe: [
+        'react', 
+        'react-dom', 
+        'react/jsx-runtime', 
+        'react/jsx-dev-runtime',
+        'react-is',
+        'scheduler',
+      ],
     },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
-      'react': path.resolve('./node_modules/react'),
-      'react-dom': path.resolve('./node_modules/react-dom'),
+      // Force single React instance - use absolute paths
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       // Ensure React is always resolved consistently
-      'react/jsx-runtime': path.resolve('./node_modules/react/jsx-runtime'),
-      'react/jsx-dev-runtime': path.resolve('./node_modules/react/jsx-dev-runtime'),
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime'),
       // Help Rollup/Vite resolve transitive dependency from recharts
-      'react-is': path.resolve('./node_modules/react-is'),
+      'react-is': path.resolve(__dirname, 'node_modules/react-is'),
     },
     mainFields: ['browser', 'module', 'jsnext:main', 'main'],
-    dedupe: ['react', 'react-dom', 'react-is'],
+    // Aggressive deduplication to prevent multiple React instances
+    dedupe: [
+      'react', 
+      'react-dom', 
+      'react/jsx-runtime', 
+      'react/jsx-dev-runtime',
+      'react-is',
+      'scheduler',
+    ],
     // Prevent circular dependencies
     preserveSymlinks: false,
     // Ensure consistent module resolution

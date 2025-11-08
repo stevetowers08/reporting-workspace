@@ -3,7 +3,7 @@
  * Replaces html2canvas implementation with Puppeteer-based API calls
  */
 
-import { debugLogger } from '../lib/debugLogger';
+import { debugLogger } from '../lib/debug';
 
 export interface PDFExportOptions {
   clientId: string;

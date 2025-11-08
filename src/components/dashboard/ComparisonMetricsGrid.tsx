@@ -58,10 +58,8 @@ export const ComparisonMetricsCard: React.FC<ComparisonMetricsCardProps> = ({
             <p className="text-3xl font-bold text-slate-900">
               {formatValue(current, format, suffix, prefix)}
             </p>
-            {previous !== undefined ? (
+            {previous !== undefined && (
               <PercentageChange current={current} previous={previous} />
-            ) : (
-              <div className="text-sm text-slate-400">No comparison data</div>
             )}
           </div>
         </div>

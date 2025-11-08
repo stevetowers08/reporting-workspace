@@ -10,6 +10,7 @@ export const MetaAdsDemographics: React.FC<MetaAdsDemographicsProps> = ({ data }
   // Get demographic data from Facebook metrics
   const demographics = data?.facebookMetrics?.demographics;
   
+  
   // Use real data if available, otherwise show fallback message
   const ageGroups = demographics?.ageGroups || {
     '25-34': 0,

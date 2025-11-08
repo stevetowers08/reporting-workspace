@@ -101,34 +101,82 @@ export class AnalyticsOrchestratorV2 {
 
 ### 2. **React Query Integration** ✅ **IMPLEMENTED**
 
-**Location:** `src/hooks/useV2TabSpecificData.ts`
+**Location:** `src/hooks/useTabSpecificData.ts`
+
+#### **Best Practices for Reporting Apps (January 2025)**
+
+**Key Principles:**
+1. **Always use `EventMetricsService`** for data fetching (not `AnalyticsOrchestrator` directly)
+2. **`isLoading` vs `isFetching`**: 
+   - `isLoading` = `isFetching && !data` (show loading overlay when no data)
+   - `isFetching` = currently fetching (including background refetches)
+   - For reporting apps: Use `isLoading` to show loading overlay, not `isFetching`
+3. **No caching for reporting data**: Set `staleTime: 0` and `gcTime: 0` for always-fresh data
+4. **Parallel API calls**: Use `Promise.allSettled` for concurrent data fetching
+5. **Timeout protection**: Add timeouts to prevent hanging API calls
 
 ```typescript
-// ✅ IMPLEMENTED: Production React Query configuration
-export const useV2SummaryTabData = (clientId: string | undefined, dateRange?: DateRange) => {
-  return useQuery({
-    queryKey: ['v2-summary-tab-data', clientId, dateRange],
+// ✅ IMPLEMENTED: Production React Query configuration for reporting apps
+export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange) => {
+  const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+  
+  const finalDateRange = dateRange || (() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return {
+      start: startDate.toISOString().split('T')[0], 
+      end: endDate.toISOString().split('T')[0] 
+    };
+  })();
+  
+  const query = useQuery({
+    queryKey: ['google-tab-data', clientId, dateRange],
     queryFn: async () => {
       if (!clientId) throw new Error('Client ID is required');
-      
-      const clientData = await getV2CachedClientData(clientId);
       if (!clientData) throw new Error('Client not found');
       
-      // Use V2 AnalyticsOrchestrator with direct API calls
-      const result = await AnalyticsOrchestratorV2.getDashboardData(clientId, finalDateRange);
-      return { ...result, clientData };
+      // ✅ BEST PRACTICE: Use EventMetricsService for data fetching
+      const googleData = await EventMetricsService.getComprehensiveMetrics(
+        clientId,
+        finalDateRange,
+        {
+          googleAds: clientData.accounts?.googleAds,
+          // ... other accounts
+        }
+      );
+      return { 
+        googleMetrics: googleData.googleMetrics,
+        clientData 
+      };
     },
-    enabled: !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    enabled: !!clientId && !!clientData,
+    staleTime: 0, // ✅ Always fetch fresh data for reporting (no caching)
+    gcTime: 0, // ✅ Don't cache for reporting
     retry: 1,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    retryOnMount: false,
-    refetchOnReconnect: true,
-    timeout: 30000, // 30 second timeout
+    refetchOnMount: true, // ✅ Always refetch on mount for fresh data
   });
+  
+  // ✅ BEST PRACTICE: Use isLoading (not isFetching) for loading overlay
+  // React Query's isLoading = isFetching && !data (already handles "no data yet")
+  // We also need to wait for client data before we can fetch Google data
+  return {
+    ...query,
+    isLoading: query.isLoading || clientLoading,
+  };
 };
+```
+
+**Why `isLoading` instead of `isFetching`?**
+- `isLoading` = true only when there's no data yet (perfect for loading overlay)
+- `isFetching` = true even during background refetches (would show loading overlay unnecessarily)
+- For reporting apps, we want to show data immediately and only show loading when there's no data
+
+**Why `staleTime: 0` and `gcTime: 0`?**
+- Reporting apps need always-fresh data
+- Users expect to see current metrics, not cached data
+- Prevents stale data from being displayed
 
 // ✅ GOOD: Mutation with cache invalidation
 export const useUpdateChartData = () => {
@@ -697,9 +745,134 @@ When implementing these patterns in an existing application:
 
 ---
 
+## React Query Best Practices for Reporting Apps (January 2025)
+
+### **Loading State Management**
+
+**✅ CORRECT:**
+```typescript
+// Use isLoading (not isFetching) for loading overlays
+const { data, isLoading, error } = useQuery({...});
+
+// isLoading = isFetching && !data (perfect for reporting apps)
+<LoadingOverlay isLoading={isLoading} message="Loading data...">
+  {data && <DashboardContent data={data} />}
+</LoadingOverlay>
+```
+
+**❌ INCORRECT:**
+```typescript
+// Don't use isFetching for loading overlays (shows during background refetches)
+const { data, isFetching, error } = useQuery({...});
+<LoadingOverlay isLoading={isFetching} message="Loading data...">
+  {/* This would hide data during background refetches */}
+</LoadingOverlay>
+```
+
+### **Caching Strategy for Reporting Apps**
+
+**✅ CORRECT:**
+```typescript
+// No caching for reporting data - always fetch fresh
+const query = useQuery({
+  queryKey: ['reporting-data', clientId, dateRange],
+  queryFn: async () => await EventMetricsService.getComprehensiveMetrics(...),
+  staleTime: 0, // Always fetch fresh data
+  gcTime: 0, // Don't cache for reporting
+  refetchOnMount: true, // Always refetch on mount
+});
+```
+
+**❌ INCORRECT:**
+```typescript
+// Don't cache reporting data - users expect fresh metrics
+const query = useQuery({
+  queryKey: ['reporting-data', clientId, dateRange],
+  queryFn: async () => await EventMetricsService.getComprehensiveMetrics(...),
+  staleTime: 5 * 60 * 1000, // ❌ Caching reporting data is bad UX
+  gcTime: 15 * 60 * 1000, // ❌ Users expect fresh data
+});
+```
+
+### **Data Service Usage**
+
+**✅ CORRECT:**
+```typescript
+// Always use EventMetricsService for data fetching
+import { EventMetricsService } from '@/services/data/eventMetricsService';
+
+const result = await EventMetricsService.getComprehensiveMetrics(
+  clientId,
+  dateRange,
+  clientAccounts,
+  clientConversionActions,
+  includePreviousPeriod
+);
+```
+
+**❌ INCORRECT:**
+```typescript
+// Don't use AnalyticsOrchestrator directly in hooks
+// Use EventMetricsService instead (which may use AnalyticsOrchestrator internally)
+import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
+const result = await AnalyticsOrchestrator.getDashboardData(...); // ❌ Use EventMetricsService
+```
+
+### **Parallel API Calls with Timeout**
+
+**✅ CORRECT:**
+```typescript
+// Use Promise.allSettled with timeout protection
+const API_TIMEOUT = 30000; // 30 seconds max per call
+
+const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(`API call timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
+const [mainMetrics, breakdown] = await Promise.allSettled([
+  createTimeoutPromise(
+    GoogleAdsService.getAccountMetrics(customerId, dateRange),
+    API_TIMEOUT
+  ),
+  createTimeoutPromise(
+    GoogleAdsService.getCampaignBreakdown(customerId, dateRange),
+    API_TIMEOUT
+  )
+]);
+```
+
+### **Dependency Loading States**
+
+**✅ CORRECT:**
+```typescript
+// Combine loading states for dependencies
+const { data: clientData, isLoading: clientLoading } = useClientData(clientId);
+
+const query = useQuery({
+  queryKey: ['tab-data', clientId, dateRange],
+  queryFn: async () => {
+    if (!clientData) throw new Error('Client not found');
+    // ... fetch data
+  },
+  enabled: !!clientId && !!clientData,
+});
+
+// Show loading if query is loading OR client data is loading
+return {
+  ...query,
+  isLoading: query.isLoading || clientLoading,
+};
+```
+
 ## Resources
 
 - [React Query Best Practices](https://tanstack.com/query/latest/docs/react/guides/best-practices)
+- [React Query isLoading vs isFetching](https://tanstack.com/query/latest/docs/react/guides/queries#loading-state)
 - [Chart.js Performance Optimization](https://www.chartjs.org/docs/latest/configuration/responsive.html)
 - [React Performance Optimization](https://react.dev/learn/render-and-commit)
 - [Web Vitals Monitoring](https://web.dev/vitals/)

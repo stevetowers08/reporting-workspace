@@ -111,13 +111,11 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Meta Leads</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{data?.facebookMetrics?.leads || '0'}</p>
-                {data?.facebookMetrics?.previousPeriod ? (
+                {data?.facebookMetrics?.previousPeriod && (
                   <PercentageChange 
                     current={data.facebookMetrics.leads} 
                     previous={data.facebookMetrics.previousPeriod.leads} 
                   />
-                ) : (
-                  <div className="text-sm text-slate-400">No comparison data</div>
                 )}
               </div>
             </div>
@@ -172,13 +170,11 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
               <p className="text-sm font-medium text-slate-600 mb-2">Spent</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">${Math.round(data?.facebookMetrics?.spend || 0).toLocaleString()}</p>
-                {data?.facebookMetrics?.previousPeriod ? (
+                {data?.facebookMetrics?.previousPeriod && (
                   <PercentageChange 
                     current={data.facebookMetrics.spend} 
                     previous={data.facebookMetrics.previousPeriod.spend} 
                   />
-                ) : (
-                  <div className="text-sm text-slate-400">No comparison data</div>
                 )}
               </div>
             </div>

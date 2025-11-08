@@ -11,6 +11,7 @@ export const GoogleAdsDemographics: React.FC<GoogleAdsDemographicsProps> = ({ da
   const demographics = data?.googleMetrics?.demographics;
   const totalLeads = data?.googleMetrics?.leads || 0;
 
+
   // Default values if no data
   const ageGroups = demographics?.ageGroups || {
     '25-34': 0,

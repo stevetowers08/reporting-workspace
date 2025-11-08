@@ -33,25 +33,18 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
     googleLeads: leadData?.googleLeads || 0
   }), [leadData]);
   
-  // Use GoHighLevel data for contact count (REAL DATA) - memoized
-  const ghlMetrics = useMemo(() => data?.ghlMetrics || null, [data?.ghlMetrics]);
-  const totalContacts = useMemo(() => ghlMetrics?.totalContacts || 0, [ghlMetrics?.totalContacts]);
-  
-  // ✅ FIX: Check if GoHighLevel is actually connected (has valid OAuth) - memoized
+  // Check if GoHighLevel is actually connected (has valid OAuth) - memoized
   const ghlConnectionStatus = useMemo(() => {
     const isGHLConnected = data?.ghlMetrics !== null && data?.ghlMetrics !== undefined;
-    const hasGHLData = isGHLConnected && totalContacts > 0;
     const shouldShowReconnectPrompt = data?.clientAccounts?.goHighLevel && 
       data.clientAccounts.goHighLevel !== 'none' && !isGHLConnected;
     
-    return { isGHLConnected, hasGHLData, shouldShowReconnectPrompt };
-  }, [data?.ghlMetrics, data?.clientAccounts?.goHighLevel, totalContacts]);
+    return { isGHLConnected, shouldShowReconnectPrompt };
+  }, [data?.ghlMetrics, data?.clientAccounts?.goHighLevel]);
   
   debugLogger.debug('LeadInfoMetricsCards', 'GHL Reconnect Check', {
     isGHLConnected: ghlConnectionStatus.isGHLConnected,
-    hasGHLData: ghlConnectionStatus.hasGHLData,
     shouldShowReconnectPrompt: ghlConnectionStatus.shouldShowReconnectPrompt,
-    totalContacts,
     loading: isLoading,
     ghlAccount: data?.clientAccounts?.goHighLevel
   });

@@ -24,8 +24,8 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
         debugLogger.debug('EventTypesBreakdown', 'Starting to fetch lead data');
         
         // Try to get googleSheetsConfig from either clientAccounts or clientData (same pattern as GuestCountDistribution)
-        const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig || data?.clientData?.accounts?.googleSheetsConfig;
-        const googleSheets = data?.clientAccounts?.googleSheets || data?.clientData?.accounts?.googleSheets;
+        const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig;
+        const googleSheets = data?.clientAccounts?.googleSheets;
         
         console.log('  - googleSheetsConfig:', googleSheetsConfig);
         console.log('  - googleSheets:', googleSheets);
@@ -144,10 +144,10 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
   }
 
   // Color palette for event types
-  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#8B5CF6'];
+  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6', '#F97316'];
   
-  // Sort event types by count (descending) for better visualization
-  const sortedEventTypes = [...eventTypes].sort((a, b) => b.count - a.count);
+  // Sort event types by count (descending) and limit to top 8
+  const sortedEventTypes = [...eventTypes].sort((a, b) => b.count - a.count).slice(0, 8);
 
   // Prepare chart data with colors
   const chartData = sortedEventTypes.map((eventType, index) => ({
@@ -159,35 +159,38 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
 
   return (
     <Card className="h-full flex flex-col">
-      <div className="pb-6">
+      <div className="pb-4">
         <h3 className="text-lg font-semibold text-slate-900">Event Types</h3>
       </div>
       
-      <div className="flex-1 min-h-0 -mx-2">
-        <div className="h-64 px-2">
+      <div className="flex-1 min-h-0">
+        <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart 
               data={chartData} 
-              margin={{ top: 20, right: 30, left: 20, bottom: chartData.length > 5 ? 60 : 40 }}
+              margin={{ top: 20, right: 20, left: 0, bottom: 50 }}
+              barCategoryGap="15%"
             >
               <XAxis 
                 dataKey="name"
                 tick={{ fontSize: 11, fill: '#64748B' }}
-                angle={chartData.length > 5 ? -45 : 0}
-                textAnchor={chartData.length > 5 ? 'end' : 'middle'}
-                height={chartData.length > 5 ? 60 : 40}
+                angle={-45}
+                textAnchor="end"
+                height={50}
                 axisLine={{ stroke: '#E2E8F0' }}
                 tickLine={{ stroke: '#E2E8F0' }}
+                interval={0}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#64748B' }}
-                axisLine={{ stroke: '#E2E8F0' }}
-                tickLine={{ stroke: '#E2E8F0' }}
+                tick={{ fontSize: 11, fill: '#64748B' }}
+                axisLine={false}
+                tickLine={false}
+                width={50}
                 label={{ 
                   value: 'Event Count', 
                   angle: -90, 
                   position: 'insideLeft',
-                  style: { textAnchor: 'middle', fontSize: '12px', fill: '#64748B', fontWeight: 500 }
+                  style: { textAnchor: 'middle', fontSize: '11px', fill: '#64748B', fontWeight: 500 }
                 }}
               />
               <Tooltip 
@@ -212,7 +215,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
               />
               <Bar 
                 dataKey="value" 
-                radius={[4, 4, 0, 0]}
+                radius={[6, 6, 0, 0]}
                 animationDuration={800}
               >
                 {chartData.map((entry, index) => (
@@ -221,7 +224,7 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
                 <LabelList 
                   dataKey="value" 
                   position="top" 
-                  style={{ fontSize: '12px', fill: '#374151', fontWeight: 600 }} 
+                  style={{ fontSize: '11px', fill: '#374151', fontWeight: 600 }} 
                 />
               </Bar>
             </BarChart>
@@ -230,9 +233,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
       </div>
       
       {chartData.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-slate-200">
-          <p className="text-xs text-slate-500">
-            Showing {sortedEventTypes.length} event {sortedEventTypes.length === 1 ? 'type' : 'types'} from {leadData.totalLeads} {leadData.totalLeads === 1 ? 'lead' : 'leads'}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <p className="text-xs text-slate-500 text-center">
+            Showing top {chartData.length} event {chartData.length === 1 ? 'type' : 'types'} from {leadData.totalLeads} {leadData.totalLeads === 1 ? 'lead' : 'leads'}
           </p>
         </div>
       )}

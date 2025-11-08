@@ -1668,9 +1668,22 @@ export class FacebookAdsService {
         };
       }
       
-      // Fetch demographic and platform breakdown data
-      const demographics = await this.getDemographicBreakdown(accountId, dateRange);
-      const platformBreakdown = await this.getPlatformBreakdown(accountId, dateRange);
+      // OPTIMIZED: Fetch demographic and platform breakdown data in parallel (best practice)
+      const [demographics, platformBreakdown] = await Promise.allSettled([
+        this.getDemographicBreakdown(accountId, dateRange),
+        this.getPlatformBreakdown(accountId, dateRange)
+      ]);
+      
+      // Extract results from Promise.allSettled
+      const demographicsData = demographics.status === 'fulfilled' ? demographics.value : null;
+      const platformBreakdownData = platformBreakdown.status === 'fulfilled' ? platformBreakdown.value : null;
+      
+      if (demographics.status === 'rejected') {
+        debugLogger.warn('FacebookAdsService', 'Demographics fetch failed', demographics.reason);
+      }
+      if (platformBreakdown.status === 'rejected') {
+        debugLogger.warn('FacebookAdsService', 'Platform breakdown fetch failed', platformBreakdown.reason);
+      }
       
       const metrics = this.parseMetrics(data.data?.[0] || {
         impressions: '0',
@@ -1684,9 +1697,15 @@ export class FacebookAdsService {
         reach: '0',
         frequency: '0'
       }, conversionAction);
-      // Include demographic and platform data
-      metrics.demographics = demographics;
-      metrics.platformBreakdown = platformBreakdown;
+      // Include demographic and platform data (from parallel fetch)
+      metrics.demographics = demographicsData || {
+        ageGroups: { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 },
+        gender: { female: 0, male: 0 }
+      };
+      metrics.platformBreakdown = platformBreakdownData || {
+        facebookVsInstagram: { facebook: 0, instagram: 0 },
+        adPlacements: { feed: 0, stories: 0, reels: 0 }
+      };
       
       // Fetch previous period data if requested
       debugLogger.debug('FacebookAdsService', 'Previous period check:', {

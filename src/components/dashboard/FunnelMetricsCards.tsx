@@ -1,34 +1,52 @@
 import { DataSkeleton } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
-import React, { useEffect, useState } from 'react';
+import { EventDashboardData } from '@/types/dashboard';
+import React, { useEffect, useState, useMemo } from 'react';
 
 interface FunnelMetricsCardsProps {
   locationId: string;
   dateRange?: { start: string; end: string };
+  dashboardData?: EventDashboardData | null;
 }
 
-export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ locationId, dateRange }) => {
+export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ locationId, dateRange, dashboardData }) => {
   const [funnelData, setFunnelData] = useState<any>(null);
-  const [totalContacts, setTotalContacts] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState<boolean>(true);
+
+  // Use contact count from dashboard data if available (prevents redundant API call)
+  const totalContacts = useMemo(() => {
+    return dashboardData?.ghlMetrics?.totalContacts || 0;
+  }, [dashboardData?.ghlMetrics?.totalContacts]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Convert date range format for API
-        const apiDateRange = dateRange ? {
-          startDate: dateRange.start,
-          endDate: dateRange.end
-        } : undefined;
-        
-        const [funnelAnalytics, contactCount] = await Promise.all([
-          GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange),
-          GoHighLevelService.getContactCount(locationId)
-        ]);
-        setFunnelData(funnelAnalytics);
-        setTotalContacts(contactCount);
+        // Only fetch funnel analytics if not available from dashboard data
+        if (dashboardData?.ghlMetrics && totalContacts > 0) {
+          // Try to get funnel data from dashboard if available
+          // For now, still fetch funnel analytics as it's not in ghlMetrics
+          const apiDateRange = dateRange ? {
+            startDate: dateRange.start,
+            endDate: dateRange.end
+          } : undefined;
+          
+          const funnelAnalytics = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
+          setFunnelData(funnelAnalytics);
+        } else {
+          // Fallback: fetch both if dashboard data not available
+          const apiDateRange = dateRange ? {
+            startDate: dateRange.start,
+            endDate: dateRange.end
+          } : undefined;
+          
+          const [funnelAnalytics, contactCount] = await Promise.all([
+            GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange),
+            GoHighLevelService.getContactCount(locationId)
+          ]);
+          setFunnelData(funnelAnalytics);
+        }
       } catch (error) {
         // Check if it's a connection error
         if (error instanceof Error && (
@@ -44,7 +62,7 @@ export const FunnelMetricsCards: React.FC<FunnelMetricsCardsProps> = ({ location
     };
 
     fetchData();
-  }, [locationId, dateRange]);
+  }, [locationId, dateRange, dashboardData?.ghlMetrics]);
 
   if (loading) {
     return (

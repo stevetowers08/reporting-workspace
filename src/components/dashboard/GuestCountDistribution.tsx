@@ -19,22 +19,10 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
     const fetchData = async () => {
       try {
         setError(null);
-        console.log('🔍 GuestCountDistribution: Starting fetch');
-        console.log('  - hasData:', !!data);
-        console.log('  - hasClientAccounts:', !!data?.clientAccounts);
-        console.log('  - hasClientData:', !!data?.clientData);
-        console.log('  - clientData.accounts:', data?.clientData?.accounts);
-        console.log('  - clientData.accounts.googleSheetsConfig:', data?.clientData?.accounts?.googleSheetsConfig);
-        console.log('  - hasGoogleSheetsConfig (from clientAccounts):', !!data?.clientAccounts?.googleSheetsConfig);
-        console.log('  - hasGoogleSheetsConfig (from clientData):', !!data?.clientData?.accounts?.googleSheetsConfig);
-        console.log('  - data keys:', data ? Object.keys(data) : []);
         
-        // Try to get googleSheetsConfig from either clientAccounts or clientData
-        const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig || data?.clientData?.accounts?.googleSheetsConfig;
-        const googleSheets = data?.clientAccounts?.googleSheets || data?.clientData?.accounts?.googleSheets;
-        
-        console.log('  - resolved googleSheetsConfig:', googleSheetsConfig);
-        console.log('  - resolved googleSheets:', googleSheets);
+        // Get googleSheetsConfig from clientAccounts
+        const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig;
+        const googleSheets = data?.clientAccounts?.googleSheets;
         debugLogger.debug('GuestCountDistribution', 'Starting to fetch lead data', {
           hasData: !!data,
           hasClientAccounts: !!data?.clientAccounts,
@@ -44,13 +32,6 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         
         // Check if client has Google Sheets configuration
         if (!googleSheetsConfig && !googleSheets) {
-          console.warn('⚠️ GuestCountDistribution: No Google Sheets config found', {
-            clientAccounts: JSON.stringify(data?.clientAccounts, null, 2),
-            clientDataAccounts: JSON.stringify(data?.clientData?.accounts, null, 2),
-            hasGoogleSheets: !!googleSheets,
-            hasGoogleSheetsConfig: !!googleSheetsConfig,
-            dataKeys: data ? Object.keys(data) : []
-          });
           debugLogger.warn('GuestCountDistribution', 'No Google Sheets configuration found for client');
           setError('Google Sheets not configured for this client');
           setLeadData(null);
@@ -92,14 +73,6 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
           );
         }
         
-        console.log('📊 GuestCountDistribution: Received lead data', {
-          hasResult: !!leadDataResult,
-          totalLeads: leadDataResult?.totalLeads,
-          guestRangesCount: leadDataResult?.guestRanges?.length,
-          guestRanges: JSON.stringify(leadDataResult?.guestRanges, null, 2),
-          eventTypesCount: leadDataResult?.eventTypes?.length,
-          leadDataResult: JSON.stringify(leadDataResult, null, 2)
-        });
         debugLogger.debug('GuestCountDistribution', 'Received lead data', {
           hasResult: !!leadDataResult,
           totalLeads: leadDataResult?.totalLeads,
@@ -108,19 +81,13 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         });
         
         if (leadDataResult) {
-          console.log('✅ GuestCountDistribution: Data received', {
-            guestRanges: leadDataResult.guestRanges,
-            eventTypes: leadDataResult.eventTypes
-          });
           debugLogger.debug('GuestCountDistribution', 'Guest ranges data', leadDataResult.guestRanges);
           setLeadData(leadDataResult);
         } else {
-          console.error('❌ GuestCountDistribution: No data returned from LeadDataService');
-          debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService - check console for API errors');
+          debugLogger.warn('GuestCountDistribution', 'No data returned from LeadDataService');
           setLeadData(null);
         }
       } catch (error) {
-        console.error('❌ GuestCountDistribution: Error fetching data', error);
         debugLogger.error('GuestCountDistribution', 'Failed to fetch lead data', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to load guest count data';
         setError(errorMessage);
@@ -178,10 +145,8 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
   // Prepare chart data - always use guest ranges for this component
   // Keep ranges in order (1-50, 51-100, etc.) for histogram-style visualization
   // Don't sort - maintain natural order for distribution
-  console.log('🔍 GuestCountDistribution: Preparing chart data', {
-    guestRanges: JSON.stringify(leadData.guestRanges, null, 2),
+  debugLogger.debug('GuestCountDistribution', 'Preparing chart data', {
     guestRangesLength: leadData.guestRanges?.length,
-    guestRangesType: typeof leadData.guestRanges,
     isArray: Array.isArray(leadData.guestRanges)
   });
   
@@ -219,11 +184,9 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
       })
     : [];
   
-  console.log('📊 GuestCountDistribution: Chart data prepared', {
-    chartDataLength: chartData.length,
-    chartData: JSON.stringify(chartData, null, 2)
+  debugLogger.debug('GuestCountDistribution', 'Chart data prepared', {
+    chartDataLength: chartData.length
   });
-
 
   return (
     <Card className="h-full flex flex-col">

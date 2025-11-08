@@ -23,8 +23,13 @@ export function getDateRange(period: string): DateRange {
       startDate.setDate(endDate.getDate() - 14);
       break;
     case '30d':
+      // OPTIMIZED: Use API preset for 30d when available (Google Ads API)
       startDate.setDate(endDate.getDate() - 30);
-      break;
+      return {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0],
+        period: '30d' // Include period for API preset optimization
+      };
     case 'lastMonth':
       // For lastMonth, let the API handle it with date_preset
       return {
@@ -44,7 +49,8 @@ export function getDateRange(period: string): DateRange {
   
   return {
     start: startDate.toISOString().split('T')[0],
-    end: endDate.toISOString().split('T')[0]
+    end: endDate.toISOString().split('T')[0],
+    period: period // Include period for API preset optimization
   };
 }
 

@@ -277,7 +277,6 @@ class GoogleAdapter implements PlatformAdapter<GoogleMetricsWithTrends> {
       conversionRate: data.conversionRate || 0,
       ctr: data.ctr || 0,
       costPerConversion: data.costPerConversion || 0,
-      demographics: data.demographics,
       campaignBreakdown: data.campaignBreakdown
     };
   }
@@ -1223,6 +1222,17 @@ export class AnalyticsOrchestrator {
 
 
   /**
+   * Get Google data only (optimized for Google tab)
+   */
+  static async getGoogleDataOnly(
+    clientId: string,
+    dateRange: DateRange,
+    clientData: Client
+  ): Promise<GoogleMetricsWithTrends | undefined> {
+    return this.getGoogleData(clientId, dateRange, clientData);
+  }
+
+  /**
    * Get Google data with direct API calls and improvements
    */
   private static async getGoogleData(
@@ -1238,37 +1248,141 @@ export class AnalyticsOrchestrator {
       // Import GoogleAdsService dynamically to avoid circular dependencies
       const { GoogleAdsService } = await import('../api/googleAdsService');
       
-      // Get main metrics
-      const mainMetrics = await GoogleAdsService.getAccountMetrics(
-        clientData.accounts.googleAds,
-        dateRange,
-        false
-      );
+      // OPTIMIZED: Start both API calls in parallel with timeout to prevent hanging
+      // This is much faster than sequential calls
+      // Breakdown queries are more complex (3 parallel API calls internally), so give them more time
+      const MAIN_METRICS_TIMEOUT = 30000; // 30 seconds for main metrics
+      const BREAKDOWN_TIMEOUT = 60000; // 60 seconds for breakdown (3 queries internally)
+      
+      const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number, timeoutId?: { id?: NodeJS.Timeout }): Promise<T> => {
+        return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => {
+            const id = setTimeout(() => {
+              reject(new Error(`API call timeout after ${timeoutMs}ms`));
+            }, timeoutMs);
+            if (timeoutId) {
+              timeoutId.id = id;
+            }
+          })
+        ]).finally(() => {
+          // Clean up timeout if promise resolves/rejects before timeout
+          if (timeoutId?.id) {
+            clearTimeout(timeoutId.id);
+          }
+        });
+      };
+      
+      const breakdownTimeoutId: { id?: NodeJS.Timeout } = {};
+      const [mainMetrics, breakdown] = await Promise.allSettled([
+        createTimeoutPromise(
+          GoogleAdsService.getAccountMetrics(
+            clientData.accounts.googleAds,
+            dateRange,
+            false
+          ),
+          MAIN_METRICS_TIMEOUT
+        ),
+        createTimeoutPromise(
+          GoogleAdsService.getCampaignBreakdown(
+            clientData.accounts.googleAds, 
+            dateRange
+          ),
+          BREAKDOWN_TIMEOUT,
+          breakdownTimeoutId
+        )
+      ]);
 
-      if (!mainMetrics) {
+      // Extract main metrics
+      const metrics = mainMetrics.status === 'fulfilled' ? mainMetrics.value : null;
+      if (!metrics) {
+        const errorReason = mainMetrics.status === 'rejected' ? mainMetrics.reason : 'Unknown error';
+        debugLogger.warn('AnalyticsOrchestrator', 'No Google Ads metrics returned', { error: errorReason });
         return undefined;
       }
 
       // Normalize the main metrics
-      const normalizedData = this.normalizeGoogleMetrics(mainMetrics);
+      const normalizedData = this.normalizeGoogleMetrics(metrics);
 
-      // Fetch demographic and campaign breakdown data in parallel
-      try {
-        const [demographicsResult, campaignBreakdownResult] = await Promise.all([
-          GoogleAdsService.getDemographicBreakdown(clientData.accounts.googleAds, dateRange).catch(() => null),
-          GoogleAdsService.getCampaignBreakdown(clientData.accounts.googleAds, dateRange).catch(() => null)
-        ]);
-
-        if (demographicsResult) {
-          normalizedData.demographics = demographicsResult;
+      // Add breakdown if available (from parallel call)
+      if (breakdown.status === 'fulfilled' && breakdown.value) {
+        normalizedData.campaignBreakdown = breakdown.value;
+        
+        const breakdownTotal = (breakdown.value.campaignTypes.search.conversions || 0) + 
+                              (breakdown.value.campaignTypes.display.conversions || 0) + 
+                              (breakdown.value.campaignTypes.youtube.conversions || 0) +
+                              (breakdown.value.campaignTypes.performanceMax?.conversions || 0);
+        
+        debugLogger.info('AnalyticsOrchestrator', 'Campaign breakdown loaded in parallel', {
+          mainMetricsLeads: metrics.leads,
+          mainMetricsConversions: metrics.conversions,
+          breakdownTotal,
+          breakdownDetails: breakdown.value,
+          hasPerformanceMax: !!(breakdown.value.campaignTypes.performanceMax?.conversions || breakdown.value.campaignTypes.performanceMax?.impressions)
+        });
+        
+        // Also log to console for immediate visibility
+        console.log('✅ AnalyticsOrchestrator - Campaign breakdown loaded:', {
+          search: breakdown.value.campaignTypes.search,
+          display: breakdown.value.campaignTypes.display,
+          youtube: breakdown.value.campaignTypes.youtube,
+          performanceMax: breakdown.value.campaignTypes.performanceMax,
+          adFormats: breakdown.value.adFormats
+        });
+        
+        // Debug: Compare overall impressions with breakdown sum
+        const breakdownTotalImpressions = (breakdown.value.campaignTypes.search.impressions || 0) + 
+                                         (breakdown.value.campaignTypes.display.impressions || 0) + 
+                                         (breakdown.value.campaignTypes.youtube.impressions || 0) +
+                                         (breakdown.value.campaignTypes.performanceMax?.impressions || 0);
+        const overallImpressions = metrics.impressions || 0;
+        const pmaxImpressions = breakdown.value.campaignTypes.performanceMax?.impressions || 0;
+        
+        console.log('🔍 IMPRESSIONS COMPARISON:');
+        console.log('  Overall impressions (customer resource):', overallImpressions.toLocaleString());
+        console.log('  Breakdown total (sum of all campaign types):', breakdownTotalImpressions.toLocaleString());
+        console.log('  Performance Max impressions (from breakdown):', pmaxImpressions.toLocaleString());
+        console.log('  Difference (overall - breakdown total):', (overallImpressions - breakdownTotalImpressions).toLocaleString());
+        console.log('  Performance Max % of overall:', overallImpressions > 0 ? ((pmaxImpressions / overallImpressions) * 100).toFixed(2) + '%' : 'N/A');
+        
+        if (Math.abs(overallImpressions - breakdownTotalImpressions) > 100) {
+          console.warn('⚠️ WARNING: Significant difference between overall and breakdown impressions!');
+          console.warn('  This could be due to:');
+          console.warn('    1. Customer resource includes REMOVED campaigns (no status filter)');
+          console.warn('    2. Campaign breakdown excludes REMOVED campaigns (status != REMOVED)');
+          console.warn('    3. Date range differences or data processing delays');
+          console.warn('    4. Other campaign types not included in breakdown');
         }
-        if (campaignBreakdownResult) {
-          normalizedData.campaignBreakdown = campaignBreakdownResult;
+      } else if (breakdown.status === 'rejected') {
+        const errorReason = breakdown.reason;
+        const isTimeout = errorReason instanceof Error && errorReason.message.includes('timeout');
+        debugLogger.warn('AnalyticsOrchestrator', 'Campaign breakdown failed (non-critical)', {
+          error: errorReason,
+          isTimeout,
+          timeoutAfter: BREAKDOWN_TIMEOUT
+        });
+        console.error('❌ AnalyticsOrchestrator - Campaign breakdown failed:', errorReason);
+        if (errorReason instanceof Error) {
+          console.error('  Error message:', errorReason.message);
+          console.error('  Error stack:', errorReason.stack);
+          if (isTimeout) {
+            console.error('  ⚠️ Breakdown query timed out after 60 seconds - this may indicate performance issues with the Google Ads API');
+          }
         }
-      } catch (breakdownError) {
-        debugLogger.warn('AnalyticsOrchestrator', 'Google Ads breakdown data failed', breakdownError);
+      } else {
+        debugLogger.warn('AnalyticsOrchestrator', 'Campaign breakdown returned null/undefined', {
+          status: breakdown.status,
+          value: breakdown.value
+        });
+        console.warn('⚠️ AnalyticsOrchestrator - Campaign breakdown is null/undefined');
+        console.warn('  Breakdown status:', breakdown.status);
+        console.warn('  Breakdown value:', breakdown.value);
+        if (breakdown.status === 'fulfilled' && !breakdown.value) {
+          console.warn('  ⚠️ Breakdown query completed but returned null - check Google Ads API response');
+        }
       }
 
+      // Return with both main metrics and breakdown (if available)
       return normalizedData;
     } catch (error) {
       debugLogger.error('AnalyticsOrchestrator', 'Google Ads data fetch failed', error);
@@ -1294,13 +1408,18 @@ export class AnalyticsOrchestrator {
       cpc: clicks > 0 ? cost / clicks : 0,
       conversionRate: clicks > 0 ? (leads / clicks) * 100 : 0,
       costPerLead: leads > 0 ? cost / leads : 0,
-      demographics: {
-        ageGroups: { '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 },
-        gender: { female: 0, male: 0 }
-      },
       campaignBreakdown: {
-        campaignTypes: { search: 0, display: 0, youtube: 0 },
-        adFormats: { textAds: 0, responsiveDisplay: 0, videoAds: 0 }
+        campaignTypes: {
+          search: { conversions: 0, impressions: 0, conversionRate: 0 },
+          display: { conversions: 0, impressions: 0, conversionRate: 0 },
+          youtube: { conversions: 0, impressions: 0, conversionRate: 0 },
+          performanceMax: { conversions: 0, impressions: 0, conversionRate: 0 }
+        },
+        adFormats: {
+          textAds: { conversions: 0, impressions: 0, conversionRate: 0 },
+          responsiveDisplay: { conversions: 0, impressions: 0, conversionRate: 0 },
+          videoAds: { conversions: 0, impressions: 0, conversionRate: 0 }
+        }
       },
       previousPeriod: undefined
     };
