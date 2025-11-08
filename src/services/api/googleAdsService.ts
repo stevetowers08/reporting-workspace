@@ -540,6 +540,52 @@ export class GoogleAdsService {
         return null;
       }
 
+      // CRITICAL FIX: Ensure accessToken is a string, not an object
+      if (typeof accessToken !== 'string') {
+        console.error('[GoogleAdsService] ensureValidToken - Token is not a string!', {
+          tokenType: typeof accessToken,
+          tokenValue: accessToken,
+          isObject: typeof accessToken === 'object',
+          tokenKeys: typeof accessToken === 'object' && accessToken !== null ? Object.keys(accessToken) : null,
+          stringified: JSON.stringify(accessToken).substring(0, 200)
+        });
+        
+        // If it's an object, try to extract the token from common properties
+        if (typeof accessToken === 'object' && accessToken !== null) {
+          const obj = accessToken as any;
+          
+          // Try accessToken (camelCase)
+          if (typeof obj.accessToken === 'string') {
+            console.warn('[GoogleAdsService] ensureValidToken - Extracted accessToken from object');
+            return obj.accessToken;
+          }
+          
+          // Try access_token (snake_case)
+          if (typeof obj.access_token === 'string') {
+            console.warn('[GoogleAdsService] ensureValidToken - Extracted access_token from object');
+            return obj.access_token;
+          }
+          
+          // Try token property
+          if (typeof obj.token === 'string') {
+            console.warn('[GoogleAdsService] ensureValidToken - Extracted token from object');
+            return obj.token;
+          }
+          
+          // If it's an array with one string element (unlikely but possible)
+          if (Array.isArray(accessToken) && accessToken.length === 1 && typeof accessToken[0] === 'string') {
+            console.warn('[GoogleAdsService] ensureValidToken - Extracted token from array');
+            return accessToken[0];
+          }
+        }
+        
+        debugLogger.error('GoogleAdsService', 'Access token is not a string and could not be extracted', {
+          tokenType: typeof accessToken,
+          tokenValue: accessToken
+        });
+        return null;
+      }
+
       debugLogger.debug('GoogleAdsService', 'Valid access token obtained');
       return accessToken;
 
@@ -781,7 +827,17 @@ export class GoogleAdsService {
       ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
-        debugLogger.warn('GoogleAdsService', 'Missing required credentials for metrics');
+        console.error('[GoogleAdsService] getAccountMetrics - Missing credentials', {
+          customerId,
+          hasAccessToken: !!accessToken,
+          hasDeveloperToken: !!developerToken,
+          hasManagerAccountId: !!managerAccountId
+        });
+        debugLogger.warn('GoogleAdsService', 'Missing required credentials for metrics', {
+          hasAccessToken: !!accessToken,
+          hasDeveloperToken: !!developerToken,
+          hasManagerAccountId: !!managerAccountId
+        });
         return null;
       }
 
@@ -1062,6 +1118,19 @@ export class GoogleAdsService {
         previousPeriod
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      console.error('[GoogleAdsService] getAccountMetrics - ERROR', {
+        customerId,
+        dateRange,
+        error: errorMessage,
+        stack: errorStack,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        fullError: error
+      });
+      console.error('[GoogleAdsService] getAccountMetrics - Full error details:', error);
+      
       debugLogger.error('GoogleAdsService', 'Error getting metrics', error);
       return null;
     }

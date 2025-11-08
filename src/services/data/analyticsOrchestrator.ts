@@ -9,6 +9,7 @@
 
 import { facebookCircuitBreaker, ghlCircuitBreaker, googleCircuitBreaker, sheetsCircuitBreaker } from '@/lib/circuitBreaker';
 import { debugLogger } from '@/lib/debug';
+import { RequestPriority, scheduleRequest } from '@/lib/requestScheduler';
 import {
     EventDashboardData,
     EventLeadMetrics,
@@ -380,22 +381,25 @@ export class AnalyticsOrchestrator {
       ]);
     };
 
-    // Fetch all data sources independently in parallel - no dependencies
-    console.log('[AnalyticsOrchestrator] Starting parallel data fetches');
+    // Fetch all data sources with priority scheduling
+    // CRITICAL: Summary metrics (Facebook, Google) - user-visible data
+    // HIGH: Monthly leads - important for dashboard
+    // NORMAL: GHL and Lead data - detailed breakdowns
+    console.log('[AnalyticsOrchestrator] Starting prioritized data fetches');
     const [facebookResult, googleResult, ghlResult, leadResult, monthlyResult] = await Promise.allSettled([
       clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none'
-        ? withTimeout(this.getFacebookData(clientId, dateRange, clientData), 'Facebook', 30000)
+        ? scheduleRequest(() => withTimeout(this.getFacebookData(clientId, dateRange, clientData), 'Facebook', 30000), RequestPriority.CRITICAL)
         : Promise.resolve(undefined),
       clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none'
-        ? withTimeout(this.getGoogleData(clientId, dateRange, clientData), 'Google', 45000)
+        ? scheduleRequest(() => withTimeout(this.getGoogleData(clientId, dateRange, clientData), 'Google', 45000), RequestPriority.CRITICAL)
         : Promise.resolve(undefined),
       clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none'
-        ? withTimeout(this.getGoHighLevelData(clientId, dateRange, clientData), 'GHL', 30000)
+        ? scheduleRequest(() => withTimeout(this.getGoHighLevelData(clientId, dateRange, clientData), 'GHL', 30000), RequestPriority.NORMAL)
         : Promise.resolve(undefined),
       clientData.accounts?.googleSheets && clientData.accounts.googleSheets !== 'none'
-        ? withTimeout(this.getLeadData(clientId, dateRange, clientData), 'LeadData', 30000)
+        ? scheduleRequest(() => withTimeout(this.getLeadData(clientId, dateRange, clientData), 'LeadData', 30000), RequestPriority.NORMAL)
         : Promise.resolve(undefined),
-      withTimeout(this.getMonthlyLeadsData(clientId, clientData), 'MonthlyLeads', 30000)
+      scheduleRequest(() => withTimeout(this.getMonthlyLeadsData(clientId, clientData), 'MonthlyLeads', 30000), RequestPriority.HIGH)
     ]);
     
     console.log('[AnalyticsOrchestrator] All data fetches completed', {
@@ -1389,10 +1393,26 @@ export class AnalyticsOrchestrator {
       clientId,
       dateRange,
       hasGoogleAds: !!(clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none'),
-      googleAdsAccount: clientData.accounts?.googleAds
+      googleAdsAccount: clientData.accounts?.googleAds,
+      hasFacebookAds: !!(clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none'),
+      facebookAdsAccount: clientData.accounts?.facebookAds
     });
+    
+    // Debug: Check if Google Ads account is properly configured
+    if (clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none') {
+      console.log('[AnalyticsOrchestrator] getSummaryDataOnly - Google Ads account found, will fetch', {
+        accountId: clientData.accounts.googleAds,
+        accountType: typeof clientData.accounts.googleAds
+      });
+    } else {
+      console.warn('[AnalyticsOrchestrator] getSummaryDataOnly - No Google Ads account configured', {
+        googleAdsAccount: clientData.accounts?.googleAds,
+        accounts: clientData.accounts
+      });
+    }
 
-    // Fetch only what Summary tab needs - in parallel, independently
+    // Fetch only what Summary tab needs - call directly like getGoogleDataOnly does (no scheduler)
+    // The scheduler was causing issues - Google tab works without it, so Summary should too
     const [facebookResult, googleResult, monthlyResult] = await Promise.allSettled([
       clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none'
         ? this.getFacebookData(clientId, dateRange, clientData)
@@ -1409,10 +1429,12 @@ export class AnalyticsOrchestrator {
       monthlyStatus: monthlyResult.status,
       googleFulfilled: googleResult.status === 'fulfilled',
       googleValue: googleResult.status === 'fulfilled' ? !!googleResult.value : null,
-      googleError: googleResult.status === 'rejected' ? googleResult.reason : null,
+      googleValueType: googleResult.status === 'fulfilled' ? typeof googleResult.value : null,
+      googleError: googleResult.status === 'rejected' ? (googleResult.reason instanceof Error ? googleResult.reason.message : String(googleResult.reason)) : null,
+      googleErrorStack: googleResult.status === 'rejected' && googleResult.reason instanceof Error ? googleResult.reason.stack : null,
       facebookFulfilled: facebookResult.status === 'fulfilled',
       facebookValue: facebookResult.status === 'fulfilled' ? !!facebookResult.value : null,
-      facebookError: facebookResult.status === 'rejected' ? facebookResult.reason : null
+      facebookError: facebookResult.status === 'rejected' ? (facebookResult.reason instanceof Error ? facebookResult.reason.message : String(facebookResult.reason)) : null
     });
 
     const facebookMetrics = facebookResult.status === 'fulfilled' ? facebookResult.value : undefined;
@@ -1604,12 +1626,24 @@ export class AnalyticsOrchestrator {
         // Extract main metrics
         const metrics = mainMetrics.status === 'fulfilled' ? mainMetrics.value : null;
         if (!metrics) {
-          const errorReason = mainMetrics.status === 'rejected' ? mainMetrics.reason : 'Unknown error';
+          const errorReason = mainMetrics.status === 'rejected' 
+            ? mainMetrics.reason 
+            : mainMetrics.status === 'fulfilled' && mainMetrics.value === null
+            ? 'getAccountMetrics returned null (likely missing credentials or API error)'
+            : 'Unknown error';
+          
           console.error('[AnalyticsOrchestrator] getGoogleData - No metrics returned', {
             cacheKey,
-            error: errorReason
+            mainMetricsStatus: mainMetrics.status,
+            mainMetricsValue: mainMetrics.value,
+            error: errorReason instanceof Error ? errorReason.message : String(errorReason),
+            errorStack: errorReason instanceof Error ? errorReason.stack : undefined
           });
-          debugLogger.warn('AnalyticsOrchestrator', 'No Google Ads metrics returned', { error: errorReason });
+          debugLogger.warn('AnalyticsOrchestrator', 'No Google Ads metrics returned', { 
+            error: errorReason instanceof Error ? errorReason.message : String(errorReason),
+            status: mainMetrics.status,
+            value: mainMetrics.value
+          });
           return undefined;
         }
 
