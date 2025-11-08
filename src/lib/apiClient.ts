@@ -1,5 +1,6 @@
 import { API_BASE_URLS } from '@/constants/apiVersions';
 import { debugLogger } from './debug';
+import { RequestPriority, scheduleRequest } from './requestScheduler';
 
 export interface ApiRequestConfig {
   baseUrl: string;
@@ -47,7 +48,8 @@ export class ApiClient {
   async request<T = any>(
     endpoint: string,
     options: RequestInit = {},
-    useCache = true
+    useCache = true,
+    priority: RequestPriority = RequestPriority.NORMAL
   ): Promise<ApiResponse<T>> {
     const url = `${this.config.baseUrl}${endpoint}`;
     const cacheKey = `${url}_${JSON.stringify(options)}`;
@@ -61,34 +63,27 @@ export class ApiClient {
       }
     }
 
-    return new Promise((resolve, reject) => {
-      this.requestQueue.push(async () => {
-        try {
-          // Wait for minimum interval between requests
-          const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-          if (timeSinceLastRequest < this.config.rateLimitDelay) {
-            await this.delay(this.config.rateLimitDelay - timeSinceLastRequest);
-          }
+    // Use request scheduler for prioritized execution
+    return scheduleRequest(async () => {
+      // Wait for minimum interval between requests
+      const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+      if (timeSinceLastRequest < this.config.rateLimitDelay) {
+        await this.delay(this.config.rateLimitDelay - timeSinceLastRequest);
+      }
 
-          const response = await this.makeRequestWithRetry(url, options);
-          this.lastRequestTime = Date.now();
+      const response = await this.makeRequestWithRetry(url, options);
+      this.lastRequestTime = Date.now();
 
-          // Cache successful responses
-          if (response.ok && useCache) {
-            const data = await response.json();
-            this.cache.set(cacheKey, { data, timestamp: Date.now() });
-            resolve({ data, status: response.status, statusText: response.statusText, headers: response.headers } as ApiResponse<T>);
-          } else {
-            const data = response.ok ? await response.json() : null;
-            resolve({ data, status: response.status, statusText: response.statusText, headers: response.headers } as ApiResponse<T>);
-          }
-        } catch (error) {
-          reject(this.createApiError(error as Error, url));
-        }
-      });
-
-      this.processQueue();
-    });
+      // Cache successful responses
+      if (response.ok && useCache) {
+        const data = await response.json();
+        this.cache.set(cacheKey, { data, timestamp: Date.now() });
+        return { data, status: response.status, statusText: response.statusText, headers: response.headers } as ApiResponse<T>;
+      } else {
+        const data = response.ok ? await response.json() : null;
+        return { data, status: response.status, statusText: response.statusText, headers: response.headers } as ApiResponse<T>;
+      }
+    }, priority);
   }
 
   /**

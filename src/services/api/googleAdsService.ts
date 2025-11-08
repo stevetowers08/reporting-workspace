@@ -176,7 +176,7 @@ export class GoogleAdsService {
     customerId: string | number;
     managerId?: string | number;
     gaql: string;
-  }, retryCount = 0): Promise<unknown[]> {
+  }, retryCount = 0, timeoutMs: number = 20000): Promise<unknown[]> {
     // Validate accessToken is a string
     if (!accessToken || typeof accessToken !== 'string') {
       const error = new Error(`Invalid access token: expected string, got ${typeof accessToken}`);
@@ -227,14 +227,23 @@ export class GoogleAdsService {
         },
         customerId: pathCid,
         managerId: loginCid,
-        retryCount
+        retryCount,
+        timeoutMs
       });
 
+      // Add timeout using AbortController to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ query: gaql })
+        body: JSON.stringify({ query: gaql }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       const text = await response.text();
       
@@ -294,7 +303,7 @@ export class GoogleAdsService {
             parsedError
           };
           
-          console.error('❌ Google Ads API 401 Authentication Error:', errorDetails);
+          debugLogger.error('GoogleAdsService', 'Google Ads API 401 Authentication Error', errorDetails);
           
           SecureLogger.logSecurityEvent('GoogleAdsService', 'Authentication error - 401 Unauthorized', { 
             status: response.status, 
@@ -372,10 +381,23 @@ export class GoogleAdsService {
       }
       
       return this.parseSearchStreamText(text);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          debugLogger.warn('GoogleAdsService', 'API request timeout', { 
+            timeoutMs,
+            customerId: pathCid,
+            retryCount 
+          });
+          throw new Error(`Google Ads API request timed out after ${timeoutMs}ms`);
+        }
+        throw fetchError;
+      }
     } catch (error) {
       SecureLogger.error('GoogleAdsService', 'API request failed', { 
         error: error instanceof Error ? error.message : String(error),
-        retryCount 
+        retryCount,
+        timeoutMs
       });
       throw error;
     }
@@ -542,12 +564,10 @@ export class GoogleAdsService {
 
       // CRITICAL FIX: Ensure accessToken is a string, not an object
       if (typeof accessToken !== 'string') {
-        console.error('[GoogleAdsService] ensureValidToken - Token is not a string!', {
+        debugLogger.debug('GoogleAdsService', 'ensureValidToken - Token is not a string, attempting extraction', {
           tokenType: typeof accessToken,
-          tokenValue: accessToken,
           isObject: typeof accessToken === 'object',
-          tokenKeys: typeof accessToken === 'object' && accessToken !== null ? Object.keys(accessToken) : null,
-          stringified: JSON.stringify(accessToken).substring(0, 200)
+          tokenKeys: typeof accessToken === 'object' && accessToken !== null ? Object.keys(accessToken) : null
         });
         
         // If it's an object, try to extract the token from common properties
@@ -556,26 +576,29 @@ export class GoogleAdsService {
           
           // Try accessToken (camelCase)
           if (typeof obj.accessToken === 'string') {
-            console.warn('[GoogleAdsService] ensureValidToken - Extracted accessToken from object');
+            debugLogger.debug('GoogleAdsService', 'ensureValidToken - Extracted accessToken from object');
             return obj.accessToken;
           }
           
           // Try access_token (snake_case)
           if (typeof obj.access_token === 'string') {
-            console.warn('[GoogleAdsService] ensureValidToken - Extracted access_token from object');
+            debugLogger.debug('GoogleAdsService', 'ensureValidToken - Extracted access_token from object');
             return obj.access_token;
           }
           
           // Try token property
           if (typeof obj.token === 'string') {
-            console.warn('[GoogleAdsService] ensureValidToken - Extracted token from object');
+            debugLogger.debug('GoogleAdsService', 'ensureValidToken - Extracted token from object');
             return obj.token;
           }
           
           // If it's an array with one string element (unlikely but possible)
-          if (Array.isArray(accessToken) && accessToken.length === 1 && typeof accessToken[0] === 'string') {
-            console.warn('[GoogleAdsService] ensureValidToken - Extracted token from array');
-            return accessToken[0];
+          if (Array.isArray(accessToken)) {
+            const tokenArray = accessToken as unknown[];
+            if (tokenArray.length === 1 && typeof tokenArray[0] === 'string') {
+              debugLogger.debug('GoogleAdsService', 'ensureValidToken - Extracted token from array');
+              return tokenArray[0];
+            }
           }
         }
         
@@ -827,7 +850,7 @@ export class GoogleAdsService {
       ]);
 
       if (!accessToken || !developerToken || !managerAccountId) {
-        console.error('[GoogleAdsService] getAccountMetrics - Missing credentials', {
+        debugLogger.error('GoogleAdsService', 'getAccountMetrics - Missing credentials', {
           customerId,
           hasAccessToken: !!accessToken,
           hasDeveloperToken: !!developerToken,
@@ -925,12 +948,6 @@ export class GoogleAdsService {
         resultCount: blocks.reduce((sum: number, block) => sum + ((block as { results?: unknown[] }).results || []).length, 0)
       });
       
-      // Debug: Log customer-level impressions for comparison with campaign breakdown
-      console.log('📊 Customer Resource Query Results:');
-      console.log('  Total impressions (customer level):', impressions.toLocaleString());
-      console.log('  Total clicks:', clicks.toLocaleString());
-      console.log('  Total conversions:', conversions.toLocaleString());
-      console.log('  Note: Customer resource includes ALL campaigns (no status filter)');
 
       // OPTIMIZED: Only try fallback if we got zero results AND it's a custom date range
       // For API presets, trust the API response (it's more reliable)
@@ -1121,7 +1138,7 @@ export class GoogleAdsService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       
-      console.error('[GoogleAdsService] getAccountMetrics - ERROR', {
+      debugLogger.error('GoogleAdsService', 'getAccountMetrics - ERROR', {
         customerId,
         dateRange,
         error: errorMessage,
@@ -1129,7 +1146,7 @@ export class GoogleAdsService {
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         fullError: error
       });
-      console.error('[GoogleAdsService] getAccountMetrics - Full error details:', error);
+      debugLogger.error('GoogleAdsService', 'getAccountMetrics - Full error details', error);
       
       debugLogger.error('GoogleAdsService', 'Error getting metrics', error);
       return null;
@@ -1726,7 +1743,7 @@ export class GoogleAdsService {
       const hasPerformanceMaxData = performanceMaxAdFormatBlocks.status === 'fulfilled';
       
       // Log what we got
-      console.log('[GoogleAdsService] Breakdown query results:', {
+      debugLogger.debug('GoogleAdsService', 'Breakdown query results', {
         campaignBlocksStatus: campaignBlocks.status,
         campaignBlocksCount: hasCampaignTypes ? ((campaignBlocks as PromiseFulfilledResult<unknown[]>).value?.length || 0) : 0,
         searchAdFormatBlocksStatus: searchAdFormatBlocks.status,
@@ -1738,19 +1755,16 @@ export class GoogleAdsService {
       
       // Log failures but continue with partial data
       if (campaignBlocks.status === 'rejected') {
-        console.warn('[GoogleAdsService] Campaign types query failed (non-critical, will use empty data):', campaignBlocks.reason);
         debugLogger.warn('GoogleAdsService', 'Campaign types query failed - using empty data for graceful degradation', {
           reason: campaignBlocks.reason
         });
       }
       if (searchAdFormatBlocks.status === 'rejected') {
-        console.warn('[GoogleAdsService] Search ad formats query failed (non-critical, will use empty data):', searchAdFormatBlocks.reason);
         debugLogger.warn('GoogleAdsService', 'Search ad formats query failed - using empty data for graceful degradation', {
           reason: searchAdFormatBlocks.reason
         });
       }
       if (performanceMaxAdFormatBlocks.status === 'rejected') {
-        console.warn('[GoogleAdsService] Performance Max query failed (non-critical, will use empty data):', performanceMaxAdFormatBlocks.reason);
         debugLogger.warn('GoogleAdsService', 'Performance Max query failed - using empty data for graceful degradation', {
           reason: performanceMaxAdFormatBlocks.reason
         });
@@ -1758,7 +1772,7 @@ export class GoogleAdsService {
       
       // Only return null if ALL queries failed (no data at all)
       if (!hasCampaignTypes && !hasSearchAdFormats && !hasPerformanceMaxData) {
-        console.error('[GoogleAdsService] All breakdown queries failed - returning null');
+        // All breakdown queries failed - already logged by debugLogger below
         debugLogger.error('GoogleAdsService', 'All breakdown queries failed', {
           campaignBlocksReason: campaignBlocks.status === 'rejected' ? campaignBlocks.reason : null,
           searchAdFormatBlocksReason: searchAdFormatBlocks.status === 'rejected' ? searchAdFormatBlocks.reason : null,
@@ -1798,7 +1812,7 @@ export class GoogleAdsService {
       
       return processedData;
     } catch (error) {
-      console.error('[GoogleAdsService] getCampaignBreakdown - ERROR CAUGHT:', error);
+      // Error caught - already logged by debugLogger below
       debugLogger.error('GoogleAdsService', 'Failed to fetch campaign breakdown data', {
         error,
         errorMessage: error instanceof Error ? error.message : String(error),
@@ -2373,7 +2387,6 @@ export class GoogleAdsService {
             campaignTypes.youtube.clicks += clicks;
             campaignTypes.youtube.cost += cost;
           } else {
-            console.warn('⚠️ Unmapped channel type:', { channelType, conversions, impressions });
             debugLogger.debug('GoogleAdsService', 'Campaign breakdown - Unmapped channel type', {
               channelType,
               conversions,
@@ -2381,7 +2394,7 @@ export class GoogleAdsService {
             });
           }
         } else {
-          console.warn('⚠️ No channel type found for campaign:', {
+          debugLogger.debug('GoogleAdsService', 'Campaign breakdown - No channel type found for campaign', {
             conversions,
             impressions,
             campaignId: data.campaign?.id,
@@ -2429,7 +2442,6 @@ export class GoogleAdsService {
           } else {
             // Log unmapped ad types to help identify missing mappings
             if (conversions > 0 || impressions > 0) {
-              console.warn(`⚠️ Unmapped Search ad type: ${adType} (${conversions} conversions, ${impressions} impressions)`);
               debugLogger.debug('GoogleAdsService', 'Campaign breakdown - Unmapped Search ad type', {
                 adType,
                 conversions,
@@ -2458,7 +2470,6 @@ export class GoogleAdsService {
     // - We aggregate by asset.type (TEXT, IMAGE, VIDEO) across all networks
     // - We sum metrics for each asset.type category
     // - Note: Totals will be higher than campaign-level metrics (expected, due to non-summable nature)
-    console.log('📊 Processing Performance Max Asset Groups - Total blocks:', performanceMaxAdFormatBlocks.length);
     
     // Deduplication map: key = assetId_date_adNetwork, value = { conversions, impressions, clicks, assetType, adNetworkType, assetName }
     // We deduplicate by asset+date+network to avoid counting same asset+network+date multiple times
@@ -2468,7 +2479,6 @@ export class GoogleAdsService {
     let processedPmaxRows = 0;
     for (const block of performanceMaxAdFormatBlocks) {
       const results = (block as { results?: unknown[] }).results || [];
-      console.log('  Performance Max Asset Group Block has', results.length, 'results');
       for (const result of results) {
         processedPmaxRows++;
         const data = result as any;
@@ -2507,35 +2517,15 @@ export class GoogleAdsService {
           // If we don't have assetId or date, we can't deduplicate properly
           // Log a warning but still process it (fallback to old behavior)
           if (processedPmaxRows <= 10) {
-            console.warn(`⚠️ Performance Max row missing assetId or date:`, { assetId, date, adNetworkType, conversions, impressions });
+            debugLogger.debug('GoogleAdsService', 'Performance Max row missing assetId or date', { assetId, date, adNetworkType, conversions, impressions });
           }
         }
         
-        // Debug first few rows (before deduplication)
-        if (processedPmaxRows <= 5) {
-          console.log(`  Performance Max Row ${processedPmaxRows} (before dedupe):`, {
-            assetType,
-            assetId,
-            date,
-            adNetworkType,
-            asset: data.asset ? {
-              type: data.asset.type || data.asset.type_,
-              id: data.asset.id,
-              name: data.asset.name
-            } : 'NO ASSET',
-            conversions,
-            impressions,
-            clicks
-          });
-        }
       }
     }
     
     // Now process deduplicated assets and aggregate by asset.type and network
-    console.log(`✅ Deduplicated ${assetDedupeMap.size} unique asset+date+network combinations from ${processedPmaxRows} total rows`);
-    let dedupeCount = 0;
-    for (const [dedupeKey, assetData] of assetDedupeMap.entries()) {
-      dedupeCount++;
+    for (const [_dedupeKey, assetData] of assetDedupeMap.entries()) {
       const { conversions, impressions, clicks, assetType, adNetworkType, assetName, assetId } = assetData;
       
       // Track network breakdown (SEARCH, YOUTUBE, DISPLAY, etc.)
@@ -2554,17 +2544,6 @@ export class GoogleAdsService {
       networkBreakdown[normalizedNetwork].conversions += conversions;
       networkBreakdown[normalizedNetwork].impressions += impressions;
       networkBreakdown[normalizedNetwork].clicks += clicks;
-      
-      // Debug first few deduplicated rows
-      if (dedupeCount <= 5) {
-        console.log(`  Deduplicated Row ${dedupeCount}:`, {
-          key: dedupeKey,
-          assetType,
-          conversions,
-          impressions,
-          clicks
-        });
-      }
       
       // Track actual asset type (raw API output)
       if (assetType) {
@@ -2633,21 +2612,6 @@ export class GoogleAdsService {
         adFormats.videoAds.clicks += clicks;
       }
     }
-    console.log('✅ Processed Performance Max assets:', {
-      totalRows: processedPmaxRows,
-      uniqueAssetDateNetworkCombos: assetDedupeMap.size,
-      assetTypes: Object.keys(assetTypes).map(type => ({
-        type,
-        conversions: assetTypes[type].conversions,
-        impressions: assetTypes[type].impressions
-      })),
-      networks: Object.keys(networkBreakdown).map(network => ({
-        network,
-        conversions: networkBreakdown[network].conversions,
-        impressions: networkBreakdown[network].impressions
-      })),
-      note: 'Performance Max assets are mapped to adFormats (TEXT→textAds, IMAGE→responsiveDisplay, YOUTUBE_VIDEO→videoAds). Totals may be inflated due to non-summable nature - this is expected.'
-    });
 
     // Calculate conversion rates and cost per lead for campaign types
     // Conversion rate = (conversions / clicks) * 100 (Google Ads standard)
@@ -2746,33 +2710,6 @@ export class GoogleAdsService {
       note: 'Performance Max query removed - PMax returns ad_network_type="MIXED" which cannot be broken down into ad formats'
     });
 
-    console.log('\n' + '='.repeat(80));
-    console.log('📈 FINAL AGGREGATED DATA (for browser debugging)');
-    console.log('='.repeat(80));
-    
-    console.log('\n📊 Campaign Types:');
-    console.log(`   Search: ${campaignTypes.search.conversions} conversions, ${campaignTypes.search.impressions.toLocaleString()} impressions, $${campaignTypes.search.cost.toFixed(2)}, ${campaignTypes.search.conversionRate.toFixed(2)}% conv rate`);
-    console.log(`   Display: ${campaignTypes.display.conversions} conversions, ${campaignTypes.display.impressions.toLocaleString()} impressions, $${campaignTypes.display.cost.toFixed(2)}, ${campaignTypes.display.conversionRate.toFixed(2)}% conv rate`);
-    console.log(`   YouTube: ${campaignTypes.youtube.conversions} conversions, ${campaignTypes.youtube.impressions.toLocaleString()} impressions, $${campaignTypes.youtube.cost.toFixed(2)}, ${campaignTypes.youtube.conversionRate.toFixed(2)}% conv rate`);
-    console.log(`   Performance Max: ${campaignTypes.performanceMax.conversions} conversions, ${campaignTypes.performanceMax.impressions.toLocaleString()} impressions, $${campaignTypes.performanceMax.cost.toFixed(2)}, ${campaignTypes.performanceMax.conversionRate.toFixed(2)}% conv rate, $${campaignTypes.performanceMax.costPerLead.toFixed(2)} CPL`);
-    
-    console.log('\n🎨 Ad Formats (Mapped Categories):');
-    console.log(`   Text Ads: ${adFormats.textAds.conversions} conversions, ${adFormats.textAds.impressions.toLocaleString()} impressions, ${adFormats.textAds.conversionRate.toFixed(2)}% conv rate`);
-    console.log(`   Responsive Display: ${adFormats.responsiveDisplay.conversions} conversions, ${adFormats.responsiveDisplay.impressions.toLocaleString()} impressions, ${adFormats.responsiveDisplay.conversionRate.toFixed(2)}% conv rate`);
-    console.log(`   Video Ads: ${adFormats.videoAds.conversions} conversions, ${adFormats.videoAds.impressions.toLocaleString()} impressions, ${adFormats.videoAds.conversionRate.toFixed(2)}% conv rate`);
-    
-    console.log('\n🔧 Ad Formats (Actual Asset Types from Performance Max):');
-    const assetTypeKeys = Object.keys(assetTypes);
-    if (assetTypeKeys.length > 0) {
-      for (const assetType of assetTypeKeys) {
-        const data = assetTypes[assetType];
-        console.log(`   ${assetType}: ${data.conversions} conversions, ${data.impressions.toLocaleString()} impressions, ${data.clicks.toLocaleString()} clicks, ${data.conversionRate.toFixed(2)}% conv rate`);
-      }
-    } else {
-      console.log('   (No asset types found)');
-    }
-    
-    console.log('='.repeat(80));
     
     // Remove clicks and cost from return (only used for calculation)
     const returnCampaignTypes = {
@@ -2849,12 +2786,6 @@ export class GoogleAdsService {
       }, {} as Record<string, { conversions: number; impressions: number; conversionRate: number }>)
     };
     
-    console.log('✅ Returning final data (without clicks):', JSON.stringify({ campaignTypes: returnCampaignTypes, adFormats: returnAdFormats }, null, 2));
-    console.log('📊 Actual Asset Types from API:', Object.keys(assetTypes).map(type => ({
-      type,
-      conversions: assetTypes[type].conversions,
-      impressions: assetTypes[type].impressions
-    })));
     
     return { campaignTypes: returnCampaignTypes, adFormats: returnAdFormats };
   }

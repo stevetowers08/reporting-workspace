@@ -112,7 +112,6 @@ export class EventMetricsService {
     includePreviousPeriod: boolean = false,
     signal?: AbortSignal
   ): Promise<EventDashboardData> {
-    console.log('🚀 EventMetricsService.getComprehensiveMetrics called', { _clientId, dateRange, clientAccounts });
     try {
       // Only fetch data for connected accounts
       const promises = [];
@@ -500,16 +499,8 @@ export class EventMetricsService {
           breakdownDetails: breakdown.value,
           hasPerformanceMax: !!(breakdown.value.campaignTypes.performanceMax?.conversions || breakdown.value.campaignTypes.performanceMax?.impressions)
         });
-        console.log('✅ EventMetricsService - Campaign breakdown loaded:', {
-          search: breakdown.value.campaignTypes.search,
-          display: breakdown.value.campaignTypes.display,
-          youtube: breakdown.value.campaignTypes.youtube,
-          performanceMax: breakdown.value.campaignTypes.performanceMax,
-          adFormats: breakdown.value.adFormats
-        });
       } else if (breakdown.status === 'rejected') {
         debugLogger.warn('EventMetricsService', 'Campaign breakdown failed (non-critical)', breakdown.reason);
-        console.error('❌ EventMetricsService - Campaign breakdown failed:', breakdown.reason);
       } else {
         debugLogger.warn('EventMetricsService', 'Campaign breakdown returned null/undefined');
         console.warn('⚠️ EventMetricsService - Campaign breakdown is null/undefined');

@@ -10,12 +10,6 @@ export class SimplePuppeteerPDFService {
    * Generate PDF with industry-standard Puppeteer approach
    */
   async generatePDF(config) {
-    console.log('Starting PDF generation', {
-      clientId: config.clientId,
-      tabsCount: config.tabs.length,
-      quality: config.quality
-    });
-
     const browser = await this.launchBrowser();
     
     try {
@@ -37,11 +31,8 @@ export class SimplePuppeteerPDFService {
       
       // Process each tab
       for (const tab of config.tabs) {
-        console.log(`Processing tab: ${tab.name}`);
-        
         // Navigate to specific tab URL
         try {
-          console.log(`Navigating to tab URL: ${tab.url}`);
           await page.goto(tab.url, {
             waitUntil: 'networkidle0',
             timeout: 30000
@@ -74,8 +65,6 @@ export class SimplePuppeteerPDFService {
               return rect.width > 0 && rect.height > 0;
             });
           }, { timeout: 10000 });
-          
-          console.log(`Successfully loaded tab: ${tab.name} (${tab.id})`);
           
         } catch (error) {
           console.error(`Failed to load tab ${tab.name}: ${error.message}`);
@@ -192,20 +181,10 @@ export class SimplePuppeteerPDFService {
         });
         
         pdfPages.push(Buffer.from(pageBuffer));
-        
-        console.log(`Captured tab: ${tab.name}`, {
-          size: pageBuffer.length
-        });
       }
       
       // Merge pages into single PDF
       const mergedPDF = await this.mergePDFPages(pdfPages);
-      
-      console.log('PDF generation completed', {
-        finalSize: mergedPDF.length,
-        pageCount: pdfPages.length,
-        quality: config.quality
-      });
       
       return mergedPDF;
       

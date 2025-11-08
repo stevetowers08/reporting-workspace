@@ -3,8 +3,7 @@ import { Card } from '@/components/ui/card';
 import { debugLogger } from '@/lib/debug';
 import { Client } from '@/services/data/databaseService';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import React, { useCallback, useMemo, useState } from 'react';
-import { GHLReconnectPrompt } from './GHLReconnectPrompt';
+import React, { useMemo } from 'react';
 
 interface LeadInfoMetricsCardsProps {
   data: EventDashboardData | null | undefined;
@@ -13,12 +12,6 @@ interface LeadInfoMetricsCardsProps {
 }
 
 export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.memo(({ data, clientData: _clientData, dateRange: _dateRange }) => {
-  const [_ghlNeedsReconnect, _setGhlNeedsReconnect] = useState(false);
-
-  const handleGHLReconnect = useCallback(() => {
-    // Navigate to agency integrations page
-    window.location.href = '/agency/integrations';
-  }, []);
 
   // Extract lead data from the dashboard data (already fetched by useLeadsTabData)
   const leadData = useMemo(() => (data as any)?.leadData || null, [data]);
@@ -33,21 +26,6 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
     googleLeads: leadData?.googleLeads || 0
   }), [leadData]);
   
-  // Check if GoHighLevel is actually connected (has valid OAuth) - memoized
-  const ghlConnectionStatus = useMemo(() => {
-    const isGHLConnected = data?.ghlMetrics !== null && data?.ghlMetrics !== undefined;
-    const shouldShowReconnectPrompt = data?.clientAccounts?.goHighLevel && 
-      data.clientAccounts.goHighLevel !== 'none' && !isGHLConnected;
-    
-    return { isGHLConnected, shouldShowReconnectPrompt };
-  }, [data?.ghlMetrics, data?.clientAccounts?.goHighLevel]);
-  
-  debugLogger.debug('LeadInfoMetricsCards', 'GHL Reconnect Check', {
-    isGHLConnected: ghlConnectionStatus.isGHLConnected,
-    shouldShowReconnectPrompt: ghlConnectionStatus.shouldShowReconnectPrompt,
-    loading: isLoading,
-    ghlAccount: data?.clientAccounts?.goHighLevel
-  });
   
   if (isLoading) {
     return (
@@ -67,11 +45,5 @@ export const LeadInfoMetricsCards: React.FC<LeadInfoMetricsCardsProps> = React.m
     );
   }
 
-  return (
-    <div className="mb-6">
-      {ghlConnectionStatus.shouldShowReconnectPrompt && (
-        <GHLReconnectPrompt onReconnect={handleGHLReconnect} />
-      )}
-    </div>
-  );
+  return null;
 });

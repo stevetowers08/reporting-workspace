@@ -16,20 +16,7 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
   const isLoadingCampaignTypes = isLoading || (hasMainMetrics && !campaignBreakdown?.campaignTypes);
   const isLoadingAdFormats = isLoading || (hasMainMetrics && !campaignBreakdown?.adFormats);
 
-  // Debug logging to see what data we're receiving
   React.useEffect(() => {
-    console.log('🔍 [GoogleAdsCampaignBreakdown] Component render:', {
-      hasData: !!data,
-      hasGoogleMetrics: !!data?.googleMetrics,
-      hasCampaignBreakdown: !!campaignBreakdown,
-      campaignTypes: campaignBreakdown?.campaignTypes,
-      adFormats: campaignBreakdown?.adFormats,
-      performanceMax: campaignBreakdown?.campaignTypes?.performanceMax,
-      textAds: campaignBreakdown?.adFormats?.textAds,
-      hasCampaignTypesData: !!campaignBreakdown && !!campaignBreakdown.campaignTypes,
-      hasAdFormatData: !!campaignBreakdown && !!campaignBreakdown.adFormats
-    });
-    
     if (!campaignBreakdown && data?.googleMetrics) {
       console.warn('⚠️ [GoogleAdsCampaignBreakdown] campaignBreakdown is missing');
     }

@@ -88,7 +88,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
     try {
       // Create client with minimal data (name and logo)
       const newClient = await DatabaseService.createClient(clientData);
-      console.log('Client created successfully:', newClient);
       
       // Close modal
       setShowEditClientModal(false);
@@ -117,7 +116,6 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
       setEditingClient(null);
       
       // Show success message
-      // console.log('Client updated successfully!');
       
       // Refresh the page to show updated data
       window.location.reload();

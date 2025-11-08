@@ -272,7 +272,7 @@ const App = () => {
                     <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
                     <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
                     <Route path="/ad-accounts" element={<AdAccountsOverview />} />
-                    <Route path="/facebook-ads-reporting" element={<FacebookAdsReporting />} />
+                    <Route path="/reporting" element={<FacebookAdsReporting />} />
                     <Route path="/api-testing" element={<APITestingPage />} />
                     <Route path="/oauth/callback" element={<GHLCallbackPage />} />
                     <Route path="/share/:clientId" element={

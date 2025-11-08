@@ -211,14 +211,12 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       setSpreadsheetLoading(true);
       try {
         debugLogger.info('ClientForm', 'Fetching spreadsheet name', { spreadsheetId: googleSheetsConfig.spreadsheetId });
-        console.log('📊 ClientForm: Fetching spreadsheet name for:', googleSheetsConfig.spreadsheetId);
         
         const { GoogleSheetsService } = await import('@/services/api/googleSheetsService');
         const accessToken = await GoogleSheetsService.getAccessToken();
         
         if (!accessToken) {
           debugLogger.warn('ClientForm', 'No Google Sheets access token available');
-          console.warn('⚠️ ClientForm: No Google Sheets access token. Please connect Google Sheets first.');
           setSpreadsheetName('Not connected');
           setSpreadsheetLoading(false);
           return;
@@ -228,7 +226,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           spreadsheetId: googleSheetsConfig.spreadsheetId,
           hasToken: !!accessToken 
         });
-        console.log('📊 ClientForm: Fetching spreadsheet metadata with token');
         
         const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSheetsConfig.spreadsheetId}`, {
           headers: {
@@ -241,7 +238,6 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           const data = await response.json();
           const title = data.properties?.title || 'Unknown Spreadsheet';
           debugLogger.info('ClientForm', 'Successfully fetched spreadsheet name', { title });
-          console.log('✅ ClientForm: Spreadsheet name fetched:', title);
           setSpreadsheetName(title);
         } else {
           const errorText = await response.text();

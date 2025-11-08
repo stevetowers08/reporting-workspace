@@ -257,8 +257,6 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         ],
         dateRange: dateRange,
         quality: options.quality || 'email'
-      }, (message) => {
-        console.log('Export progress:', message);
       });
       
     } catch (err) {

@@ -42,17 +42,8 @@ export const MetaTabContent: React.FC<MetaTabContentProps> = React.memo(({
 }) => {
   const { data, isLoading, error, isFetching } = useMetaTabData(clientId, dateRange, clientData);
 
-  // Debug logging
   React.useEffect(() => {
-    console.log('[MetaTabContent] State update', {
-      isLoading,
-      isFetching,
-      hasData: !!data,
-      hasError: !!error,
-      errorMessage: error?.message,
-      hasClientData: !!data?.clientData,
-      facebookAdsAccount: data?.clientData?.accounts?.facebookAds
-    });
+    // State tracking for debugging if needed
   }, [isLoading, isFetching, data, error]);
 
   if (error) {

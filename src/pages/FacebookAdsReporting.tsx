@@ -16,6 +16,7 @@ const FacebookAdsReporting: React.FC = () => {
   const [reportingData, setReportingData] = useState<FacebookAdsReportingData[]>([]);
   const [googleReportingData, setGoogleReportingData] = useState<GoogleAdsReportingData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [googleLoading, setGoogleLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
@@ -27,15 +28,68 @@ const FacebookAdsReporting: React.FC = () => {
   useEffect(() => {
     const loadAllData = async () => {
       setLoading(true);
+      setGoogleLoading(true);
+      setReportingData([]); // Clear previous data
+      setGoogleReportingData([]);
+      
+      // BEST PRACTICE: Load clients first (fast), then start progressive data loading
       try {
-        await Promise.all([
-          fetchReportingData(),
-          fetchGoogleReportingData(),
-          loadClients()
-        ]);
-      } finally {
-        setLoading(false);
+        await loadClients();
+      } catch (error) {
+        debugLogger.warn('FACEBOOK_REPORTING_PAGE', 'Clients fetch failed (non-critical)', error);
       }
+      
+      // BEST PRACTICE: Start progressive loading - data will stream in as it arrives
+      // Don't wait for everything - show data as it loads
+      const loadFacebookProgressive = async () => {
+        try {
+          setError(null);
+          await facebookAdsReportingService.getFacebookAdsReportingDataProgressive(
+            selectedPeriod,
+            (clientData) => {
+              // Update state as each client's data arrives
+              setReportingData(prev => {
+                // Avoid duplicates
+                const exists = prev.find(d => d.clientId === clientData.clientId);
+                if (exists) return prev;
+                return [...prev, clientData];
+              });
+            }
+          );
+        } catch (err) {
+          debugLogger.error('FACEBOOK_REPORTING_PAGE', 'Error in progressive Facebook loading', err);
+          setError('Failed to load some Facebook Ads data. Some data may still be loading.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      const loadGoogleProgressive = async () => {
+        try {
+          setGoogleError(null);
+          await googleAdsReportingService.getGoogleAdsReportingDataProgressive(
+            selectedPeriod,
+            (clientData) => {
+              // Update state as each client's data arrives
+              setGoogleReportingData(prev => {
+                // Avoid duplicates
+                const exists = prev.find(d => d.clientId === clientData.clientId);
+                if (exists) return prev;
+                return [...prev, clientData];
+              });
+            }
+          );
+        } catch (err) {
+          debugLogger.error('FACEBOOK_REPORTING_PAGE', 'Error in progressive Google loading', err);
+          setGoogleError('Failed to load some Google Ads data. Some data may still be loading.');
+        } finally {
+          setGoogleLoading(false);
+        }
+      };
+      
+      // Start both in parallel - they'll update state as data arrives
+      loadFacebookProgressive();
+      loadGoogleProgressive();
     };
     
     loadAllData();
@@ -94,8 +148,6 @@ const FacebookAdsReporting: React.FC = () => {
     } catch (err) {
       debugLogger.error('GOOGLE_REPORTING_PAGE', 'Error fetching Google reporting data', err);
       setGoogleError('Failed to load Google Ads reporting data. Please try again.');
-    } finally {
-      setGoogleLoading(false);
     }
   };
 
@@ -172,7 +224,7 @@ const FacebookAdsReporting: React.FC = () => {
         {activeTab === 'google' && (
           <GoogleAdsReportingTable
             data={googleReportingData}
-            loading={loading}
+            loading={googleLoading}
             error={googleError}
           />
         )}
@@ -181,7 +233,7 @@ const FacebookAdsReporting: React.FC = () => {
           <UnifiedReportingTable
             facebookData={reportingData}
             googleData={googleReportingData}
-            loading={loading}
+            loading={loading || googleLoading}
             error={error || googleError}
           />
         )}

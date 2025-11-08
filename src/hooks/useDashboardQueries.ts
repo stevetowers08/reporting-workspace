@@ -49,7 +49,6 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         };
       })();
       
-      console.log('🚀 useDashboardQueries calling EventMetricsService', { clientId, finalDateRange, clientAccounts });
       const result = await EventMetricsService.getComprehensiveMetrics(
         clientId,
         finalDateRange,
@@ -58,7 +57,6 @@ export const useDashboardData = (clientId: string | undefined, dateRange?: { sta
         true, // includePreviousPeriod
         signal // Pass abort signal
       );
-      console.log('✅ useDashboardQueries got result', result);
       
       return result;
     },

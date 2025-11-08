@@ -1,5 +1,5 @@
 import React from 'react';
-import { ErrorState } from './ui/ErrorState';
+import { ErrorState } from '@/components/ui/ErrorState';
 
 export interface ChartErrorWrapperProps {
   /** The chart component to render */

@@ -47,8 +47,6 @@ const supabaseHelpers = {
   },
 
   async createClient(client: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<Client> {
-    console.log('supabaseHelpers.createClient: Inserting client:', client);
-    
     const { data, error } = await supabase
       .from('clients')
       .insert(client)
@@ -60,7 +58,6 @@ const supabaseHelpers = {
       throw error;
     }
     
-    console.log('supabaseHelpers.createClient: Success, returned data:', data);
     return data;
   },
 
@@ -349,7 +346,6 @@ export class DatabaseService {
       const client = await supabaseHelpers.createClient(newClient);
       debugLogger.info('DatabaseService', 'Client created successfully in database', { id: client.id, name: client.name });
       
-      console.log('DatabaseService: Client created successfully:', client);
       return client;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error creating client in database', error);

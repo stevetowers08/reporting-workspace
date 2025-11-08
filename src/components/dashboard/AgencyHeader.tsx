@@ -151,7 +151,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
                   Back to Dashboard
                 </Button>
                 
-                <Link to="/facebook-ads-reporting">
+                <Link to="/reporting">
                   <Button
                     variant="outline"
                     size="sm"
@@ -190,7 +190,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
                   </>
                 )}
                 
-                <Link to="/facebook-ads-reporting">
+                <Link to="/reporting">
                   <Button
                     variant="outline"
                     size="sm"

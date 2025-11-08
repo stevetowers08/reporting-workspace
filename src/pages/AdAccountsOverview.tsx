@@ -341,7 +341,7 @@ const AdAccountsOverview = () => {
                 <div className="max-w-7xl mx-auto">
                     {/* Platform Navigation */}
                     <div className="flex gap-2 mb-6">
-                        <Link to="/facebook-ads">
+                        <Link to="/reporting">
                             <Button variant="outline" size="sm" className="flex items-center gap-2">
                                 <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
                                     <span className="text-white font-bold text-xs">f</span>

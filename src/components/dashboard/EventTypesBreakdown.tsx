@@ -20,19 +20,14 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
     const fetchData = async () => {
       try {
         setError(null);
-        console.log('🔍 EventTypesBreakdown: Starting fetch');
         debugLogger.debug('EventTypesBreakdown', 'Starting to fetch lead data');
         
         // Try to get googleSheetsConfig from either clientAccounts or clientData (same pattern as GuestCountDistribution)
         const googleSheetsConfig = data?.clientAccounts?.googleSheetsConfig;
         const googleSheets = data?.clientAccounts?.googleSheets;
         
-        console.log('  - googleSheetsConfig:', googleSheetsConfig);
-        console.log('  - googleSheets:', googleSheets);
-        
         // Check if client has Google Sheets configuration
         if (!googleSheetsConfig && !googleSheets) {
-          console.warn('⚠️ EventTypesBreakdown: No Google Sheets config found');
           debugLogger.warn('EventTypesBreakdown', 'No Google Sheets configuration found for client');
           setError('Google Sheets not configured for this client');
           setLeadData(null);
@@ -46,11 +41,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
         
         if (googleSheetsConfig) {
           const { spreadsheetId, sheetName } = googleSheetsConfig;
-          console.log('  - Using googleSheetsConfig:', { spreadsheetId, sheetName, dateRange });
           debugLogger.debug('EventTypesBreakdown', 'Using client-specific Google Sheets config', { googleSheetsConfig, dateRange });
           leadDataResult = await LeadDataService.fetchLeadData(spreadsheetId, sheetName, dateRange);
         } else if (googleSheets) {
-          console.log('  - Using legacy googleSheets:', googleSheets, dateRange);
           debugLogger.debug('EventTypesBreakdown', 'Using client-specific Google Sheets config (legacy)', { googleSheets, dateRange });
           leadDataResult = await LeadDataService.fetchLeadData(
             googleSheets,
@@ -59,17 +52,9 @@ export const EventTypesBreakdown: React.FC<EventTypesBreakdownProps> = React.mem
           );
         }
         
-        console.log('📊 EventTypesBreakdown: Received lead data', {
-          hasResult: !!leadDataResult,
-          eventTypesCount: leadDataResult?.eventTypes?.length,
-          eventTypes: leadDataResult?.eventTypes
-        });
         debugLogger.debug('EventTypesBreakdown', 'Received lead data', leadDataResult);
         
         if (leadDataResult) {
-          console.log('✅ EventTypesBreakdown: Data received', {
-            eventTypes: leadDataResult.eventTypes
-          });
           debugLogger.debug('EventTypesBreakdown', 'Event types data', leadDataResult.eventTypes);
           setLeadData(leadDataResult);
         } else {

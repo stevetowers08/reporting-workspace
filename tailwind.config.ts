@@ -8,6 +8,9 @@ const config: Config = {
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
     "./index.html",
+    // Exclude stub files
+    "!./src/components/analytics/AllVenuesFacebookAdsTable.tsx",
+    "!./src/components/analytics/AllVenuesGoogleAdsTable.tsx",
   ],
   prefix: "",
   theme: {

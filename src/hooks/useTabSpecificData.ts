@@ -87,8 +87,6 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         };
       })();
       
-      console.log('[useMetaTabData] Starting fetch', { clientId, finalDateRange });
-      
       try {
         // Use provided client data or fetch if not available
         let finalClientData = clientData;
@@ -152,15 +150,9 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
           }
         };
         
-        console.log('[useMetaTabData] Fetch complete', { 
-          hasData: !!result,
-          hasFacebookMetrics: !!result?.facebookMetrics,
-          hasClientData: !!result?.clientData
-        });
-        
         return result;
       } catch (error) {
-        console.error('[useMetaTabData] Fetch error', error);
+        debugLogger.error('useMetaTabData', 'Fetch error', error);
         throw error;
       }
     },
