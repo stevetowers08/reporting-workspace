@@ -111,6 +111,10 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     navigate(`/dashboard/${clientId}`);
   };
 
+  const handleClientSelect = (clientId: string) => {
+    navigate(`/dashboard/${clientId}`);
+  };
+
   const handleDeleteClient = async (clientId: string, clientName: string) => {
     if (!window.confirm(`Are you sure you want to delete ${clientName}? This action cannot be undone.`)) {
       return;
@@ -168,16 +172,20 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
     <div className="min-h-screen bg-slate-100">
       {/* Use AgencyHeader for consistency */}
       <AgencyHeader
-        clients={[]}
+        clients={clients.map(client => ({
+          id: client.id,
+          name: client.name,
+          logo_url: client.logo_url
+        }))}
         selectedClientId={undefined}
-        onClientSelect={() => {}}
+        onClientSelect={handleClientSelect}
         onBackToDashboard={onBackToDashboard}
         onGoToAgency={() => {}}
         onExportPDF={() => {}}
         onShare={() => {}}
         exportingPDF={false}
         isShared={false}
-        showVenueSelector={false}
+        showVenueSelector={true}
         isAgencyPanel={true}
       />
 

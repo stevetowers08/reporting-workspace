@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button-simple';
 import { ChevronDown, Facebook, FileDown, Settings, Share2, Users } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 interface Client {
@@ -38,6 +38,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (_selectedClientId && clients.length > 0) {
@@ -47,6 +48,23 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
       setSelectedClient(null);
     }
   }, [_selectedClientId, clients]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   if (isShared) {
     return null; // Don't show agency header for shared views
@@ -72,7 +90,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
           {/* Center: Venue Selector */}
           {showVenueSelector && (
             <div className="flex-1 max-w-xs mx-8">
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="w-full flex items-center justify-between px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white hover:bg-white/20 transition-colors"

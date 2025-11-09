@@ -38,10 +38,12 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
     }
   };
 
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredClients = clients
+    .filter(client => {
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
 
   if (loading) {
@@ -90,6 +92,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Platforms</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">Share Link</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Date Added</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -194,6 +197,17 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className="text-xs font-medium text-slate-600">
+                        {client.created_at 
+                          ? new Date(client.created_at).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })
+                          : '—'}
+                      </span>
                     </td>
                   </tr>
                 ))}

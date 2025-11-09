@@ -18,6 +18,7 @@ export interface Client {
   };
   status: 'active' | 'paused' | 'inactive';
   shareable_link: string;
+  created_at?: string;
 }
 
 export interface IntegrationDisplay {
