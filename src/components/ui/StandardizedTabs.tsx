@@ -46,12 +46,12 @@ export const StandardizedTabs: React.FC<StandardizedTabsProps> = ({
 
   return (
     <Tabs value={value} onValueChange={onValueChange} className={`w-full ${className}`}>
-      <TabsList className="w-full bg-slate-50 border border-slate-200 rounded-lg p-0.5 h-10 inline-flex gap-0.5">
+      <TabsList className="!h-11 w-full bg-slate-50/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl !p-1 inline-flex gap-1 shadow-sm">
         {tabs.map((tab) => (
           <TabsTrigger 
             key={tab.value}
             value={tab.value} 
-            className="text-sm font-medium px-3 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:border data-[state=active]:border-slate-200 text-slate-600 transition-all duration-200 flex items-center justify-center gap-1.5 flex-1"
+            className="!px-4 !py-2 !text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-all duration-200 ease-in-out flex items-center justify-center gap-2 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 [&.bg-white]:!text-slate-900 [&.bg-white]:shadow-sm [&.bg-white]:border-slate-200/60"
           >
             {renderIcon(tab)}
             <span className="hidden sm:inline">{tab.label}</span>
