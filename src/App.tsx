@@ -20,7 +20,6 @@ import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
 import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
-import HomePageWrapper from "@/pages/HomePageWrapper";
 import { HealthCheck } from "@/pages/health";
 import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -257,7 +256,7 @@ const App = () => {
                 <BrowserRouter>
                 <div className="app-shell">
                   <Routes>
-                    <Route path="/" element={<HomePageWrapper />} />
+                    <Route path="/" element={<AgencyPanel />} />
                     <Route path="/dashboard/:clientId" element={
                       <Suspense fallback={<DashboardSkeleton />}>
                         <EventDashboard />

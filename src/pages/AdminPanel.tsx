@@ -90,7 +90,7 @@ const AgencyPanel = () => {
   };
 
   const handleBackToDashboard = () => {
-    navigate('/');
+    navigate('/agency');
   };
 
   const handleAddClient = () => {

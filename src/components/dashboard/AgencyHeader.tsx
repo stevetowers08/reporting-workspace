@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button-simple';
-import { BarChart3, ChevronDown, Facebook, FileDown, Settings, Share2, Users } from 'lucide-react';
+import { ChevronDown, Facebook, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -27,7 +27,7 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
   clients,
   selectedClientId: _selectedClientId,
   onClientSelect,
-  onBackToDashboard,
+  onBackToDashboard: _onBackToDashboard,
   onGoToAgency,
   onExportPDF,
   onShare,
@@ -138,19 +138,8 @@ export const AgencyHeader: React.FC<AgencyHeaderProps> = ({
 
           {/* Right: Agency Actions */}
           <div className="flex items-center gap-2">
-            {/* Show Back to Dashboard button for agency panel */}
             {isAgencyPanel ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onBackToDashboard}
-                  className="border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50 bg-white/10"
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-                
                 <Link to="/reporting">
                   <Button
                     variant="outline"

@@ -51,24 +51,9 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-slate-200 pb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Venues</h2>
-            <p className="text-sm text-slate-600 mt-1">Manage client venues and their connected platforms</p>
-          </div>
-          <Button 
-            onClick={onAddClient}
-            size="sm"
-            className="h-8 bg-blue-600 text-white"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Venue
-          </Button>
-        </div>
-
-        {/* Search */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div>
+        {/* Search and Add Venue */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
@@ -79,7 +64,14 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
               className="w-60 pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
             />
           </div>
-          <span className="text-xs text-slate-500 ml-auto">{filteredClients.length} result{filteredClients.length !== 1 ? 's' : ''}</span>
+          <Button 
+            onClick={onAddClient}
+            size="sm"
+            className="h-8 bg-blue-600 text-white"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Venue
+          </Button>
         </div>
       </div>
 
@@ -103,7 +95,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
               <tbody className="bg-white divide-y divide-slate-200">
                 {filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors" data-testid="client-card">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
                         {client.logo_url ? (
                           <img
@@ -119,7 +111,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                         <div className="text-sm font-medium text-slate-900">{client.name}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-2 text-center">
                       <div className="flex items-center justify-center gap-2">
                         {client.accounts?.facebookAds && client.accounts.facebookAds !== 'none' && (
                           <LogoManager 
@@ -159,7 +151,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-2 text-center">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -171,7 +163,7 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                         {copiedClientId === client.id ? 'Copied!' : 'Copy'}
                       </Button>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button 
                           variant="ghost" 
