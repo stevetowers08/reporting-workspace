@@ -1,7 +1,16 @@
 import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
 import React from 'react';
-import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { 
+  Bar, 
+  BarChart, 
+  CartesianGrid,
+  Legend, 
+  ResponsiveContainer, 
+  Tooltip, 
+  XAxis, 
+  YAxis
+} from 'recharts';
 
 interface GoogleAdsCampaignBreakdownProps {
   data: EventDashboardData | null | undefined;
@@ -11,67 +20,178 @@ interface GoogleAdsCampaignBreakdownProps {
 export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProps> = ({ data, isLoading = false }) => {
   const campaignBreakdown = data?.googleMetrics?.campaignBreakdown;
   
+  // Timeout state - stop showing loading after 10 seconds
+  const [loadingTimeout, setLoadingTimeout] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [isLoading]);
+  
   // Determine loading states for each chart
+  // FIXED: Don't show loading forever - if breakdown is missing after timeout, show empty state
   const hasMainMetrics = !!data?.googleMetrics;
-  const isLoadingCampaignTypes = isLoading || (hasMainMetrics && !campaignBreakdown?.campaignTypes);
-  const isLoadingAdFormats = isLoading || (hasMainMetrics && !campaignBreakdown?.adFormats);
+  const hasBreakdown = !!campaignBreakdown;
+  const isLoadingCampaignTypes = isLoading && !loadingTimeout && (hasMainMetrics && !campaignBreakdown?.campaignTypes);
+  const isLoadingAdFormats = isLoading && !loadingTimeout && (hasMainMetrics && !campaignBreakdown?.adFormats);
 
   React.useEffect(() => {
-    if (!campaignBreakdown && data?.googleMetrics) {
+    if (!campaignBreakdown && data?.googleMetrics && !isLoading) {
       console.warn('⚠️ [GoogleAdsCampaignBreakdown] campaignBreakdown is missing');
     }
-  }, [data, campaignBreakdown]);
-
-  // Prepare campaign types data for stacked bar chart
-  // Only show Search and Performance Max
-  const campaignTypesChartData = [
-    {
-      name: 'Search',
-      impressions: campaignBreakdown?.campaignTypes?.search?.impressions || 0,
-      conversions: campaignBreakdown?.campaignTypes?.search?.conversions || 0,
-      conversionRate: campaignBreakdown?.campaignTypes?.search?.conversionRate || 0
-    },
-    {
-      name: 'Performance Max',
-      impressions: campaignBreakdown?.campaignTypes?.performanceMax?.impressions || 0,
-      conversions: campaignBreakdown?.campaignTypes?.performanceMax?.conversions || 0,
-      conversionRate: campaignBreakdown?.campaignTypes?.performanceMax?.conversionRate || 0
+    // Debug: Log data structure when available
+    if (campaignBreakdown) {
+      const textAds = campaignBreakdown.adFormats?.textAds;
+      const responsiveDisplay = campaignBreakdown.adFormats?.responsiveDisplay;
+      const videoAds = campaignBreakdown.adFormats?.videoAds;
+      
+      const debugData = {
+        hasCampaignTypes: !!campaignBreakdown.campaignTypes,
+        hasAdFormats: !!campaignBreakdown.adFormats,
+        campaignTypesKeys: campaignBreakdown.campaignTypes ? Object.keys(campaignBreakdown.campaignTypes) : [],
+        adFormatsKeys: campaignBreakdown.adFormats ? Object.keys(campaignBreakdown.adFormats) : [],
+        textAds: textAds ? { impressions: textAds.impressions, conversions: textAds.conversions, conversionRate: textAds.conversionRate } : null,
+        responsiveDisplay: responsiveDisplay ? { impressions: responsiveDisplay.impressions, conversions: responsiveDisplay.conversions, conversionRate: responsiveDisplay.conversionRate } : null,
+        videoAds: videoAds ? { impressions: videoAds.impressions, conversions: videoAds.conversions, conversionRate: videoAds.conversionRate } : null,
+        networkBreakdown: campaignBreakdown.adFormats?.networkBreakdown ? Object.keys(campaignBreakdown.adFormats.networkBreakdown) : [],
+        assetTypes: campaignBreakdown.adFormats?.assetTypes ? Object.keys(campaignBreakdown.adFormats.assetTypes) : [],
+        individualAssets: campaignBreakdown.adFormats?.individualAssets ? Object.keys(campaignBreakdown.adFormats.individualAssets).length : 0,
+        fullAdFormatsObject: campaignBreakdown.adFormats
+      };
+      
+      console.log('📊 [GoogleAdsCampaignBreakdown] Data available:', JSON.stringify(debugData, null, 2));
+      console.log('📊 [GoogleAdsCampaignBreakdown] Raw campaignBreakdown:', campaignBreakdown);
+      console.log('📊 [GoogleAdsCampaignBreakdown] Raw adFormats:', campaignBreakdown.adFormats);
+    } else if (data?.googleMetrics && !isLoading) {
+      console.warn('⚠️ [GoogleAdsCampaignBreakdown] campaignBreakdown is missing but googleMetrics exists:', {
+        hasGoogleMetrics: !!data.googleMetrics,
+        googleMetricsKeys: data.googleMetrics ? Object.keys(data.googleMetrics) : [],
+        campaignBreakdown: data.googleMetrics?.campaignBreakdown
+      });
     }
-  ];
+  }, [campaignBreakdown, data, isLoading]);
 
-  // Prepare ad formats data for stacked bar chart
+  // Prepare campaign types data for distribution charts
+  // Only show Search and Performance Max
+  const searchData = {
+    name: 'Search',
+    spend: campaignBreakdown?.campaignTypes?.search?.cost || 0,
+    conversions: campaignBreakdown?.campaignTypes?.search?.conversions || 0,
+    impressions: campaignBreakdown?.campaignTypes?.search?.impressions || 0,
+    conversionRate: campaignBreakdown?.campaignTypes?.search?.conversionRate || 0
+  };
+  
+  const performanceMaxData = {
+    name: 'Performance Max',
+    spend: campaignBreakdown?.campaignTypes?.performanceMax?.cost || 0,
+    conversions: campaignBreakdown?.campaignTypes?.performanceMax?.conversions || 0,
+    impressions: campaignBreakdown?.campaignTypes?.performanceMax?.impressions || 0,
+    conversionRate: campaignBreakdown?.campaignTypes?.performanceMax?.conversionRate || 0
+  };
+  
+  const totalSpend = searchData.spend + performanceMaxData.spend;
+  const totalConversions = searchData.conversions + performanceMaxData.conversions;
+  
+  const searchSpendPercent = totalSpend > 0 ? (searchData.spend / totalSpend) * 100 : 0;
+  const performanceMaxSpendPercent = totalSpend > 0 ? (performanceMaxData.spend / totalSpend) * 100 : 0;
+  
+  const searchConversionsPercent = totalConversions > 0 ? (searchData.conversions / totalConversions) * 100 : 0;
+  const performanceMaxConversionsPercent = totalConversions > 0 ? (performanceMaxData.conversions / totalConversions) * 100 : 0;
+
+  // Calculate total conversions and cost from all campaign types for cost per lead calculation
+  const allCampaignTypesConversions = (campaignBreakdown?.campaignTypes?.search?.conversions || 0) +
+    (campaignBreakdown?.campaignTypes?.performanceMax?.conversions || 0) +
+    (campaignBreakdown?.campaignTypes?.display?.conversions || 0) +
+    (campaignBreakdown?.campaignTypes?.youtube?.conversions || 0);
+  
+  const allCampaignTypesCost = (campaignBreakdown?.campaignTypes?.search?.cost || 0) +
+    (campaignBreakdown?.campaignTypes?.performanceMax?.cost || 0) +
+    (campaignBreakdown?.campaignTypes?.display?.cost || 0) +
+    (campaignBreakdown?.campaignTypes?.youtube?.cost || 0);
+  
+  const overallCostPerLead = allCampaignTypesConversions > 0 ? allCampaignTypesCost / allCampaignTypesConversions : 0;
+
+  // Prepare ad formats data for distribution charts
   // NOTE: This chart shows ONLY traditional ad formats from Search/Display/YouTube campaigns
   // Performance Max assets are NOT included here - they have their own dedicated breakdown
   // This prevents double-counting and confusion, since Performance Max data is "non-summable"
-  const adFormatsChartData = [
+  // Prepare ad formats data with all 4 metrics
+  // Calculate cost per lead for each ad format based on its conversions and overall cost distribution
+  const textAdsData = campaignBreakdown?.adFormats?.textAds || { conversions: 0, impressions: 0, conversionRate: 0 };
+  const responsiveDisplayData = campaignBreakdown?.adFormats?.responsiveDisplay || { conversions: 0, impressions: 0, conversionRate: 0 };
+  const videoAdsData = campaignBreakdown?.adFormats?.videoAds || { conversions: 0, impressions: 0, conversionRate: 0 };
+  
+  // Calculate cost per lead: distribute total cost proportionally based on conversions
+  const totalAdFormatConversions = textAdsData.conversions + responsiveDisplayData.conversions + videoAdsData.conversions;
+  const textAdsCostPerLead = textAdsData.conversions > 0 && totalAdFormatConversions > 0 
+    ? (allCampaignTypesCost * (textAdsData.conversions / totalAdFormatConversions)) / textAdsData.conversions 
+    : 0;
+  const responsiveDisplayCostPerLead = responsiveDisplayData.conversions > 0 && totalAdFormatConversions > 0
+    ? (allCampaignTypesCost * (responsiveDisplayData.conversions / totalAdFormatConversions)) / responsiveDisplayData.conversions
+    : 0;
+  const videoAdsCostPerLead = videoAdsData.conversions > 0 && totalAdFormatConversions > 0
+    ? (allCampaignTypesCost * (videoAdsData.conversions / totalAdFormatConversions)) / videoAdsData.conversions
+    : 0;
+  
+  const adFormatsData = [
     {
       name: 'Text Ads',
-      impressions: campaignBreakdown?.adFormats?.textAds?.impressions || 0,
-      conversions: campaignBreakdown?.adFormats?.textAds?.conversions || 0,
-      conversionRate: campaignBreakdown?.adFormats?.textAds?.conversionRate || 0
+      impressions: textAdsData.impressions || 0,
+      conversions: textAdsData.conversions || 0,
+      conversionRate: textAdsData.conversionRate || 0,
+      costPerLead: textAdsCostPerLead
     },
     {
       name: 'Responsive Display',
-      impressions: campaignBreakdown?.adFormats?.responsiveDisplay?.impressions || 0,
-      conversions: campaignBreakdown?.adFormats?.responsiveDisplay?.conversions || 0,
-      conversionRate: campaignBreakdown?.adFormats?.responsiveDisplay?.conversionRate || 0
+      impressions: responsiveDisplayData.impressions || 0,
+      conversions: responsiveDisplayData.conversions || 0,
+      conversionRate: responsiveDisplayData.conversionRate || 0,
+      costPerLead: responsiveDisplayCostPerLead
     },
     {
       name: 'Video Ads',
-      impressions: campaignBreakdown?.adFormats?.videoAds?.impressions || 0,
-      conversions: campaignBreakdown?.adFormats?.videoAds?.conversions || 0,
-      conversionRate: campaignBreakdown?.adFormats?.videoAds?.conversionRate || 0
+      impressions: videoAdsData.impressions || 0,
+      conversions: videoAdsData.conversions || 0,
+      conversionRate: videoAdsData.conversionRate || 0,
+      costPerLead: videoAdsCostPerLead
     }
   ];
 
-  // Check if we have breakdown data - show charts if data exists (even if some values are 0)
-  const hasCampaignTypesData = !!campaignBreakdown && !!campaignBreakdown.campaignTypes;
-  const hasAdFormatData = !!campaignBreakdown && !!campaignBreakdown.adFormats;
+  // Check if we have breakdown data
+  // Always show chart if the structure exists, even if values are 0
+  const hasCampaignTypesData = !!campaignBreakdown?.campaignTypes;
+  // Check if adFormats exists - the service always returns adFormats object, so check if campaignBreakdown exists
+  // Show chart even if all values are 0 - the structure is what matters
+  const hasAdFormatData = !!campaignBreakdown?.adFormats;
+  
+  // Debug: Log the check result
+  React.useEffect(() => {
+    if (campaignBreakdown) {
+      console.log('🔍 [GoogleAdsCampaignBreakdown] Data check:', {
+        hasAdFormatData,
+        hasCampaignTypesData,
+        isLoadingAdFormats,
+        isLoading,
+        loadingTimeout,
+        adFormatsExists: !!campaignBreakdown?.adFormats,
+        adFormatsDataLength: adFormatsData.length
+      });
+    }
+  }, [hasAdFormatData, hasCampaignTypesData, isLoadingAdFormats, isLoading, loadingTimeout, campaignBreakdown, adFormatsData.length]);
+  
+  // Show empty state if we've timed out or if breakdown is explicitly missing
+  const shouldShowEmptyState = !isLoading || loadingTimeout || (!hasBreakdown && !isLoading);
 
 
   return (
-    <>
-      {/* Campaign Types Card - Stacked Bar Chart */}
+    <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 w-full col-span-2">
+      {/* Campaign Types Card - Pie Chart */}
       <Card className="h-full flex flex-col">
         <div className="pb-4 min-h-[60px]">
           <h3 className="text-lg font-semibold text-slate-900">Campaign Types</h3>
@@ -96,95 +216,118 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
               </div>
             </div>
           ) : hasCampaignTypesData ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={campaignTypesChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                >
-                  <XAxis 
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: '#64748B' }}
-                    axisLine={{ stroke: '#E2E8F0' }}
-                    tickLine={{ stroke: '#E2E8F0' }}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12, fill: '#64748B' }}
-                    axisLine={{ stroke: '#E2E8F0' }}
-                    tickLine={{ stroke: '#E2E8F0' }}
-                    width={60}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string, props: any) => {
-                      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
-                      const label = name === 'impressions' ? 'Impressions' : 'Conversions';
-                      const payload = props.payload;
-                      
-                      if (name === 'conversions' && payload) {
-                        const conversionRate = payload.conversionRate || 0;
-                        return [
-                          `${formattedValue} ${label} • ${conversionRate.toFixed(2)}% rate`,
-                          label
-                        ];
-                      }
-                      return [formattedValue, label];
-                    }}
-                    labelStyle={{ 
-                      color: '#111827', 
-                      fontWeight: 600, 
-                      marginBottom: '6px',
-                      fontSize: '13px'
-                    }}
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '6px',
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                      padding: '12px'
-                    }}
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
-                  />
-                  <Legend
-                    wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
-                    iconType="square"
-                    iconSize={12}
-                    formatter={(value) => {
-                      return value === 'impressions' ? 'Impressions' : 'Conversions';
-                    }}
-                  />
-                  <Bar 
-                    dataKey="impressions" 
-                    fill="#6366F1"
-                    radius={[4, 4, 0, 0]}
-                    animationDuration={600}
-                    stackId="1"
-                  />
-                  <Bar 
-                    dataKey="conversions" 
-                    fill="#10B981"
-                    radius={[0, 0, 4, 4]}
-                    animationDuration={600}
-                    stackId="1"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-64 p-4">
+              <div className="space-y-6">
+                {/* Spend Distribution */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-700">Spend Distribution</h4>
+                    <span className="text-xs text-slate-500">${totalSpend.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-8 relative overflow-hidden">
+                    {searchSpendPercent > 0 && (
+                      <div 
+                        className="bg-blue-600 h-8 rounded-l-full transition-all duration-700 ease-out flex items-center justify-center" 
+                        style={{ width: `${searchSpendPercent}%` }}
+                      >
+                        {searchSpendPercent > 20 && (
+                          <span className="text-xs font-normal text-white">
+                            Search ({searchSpendPercent.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {performanceMaxSpendPercent > 0 && (
+                      <div 
+                        className="bg-green-500 h-8 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center" 
+                        style={{ 
+                          width: `${performanceMaxSpendPercent}%`, 
+                          left: `${searchSpendPercent}%`,
+                          borderRadius: searchSpendPercent === 0 ? '0.5rem' : '0 0.5rem 0.5rem 0'
+                        }}
+                      >
+                        {performanceMaxSpendPercent > 20 && (
+                          <span className="text-xs font-normal text-white">
+                            Performance Max ({performanceMaxSpendPercent.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                      <span className="text-xs font-medium text-slate-700">Search</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-xs font-medium text-slate-700">Performance Max</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conversions Distribution */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-700">Conversions Distribution</h4>
+                    <span className="text-xs text-slate-500">{totalConversions.toLocaleString()} conversions</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-8 relative overflow-hidden">
+                    {searchConversionsPercent > 0 && (
+                      <div 
+                        className="bg-blue-600 h-8 rounded-l-full transition-all duration-700 ease-out flex items-center justify-center" 
+                        style={{ width: `${searchConversionsPercent}%` }}
+                      >
+                        {searchConversionsPercent > 20 && (
+                          <span className="text-xs font-normal text-white">
+                            Search ({searchConversionsPercent.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {performanceMaxConversionsPercent > 0 && (
+                      <div 
+                        className="bg-green-500 h-8 rounded-r-full transition-all duration-700 ease-out absolute top-0 flex items-center justify-center" 
+                        style={{ 
+                          width: `${performanceMaxConversionsPercent}%`, 
+                          left: `${searchConversionsPercent}%`,
+                          borderRadius: searchConversionsPercent === 0 ? '0.5rem' : '0 0.5rem 0.5rem 0'
+                        }}
+                      >
+                        {performanceMaxConversionsPercent > 20 && (
+                          <span className="text-xs font-normal text-white">
+                            Performance Max ({performanceMaxConversionsPercent.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                      <span className="text-xs font-medium text-slate-700">Search</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-xs font-medium text-slate-700">Performance Max</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-64 text-sm text-slate-400">
-              {campaignBreakdown ? 'No campaign type data for this period' : 'Loading campaign type breakdown data...'}
+              {shouldShowEmptyState ? 'No campaign type data available for this period' : 'Loading campaign type breakdown data...'}
             </div>
           )}
         </div>
       </Card>
 
-      {/* Ad Formats Card - Stacked Bar Chart */}
-      {/* NOTE: Includes both traditional ad formats (Search/Display/YouTube) and Performance Max assets */}
-      {/* Performance Max assets are mapped: TEXT→textAds, IMAGE→responsiveDisplay, YOUTUBE_VIDEO→videoAds */}
-      {/* Totals may be higher than campaign metrics due to non-summable nature - this is expected */}
+      {/* Ad Formats Card */}
       <Card className="h-full flex flex-col">
-        <div className="pb-4 min-h-[60px]">
+        <div className="pb-2 min-h-[50px]">
           <h3 className="text-lg font-semibold text-slate-900">Ad Formats</h3>
-          {!hasAdFormatData && campaignBreakdown && !isLoadingAdFormats && (
+          {!hasAdFormatData && !isLoadingAdFormats && (
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ No ad format data found for this period
             </p>
@@ -205,86 +348,82 @@ export const GoogleAdsCampaignBreakdown: React.FC<GoogleAdsCampaignBreakdownProp
               </div>
             </div>
           ) : hasAdFormatData ? (
-            <div className="h-64">
+            <div className="h-72 p-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={adFormatsChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                  data={adFormatsData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, left: 45, bottom: 30 }}
+                  barCategoryGap="8%"
+                  barGap={4}
                 >
                   <XAxis 
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: '#64748B' }}
+                    type="number" 
+                    tick={{ fontSize: 11, fill: '#64748B' }}
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={{ stroke: '#E2E8F0' }}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12, fill: '#64748B' }}
-                    axisLine={{ stroke: '#E2E8F0' }}
-                    tickLine={{ stroke: '#E2E8F0' }}
-                    width={60}
+                    type="category" 
+                    dataKey="name" 
+                    width={40}
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <Tooltip
                     formatter={(value: number, name: string, props: any) => {
-                      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
-                      const label = name === 'impressions' ? 'Impressions' : 'Conversions';
                       const payload = props.payload;
-                      
-                      if (name === 'conversions' && payload) {
-                        const conversionRate = payload.conversionRate || 0;
+                      if (name === 'impressions') {
                         return [
-                          `${formattedValue} ${label} • ${conversionRate.toFixed(2)}% rate`,
-                          label
+                          `${value.toLocaleString()}\nConversion Rate: ${(payload.conversionRate || 0).toFixed(2)}%\nCost/Lead: $${(payload.costPerLead || 0).toFixed(2)}`,
+                          'Impressions'
+                        ];
+                      } else if (name === 'conversions') {
+                        return [
+                          `${value.toLocaleString()}\nConversion Rate: ${(payload.conversionRate || 0).toFixed(2)}%\nCost/Lead: $${(payload.costPerLead || 0).toFixed(2)}`,
+                          'Conversions'
                         ];
                       }
-                      return [formattedValue, label];
+                      return [value, name];
                     }}
-                    labelStyle={{ 
-                      color: '#111827', 
-                      fontWeight: 600, 
-                      marginBottom: '6px',
-                      fontSize: '13px'
-                    }}
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
+                    labelStyle={{ color: '#374151', fontWeight: 500 }}
+                    contentStyle={{
+                      backgroundColor: '#fff',
                       border: '1px solid #E2E8F0',
                       borderRadius: '6px',
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                      padding: '12px'
+                      padding: '8px 12px',
+                      whiteSpace: 'pre-line'
                     }}
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                   />
-                  <Legend
-                    wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '10px', fontSize: '11px' }}
                     iconType="square"
-                    iconSize={12}
-                    formatter={(value) => {
-                      return value === 'impressions' ? 'Impressions' : 'Conversions';
-                    }}
+                    iconSize={10}
+                    fontSize={11}
                   />
                   <Bar 
                     dataKey="impressions" 
-                    fill="#6366F1"
-                    radius={[4, 4, 0, 0]}
-                    animationDuration={600}
-                    stackId="1"
+                    fill="#3B82F6" 
+                    name="Impressions"
+                    radius={[0, 4, 4, 0]}
                   />
                   <Bar 
                     dataKey="conversions" 
-                    fill="#10B981"
-                    radius={[0, 0, 4, 4]}
-                    animationDuration={600}
-                    stackId="1"
+                    fill="#10B981" 
+                    name="Conversions"
+                    radius={[0, 4, 4, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="flex items-center justify-center h-64 text-sm text-slate-400">
-              {campaignBreakdown ? 'No ad format data for this period' : 'Loading ad format breakdown data...'}
+              {shouldShowEmptyState ? 'No ad format data available for this period' : 'Loading ad format breakdown data...'}                                    
             </div>
           )}
         </div>
       </Card>
-    </>
+    </div>
   );
 };
