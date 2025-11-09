@@ -127,6 +127,12 @@ interface ClientFacingHeaderProps {
   onPeriodChange: (period: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  tabSettings?: {
+    summary?: boolean;
+    meta?: boolean;
+    google?: boolean;
+    leads?: boolean;
+  };
   className?: string;
 }
 
@@ -136,6 +142,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   onPeriodChange,
   activeTab,
   onTabChange,
+  tabSettings,
   className = ''
 }) => {
   // Helper function to get actual date range
@@ -200,11 +207,11 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 <img
                   src={clientData.logo_url}
                   alt={`${clientData.name} logo`}
-                  className="w-8 h-8 object-cover rounded-lg border border-slate-200"
+                  className="w-12 h-12 object-cover rounded-lg border border-slate-200"
                 />
               ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-white" />
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-white" />
                 </div>
               )}
               <div>
@@ -223,7 +230,18 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
             <StandardizedTabs 
               value={activeTab} 
               onValueChange={onTabChange} 
-              tabs={DASHBOARD_TABS}
+              tabs={DASHBOARD_TABS.filter(tab => {
+                // Filter tabs based on tabSettings
+                if (!tabSettings) return true; // Show all if no settings
+                const tabValue = tab.value;
+                // Auto-disable summary if both meta and google are disabled
+                if (tabValue === 'summary') {
+                  const metaEnabled = tabSettings.meta !== false;
+                  const googleEnabled = tabSettings.google !== false;
+                  return metaEnabled || googleEnabled;
+                }
+                return tabSettings[tabValue as keyof typeof tabSettings] !== false;
+              })}
             />
           </div>
 
