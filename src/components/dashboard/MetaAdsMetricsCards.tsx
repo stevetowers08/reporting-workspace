@@ -204,7 +204,7 @@ export const MetaAdsMetricsCards = React.memo<MetaAdsMetricsCardsProps>(({ data 
         <Card className="bg-white border border-slate-200 p-5 h-24">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 mb-2">Link Clicks</p>
+              <p className="text-sm font-medium text-slate-600 mb-2">Landing Page Views</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{data?.facebookMetrics?.clicks?.toLocaleString() || '0'}</p>
                 {data?.facebookMetrics?.previousPeriod && (

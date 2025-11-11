@@ -65,7 +65,7 @@ export const FacebookAdsReportingTable: React.FC<FacebookAdsReportingTableProps>
               <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Conversion Rate</th>
               <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Spent</th>
               <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Impressions</th>
-              <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Link Clicks</th>
+              <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Landing Page Views</th>
               <th className="text-left py-2 px-3 text-xs font-medium text-slate-700 border-r border-slate-200">Cost Per Click</th>
               <th className="text-left py-2 px-3 text-xs font-medium text-slate-700">CTR</th>
             </tr>
@@ -126,7 +126,7 @@ export const FacebookAdsReportingTable: React.FC<FacebookAdsReportingTableProps>
                 />
                 
                 <MetricTableCell
-                  label="Link Clicks"
+                  label="Landing Page Views"
                   value={venue.metrics.clicks}
                   trend={venue.trends?.clicks}
                   format="number"
