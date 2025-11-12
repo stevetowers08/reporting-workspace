@@ -194,37 +194,37 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   };
 
   return (
-    <header className={`bg-white border-b border-slate-200/60 shadow-sm ${className}`}>
+    <header className={`bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-40 ${className}`}>
       <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-3 sm:py-4 md:py-5">
         {/* Mobile Layout */}
         <div className="flex flex-col gap-3 md:hidden">
           {/* Top Row: Logo and Venue/Date (Top Right) */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
               <img
                 src="/logos/tulen. (7).png"
                 alt="Tulen Agency"
-                className="h-8 object-contain"
+                className="h-8 w-auto object-contain"
               />
             </div>
             {/* Venue Logo and Date - Top Right */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
               {clientData?.logo_url ? (
                 <img
                   src={clientData.logo_url}
                   alt={`${clientData.name} logo`}
-                  className="w-7 h-7 object-cover rounded-lg border border-slate-200 shadow-sm"
+                  className="w-7 h-7 flex-shrink-0 object-cover rounded-lg border border-slate-200 shadow-sm"
                 />
               ) : (
-                <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                <div className="w-7 h-7 flex-shrink-0 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
                   <BarChart3 className="h-3.5 w-3.5 text-white" />
                 </div>
               )}
-              <div className="flex flex-col items-end">
-                <h2 className="text-xs font-semibold text-slate-900 leading-tight">
+              <div className="flex flex-col items-end min-w-0">
+                <h2 className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-[120px] sm:max-w-[150px]">
                   {clientData?.name || 'Dashboard'}
                 </h2>
-                <p className="text-[10px] text-slate-500 leading-tight">
+                <p className="text-[10px] text-slate-500 leading-tight whitespace-nowrap">
                   {getDateRange(selectedPeriod)}
                 </p>
               </div>
@@ -232,7 +232,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           </div>
           
           {/* Tabs Row */}
-          <div className="w-full">
+          <div className="w-full overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             <StandardizedTabs 
               value={activeTab} 
               onValueChange={onTabChange} 
@@ -250,7 +250,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           </div>
           
           {/* Date Selector Row - Below Tabs */}
-          <div className="flex justify-center">
+          <div className="flex justify-center w-full">
             <select
               value={selectedPeriod}
               onChange={(e) => onPeriodChange(e.target.value)}

@@ -456,9 +456,9 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
       />
 
       {/* Main Content */}
-      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6">
+      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6 md:py-8">
         <div className="mx-auto max-w-[1920px]">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
 
           {/* Summary Tab */}
           {(() => {
