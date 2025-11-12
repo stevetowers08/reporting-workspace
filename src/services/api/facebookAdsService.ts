@@ -1446,7 +1446,7 @@ export class FacebookAdsService {
 
 
   /**
-   * Get monthly metrics for the previous 4 months (excluding current month)
+   * Get monthly metrics for the previous 5 months (excluding current month)
    */
   static async getMonthlyMetrics(adAccountId?: string, conversionAction?: string): Promise<Array<{
     month: string;
@@ -1466,10 +1466,10 @@ export class FacebookAdsService {
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth(); // 0-11
 
-    // Calculate date range for last 4 complete months (excluding current month)
+    // Calculate date range for last 5 complete months (excluding current month)
     // Simple UTC approach - no timezone complications
     const endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
-    const startDate = new Date(currentYear, currentMonth - 4, 1); // First day of 4 months ago
+    const startDate = new Date(currentYear, currentMonth - 5, 1); // First day of 5 months ago
     
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];

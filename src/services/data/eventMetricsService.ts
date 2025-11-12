@@ -94,6 +94,26 @@ export interface EventDashboardData {
   };
 }
 
+// Simple request deduplication for breakdown queries
+class BreakdownDeduplicator {
+  private static pendingRequests = new Map<string, Promise<any>>();
+
+  static async deduplicate<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+    if (this.pendingRequests.has(key)) {
+      debugLogger.debug('BreakdownDeduplicator', `Deduplicating breakdown request for ${key}`);
+      return this.pendingRequests.get(key) as Promise<T>;
+    }
+
+    const promise = requestFn()
+      .finally(() => {
+        this.pendingRequests.delete(key);
+      });
+
+    this.pendingRequests.set(key, promise);
+    return promise;
+  }
+}
+
 export class EventMetricsService {
   static async getComprehensiveMetrics(
     _clientId: string,
@@ -160,7 +180,7 @@ export class EventMetricsService {
       if (hasFacebookAds && clientAccounts?.facebookAds) {
         promises.push(this.getFacebookMetrics(clientAccounts.facebookAds, dateRange, clientConversionActions?.facebookAds, includePreviousPeriod, signal));
       }
-      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds, signal));}
+      if (hasGoogleAds) {promises.push(this.getGoogleMetrics(dateRange, clientAccounts?.googleAds, signal, _clientId));}
       if (hasGoHighLevel) {
         // Extract locationId from goHighLevel object if it's an object, otherwise use as string
         const locationId = typeof clientAccounts?.goHighLevel === 'object' 
@@ -414,7 +434,7 @@ export class EventMetricsService {
     }
   }
 
-  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string, signal?: AbortSignal): Promise<GoogleAdsMetrics & { campaignBreakdown?: any }> {
+  private static async getGoogleMetrics(dateRange: { start: string; end: string }, clientGoogleAdsAccount?: string, signal?: AbortSignal, clientId?: string): Promise<GoogleAdsMetrics & { campaignBreakdown?: any }> {
     try {
       if (signal?.aborted) {
         throw new Error('Request cancelled');
@@ -460,8 +480,9 @@ export class EventMetricsService {
         willUseManagerAccount: targetAccountId === managerAccountId
       });
       
-      // OPTIMIZED: Fetch main metrics and breakdown in parallel with timeout to prevent hanging
-      const API_TIMEOUT = 30000; // 30 seconds max per call
+      // OPTIMIZED: Fetch main metrics first (critical), breakdown in background (non-blocking)
+      const MAIN_METRICS_TIMEOUT = 30000; // 30 seconds for main metrics
+      const BREAKDOWN_TIMEOUT = 20000; // 20 seconds for breakdown (shorter since it's non-critical)
       
       const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
         return Promise.race([
@@ -472,44 +493,74 @@ export class EventMetricsService {
         ]);
       };
       
-      const [mainMetrics, breakdown] = await Promise.allSettled([
-        createTimeoutPromise(
-          GoogleAdsService.getAccountMetrics(targetAccountId, dateRange, true), // Include previous period data
-          API_TIMEOUT
-        ),
-        createTimeoutPromise(
-          GoogleAdsService.getCampaignBreakdown(targetAccountId, dateRange),
-          API_TIMEOUT
-        )
-      ]);
+      // Fetch main metrics first (blocking - required for dashboard)
+      const mainMetrics = await createTimeoutPromise(
+        GoogleAdsService.getAccountMetrics(targetAccountId, dateRange, true), // Include previous period data
+        MAIN_METRICS_TIMEOUT
+      ).catch((error) => {
+        debugLogger.error('EventMetricsService', 'Main metrics fetch failed', error);
+        return null;
+      });
       
-      // Extract main metrics
-      const metrics = mainMetrics.status === 'fulfilled' ? mainMetrics.value : null;
-      if (!metrics) {
-        const errorReason = mainMetrics.status === 'rejected' ? mainMetrics.reason : 'Unknown error';
-        debugLogger.warn('EventMetricsService', 'No Google Ads metrics returned', { error: errorReason });
+      if (!mainMetrics) {
+        debugLogger.warn('EventMetricsService', 'No Google Ads metrics returned');
         return null;
       }
       
-      // Add breakdown if available (from parallel call)
-      const result = { ...metrics };
-      if (breakdown.status === 'fulfilled' && breakdown.value) {
-        result.campaignBreakdown = breakdown.value;
-        debugLogger.info('EventMetricsService', 'Campaign breakdown loaded in parallel', {
-          breakdownDetails: breakdown.value,
-          hasPerformanceMax: !!(breakdown.value.campaignTypes.performanceMax?.conversions || breakdown.value.campaignTypes.performanceMax?.impressions)
-        });
-      } else if (breakdown.status === 'rejected') {
-        debugLogger.warn('EventMetricsService', 'Campaign breakdown failed (non-critical)', breakdown.reason);
-      } else {
-        debugLogger.warn('EventMetricsService', 'Campaign breakdown returned null/undefined');
-        console.warn('⚠️ EventMetricsService - Campaign breakdown is null/undefined');
-      }
+      // Start breakdown fetch in background (non-blocking) with deduplication
+      // Include period in key to ensure different periods are cached separately
+      const breakdownKey = `breakdown-${targetAccountId}-${dateRange.start}-${dateRange.end}-${dateRange.period || 'custom'}`;
+      const result = { ...mainMetrics };
+      
+      // Load breakdown asynchronously - don't block main metrics
+      // Update React Query cache when breakdown loads
+      BreakdownDeduplicator.deduplicate(breakdownKey, async () => {
+        try {
+          const breakdown = await createTimeoutPromise(
+            GoogleAdsService.getCampaignBreakdown(targetAccountId, dateRange),
+            BREAKDOWN_TIMEOUT
+          );
+          
+          if (breakdown) {
+            // Update React Query cache with breakdown data
+            // This will trigger a re-render in components using the dashboard data
+            try {
+              const { CacheManager } = await import('@/lib/cacheManager');
+              const queryKey = ['dashboard-data', clientId, dateRange, 'with-previous-period'];
+              const cachedData = CacheManager.getCachedData(queryKey);
+              if (cachedData) {
+                const updatedData = {
+                  ...cachedData,
+                  googleMetrics: {
+                    ...cachedData.googleMetrics,
+                    campaignBreakdown: breakdown
+                  }
+                };
+                CacheManager.setCachedData(queryKey, updatedData);
+                debugLogger.debug('EventMetricsService', 'Updated React Query cache with breakdown data');
+              }
+            } catch (cacheError) {
+              debugLogger.debug('EventMetricsService', 'Failed to update cache (non-critical)', cacheError);
+            }
+            
+            debugLogger.info('EventMetricsService', 'Campaign breakdown loaded in background', {
+              hasPerformanceMax: !!(breakdown.campaignTypes?.performanceMax?.conversions || breakdown.campaignTypes?.performanceMax?.impressions)
+            });
+          }
+        } catch (error) {
+          debugLogger.warn('EventMetricsService', 'Campaign breakdown failed (non-critical)', error);
+        }
+      }).catch((error) => {
+        debugLogger.debug('EventMetricsService', 'Background breakdown load error (non-critical)', error);
+      });
+      
+      // Return immediately with main metrics (breakdown will be added later if available)
+      // Note: Breakdown may be undefined initially, but will be available on next render if cached
       
       debugLogger.debug('EventMetricsService', 'Google Ads metrics result', result);
       
       // Log if we got empty data
-      if (!metrics || (metrics.leads === 0 && metrics.cost === 0 && metrics.impressions === 0)) {
+      if (!mainMetrics || (mainMetrics.leads === 0 && mainMetrics.cost === 0 && mainMetrics.impressions === 0)) {
         debugLogger.warn('EventMetricsService', 'Google Ads API returned empty data - no active campaigns or data for date range');
       }
       

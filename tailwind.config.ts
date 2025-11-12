@@ -11,6 +11,12 @@ const config: Config = {
     // Exclude stub files
     "!./src/components/analytics/AllVenuesFacebookAdsTable.tsx",
     "!./src/components/analytics/AllVenuesGoogleAdsTable.tsx",
+    // Exclude deleted GHL components
+    "!./src/components/dashboard/FunnelMetricsCards.tsx",
+    "!./src/components/dashboard/GHLFunnelChart.tsx",
+    "!./src/components/dashboard/GHLPageAnalytics.tsx",
+    "!./src/components/dashboard/GHLFunnelAnalytics.tsx",
+    "!./src/components/dashboard/FunnelPerformance.tsx",
   ],
   prefix: "",
   theme: {

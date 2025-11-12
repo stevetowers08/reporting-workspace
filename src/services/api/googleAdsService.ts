@@ -686,7 +686,7 @@ export class GoogleAdsService {
   }
 
   /**
-   * Get monthly metrics for the previous 4 months (excluding current month)
+   * Get monthly metrics for the previous 5 months (excluding current month)
    */
   static async getMonthlyMetrics(customerId: string): Promise<Array<{
     month: string;
@@ -699,10 +699,10 @@ export class GoogleAdsService {
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth(); // 0-11
 
-    // Calculate date range for last 4 complete months (excluding current month)
+    // Calculate date range for last 5 complete months (excluding current month)
     // Use UTC for Google Ads API (Google Ads API uses UTC by default)
     const endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
-    const startDate = new Date(currentYear, currentMonth - 4, 1); // First day of 4 months ago
+    const startDate = new Date(currentYear, currentMonth - 5, 1); // First day of 5 months ago
 
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
@@ -812,7 +812,7 @@ export class GoogleAdsService {
       debugLogger.info('GoogleAdsService', 'Processed monthly data', monthlyData);
       return monthlyData;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Error fetching 4-month data', error);
+      debugLogger.error('GoogleAdsService', 'Error fetching 5-month data', error);
       throw error;
     }
   }
@@ -1547,11 +1547,17 @@ export class GoogleAdsService {
       let dateClause: string;
       if (dateRange.period === 'lastMonth') {
         dateClause = `segments.date DURING LAST_MONTH`;
-      } else if (dateRange.period === 'last30Days') {
+      } else if (dateRange.period === 'last30Days' || dateRange.period === '30d') {
         dateClause = `segments.date DURING LAST_30_DAYS`;
       } else {
-        // For all other periods, use BETWEEN with calculated dates
-        dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+        // For all other periods (7d, 14d, 90d, etc.), use BETWEEN with calculated dates
+        // If dates are missing, fallback to LAST_30_DAYS (shouldn't happen but safety check)
+        if (dateRange.start && dateRange.end) {
+          dateClause = `segments.date BETWEEN '${dateRange.start}' AND '${dateRange.end}'`;
+        } else {
+          // Fallback to LAST_30_DAYS if dates are missing (shouldn't happen for calculated periods)
+          dateClause = `segments.date DURING LAST_30_DAYS`;
+        }
       }
       
       // GAQL queries for campaign breakdown - MUST use separate queries

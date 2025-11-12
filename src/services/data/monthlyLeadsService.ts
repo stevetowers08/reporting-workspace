@@ -1,7 +1,7 @@
 /**
  * Monthly Leads Service
  * Fetches actual monthly leads data from Google Ads and Facebook Ads APIs
- * for the last 4 complete months (excluding current month)
+ * for the last 5 complete months (excluding current month)
  */
 
 import { debugLogger } from '@/lib/debug';
@@ -24,13 +24,13 @@ export interface MonthlyLeadsServiceConfig {
 
 export class MonthlyLeadsService {
   /**
-   * Get leads data for the last 4 complete months
+   * Get leads data for the last 5 complete months
    */
   static async getMonthlyLeads(config: MonthlyLeadsServiceConfig): Promise<MonthlyLeadsData[]> {
     try {
       debugLogger.debug('MonthlyLeadsService', 'Fetching monthly leads data', config);
 
-      // Calculate date range for last 4 complete months
+      // Calculate date range for last 5 complete months
       const { startDate, endDate } = this.calculateDateRange();
       
       debugLogger.debug('MonthlyLeadsService', 'Date range calculated', { startDate, endDate });
@@ -59,7 +59,8 @@ export class MonthlyLeadsService {
       
       debugLogger.debug('MonthlyLeadsService', 'Data combined', { 
         totalMonths: combinedData.length,
-        totalLeads: combinedData.reduce((sum, month) => sum + month.totalLeads, 0)
+        totalLeads: combinedData.reduce((sum, month) => sum + month.totalLeads, 0),
+        months: combinedData.map(m => ({ month: m.month, facebook: m.facebookLeads, google: m.googleLeads, total: m.totalLeads }))
       });
 
       return combinedData;
@@ -70,15 +71,15 @@ export class MonthlyLeadsService {
   }
 
   /**
-   * Calculate date range for last 4 complete months
+   * Calculate date range for last 5 complete months
    */
   private static calculateDateRange(): { startDate: string; endDate: string } {
     const today = new Date();
     const currentMonth = today.getMonth(); // 0-11
     const currentYear = today.getFullYear();
 
-    // Start: 4 months ago, first day
-    const startDate = new Date(currentYear, currentMonth - 4, 1);
+    // Start: 5 months ago, first day
+    const startDate = new Date(currentYear, currentMonth - 5, 1);
     const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
     // End: Last day of previous month
@@ -158,37 +159,61 @@ export class MonthlyLeadsService {
 
   /**
    * Combine Facebook and Google data by month
+   * Generates entries for all months in the date range, even if they have 0 leads
    */
   private static combineMonthlyData(
     facebookData: Record<string, number>,
     googleData: Record<string, number>
   ): MonthlyLeadsData[] {
-    // Get all unique months from both datasets
-    const allMonths = new Set([
-      ...Object.keys(facebookData),
-      ...Object.keys(googleData)
-    ]);
+    // Generate all months in the 5-month range
+    // Use the same calculation as calculateDateRange to avoid timezone issues
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentYear = today.getFullYear();
+    
+    const allMonths: string[] = [];
+    
+    // Generate 5 months starting from 5 months ago
+    for (let i = 0; i < 5; i++) {
+      const monthDate = new Date(currentYear, currentMonth - 5 + i, 1);
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      allMonths.push(monthStr);
+    }
 
     const combinedData: MonthlyLeadsData[] = [];
 
+    debugLogger.debug('MonthlyLeadsService', 'Combining monthly data', {
+      generatedMonths: allMonths,
+      facebookMonths: Object.keys(facebookData),
+      googleMonths: Object.keys(googleData)
+    });
+
+    // Include all months in the range, even if they have 0 leads
     for (const month of allMonths) {
       const facebookLeads = facebookData[month] || 0;
       const googleLeads = googleData[month] || 0;
       const totalLeads = facebookLeads + googleLeads;
 
-      // Only include months with actual data
-      if (totalLeads > 0) {
-        combinedData.push({
-          month,
-          monthLabel: new Date(month + '-01').toLocaleDateString('en-US', { 
-            month: 'short', 
-            year: 'numeric' 
-          }),
-          facebookLeads,
-          googleLeads,
-          totalLeads
-        });
-      }
+      debugLogger.debug('MonthlyLeadsService', `Month ${month}`, {
+        facebookLeads,
+        googleLeads,
+        totalLeads,
+        hasFacebookData: month in facebookData,
+        hasGoogleData: month in googleData
+      });
+
+      combinedData.push({
+        month,
+        monthLabel: new Date(month + '-01').toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        }),
+        facebookLeads,
+        googleLeads,
+        totalLeads
+      });
     }
 
     // Sort by month

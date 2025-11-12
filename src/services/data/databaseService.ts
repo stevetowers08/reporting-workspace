@@ -204,6 +204,19 @@ export interface Client {
       sheetName: string;
     };
   };
+  services?: {
+    facebookAds?: boolean;
+    googleAds?: boolean;
+    crm?: boolean;
+    revenue?: boolean;
+    tabSettings?: {
+      summary?: boolean;
+      meta?: boolean;
+      google?: boolean;
+      leads?: boolean;
+    };
+  };
+  custom_insights?: string;
   shareable_link: string;
   created_at: string;
   updated_at: string;
@@ -287,6 +300,12 @@ export class DatabaseService {
       spreadsheetId: string;
       sheetName: string;
     };
+    tabSettings?: {
+      summary?: boolean;
+      meta?: boolean;
+      google?: boolean;
+      leads?: boolean;
+    };
   }): Promise<Client> {
     try {
       debugLogger.info('DatabaseService', 'Starting client creation', { clientData });
@@ -315,6 +334,12 @@ export class DatabaseService {
               : !!accounts.goHighLevel.locationId
           ),
           revenue: !!accounts.googleSheets && accounts.googleSheets !== 'none',
+          tabSettings: clientData.tabSettings || {
+            summary: true,
+            meta: true,
+            google: true,
+            leads: true,
+          },
         },
         accounts: accounts,
         conversion_actions: clientData.conversionActions || {},
@@ -371,40 +396,47 @@ export class DatabaseService {
     try {
       debugLogger.info('DatabaseService', 'Starting client update', { id, updates });
       
-      // Handle googleSheetsConfig - merge it into accounts if provided
       let processedUpdates = { ...updates };
-      let currentClient: Client | null = null;
-      
-      // Only fetch current client if we need to merge googleSheetsConfig
       const needsMerge = ('googleSheetsConfig' in updates && updates.googleSheetsConfig) || 
-                         (updates.accounts && !updates.googleSheetsConfig);
+                         (updates.accounts && !updates.googleSheetsConfig) ||
+                         (updates.services) ||
+                         ('tabSettings' in updates && updates.tabSettings);
       
       if (needsMerge) {
-        currentClient = await supabaseHelpers.getClient(id);
+        const currentClient = await supabaseHelpers.getClient(id);
         const currentAccounts = currentClient?.accounts || {};
+        const currentServices = currentClient?.services || {};
         
+        // Handle googleSheetsConfig merge into accounts
         if ('googleSheetsConfig' in updates && updates.googleSheetsConfig) {
-          debugLogger.info('DatabaseService', 'Merging googleSheetsConfig into accounts', { googleSheetsConfig: updates.googleSheetsConfig });
-          
-          // Merge googleSheetsConfig into accounts
           processedUpdates.accounts = {
             ...currentAccounts,
             ...(updates.accounts || {}),
             googleSheetsConfig: updates.googleSheetsConfig
           };
-          
-          // Remove googleSheetsConfig from top level since it's now in accounts
           delete processedUpdates.googleSheetsConfig;
-          
-          debugLogger.info('DatabaseService', 'Merged accounts with googleSheetsConfig', { accounts: processedUpdates.accounts });
         } else if (updates.accounts && currentAccounts.googleSheetsConfig) {
-          // Preserve existing googleSheetsConfig when updating other account fields
           processedUpdates.accounts = {
             ...currentAccounts,
             ...updates.accounts,
             googleSheetsConfig: currentAccounts.googleSheetsConfig
           };
-          debugLogger.info('DatabaseService', 'Preserved existing googleSheetsConfig', { googleSheetsConfig: currentAccounts.googleSheetsConfig });
+        }
+        
+        // Handle tabSettings merge into services
+        if ('tabSettings' in updates && updates.tabSettings) {
+          processedUpdates.services = {
+            ...currentServices,
+            ...(updates.services || {}),
+            tabSettings: updates.tabSettings
+          };
+          delete processedUpdates.tabSettings;
+        } else if (updates.services) {
+          // Merge services to preserve existing fields
+          processedUpdates.services = {
+            ...currentServices,
+            ...updates.services
+          };
         }
       }
       
@@ -412,7 +444,7 @@ export class DatabaseService {
       const validatedUpdates = validateInput(ClientUpdateSchema, processedUpdates);
       
       const client = await supabaseHelpers.updateClient(id, validatedUpdates);
-      debugLogger.info('DatabaseService', 'Client updated successfully in database', { id, updates: validatedUpdates });
+      debugLogger.info('DatabaseService', 'Client updated successfully', { id });
       return client;
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error updating client in database', error);

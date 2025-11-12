@@ -1,249 +1,161 @@
-# GoHighLevel Service - Modular Architecture
+# GoHighLevel Services
 
-## Overview
+## Architecture Overview
 
-This implements a development-friendly modular structure for the GoHighLevel service, allowing gradual migration from the monolithic service to focused modules while maintaining backward compatibility.
+The GHL services are organized by responsibility following separation of concerns. This makes the codebase maintainable, testable, and easy to extend.
 
-## Structure
+## Service Structure
 
-```text
-src/services/ghl/
-├── index.ts                    # Main export interface
-├── goHighLevelService.ts       # Original working service (copied)
-└── modules/
-    ├── contacts.ts            # Contact-related functionality
-    └── analytics.ts           # Analytics and metrics functionality
-```
+### Core Services (Organized by Responsibility)
 
-## Usage
+1. **`goHighLevelApiService.ts`** - Core API endpoints (contacts, opportunities, funnels, etc.)
+2. **`goHighLevelAnalyticsService.ts`** - Analytics aggregations and metrics calculations
+3. **`ghlOAuthService.ts`** - OAuth 2.0 flow, token exchange, and token management
+4. **`goHighLevelAuthService.ts`** - Token caching and credential management
+5. **`goHighLevelOAuthConfigService.ts`** - OAuth configuration management
+6. **`goHighLevelTypes.ts`** - TypeScript type definitions
+7. **`goHighLevelUtils.ts`** - Rate limiting and shared utilities
 
-### Backward Compatibility (Current Approach)
+## Adding a New GHL Endpoint
 
-```typescript
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
+### Step 1: Add Type Definition
 
-// All existing code continues to work
-const contacts = await GoHighLevelService.getAllContacts(locationId);
-const metrics = await GoHighLevelService.getGHLMetrics(locationId);
-```
-
-### New Modular Approach
+Add the interface to `goHighLevelTypes.ts`:
 
 ```typescript
-import { GHLContacts, GHLAnalytics } from '@/services/ghl';
-
-// Contact operations
-const contacts = await GHLContacts.getContacts(locationId);
-const recentContacts = await GHLContacts.getRecentContacts(locationId, 10);
-const contactsBySource = await GHLContacts.getContactsBySource(locationId, 'facebook');
-
-// Analytics operations
-const metrics = await GHLAnalytics.getMetrics(locationId);
-const sourceBreakdown = await GHLAnalytics.getSourceBreakdown(locationId);
-const conversionRate = await GHLAnalytics.getConversionRate(locationId);
-```
-
-### Gradual Migration Strategy
-
-1. **Phase 1**: Keep existing code working with `GoHighLevelService`
-2. **Phase 2**: Use new modules for new features
-3. **Phase 3**: Gradually migrate existing components when convenient
-4. **Phase 4**: Remove old service when all code is migrated
-
-## Module Details
-
-### GHLContactsModule
-
-**Purpose**: Handle all contact-related operations
-
-**Methods**:
-
-- `getContacts(locationId, options?)` - Get contacts with optional filtering
-- `getContactCount(locationId, dateParams?)` - Get total contact count
-- `searchContacts(locationId, criteria)` - Search contacts with specific criteria
-- `getRecentContacts(locationId, limit?)` - Get most recent contacts
-- `getContactsBySource(locationId, source)` - Filter contacts by source
-- `getContactsWithGuests(locationId)` - Get contacts with guest information
-
-**Example**:
-
-```typescript
-import { GHLContacts } from '@/services/ghl';
-
-// Get all contacts
-const contacts = await GHLContacts.getContacts('location123');
-
-// Get contacts from last 30 days
-const recentContacts = await GHLContacts.getContacts('location123', {
-  startDate: '2024-01-01',
-  endDate: '2024-01-31'
-});
-
-// Search contacts by source
-const facebookContacts = await GHLContacts.getContactsBySource('location123', 'facebook');
-```
-
-### GHLAnalyticsModule
-
-**Purpose**: Handle analytics and metrics calculations
-
-**Methods**:
-
-- `getMetrics(locationId, dateRange?)` - Get comprehensive metrics
-- `getSourceBreakdown(locationId, dateRange?)` - Get source performance breakdown
-- `getGuestDistribution(locationId, dateRange?)` - Get guest count distribution
-- `getTopPerformingSources(locationId, dateRange?)` - Get best performing sources
-- `getPageViewAnalytics(locationId, dateRange?)` - Get page view analytics
-- `getConversionRate(locationId, dateRange?)` - Get conversion rate
-- `getRecentContactsAnalytics(locationId, limit?)` - Get recent contacts analytics
-- `calculateCustomAnalytics(locationId, dateRange?, customFields?)` - Calculate custom analytics
-
-**Example**:
-
-```typescript
-import { GHLAnalytics } from '@/services/ghl';
-
-// Get comprehensive metrics
-const metrics = await GHLAnalytics.getMetrics('location123');
-
-// Get source breakdown
-const sources = await GHLAnalytics.getSourceBreakdown('location123');
-
-// Get custom analytics for specific fields
-const customAnalytics = await GHLAnalytics.calculateCustomAnalytics(
-  'location123',
-  { start: '2024-01-01', end: '2024-01-31' },
-  ['guestCount', 'eventType']
-);
-```
-
-## Migration Examples
-
-### Component Migration
-
-**Before**:
-
-```typescript
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
-
-const fetchData = async () => {
-  const contacts = await GoHighLevelService.getAllContacts(locationId);
-  const metrics = await GoHighLevelService.getGHLMetrics(locationId);
-};
-```
-
-**After**:
-
-```typescript
-import { GHLContacts, GHLAnalytics } from '@/services/ghl';
-
-const fetchData = async () => {
-  const contacts = await GHLContacts.getContacts(locationId);
-  const metrics = await GHLAnalytics.getMetrics(locationId);
-};
-```
-
-### Gradual Migration Approach
-
-```typescript
-// Keep both imports during transition
-import { GoHighLevelService } from '@/services/api/goHighLevelService';
-import { GHLContacts, GHLAnalytics } from '@/services/ghl';
-
-const fetchData = async () => {
-  // Use new modules for new functionality
-  const recentContacts = await GHLContacts.getRecentContacts(locationId, 10);
-  
-  // Keep old service for existing functionality
-  const allContacts = await GoHighLevelService.getAllContacts(locationId);
-  
-  // Gradually migrate when convenient
-  // const allContacts = await GHLContacts.getContacts(locationId);
-};
-```
-
-## Benefits
-
-1. **Backward Compatibility**: Existing code continues to work
-2. **Focused Modules**: Each module has a single responsibility
-3. **Better Testing**: Easier to test individual modules
-4. **Improved Maintainability**: Smaller, focused files
-5. **Gradual Migration**: No big-bang rewrite required
-6. **Development-Friendly**: Clear separation of concerns
-
-## Type Safety
-
-All modules include proper TypeScript interfaces:
-
-```typescript
-// Contact types
-interface GHLContact {
+export interface GHLNewResource {
   id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  source: string;
-  tags: string[];
-  customFields: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-  dateAdded: string;
-}
-
-// Analytics types
-interface GHLAnalyticsMetrics {
-  totalContacts: number;
-  newContacts: number;
-  totalGuests: number;
-  averageGuestsPerLead: number;
-  sourceBreakdown: Array<{ source: string; count: number; percentage: number }>;
-  // ... more fields
+  name?: string;
+  // ... other fields
 }
 ```
 
-## Error Handling
+### Step 2: Add API Method
 
-All modules include comprehensive error handling with debug logging:
+Add a static method to `GoHighLevelApiService` class in `goHighLevelApiService.ts`:
+
+**Why separate services?**
+- **Separation of Concerns**: Each service has one clear responsibility
+- **Maintainability**: Easier to find and fix issues
+- **Testability**: Can test each service independently
+- **Extensibility**: Easy to add new endpoints without touching other code
 
 ```typescript
-try {
-  const contacts = await GHLContacts.getContacts(locationId);
-  debugLogger.success('GHL-Contacts', `Retrieved ${contacts.length} contacts`);
-  return contacts;
-} catch (error) {
-  debugLogger.error('GHL-Contacts', 'Failed to fetch contacts', error);
-  throw error;
+// Example: Adding a new endpoint
+static async getNewResource(locationId: string, params?: { limit?: number }): Promise<GHLNewResource[]> {
+  await GHLRateLimiter.enforceRateLimit();
+  
+  const token = await this.getValidToken(locationId);
+  if (!token) {
+    throw new Error(`No valid OAuth token found for location ${locationId}`);
+  }
+
+  try {
+    const url = `${this.API_BASE_URL}/new-resource?location_id=${locationId}&limit=${params?.limit || 100}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Version': this.API_VERSION,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      await GHLRateLimiter.handleRateLimitError(response);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || 
+        `API call failed: ${response.status} ${response.statusText}`;
+      
+      debugLogger.error('GoHighLevelApiService', 'New resource API call failed', {
+        status: response.status,
+        locationId,
+        error: errorMessage
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    const resources = Array.isArray(data.resources) ? data.resources : [];
+    
+    debugLogger.info('GoHighLevelApiService', 'New resource fetched successfully', { 
+      locationId,
+      count: resources.length
+    });
+    
+    return resources;
+  } catch (error) {
+    debugLogger.error('GoHighLevelApiService', 'Failed to get new resource', error);
+    throw error;
+  }
 }
 ```
 
-## Performance Considerations
+### Step 3: Use in Analytics Service (Optional)
 
-- **Caching**: Inherits caching from the original service
-- **Rate Limiting**: Maintains API rate limiting
-- **Batch Operations**: Supports efficient batch processing
-- **Memory Management**: Focused modules reduce memory footprint
-
-## Testing
-
-Each module can be tested independently:
+If the endpoint should be aggregated into analytics, add it to `goHighLevelAnalyticsService.ts`:
 
 ```typescript
-// Test contacts module
-import { GHLContactsModule } from '@/services/ghl/modules/contacts';
-
-describe('GHLContactsModule', () => {
-  it('should fetch contacts', async () => {
-    const contacts = await GHLContactsModule.getContacts('test-location');
-    expect(contacts).toBeDefined();
-  });
-});
+// In getGHLMetrics method
+const newResourceData = await GoHighLevelApiService.getNewResource(locationId);
+// Process and include in result
 ```
 
-## Future Enhancements
+### Step 4: Add to Analytics Orchestrator (If Needed)
 
-1. **Additional Modules**: Add modules for campaigns, opportunities, etc.
-2. **Caching Layer**: Implement module-specific caching
-3. **Validation Layer**: Add input validation for each module
-4. **Metrics Collection**: Add performance metrics for each module
-5. **Plugin System**: Allow extending modules with custom functionality
+If it should be included in dashboard data, add to `analyticsOrchestrator.ts`:
+
+```typescript
+// In getGoHighLevelData method
+const newResourceData = await GoHighLevelApiService.getNewResource(locationId);
+// Include in normalized data
+```
+
+## Key Patterns
+
+### 1. Token Management
+All endpoints use `getValidToken(locationId)` which:
+- Automatically handles token refresh
+- Uses client-specific OAuth credentials
+- Caches tokens in memory
+
+### 2. Rate Limiting
+Always call `await GHLRateLimiter.enforceRateLimit()` before API calls.
+
+### 3. Error Handling
+- Use `GHLRateLimiter.handleRateLimitError(response)` for rate limit errors
+- Log errors with `debugLogger.error()`
+- Throw descriptive error messages
+
+### 4. Logging
+- Use `debugLogger.info()` for successful operations
+- Use `debugLogger.error()` for failures
+- Include relevant context (locationId, counts, etc.)
+
+### 5. Response Parsing
+- Always validate response structure
+- Handle empty/null responses gracefully
+- Use TypeScript types for type safety
+
+## Current Endpoints
+
+- **Contacts**: `getContacts()`, `getContactsByTag()`
+- **Opportunities**: `getOpportunities()`, `getWonOpportunities()`, `getOpportunitiesByStatus()`
+- **Funnels**: `getFunnels()`, `getFunnelPages()`
+- **Campaigns**: `getCampaigns()` (not available in current API)
+
+## Token Refresh
+
+Token refresh is handled automatically via `getValidToken()`. The system:
+1. Checks token expiration (5-minute buffer)
+2. Uses stored `oauthClientId` for refresh
+3. Falls back to database/environment credentials
+4. Invalidates cache after refresh
+
+## Caching
+
+- API responses are cached for 5 minutes
+- Cache keys include locationId and parameters
+- Cache is invalidated on token refresh

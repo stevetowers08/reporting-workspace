@@ -66,3 +66,9 @@ When first loading a venue/client and landing on the summary tab, Google Ads dat
    - Scheduler processing
    - Data fetching logic
 
+
+
+
+
+
+

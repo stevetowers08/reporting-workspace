@@ -95,6 +95,7 @@ export class LeadDataService {
       let facebookLeads = 0;
       let googleLeads = 0;
       let totalGuests = 0;
+      let leadsWithValidGuestCount = 0; // Track leads with valid guest counts for accurate average
       const eventTypes: { [key: string]: number } = {};
       const guestRanges: { [key: string]: number } = {};
       const dayPreferences: { [key: string]: number } = {};
@@ -175,31 +176,42 @@ export class LeadDataService {
           googleLeads++;
         }
 
-        // Get guest count with dynamic column detection
-        const guestCountRaw = guestCountColumnIndex >= 0 ? row[guestCountColumnIndex] : row[5] || '0';
-        const guestCount = parseInt(guestCountRaw);
-        
-        // Validate guest count (reasonable range: 1-1000)
-        if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
-          totalGuests += guestCount;
+        // Get guest count with dynamic column detection - NO FALLBACKS
+        // Only process guest count if column exists and has valid data
+        if (guestCountColumnIndex >= 0) {
+          const guestCountRaw = row[guestCountColumnIndex];
+          
+          // Only process if guest count exists and is not empty
+          if (guestCountRaw && guestCountRaw.trim() !== '') {
+            const guestCount = parseInt(guestCountRaw);
+            
+            // Only categorize rows with valid guest counts (1-1000)
+            if (!isNaN(guestCount) && guestCount > 0 && guestCount <= 1000) {
+              // Add to total guests
+              totalGuests += guestCount;
+              // Track this lead as having a valid guest count
+              leadsWithValidGuestCount++;
+
+              // Categorize guest ranges - only valid guest counts reach here
+              if (guestCount <= 50) {
+                guestRanges['1-50 guests'] = (guestRanges['1-50 guests'] || 0) + 1;
+              } else if (guestCount <= 100) {
+                guestRanges['51-100 guests'] = (guestRanges['51-100 guests'] || 0) + 1;
+              } else if (guestCount <= 200) {
+                guestRanges['101-200 guests'] = (guestRanges['101-200 guests'] || 0) + 1;
+              } else if (guestCount <= 300) {
+                guestRanges['201-300 guests'] = (guestRanges['201-300 guests'] || 0) + 1;
+              } else {
+                guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
+              }
+            }
+            // If invalid guest count, don't count it at all - no fallbacks
+          }
+          // If no guest count column or empty value, don't count it - no fallbacks
         }
 
-        // Categorize guest ranges (use all rows, not just valid guest counts)
-        const guestCountForCategorization = isNaN(guestCount) || guestCount <= 0 ? 0 : guestCount;
-        if (guestCountForCategorization <= 50) {
-          guestRanges['1-50 guests'] = (guestRanges['1-50 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 100) {
-          guestRanges['51-100 guests'] = (guestRanges['51-100 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 200) {
-          guestRanges['101-200 guests'] = (guestRanges['101-200 guests'] || 0) + 1;
-        } else if (guestCountForCategorization <= 300) {
-          guestRanges['201-300 guests'] = (guestRanges['201-300 guests'] || 0) + 1;
-        } else {
-          guestRanges['300+ guests'] = (guestRanges['300+ guests'] || 0) + 1;
-        }
-
-        // Get event date using dynamically found date column
-        const eventDate = dateColumnIndex >= 0 ? row[dateColumnIndex] : row[6];
+        // Get event date using dynamically found date column - NO FALLBACKS
+        const eventDate = dateColumnIndex >= 0 ? row[dateColumnIndex] : null;
         if (eventDate) {
           try {
             const date = new Date(eventDate);
@@ -222,7 +234,9 @@ export class LeadDataService {
       });
 
       const totalLeads = filteredRows.length;
-      const averageGuestsPerLead = totalLeads > 0 ? totalGuests / totalLeads : 0;
+      // Calculate average only from leads with valid guest counts
+      // This gives accurate average guests per lead (only counting leads that have guest data)
+      const averageGuestsPerLead = leadsWithValidGuestCount > 0 ? totalGuests / leadsWithValidGuestCount : 0;
 
       // Final safety check for unrealistic guest totals
       if (totalGuests > 100000) { // More than 100k guests seems unrealistic
@@ -342,6 +356,11 @@ export class LeadDataService {
   // We now only use event types from actual sheet columns - no estimation or fallbacks
 
 }
+
+
+
+
+
 
 
 

@@ -27,6 +27,12 @@ interface Client {
     spreadsheetId: string;
     sheetName: string;
   };
+  tabSettings?: {
+    summary?: boolean;
+    meta?: boolean;
+    google?: boolean;
+    leads?: boolean;
+  };
   shareable_link: string;
 }
 
@@ -88,7 +94,17 @@ const ClientEditPage: React.FC = () => {
           return;
         }
 
-        setClient(clientData);
+        // Map tabSettings from services if available
+        const mappedClient = {
+          ...clientData,
+          tabSettings: clientData.services?.tabSettings || {
+            summary: true,
+            meta: true,
+            google: true,
+            leads: true,
+          },
+        };
+        setClient(mappedClient);
         debugLogger.info('ClientEditPage', 'Client loaded successfully', { clientId, clientName: clientData.name });
       } catch (error) {
         debugLogger.error('ClientEditPage', 'Failed to load client', error);
@@ -106,6 +122,8 @@ const ClientEditPage: React.FC = () => {
 
     try {
       debugLogger.info('ClientEditPage', 'Updating client', { clientId, updates });
+      
+      // DatabaseService will handle merging tabSettings into services
       await DatabaseService.updateClient(clientId, updates);
       debugLogger.info('ClientEditPage', 'Client updated successfully');
       

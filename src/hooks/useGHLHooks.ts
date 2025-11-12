@@ -1,5 +1,6 @@
 import { debugLogger } from '@/lib/debug';
-import { GoHighLevelAnalyticsService, GoHighLevelApiService } from '@/services/ghl/goHighLevelService';
+import { GoHighLevelAnalyticsService } from '@/services/ghl/goHighLevelAnalyticsService';
+import { GoHighLevelApiService } from '@/services/ghl/goHighLevelApiService';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Use React's built-in memoization instead of custom cache

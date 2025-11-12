@@ -4,6 +4,7 @@
  * Uses the same Supabase and API calls as V1, but with orchestration
  */
 
+import React from 'react';
 import { AnalyticsOrchestrator } from '@/services/data/analyticsOrchestrator';
 import { useQuery } from '@tanstack/react-query';
 import { useIntegrationCheck } from './useIntegrationCheck';
@@ -16,22 +17,34 @@ interface DateRange {
 
 // Hook for Summary tab data - OPTIMIZED: Only fetch Facebook, Google, MonthlyLeads (no GHL, no LeadData)
 export const useSummaryTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
+  // Memoize finalDateRange to ensure stable reference
+  const finalDateRange = React.useMemo(() => {
+    if (dateRange) {
+      return dateRange;
+    }
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0]
+    };
+  }, [dateRange?.start, dateRange?.end, dateRange?.period]);
+  
+  // Serialize dateRange for queryKey to ensure React Query detects changes
+  // Always include start, end, and period (even if empty strings) for consistent query keys
+  const queryKeyDateRange = React.useMemo(() => [
+    finalDateRange?.start ?? '',
+    finalDateRange?.end ?? '',
+    finalDateRange?.period ?? ''
+  ], [finalDateRange?.start, finalDateRange?.end, finalDateRange?.period]);
+  
   return useQuery({
-    queryKey: ['summary-tab-data', clientId, dateRange],
+    queryKey: ['summary-tab-data', clientId, ...queryKeyDateRange],
     queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
-
-      const finalDateRange = dateRange || (() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
-        return {
-          start: startDate.toISOString().split('T')[0],
-          end: endDate.toISOString().split('T')[0]
-        };
-      })();
 
       // Use provided client data or fetch if not available
       let finalClientData = clientData;
@@ -70,22 +83,34 @@ export const useSummaryTabData = (clientId: string | undefined, dateRange?: Date
 
 // Hook for Meta tab data - OPTIMIZED: Only fetch Facebook data, no blocking on other integrations
 export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
+  // Memoize finalDateRange to ensure stable reference
+  const finalDateRange = React.useMemo(() => {
+    if (dateRange) {
+      return dateRange;
+    }
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return {
+      start: startDate.toISOString().split('T')[0], 
+      end: endDate.toISOString().split('T')[0] 
+    };
+  }, [dateRange?.start, dateRange?.end, dateRange?.period]);
+  
+  // Serialize dateRange for queryKey to ensure React Query detects changes
+  // Always include start, end, and period (even if empty strings) for consistent query keys
+  const queryKeyDateRange = React.useMemo(() => [
+    finalDateRange?.start ?? '',
+    finalDateRange?.end ?? '',
+    finalDateRange?.period ?? ''
+  ], [finalDateRange?.start, finalDateRange?.end, finalDateRange?.period]);
+  
   return useQuery({
-    queryKey: ['meta-tab-data', clientId, dateRange],
+    queryKey: ['meta-tab-data', clientId, ...queryKeyDateRange],
     queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
-      
-      const finalDateRange = dateRange || (() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
-        return {
-          start: startDate.toISOString().split('T')[0], 
-          end: endDate.toISOString().split('T')[0] 
-        };
-      })();
       
       try {
         // Use provided client data or fetch if not available
@@ -152,7 +177,6 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
         
         return result;
       } catch (error) {
-        debugLogger.error('useMetaTabData', 'Fetch error', error);
         throw error;
       }
     },
@@ -167,7 +191,11 @@ export const useMetaTabData = (clientId: string | undefined, dateRange?: DateRan
 
 // Hook for Google tab data - OPTIMIZED: Independent loading, no blocking
 export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
-  const finalDateRange = dateRange || (() => {
+  // Memoize finalDateRange to ensure stable reference
+  const finalDateRange = React.useMemo(() => {
+    if (dateRange) {
+      return dateRange;
+    }
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - 30);
@@ -175,10 +203,18 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
       start: startDate.toISOString().split('T')[0], 
       end: endDate.toISOString().split('T')[0] 
     };
-  })();
+  }, [dateRange?.start, dateRange?.end, dateRange?.period]);
+  
+  // Serialize dateRange for queryKey to ensure React Query detects changes
+  // Always include start, end, and period (even if empty strings) for consistent query keys
+  const queryKeyDateRange = React.useMemo(() => [
+    finalDateRange?.start ?? '',
+    finalDateRange?.end ?? '',
+    finalDateRange?.period ?? ''
+  ], [finalDateRange?.start, finalDateRange?.end, finalDateRange?.period]);
   
   return useQuery({
-    queryKey: ['google-tab-data', clientId, dateRange],
+    queryKey: ['google-tab-data', clientId, ...queryKeyDateRange],
     queryFn: async ({ signal }) => {
       if (!clientId) throw new Error('Client ID is required');
       
@@ -217,22 +253,34 @@ export const useGoogleTabData = (clientId: string | undefined, dateRange?: DateR
 
 // Hook for Leads tab data - OPTIMIZED: Only fetch LeadData (Google Sheets), no other integrations
 export const useLeadsTabData = (clientId: string | undefined, dateRange?: DateRange, clientData?: any) => {
+  // Memoize finalDateRange to ensure stable reference
+  const finalDateRange = React.useMemo(() => {
+    if (dateRange) {
+      return dateRange;
+    }
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0]
+    };
+  }, [dateRange?.start, dateRange?.end, dateRange?.period]);
+  
+  // Serialize dateRange for queryKey to ensure React Query detects changes
+  // Always include start, end, and period (even if empty strings) for consistent query keys
+  const queryKeyDateRange = React.useMemo(() => [
+    finalDateRange?.start ?? '',
+    finalDateRange?.end ?? '',
+    finalDateRange?.period ?? ''
+  ], [finalDateRange?.start, finalDateRange?.end, finalDateRange?.period]);
+  
   return useQuery({
-    queryKey: ['leads-tab-data', clientId, dateRange],
+    queryKey: ['leads-tab-data', clientId, ...queryKeyDateRange],
     queryFn: async ({ signal }) => {
       if (!clientId) {
         throw new Error('Client ID is required');
       }
-
-      const finalDateRange = dateRange || (() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 30);
-        return {
-          start: startDate.toISOString().split('T')[0],
-          end: endDate.toISOString().split('T')[0]
-        };
-      })();
 
       // Use provided client data or fetch if not available
       let finalClientData = clientData;

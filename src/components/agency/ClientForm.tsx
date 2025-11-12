@@ -16,7 +16,7 @@ import { GoogleAdsService } from "@/services/api/googleAdsService";
 import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthService';
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
-import { AlertCircle, Bot, CheckCircle, ImageIcon, X } from "lucide-react";
+import { AlertCircle, BarChart3, Bot, CheckCircle, ImageIcon, Users, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 import { useQuery } from '@tanstack/react-query';
@@ -112,6 +112,12 @@ interface ClientFormData {
     spreadsheetId: string;
     sheetName: string;
   };
+  tabSettings?: {
+    summary?: boolean;
+    meta?: boolean;
+    google?: boolean;
+    leads?: boolean;
+  };
 }
 
 interface ClientFormProps {
@@ -153,6 +159,12 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         facebookAds: "lead",
         googleAds: "conversions",
       },
+      tabSettings: {
+        summary: true,
+        meta: true,
+        google: true,
+        leads: true,
+      },
     };
     
     if (initialData) {
@@ -166,6 +178,10 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         conversionActions: {
           ...defaultData.conversionActions,
           ...(initialData.conversionActions || {}),
+        },
+        tabSettings: {
+          ...defaultData.tabSettings,
+          ...(initialData.tabSettings || {}),
         },
       };
     }
@@ -1649,6 +1665,113 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
           </div>
         </div>
       </div>
+
+      {/* Tab Visibility Settings - Only show in edit mode */}
+      {isEdit && (
+        <div>
+          <Label className="text-sm font-medium">Dashboard Tab Visibility</Label>
+          <p className="text-xs text-gray-500 mt-1 mb-3">
+            Control which tabs are visible in the client dashboard. Summary tab will be automatically disabled if both Google and Meta tabs are disabled.
+          </p>
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-slate-600" />
+                <span className="text-sm font-medium">Summary</span>
+              </div>
+              <Switch
+                checked={formData.tabSettings?.summary !== false}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    tabSettings: {
+                      ...prev.tabSettings,
+                      summary: checked,
+                    },
+                  }));
+                }}
+                disabled={!formData.tabSettings?.meta && !formData.tabSettings?.google}
+              />
+            </div>
+            {(!formData.tabSettings?.meta && !formData.tabSettings?.google) && (
+              <p className="text-xs text-amber-600 ml-6">
+                Summary tab requires at least one of Google or Meta tabs to be enabled.
+              </p>
+            )}
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LogoManager platform="meta" size={16} context="client-form" />
+                <span className="text-sm font-medium">Meta</span>
+              </div>
+              <Switch
+                checked={formData.tabSettings?.meta !== false}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => {
+                    const newSettings = {
+                      ...prev.tabSettings,
+                      meta: checked,
+                    };
+                    // Auto-disable summary if both meta and google are disabled
+                    if (!checked && !prev.tabSettings?.google) {
+                      newSettings.summary = false;
+                    }
+                    return {
+                      ...prev,
+                      tabSettings: newSettings,
+                    };
+                  });
+                }}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LogoManager platform="googleAds" size={16} context="client-form" />
+                <span className="text-sm font-medium">Google</span>
+              </div>
+              <Switch
+                checked={formData.tabSettings?.google !== false}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => {
+                    const newSettings = {
+                      ...prev.tabSettings,
+                      google: checked,
+                    };
+                    // Auto-disable summary if both meta and google are disabled
+                    if (!checked && !prev.tabSettings?.meta) {
+                      newSettings.summary = false;
+                    }
+                    return {
+                      ...prev,
+                      tabSettings: newSettings,
+                    };
+                  });
+                }}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-slate-600" />
+                <span className="text-sm font-medium">Lead Info</span>
+              </div>
+              <Switch
+                checked={formData.tabSettings?.leads !== false}
+                onCheckedChange={(checked) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    tabSettings: {
+                      ...prev.tabSettings,
+                      leads: checked,
+                    },
+                  }));
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Insights Configuration - Only show in edit mode */}
       {isEdit && (

@@ -1,6 +1,6 @@
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
-import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
+import { GHLOAuthService } from '@/services/ghl/ghlOAuthService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -70,7 +70,7 @@ export const useGHLIntegration = () => {
         throw new Error('Missing OAuth credentials. Please set VITE_GHL_CLIENT_ID in environment variables.');
       }
       
-      const authUrl = await SimpleGHLService.getAuthorizationUrl(clientId, redirectUri, [
+      const authUrl = await GHLOAuthService.getAuthorizationUrl(clientId, redirectUri, [
         'contacts.readonly',
         'opportunities.readonly',
         'calendars.readonly',

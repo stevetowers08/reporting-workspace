@@ -85,7 +85,7 @@ export class GoHighLevelAnalyticsService {
       
       
       // Transform the new nested structure to the old flat structure that eventMetricsService expects
-      return {
+      const metrics = {
         totalContacts: result.contacts.total,
         newContacts: result.contacts.newThisMonth,
         totalOpportunities: result.opportunities.totalOpportunities,
@@ -97,6 +97,15 @@ export class GoHighLevelAnalyticsService {
         responseTime: 0, // Not available in new structure
         wonRevenue: result.opportunities.valueByStatus?.['closed-won'] || 0
       };
+      
+      debugLogger.info('GoHighLevelAnalyticsService', 'GHL metrics prepared', {
+        locationId,
+        wonOpportunities: metrics.wonOpportunities,
+        wonRevenue: metrics.wonRevenue,
+        totalOpportunities: metrics.totalOpportunities
+      });
+      
+      return metrics;
 
     } catch (error) {
       debugLogger.error('GoHighLevelAnalyticsService', 'Failed to get GHL metrics', error);
@@ -122,7 +131,7 @@ export class GoHighLevelAnalyticsService {
     _dateRange?: { startDate?: string; endDate?: string }
   ): Promise<{ total: number; newThisMonth: number; growthRate: number }> {
     try {
-      // ✅ FIX: Get total count without date filter (supported)
+      // Get total count without date filter (API limitation)
       const total = await GoHighLevelApiService.getContactCount(locationId);
       
       // For date-specific metrics, use a simplified approach or skip
@@ -327,7 +336,6 @@ export class GoHighLevelAnalyticsService {
 
       debugLogger.info('GoHighLevelAnalyticsService', 'Getting opportunities analytics', { locationId, dateRange });
 
-      // ✅ FIXED: Fetch won opportunities and all opportunities for proper analytics
       const [wonOpportunities, allOpportunities] = await Promise.all([
         GoHighLevelApiService.getWonOpportunities(locationId, dateRange),
         GoHighLevelApiService.getOpportunities(locationId, dateRange)
@@ -336,6 +344,13 @@ export class GoHighLevelAnalyticsService {
       const totalOpportunities = allOpportunities.length;
       const wonCount = wonOpportunities.length;
       const wonValue = wonOpportunities.reduce((sum, opp) => sum + (opp.monetaryValue || 0), 0);
+      
+      debugLogger.info('GoHighLevelAnalyticsService', 'Opportunities analytics calculated', {
+        locationId,
+        wonCount,
+        wonValue,
+        totalOpportunities
+      });
       
       const opportunitiesByStatus: Record<string, number> = {
         'closed-won': wonCount,

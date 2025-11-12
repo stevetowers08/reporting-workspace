@@ -108,34 +108,9 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
     );
   }
 
-  if (error) {
-    return (
-      <Card className="h-full flex flex-col">
-        <div className="pb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-        </div>
-        <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="text-center">
-            <div className="text-slate-500">No guest count data available</div>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  if (!leadData) {
-    return (
-      <Card className="h-full flex flex-col">
-        <div className="pb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Guest Count Distribution</h3>
-        </div>
-        <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="text-center">
-            <div className="text-slate-500">No guest count data available</div>
-          </div>
-        </div>
-      </Card>
-    );
+  // Hide component if there's an error or no data
+  if (error || !leadData) {
+    return null;
   }
   
   // Always show guest count distribution (this component is specifically for guest counts)
@@ -164,7 +139,8 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
         
         // Use a single color gradient for histogram-style (darker = more, lighter = less)
         // Calculate intensity based on count
-        const maxCount = Math.max(...leadData.guestRanges.map(r => r.count), 1);
+        const counts = leadData.guestRanges.map(r => r.count);
+        const maxCount = counts.length > 0 ? Math.max(...counts, 1) : 1;
         const intensity = range.count > 0 ? range.count / maxCount : 0;
         
         // Green gradient: darker green for higher counts
@@ -184,8 +160,18 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
       })
     : [];
   
+  // Check if there's any valid guest count data (any range with count > 0)
+  const hasValidData = chartData.some(range => range.value > 0);
+  
+  // Hide component if no valid guest count data found
+  if (!hasValidData) {
+    debugLogger.debug('GuestCountDistribution', 'No valid guest count data found, hiding component');
+    return null;
+  }
+  
   debugLogger.debug('GuestCountDistribution', 'Chart data prepared', {
-    chartDataLength: chartData.length
+    chartDataLength: chartData.length,
+    hasValidData
   });
 
   return (
@@ -279,7 +265,10 @@ export const GuestCountDistribution: React.FC<GuestCountDistributionProps> = Rea
                     fill: '#374151', 
                     fontWeight: 600 
                   }}
-                  formatter={(value: number) => value > 0 ? value : ''}
+                  formatter={(label: React.ReactNode) => {
+                    const value = typeof label === 'number' ? label : 0;
+                    return value > 0 ? value : '';
+                  }}
                 />
               </Bar>
             </BarChart>

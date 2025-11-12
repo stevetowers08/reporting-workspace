@@ -134,6 +134,8 @@ const AgencyPanel = () => {
   const handleUpdateClientSubmit = async (clientId: string, updates: Partial<Client>) => {
     try {
       debugLogger.info('AgencyPanel', 'handleUpdateClientSubmit called', { clientId, updates });
+      
+      // DatabaseService will handle merging tabSettings into services
       await DatabaseService.updateClient(clientId, updates);
       debugLogger.info('AgencyPanel', 'Client updated successfully');
       

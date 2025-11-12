@@ -1,41 +1,27 @@
 /**
- * GoHighLevel Service - Modular Interface
+ * GoHighLevel Services - Modular Interface
  * 
- * This provides both the original working service and new organized modules
- * for gradual migration and development-friendly structure.
+ * Organized by responsibility:
+ * - GoHighLevelApiService: Core API endpoints
+ * - GoHighLevelAnalyticsService: Analytics and metrics aggregation
+ * - GHLOAuthService: OAuth 2.0 flow and token management
+ * - GoHighLevelAuthService: Token caching and credential management
+ * - GoHighLevelOAuthConfigService: OAuth configuration management
  */
 
-// Keep the original working service
-export { GoHighLevelService } from './goHighLevelService';
-
-// Export all original interfaces and types
-export type {
-    GHLAccount, GHLCampaign, GHLContact
-} from './goHighLevelService';
-
-// Export all available services and types
-export { GoHighLevelAnalyticsService } from './goHighLevelAnalyticsService';
+// Core Services
 export { GoHighLevelApiService } from './goHighLevelApiService';
+export { GoHighLevelAnalyticsService } from './goHighLevelAnalyticsService';
+export { GHLOAuthService } from './ghlOAuthService';
 export { GoHighLevelAuthService } from './goHighLevelAuthService';
+export { GoHighLevelOAuthConfigService } from './goHighLevelOAuthConfigService';
 
-// Export all types
+// Backward compatibility wrapper (deprecated - only kept for type exports)
+export { GoHighLevelService } from './goHighLevelService';
+export type { GHLAccount, GHLCampaign, GHLContact } from './goHighLevelTypes';
+
+// OAuth types
+export type { GHLTokenData, GHLLocationTokenRequest, GHLLocationTokenResponse } from './ghlOAuthService';
+
+// All other types
 export type * from './goHighLevelTypes';
-
-/**
- * Usage Examples:
- * 
- * // Old way (still works):
- * import { GoHighLevelService } from '@/services/ghl';
- * const contacts = await GoHighLevelService.getAllContacts(locationId);
- * const metrics = await GoHighLevelService.getGHLMetrics(locationId);
- * 
- * // New way (when ready):
- * import { GHLContacts, GHLAnalytics } from '@/services/ghl';
- * const contacts = await GHLContacts.getContacts(locationId);
- * const metrics = await GHLAnalytics.getMetrics(locationId);
- * 
- * // Gradual migration approach:
- * // 1. Keep using GoHighLevelService for existing code
- * // 2. Use new modules for new features
- * // 3. Gradually migrate existing code when convenient
- */

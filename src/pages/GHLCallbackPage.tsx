@@ -1,5 +1,5 @@
 import { debugLogger } from '@/lib/debug';
-import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
+import { GHLOAuthService } from '@/services/ghl/ghlOAuthService';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -161,7 +161,7 @@ export const GHLCallbackPage: React.FC = () => {
         
         try {
           // Exchange code for token using standard OAuth
-          const tokenData = await SimpleGHLService.exchangeCodeForToken(
+          const tokenData = await GHLOAuthService.exchangeCodeForToken(
             authCode,
             clientId,
             redirectUri,
@@ -231,7 +231,7 @@ export const GHLCallbackPage: React.FC = () => {
           
           // Save token to database
           debugLogger.info('GHLCallbackPage', 'OAuth Callback Debug - Step 10: About to save to database');
-          const saveSuccess = await SimpleGHLService.saveLocationToken(
+          const saveSuccess = await GHLOAuthService.saveLocationToken(
             tokenData.locationId,
             tokenData.access_token,
             tokenData.scope ? tokenData.scope.split(' ') : [],

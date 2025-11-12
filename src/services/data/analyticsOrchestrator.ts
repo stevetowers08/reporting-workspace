@@ -1370,6 +1370,7 @@ export class AnalyticsOrchestrator {
     dateRange: DateRange;
     facebookMetrics?: FacebookMetricsWithTrends;
     googleMetrics?: GoogleMetricsWithTrends;
+    ghlMetrics?: GoHighLevelMetrics;
     monthlyLeadsData?: MonthlyLeadsData[];
     totalLeads: number;
     totalSpend: number;
@@ -1402,20 +1403,30 @@ export class AnalyticsOrchestrator {
 
     // Fetch only what Summary tab needs - call directly like getGoogleDataOnly does (no scheduler)
     // The scheduler was causing issues - Google tab works without it, so Summary should too
-    const [facebookResult, googleResult, monthlyResult] = await Promise.allSettled([
+    // Include GHL data for Summary tab
+    const [facebookResult, googleResult, ghlResult, monthlyResult] = await Promise.allSettled([
       clientData.accounts?.facebookAds && clientData.accounts.facebookAds !== 'none'
         ? this.getFacebookData(clientId, dateRange, clientData)
         : Promise.resolve(undefined),
       clientData.accounts?.googleAds && clientData.accounts.googleAds !== 'none'
         ? this.getGoogleData(clientId, dateRange, clientData)
         : Promise.resolve(undefined),
+      clientData.accounts?.goHighLevel && clientData.accounts.goHighLevel !== 'none'
+        ? this.getGoHighLevelData(clientId, dateRange, clientData)
+        : Promise.resolve(undefined),
       this.getMonthlyLeadsData(clientId, clientData)
     ]);
 
-
     const facebookMetrics = facebookResult.status === 'fulfilled' ? facebookResult.value : undefined;
     const googleMetrics = googleResult.status === 'fulfilled' ? googleResult.value : undefined;
+    const ghlMetrics = ghlResult.status === 'fulfilled' ? ghlResult.value : undefined;
     const monthlyLeadsData = monthlyResult.status === 'fulfilled' ? monthlyResult.value : undefined;
+    
+    if (ghlResult.status === 'rejected') {
+      debugLogger.warn('AnalyticsOrchestrator', 'GHL data fetch failed in getSummaryDataOnly', {
+        error: ghlResult.reason
+      });
+    }
 
     // Detailed logging for debugging
     if (googleResult.status === 'rejected') {
@@ -1448,6 +1459,7 @@ export class AnalyticsOrchestrator {
       dateRange,
       facebookMetrics,
       googleMetrics,
+      ghlMetrics, // Include GHL metrics in Summary tab data
       monthlyLeadsData,
       totalLeads,
       totalSpend,
@@ -1555,12 +1567,14 @@ export class AnalyticsOrchestrator {
         // OPTIMIZED: Load breakdown in background (non-blocking)
         // Don't wait for breakdown - show main metrics immediately
         // Breakdown can be loaded later if needed for detailed views
+        // Capture dateRange at the time of the request to ensure we update the correct cache
+        const breakdownDateRange = { ...dateRange };
         Promise.resolve().then(async () => {
           try {
             const breakdown = await Promise.race([
               GoogleAdsService.getCampaignBreakdown(
                 clientData.accounts.googleAds, 
-                dateRange
+                breakdownDateRange
               ),
               new Promise<null>((_, reject) => {
                 setTimeout(() => reject(new Error('Breakdown timeout after 20s')), 20000);
@@ -1568,15 +1582,52 @@ export class AnalyticsOrchestrator {
             ]).catch(() => null);
             
             if (breakdown) {
-              // Update cache with breakdown data
-              normalizedData.campaignBreakdown = breakdown;
-              this.cache.set(cacheKey, normalizedData, [
-                `google-customer-${customerId}`,
-                `google-${clientId}`
-              ]);
+              // Verify the cache key still matches (dateRange hasn't changed)
+              const currentCacheKey = `google-customer-${customerId}-${JSON.stringify(breakdownDateRange)}`;
+              if (currentCacheKey === cacheKey) {
+                // Update cache with breakdown data
+                normalizedData.campaignBreakdown = breakdown;
+                this.cache.set(cacheKey, normalizedData, [
+                  `google-customer-${customerId}`,
+                  `google-${clientId}`
+                ]);
+              }
+              
+              // Also update React Query cache for google-tab-data queryKey
+              // Use the same queryKey format as the hook (with nullish coalescing for undefined values)
+              try {
+                const { CacheManager } = await import('@/lib/cacheManager');
+                const queryKey = [
+                  'google-tab-data', 
+                  clientId, 
+                  breakdownDateRange?.start ?? '',
+                  breakdownDateRange?.end ?? '',
+                  breakdownDateRange?.period ?? ''
+                ];
+                
+                // Get cached data - if it exists, update it with breakdown
+                // If it doesn't exist yet, React Query will create it when the query completes
+                const cachedData = CacheManager.getCachedData(queryKey);
+                
+                if (cachedData && cachedData.googleMetrics) {
+                  // Update existing cached data with breakdown
+                  const updatedData = {
+                    ...cachedData,
+                    googleMetrics: {
+                      ...cachedData.googleMetrics,
+                      campaignBreakdown: breakdown
+                    }
+                  };
+                  CacheManager.setCachedData(queryKey, updatedData);
+                }
+                // If cachedData doesn't exist, the query is still loading
+                // The breakdown will be included when the query completes
+              } catch {
+                // Silently fail - cache update is non-critical
+              }
             }
-          } catch (error) {
-            debugLogger.debug('AnalyticsOrchestrator', 'Background breakdown load failed (non-critical)', error);
+          } catch {
+            // Silently fail - background breakdown load is non-critical
           }
         });
 
@@ -1723,14 +1774,13 @@ export class AnalyticsOrchestrator {
         // Import GoHighLevel services dynamically to avoid circular dependencies
         const { GoHighLevelAnalyticsService } = await import('../ghl/goHighLevelAnalyticsService');
         
-        // Get comprehensive GHL metrics using service
         const ghlMetrics = await GoHighLevelAnalyticsService.getGHLMetrics(locationId, {
           startDate: dateRange.start,
           endDate: dateRange.end
         });
 
         if (!ghlMetrics) {
-          debugLogger.warn('AnalyticsOrchestrator', 'GoHighLevel API returned no data');
+          debugLogger.warn('AnalyticsOrchestrator', 'GoHighLevel API returned no data', { locationId });
           return undefined;
         }
 
@@ -1741,8 +1791,10 @@ export class AnalyticsOrchestrator {
         this.cache.set(cacheKey, normalizedData, [`ghl-${clientId}`, `ghl-token-${locationId}`]);
         
         debugLogger.info('AnalyticsOrchestrator', 'GoHighLevel data fetched successfully', {
+          locationId,
           totalContacts: normalizedData.totalContacts,
           totalOpportunities: normalizedData.totalOpportunities,
+          wonOpportunities: normalizedData.wonOpportunities,
           pipelineValue: normalizedData.pipelineValue
         });
 

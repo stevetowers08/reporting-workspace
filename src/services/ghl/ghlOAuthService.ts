@@ -1,4 +1,4 @@
-// Simple GoHighLevel OAuth Service - Client Only with PKCE
+// GoHighLevel OAuth Service - Handles OAuth 2.0 flow and token management
 import { debugLogger } from '@/lib/debug';
 import { supabase } from '@/lib/supabase';
 
@@ -27,7 +27,7 @@ export interface GHLLocationTokenResponse {
   companyId: string;
 }
 
-export class SimpleGHLService {
+export class GHLOAuthService {
   /**
    * Generate PKCE code verifier and challenge
    */
@@ -122,7 +122,7 @@ export class SimpleGHLService {
       state: state
     });
 
-    debugLogger.info('SimpleGHLService', 'Generated authorization URL (standard OAuth)', {
+    debugLogger.info('GHLOAuthService', 'Generated authorization URL', {
       baseUrl,
       redirectUri,
       scopes: finalScopes.join(' '),
@@ -144,7 +144,7 @@ export class SimpleGHLService {
     expiresIn?: number
   ): Promise<boolean> {
     try {
-      debugLogger.info('SimpleGHLService', 'Starting database save operation', {
+      debugLogger.info('GHLOAuthService', 'Starting database save operation', {
         locationId,
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!refreshToken,
@@ -153,30 +153,30 @@ export class SimpleGHLService {
       });
 
       // Test basic database connection first
-      debugLogger.info('SimpleGHLService', 'Testing database connection...');
+      debugLogger.info('GHLOAuthService', 'Testing database connection...');
       const { data: testData, error: testError } = await supabase
         .from('integrations')
         .select('count')
         .limit(1);
       
       if (testError) {
-        debugLogger.error('SimpleGHLService', 'Database connection test failed', testError);
+        debugLogger.error('GHLOAuthService', 'Database connection test failed', testError);
         throw new Error(`Database connection failed: ${testError.message}`);
       }
       
-      debugLogger.info('SimpleGHLService', 'Database connection test passed', { testData });
+      debugLogger.info('GHLOAuthService', 'Database connection test passed', { testData });
 
       // Check for existing GoHighLevel integrations
-      debugLogger.info('SimpleGHLService', 'Checking for existing GoHighLevel integrations...');
+      debugLogger.info('GHLOAuthService', 'Checking for existing GoHighLevel integrations...');
       const { data: existingData, error: existingError } = await supabase
         .from('integrations')
         .select('*')
         .eq('platform', 'goHighLevel');
       
       if (existingError) {
-        debugLogger.error('SimpleGHLService', 'Failed to check existing integrations', existingError);
+        debugLogger.error('GHLOAuthService', 'Failed to check existing integrations', existingError);
       } else {
-        debugLogger.info('SimpleGHLService', 'Existing GoHighLevel integrations found', {
+        debugLogger.info('GHLOAuthService', 'Existing GoHighLevel integrations found', {
           count: existingData?.length || 0,
           existing: existingData?.map(item => ({
             id: item.id,
@@ -185,6 +185,28 @@ export class SimpleGHLService {
             hasConfig: !!item.config
           }))
         });
+      }
+
+      // Extract and store the sourceId (full client_id) from the token for refresh
+      let oauthClientId: string | undefined;
+      try {
+        const tokenParts = accessToken.split('.');
+        if (tokenParts.length === 3) {
+          // Browser-compatible base64 decoding
+          const base64Url = tokenParts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const payload = JSON.parse(jsonPayload);
+          // Use sourceId (full client_id) if available, otherwise fall back to oauthMeta.client (base)
+          oauthClientId = payload.sourceId || payload.oauthMeta?.client;
+        }
+      } catch {
+        // If we can't parse, continue without oauthClientId
       }
 
       // Prepare the data for upsert
@@ -198,7 +220,8 @@ export class SimpleGHLService {
             accessToken: accessToken,
             refreshToken: refreshToken,
             tokenType: 'Bearer',
-            scope: scopes.join(' ')
+            scope: scopes.join(' '),
+            oauthClientId // Store the sourceId (full client_id) that issued this token
           },
           accountInfo: {
             id: locationId,
@@ -212,7 +235,7 @@ export class SimpleGHLService {
         }
       };
 
-      debugLogger.info('SimpleGHLService', 'About to upsert integration data', {
+      debugLogger.info('GHLOAuthService', 'About to upsert integration data', {
         platform: upsertData.platform,
         account_id: upsertData.account_id,
         account_name: upsertData.account_name,
@@ -229,7 +252,7 @@ export class SimpleGHLService {
         .select();
 
       if (upsertError) {
-        debugLogger.error('SimpleGHLService', 'Database upsert failed', {
+        debugLogger.error('GHLOAuthService', 'Database upsert failed', {
           error: upsertError,
           errorMessage: upsertError.message,
           errorCode: upsertError.code,
@@ -245,14 +268,14 @@ export class SimpleGHLService {
         throw new Error(`Database upsert failed: ${upsertError.message}`);
       }
 
-      debugLogger.info('SimpleGHLService', 'Database upsert successful', {
+      debugLogger.info('GHLOAuthService', 'Database upsert successful', {
         result: upsertResult,
         locationId
       });
 
       return true;
     } catch (error) {
-      debugLogger.error('SimpleGHLService', 'Database save operation failed', {
+      debugLogger.error('GHLOAuthService', 'Database save operation failed', {
         error: error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorStack: error instanceof Error ? error.stack : 'No stack trace',
@@ -312,7 +335,7 @@ export class SimpleGHLService {
       redirect_uri: redirectUri
     });
     
-    debugLogger.info('SimpleGHLService', 'Token Exchange Request Details', {
+    debugLogger.info('GHLOAuthService', 'Token Exchange Request Details', {
       url: 'https://services.leadconnectorhq.com/oauth/token',
       method: 'POST',
       headers: {
@@ -329,7 +352,7 @@ export class SimpleGHLService {
       }
     });
     
-    debugLogger.info('SimpleGHLService', 'Exact request body being sent', {
+    debugLogger.info('GHLOAuthService', 'Exact request body being sent', {
       bodyString: requestBody.toString(),
       bodySize: requestBody.toString().length,
       hasClientId: requestBody.has('client_id'),
@@ -365,7 +388,7 @@ export class SimpleGHLService {
           const errorMessage = errorData.error || errorData.message || `Token exchange failed: ${response.statusText}`;
 
           // Enhanced error logging for 422 debugging
-          debugLogger.error('SimpleGHLService', 'Token exchange failed', {
+          debugLogger.error('GHLOAuthService', 'Token exchange failed', {
             status: response.status,
             statusText: response.statusText,
             errorData,
@@ -386,7 +409,7 @@ export class SimpleGHLService {
           });
 
           // Log the actual request body for debugging (masked)
-          debugLogger.error('SimpleGHLService', 'Request body (masked)', {
+          debugLogger.error('GHLOAuthService', 'Request body (masked)', {
             body: requestBody.toString().replace(/client_secret=[^&]+/, 'client_secret=***').replace(/code=[^&]+/, 'code=***')
           });
 
@@ -403,7 +426,7 @@ export class SimpleGHLService {
       throw new Error('No location ID received from GoHighLevel');
     }
 
-    debugLogger.info('SimpleGHLService', 'Token exchange successful', {
+    debugLogger.info('GHLOAuthService', 'Token exchange successful', {
       locationId: tokenData.locationId,
       hasRefreshToken: !!tokenData.refresh_token,
       expiresIn: tokenData.expires_in
@@ -451,7 +474,7 @@ export class SimpleGHLService {
       throw new Error('No access token received from GoHighLevel refresh');
     }
 
-    debugLogger.info('SimpleGHLService', 'Token refresh successful', {
+    debugLogger.info('GHLOAuthService', 'Token refresh successful', {
       hasRefreshToken: !!tokenData.refresh_token,
       expiresIn: tokenData.expires_in
     });
@@ -493,7 +516,7 @@ export class SimpleGHLService {
       throw new Error('No access token received from GoHighLevel location token endpoint');
     }
 
-    debugLogger.info('SimpleGHLService', 'Location token created successfully', {
+    debugLogger.info('GHLOAuthService', 'Location token created successfully', {
       locationId: tokenData.locationId,
       companyId: tokenData.companyId,
       expiresIn: tokenData.expires_in
@@ -545,7 +568,7 @@ export class SimpleGHLService {
 
       return tokens.accessToken;
     } catch (error) {
-      debugLogger.error('SimpleGHLService', 'Error getting valid token', error);
+      debugLogger.error('GHLOAuthService', 'Error getting valid token', error);
       return null;
     }
   }

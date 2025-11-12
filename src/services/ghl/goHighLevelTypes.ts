@@ -158,12 +158,6 @@ export interface GHLTokenData {
   locationName?: string;
 }
 
-export interface GHLWebhookEvent {
-  type: string;
-  data: any;
-  timestamp: string;
-}
-
 export interface GHLRateLimitInfo {
   limit: number;
   remaining: number;

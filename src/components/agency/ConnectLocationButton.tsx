@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { debugLogger } from '@/lib/debug';
-import { SimpleGHLService } from '@/services/ghl/simpleGHLService';
+import { GHLOAuthService } from '@/services/ghl/ghlOAuthService';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
@@ -52,7 +52,7 @@ export const ConnectLocationButton: React.FC<ConnectLocationButtonProps> = ({
       ];
       
       // Pass clientId through the OAuth flow by encoding it in state
-      const authUrl = await SimpleGHLService.getAuthorizationUrl(ghlClientId, redirectUri, scopes, clientId);
+      const authUrl = await GHLOAuthService.getAuthorizationUrl(ghlClientId, redirectUri, scopes, clientId);
       
       debugLogger.info('ConnectLocationButton', 'Opening OAuth popup', { authUrl, clientId });
       

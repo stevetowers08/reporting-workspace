@@ -124,11 +124,17 @@ export const ClientUpdateSchema = z.object({
   status: z.enum(['active', 'paused', 'inactive']).optional(),
   
   services: z.object({
-    facebookAds: z.boolean().default(false),
-    googleAds: z.boolean().default(false),
-    crm: z.boolean().default(false),
-    revenue: z.boolean().default(false),
-  }).optional(),
+    facebookAds: z.boolean().default(false).optional(),
+    googleAds: z.boolean().default(false).optional(),
+    crm: z.boolean().default(false).optional(),
+    revenue: z.boolean().default(false).optional(),
+    tabSettings: z.object({
+      summary: z.boolean().optional(),
+      meta: z.boolean().optional(),
+      google: z.boolean().optional(),
+      leads: z.boolean().optional(),
+    }).optional(),
+  }).passthrough().optional(),
   
   accounts: z.object({
     facebookAds: z.string()

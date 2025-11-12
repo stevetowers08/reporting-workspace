@@ -2,7 +2,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { Spinner } from '@/components/ui/UnifiedLoadingSystem';
 import { Card } from '@/components/ui/card';
 import { useChartError } from '@/hooks/useChartError';
-import { GoHighLevelService } from '@/services/ghl/goHighLevelService';
+import { GoHighLevelAnalyticsService } from '@/services/ghl/goHighLevelAnalyticsService';
 import React, { useEffect, useState } from 'react';
 import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -39,7 +39,7 @@ export const DailyFunnelAnalytics: React.FC<DailyFunnelAnalyticsProps> = ({ loca
         endDate: dateRange.end
       } : undefined;
       
-      const funnelData = await GoHighLevelService.getFunnelAnalytics(locationId, apiDateRange);
+      const funnelData = await GoHighLevelAnalyticsService.getFunnelAnalytics(locationId, apiDateRange);
       
       // Generate daily data based on total metrics and date range
       const dailyData = generateDailyData(funnelData, dateRange);

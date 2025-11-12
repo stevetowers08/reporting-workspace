@@ -25,6 +25,24 @@ interface Client {
         facebookAds?: string;
         googleAds?: string;
     };
+    services?: {
+        facebookAds?: boolean;
+        googleAds?: boolean;
+        crm?: boolean;
+        revenue?: boolean;
+        tabSettings?: {
+            summary?: boolean;
+            meta?: boolean;
+            google?: boolean;
+            leads?: boolean;
+        };
+    };
+    tabSettings?: {
+        summary?: boolean;
+        meta?: boolean;
+        google?: boolean;
+        leads?: boolean;
+    };
 }
 
 interface EditClientModalProps {
@@ -104,6 +122,12 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                     googleAds: currentClient?.conversion_actions?.googleAds || "conversions",
                                 },
                                 googleSheetsConfig: currentClient?.accounts?.googleSheetsConfig || undefined,
+                                tabSettings: currentClient?.services?.tabSettings || currentClient?.tabSettings || {
+                                    summary: true,
+                                    meta: true,
+                                    google: true,
+                                    leads: true,
+                                },
                             }}
                             isEdit={true}
                             clientId={currentClient?.id || ""}
@@ -124,6 +148,7 @@ const EditClientModal = ({ isOpen, onClose, onUpdateClient, onCreateClient, clie
                                         facebookAds: formData.conversionActions.facebookAds,
                                         googleAds: formData.conversionActions.googleAds,
                                     },
+                                    tabSettings: formData.tabSettings,
                                 });
                             }}
                             onCancel={onClose}

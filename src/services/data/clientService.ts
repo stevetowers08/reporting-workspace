@@ -168,16 +168,15 @@ export class ClientService {
       }
     }
 
-    // Test Go High Level connection
-    if (client.integrations.goHighLevel?.apiKey && client.integrations.goHighLevel?.locationId) {
+    // Test Go High Level connection (OAuth-based, no API key needed)
+    if (client.integrations.goHighLevel?.locationId) {
       try {
-        const { GoHighLevelService } = await import('../api/goHighLevelService');
-        results.goHighLevel = await GoHighLevelService.authenticate(
-          client.integrations.goHighLevel.apiKey,
-          client.integrations.goHighLevel.locationId
-        );
+        const { GoHighLevelApiService } = await import('../ghl/goHighLevelApiService');
+        const token = await GoHighLevelApiService.getValidToken(client.integrations.goHighLevel.locationId);
+        results.goHighLevel = !!token;
       } catch (error) {
         debugLogger.error('ClientService', 'Go High Level test failed', error);
+        results.goHighLevel = false;
       }
     }
 
