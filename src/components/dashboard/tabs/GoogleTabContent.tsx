@@ -72,7 +72,7 @@ export const GoogleTabContent: React.FC<GoogleTabContentProps> = ({
         <Suspense fallback={<ComponentLoader />}>
           <GoogleAdsMetricsCards data={data} isLoading={isLoading} />
         </Suspense>
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+        <div className="mt-4 sm:mt-6">
           <Suspense fallback={<ComponentLoader />}>
             {breakdownLoading ? (
               <div className="bg-white border border-slate-200 p-6 rounded-lg">

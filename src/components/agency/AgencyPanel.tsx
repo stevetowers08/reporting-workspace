@@ -189,7 +189,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
         isAgencyPanel={true}
       />
 
-      <div className="px-20 py-6">
+      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           {/* Tab Navigation - Using Standardized Component */}
           <StandardizedTabs 

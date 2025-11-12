@@ -1,7 +1,7 @@
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
 import { BarChart3, Users } from 'lucide-react';
-import React from 'react';
+import React, { useRef } from 'react';
 
 interface TabItem {
   value: string;
@@ -24,6 +24,9 @@ export const StandardizedTabs: React.FC<StandardizedTabsProps> = ({
   tabs,
   className = ""
 }) => {
+  const tabsListRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+
   const renderIcon = (tab: TabItem) => {
     if (tab.icon) {
       return tab.icon;
@@ -46,16 +49,29 @@ export const StandardizedTabs: React.FC<StandardizedTabsProps> = ({
 
   return (
     <Tabs value={value} onValueChange={onValueChange} className={`w-full ${className}`}>
-      <TabsList className="!h-11 w-full bg-slate-50/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl !p-1 inline-flex gap-1 shadow-sm">
+      <TabsList 
+        ref={tabsListRef}
+        className="!h-auto sm:!h-11 bg-slate-50/80 backdrop-blur-sm border border-slate-200/80 rounded-xl sm:rounded-2xl !p-1.5 sm:!p-1 w-full flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-1 shadow-sm"
+      >
         {tabs.map((tab) => (
           <TabsTrigger 
             key={tab.value}
+            ref={value === tab.value ? activeTabRef : undefined}
             value={tab.value} 
-            className="!px-4 !py-2 !text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 transition-all duration-200 ease-in-out flex items-center justify-center gap-2 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 [&.bg-white]:!text-slate-900 [&.bg-white]:shadow-sm [&.bg-white]:border-slate-200/60"
+            className="!px-3 sm:!px-4 !py-2 sm:!py-2 rounded-lg sm:rounded-xl hover:bg-slate-100/50 transition-all duration-200 ease-in-out flex items-center justify-center gap-1.5 sm:gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 whitespace-nowrap flex-1 sm:flex-1 min-w-[calc(50%-6px)] sm:min-w-0"
+            style={{ 
+              color: value === tab.value ? '#0f172a' : '#475569',
+              fontSize: '0.75rem',
+              fontWeight: 600
+            }}
           >
             {renderIcon(tab)}
-            <span className="hidden sm:inline">{tab.label}</span>
-            <span className="sm:hidden text-xs">{tab.shortLabel || tab.label.charAt(0)}</span>
+            <span style={{ 
+              display: 'inline',
+              color: value === tab.value ? '#0f172a' : '#475569',
+              fontSize: '0.75rem',
+              fontWeight: 600
+            }}>{tab.label}</span>
           </TabsTrigger>
         ))}
       </TabsList>

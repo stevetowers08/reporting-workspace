@@ -47,14 +47,11 @@ export const InternalAgencyHeader: React.FC<InternalAgencyHeaderProps> = ({
             
             <div className="flex items-center gap-2">
               <img
-                src="/logos/tulen-favicon-32x32.png"
+                src="/logos/tulen. (7).png"
                 alt="Tulen Agency logo"
-                className="w-8 h-8 object-contain"
+                className="h-10 object-contain"
               />
-              <div>
-                <h1 className="text-sm font-semibold text-white">Tulen Agency</h1>
-                <p className="text-xs text-slate-400">Internal Dashboard</p>
-              </div>
+              <p className="text-xs text-slate-400">Internal Dashboard</p>
             </div>
           </div>
 
@@ -197,44 +194,99 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   };
 
   return (
-    <header className={`bg-white border-b border-slate-200 px-20 ${className}`}>
-      <div className="py-6">
-        <div className="flex items-center justify-between">
-          {/* Left: Client Branding with Date Range Text */}
-          <div className="flex items-center gap-3">
+    <header className={`bg-white border-b border-slate-200/60 shadow-sm ${className}`}>
+      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-3 sm:py-4 md:py-5">
+        {/* Mobile Layout */}
+        <div className="flex flex-col gap-3 md:hidden">
+          {/* Top Row: Logo and Venue/Date (Top Right) */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/logos/tulen. (7).png"
+                alt="Tulen Agency"
+                className="h-8 object-contain"
+              />
+            </div>
+            {/* Venue Logo and Date - Top Right */}
             <div className="flex items-center gap-2">
               {clientData?.logo_url ? (
                 <img
                   src={clientData.logo_url}
                   alt={`${clientData.name} logo`}
-                  className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                  className="w-7 h-7 object-cover rounded-lg border border-slate-200 shadow-sm"
                 />
               ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-white" />
+                <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <BarChart3 className="h-3.5 w-3.5 text-white" />
                 </div>
               )}
-              <div>
-                <h2 className="text-xl font-semibold text-slate-800">
+              <div className="flex flex-col items-end">
+                <h2 className="text-xs font-semibold text-slate-900 leading-tight">
                   {clientData?.name || 'Dashboard'}
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-[10px] text-slate-500 leading-tight">
                   {getDateRange(selectedPeriod)}
                 </p>
               </div>
             </div>
           </div>
-
-          {/* Center: Tabs */}
-          <div className="flex-1 max-w-2xl mx-8">
+          
+          {/* Tabs Row */}
+          <div className="w-full">
             <StandardizedTabs 
               value={activeTab} 
               onValueChange={onTabChange} 
               tabs={DASHBOARD_TABS.filter(tab => {
-                // Filter tabs based on tabSettings
-                if (!tabSettings) return true; // Show all if no settings
+                if (!tabSettings) return true;
                 const tabValue = tab.value;
-                // Auto-disable summary if both meta and google are disabled
+                if (tabValue === 'summary') {
+                  const metaEnabled = tabSettings.meta !== false;
+                  const googleEnabled = tabSettings.google !== false;
+                  return metaEnabled || googleEnabled;
+                }
+                return tabSettings[tabValue as keyof typeof tabSettings] !== false;
+              })}
+            />
+          </div>
+          
+          {/* Date Selector Row - Below Tabs */}
+          <div className="flex justify-center">
+            <select
+              value={selectedPeriod}
+              onChange={(e) => onPeriodChange(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 w-full max-w-[200px] shadow-sm appearance-none cursor-pointer"
+              style={{ color: '#0f172a' }}
+            >
+              <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
+              <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
+              <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
+              <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
+              <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
+              <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
+              <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden md:flex items-center gap-3 lg:gap-4">
+          {/* Left: Tulen Logo */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <img
+              src="/logos/tulen. (7).png"
+              alt="Tulen Agency"
+              className="h-10 object-contain"
+            />
+          </div>
+
+          {/* Center: Tabs - Full width */}
+          <div className="flex-1 mx-4 lg:mx-8">
+            <StandardizedTabs 
+              value={activeTab} 
+              onValueChange={onTabChange} 
+              tabs={DASHBOARD_TABS.filter(tab => {
+                if (!tabSettings) return true;
+                const tabValue = tab.value;
                 if (tabValue === 'summary') {
                   const metaEnabled = tabSettings.meta !== false;
                   const googleEnabled = tabSettings.google !== false;
@@ -245,30 +297,50 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
             />
           </div>
 
-          {/* Right: Period Selector Dropdown */}
-          <div className="flex items-center gap-3">
-            <select
-              value={selectedPeriod}
-              onChange={(e) => onPeriodChange(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium w-40"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="14d">Last 14 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="lastMonth">Last month</option>
-              <option value="90d">Last 90 days</option>
-              <option value="3m">Last 3 months</option>
-              <option value="1y">Last year</option>
-            </select>
+          {/* Right: Period Selector and Client Branding */}
+          <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0 ml-auto">
+            <div className="flex flex-col gap-1">
+              <select
+                value={selectedPeriod}
+                onChange={(e) => onPeriodChange(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 hover:border-slate-400 transition-colors w-28 lg:w-32 shadow-sm appearance-none cursor-pointer"
+                style={{ color: '#0f172a' }}
+              >
+                <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
+                <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
+                <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
+                <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
+                <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
+                <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
+                <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
+              </select>
+            </div>
             
-            {/* Tulen Agency branding */}
-            <div className="flex items-center gap-2 opacity-60">
-              <img
-                src="/logos/tulen-favicon-32x32.png"
-                alt="Tulen Agency"
-                className="w-6 h-6 object-contain"
-              />
-              <span className="text-xs text-slate-500 font-medium">Tulen Agency</span>
+            {/* Client Branding */}
+            <div className="flex items-center gap-2 lg:gap-3 pl-3 lg:pl-4 border-l border-slate-200">
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2 lg:gap-2.5">
+                  {clientData?.logo_url ? (
+                    <img
+                      src={clientData.logo_url}
+                      alt={`${clientData.name} logo`}
+                      className="w-9 h-9 lg:w-11 lg:h-11 object-cover rounded-lg border border-slate-200 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 lg:w-11 lg:h-11 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <BarChart3 className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start">
+                    <h2 className="text-sm lg:text-base font-semibold text-slate-900 leading-tight whitespace-nowrap">
+                      {clientData?.name || 'Dashboard'}
+                    </h2>
+                    <p className="text-xs text-slate-500 leading-tight whitespace-nowrap">
+                      {getDateRange(selectedPeriod)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

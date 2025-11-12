@@ -70,12 +70,12 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
         </Suspense>
         
         {/* Event Types and Guest Count Charts Only */}
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           <Suspense fallback={<ComponentLoader />}>
             <AppErrorBoundary>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Event Types Chart */}
-                <div className="h-full min-h-[400px]">
+                <div className="h-full min-h-[300px] sm:min-h-[400px]">
                   <EventTypesBreakdown 
                     data={data}
                     dateRange={dateRange}
@@ -83,7 +83,7 @@ export const LeadsTabContent: React.FC<LeadsTabContentProps> = React.memo(({
                 </div>
                 
                 {/* Guest Count Distribution Chart */}
-                <div className="h-full min-h-[400px]">
+                <div className="h-full min-h-[300px] sm:min-h-[400px]">
                   <GuestCountDistribution 
                     data={data}
                   />

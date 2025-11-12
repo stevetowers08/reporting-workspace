@@ -19,14 +19,14 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
   });
   
   return (
-    <div className="mb-6">
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5 mb-4">
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+    <div className="mb-4 sm:mb-6">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-4">
+        <Card variant="elevated" className="p-4 sm:p-6 h-auto sm:h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">LEADS</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-4xl font-bold">
+              <div className="flex items-baseline gap-2 mb-2 sm:mb-3">
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold">
                   {dashboardData?.totalLeads !== undefined ? dashboardData.totalLeads : '—'}
                 </p>
               </div>
@@ -37,12 +37,12 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="elevated" className="p-4 sm:p-6 h-auto sm:h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">COST PER LEAD</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-4xl font-bold">
+              <div className="flex items-baseline gap-2 mb-2 sm:mb-3">
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold">
                   {dashboardData?.leadMetrics?.overallCostPerLead !== undefined 
                     ? `$${dashboardData.leadMetrics.overallCostPerLead.toFixed(2)}`
                     : '—'}
@@ -61,12 +61,12 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="elevated" className="p-4 sm:p-6 h-auto sm:h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">AMOUNT SPENT</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-4xl font-bold">
+              <div className="flex items-baseline gap-2 mb-2 sm:mb-3">
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold">
                   {dashboardData?.totalSpend !== undefined 
                     ? `$${Math.round(dashboardData.totalSpend).toLocaleString()}`
                     : '—'}
@@ -83,12 +83,12 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="elevated" className="p-4 sm:p-6 h-auto sm:h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">CONV %</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-4xl font-bold">
+              <div className="flex items-baseline gap-2 mb-2 sm:mb-3">
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold">
                   {(() => {
                     // Calculate weighted average conversion rate across both platforms
                     // Use leads for both platforms for consistency
@@ -156,7 +156,7 @@ export const SummaryMetricsCards = React.memo<SummaryMetricsCardsProps>(({ dashb
           </div>
         </Card>
 
-        <Card variant="elevated" className="p-6 h-32 summary-card">
+        <Card variant="elevated" className="p-4 sm:p-6 h-auto sm:h-32 summary-card">
           <div className="flex flex-col justify-between h-full">
             <div>
               <p className="text-label mb-3">WON</p>

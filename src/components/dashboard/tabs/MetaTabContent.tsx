@@ -81,7 +81,7 @@ export const MetaTabContent: React.FC<MetaTabContentProps> = React.memo(({
           <MetaAdsMetricsCards data={data} />
         </Suspense>
         
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mt-4 sm:mt-6">
           <Suspense fallback={<ComponentLoader />}>
             <MetaAdsDemographics data={data} />
           </Suspense>

@@ -42,12 +42,14 @@ interface SummaryTabContentProps {
   clientId: string;
   dateRange: { start: string; end: string };
   clientData?: any;
+  isShared?: boolean;
 }
 
 export const SummaryTabContent: React.FC<SummaryTabContentProps> = React.memo(({
   clientId,
   dateRange,
-  clientData
+  clientData,
+  isShared = false
 }) => {
   const { data, isLoading, error } = useSummaryTabData(clientId, dateRange, clientData);
 
@@ -70,23 +72,23 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = React.memo(({
           <SummaryMetricsCards dashboardData={data} />
         </Suspense>
         
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mt-6">
-          <Card className="bg-white border border-slate-200 p-6">
-            <div className="pb-4">
-              <h3 className="text-lg font-semibold text-slate-900">Platform Performance</h3>
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 mt-4 sm:mt-6">
+          <Card className="bg-white border border-slate-200 p-4 sm:p-6">
+            <div className="pb-3 sm:pb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900">Platform Performance</h3>
             </div>
-            <div className="h-64">
+            <div className="h-48 sm:h-64">
               <Suspense fallback={<ComponentLoader />}>
                 <PlatformPerformanceStatusChart data={data} />
               </Suspense>
             </div>
           </Card>
 
-          <Card className="bg-white border border-slate-200 p-6">
-            <div className="pb-4">
-              <h3 className="text-lg font-semibold text-slate-900">Leads by Month</h3>
+          <Card className="bg-white border border-slate-200 p-4 sm:p-6">
+            <div className="pb-3 sm:pb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900">Leads by Month</h3>
             </div>
-            <div className="h-64">
+            <div className="h-48 sm:h-64">
               <Suspense fallback={<ComponentLoader />}>
                 <LeadByMonthChart 
                   clientId={clientId}
@@ -96,7 +98,12 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = React.memo(({
           </Card>
 
           <Suspense fallback={<ComponentLoader />}>
-            <KeyInsights data={data} />
+            <KeyInsights 
+              data={data} 
+              clientId={clientId}
+              isShared={isShared}
+              clientData={clientData}
+            />
           </Suspense>
         </div>
         

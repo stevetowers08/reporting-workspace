@@ -226,6 +226,42 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
   const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
 
+  // Get available tabs based on tabSettings
+  const availableTabs = useMemo(() => {
+    // If clientData is still loading, return all tabs to prevent premature filtering
+    if (clientLoading || !clientData) {
+      return ['summary', 'meta', 'google', 'leads'];
+    }
+    
+    const tabSettings = clientData?.services?.tabSettings;
+    const allTabs = ['summary', 'meta', 'google', 'leads'];
+    
+    return allTabs.filter(tab => {
+      if (!tabSettings) return true; // Show all if no settings
+      if (tab === 'summary') {
+        // Summary requires at least one of meta or google
+        const metaEnabled = tabSettings.meta !== false;
+        const googleEnabled = tabSettings.google !== false;
+        return metaEnabled || googleEnabled;
+      }
+      return tabSettings[tab as keyof typeof tabSettings] !== false;
+    });
+  }, [clientData?.services?.tabSettings, clientLoading, clientData]);
+
+  // Redirect to first available tab if current tab is disabled
+  useEffect(() => {
+    // Only redirect after clientData is fully loaded
+    if (clientLoading || !clientData) {
+      return;
+    }
+    
+    if (availableTabs.length > 0 && !availableTabs.includes(activeTab)) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.set('tab', availableTabs[0]);
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [activeTab, availableTabs, clientData, clientLoading, searchParams, setSearchParams]);
+
   // Handle PDF export with enhanced options
   const handleExportPDF = useCallback(() => {
     if (!clientData) {
@@ -245,16 +281,30 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
     setShowExportModal(false);
     
     try {
+      // Filter tabs based on tabSettings
+      const tabSettings = clientData.services?.tabSettings;
+      const allTabs = [
+        { id: 'summary', name: 'Summary', url: `${window.location.origin}/dashboard/${clientData.id}?tab=summary&shared=true` },
+        { id: 'meta', name: 'Meta', url: `${window.location.origin}/dashboard/${clientData.id}?tab=meta&shared=true` },
+        { id: 'google', name: 'Google', url: `${window.location.origin}/dashboard/${clientData.id}?tab=google&shared=true` },
+        { id: 'leads', name: 'Leads', url: `${window.location.origin}/dashboard/${clientData.id}?tab=leads&shared=true` }
+      ];
+      
+      const enabledTabs = allTabs.filter(tab => {
+        if (!tabSettings) return true;
+        if (tab.id === 'summary') {
+          const metaEnabled = tabSettings.meta !== false;
+          const googleEnabled = tabSettings.google !== false;
+          return metaEnabled || googleEnabled;
+        }
+        return tabSettings[tab.id as keyof typeof tabSettings] !== false;
+      });
+
       // Simple Puppeteer-based export
       await simpleClientPDFService.exportWithProgress({
         clientId: clientData.id,
         clientName: clientData.name,
-        tabs: [
-          { id: 'summary', name: 'Summary', url: `${window.location.origin}/dashboard/${clientData.id}?tab=summary&shared=true` },
-          { id: 'meta', name: 'Meta', url: `${window.location.origin}/dashboard/${clientData.id}?tab=meta&shared=true` },
-          { id: 'google', name: 'Google', url: `${window.location.origin}/dashboard/${clientData.id}?tab=google&shared=true` },
-          { id: 'leads', name: 'Leads', url: `${window.location.origin}/dashboard/${clientData.id}?tab=leads&shared=true` }
-        ],
+        tabs: enabledTabs,
         dateRange: dateRange,
         quality: options.quality || 'email'
       });
@@ -402,48 +452,78 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         onPeriodChange={setSelectedPeriod}
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        tabSettings={clientData?.services?.tabSettings}
       />
 
       {/* Main Content */}
-      <div className="px-20 py-6">
-        <div className="mx-auto">
+      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6">
+        <div className="mx-auto max-w-[1920px]">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
 
           {/* Summary Tab */}
-          <TabsContent value="summary" className="mt-6" ref={summaryTabRef}>
-            <SummaryTabContent
-              clientId={actualClientId}
-              dateRange={dateRange}
-              clientData={clientData}
-            />
-          </TabsContent>
+          {(() => {
+            if (clientLoading) return null;
+            const tabSettings = clientData?.services?.tabSettings;
+            const isEnabled = !tabSettings || (tabSettings.meta !== false || tabSettings.google !== false);
+            return isEnabled ? (
+              <TabsContent value="summary" className="mt-6" ref={summaryTabRef}>
+                <SummaryTabContent
+                  clientId={actualClientId}
+                  dateRange={dateRange}
+                  clientData={clientData}
+                  isShared={isShared || isSharedView}
+                />
+              </TabsContent>
+            ) : null;
+          })()}
 
           {/* Meta Ads Tab */}
-          <TabsContent value="meta" className="mt-6" ref={metaTabRef}>
-            <MetaTabContent
-              clientId={actualClientId}
-              dateRange={dateRange}
-              clientData={clientData}
-            />
-          </TabsContent>
+          {(() => {
+            if (clientLoading) return null;
+            const tabSettings = clientData?.services?.tabSettings;
+            const isEnabled = !tabSettings || tabSettings.meta !== false;
+            return isEnabled ? (
+              <TabsContent value="meta" className="mt-6" ref={metaTabRef}>
+                <MetaTabContent
+                  clientId={actualClientId}
+                  dateRange={dateRange}
+                  clientData={clientData}
+                />
+              </TabsContent>
+            ) : null;
+          })()}
 
           {/* Google Ads Tab */}
-          <TabsContent value="google" className="mt-6" ref={googleTabRef}>
-            <GoogleTabContent
-              clientId={actualClientId}
-              dateRange={dateRange}
-              clientData={clientData}
-            />
-          </TabsContent>
+          {(() => {
+            if (clientLoading) return null;
+            const tabSettings = clientData?.services?.tabSettings;
+            const isEnabled = !tabSettings || tabSettings.google !== false;
+            return isEnabled ? (
+              <TabsContent value="google" className="mt-6" ref={googleTabRef}>
+                <GoogleTabContent
+                  clientId={actualClientId}
+                  dateRange={dateRange}
+                  clientData={clientData}
+                />
+              </TabsContent>
+            ) : null;
+          })()}
 
           {/* Lead Info Tab - Venue-Focused Analytics */}
-          <TabsContent value="leads" className="mt-6" ref={leadsTabRef}>
-            <LeadsTabContent
-              clientId={actualClientId}
-              dateRange={dateRange}
-              clientData={clientData}
-            />
-          </TabsContent>
+          {(() => {
+            if (clientLoading) return null;
+            const tabSettings = clientData?.services?.tabSettings;
+            const isEnabled = !tabSettings || tabSettings.leads !== false;
+            return isEnabled ? (
+              <TabsContent value="leads" className="mt-6" ref={leadsTabRef}>
+                <LeadsTabContent
+                  clientId={actualClientId}
+                  dateRange={dateRange}
+                  clientData={clientData}
+                />
+              </TabsContent>
+            ) : null;
+          })()}
 
         </Tabs>
         </div>
@@ -456,7 +536,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         onExport={handleExportWithOptions}
         clientName={clientData?.name || ''}
         dateRange={dateRange}
-        availableTabs={['summary', 'meta', 'google', 'leads']}
+        availableTabs={availableTabs}
         isExporting={exportingPDF}
       />
     </div>
