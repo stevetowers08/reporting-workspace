@@ -20,6 +20,14 @@ export class GoHighLevelApiService {
   private static cache = new Map<string, { data: any; expiry: number }>();
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+  // Token data cache and deduplication
+  private static tokenDataCache = new Map<string, { 
+    data: { accessToken: string; refreshToken?: string; expiresAt?: string; oauthClientId?: string } | null; 
+    timestamp: number;
+  }>();
+  private static readonly TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - aligned with TokenManager
+  private static pendingTokenDataRequests = new Map<string, Promise<{ accessToken: string; refreshToken?: string; expiresAt?: string; oauthClientId?: string } | null>>();
+
   // Cache helper methods
   private static getCachedData<T>(key: string): T | null {
     const cached = this.cache.get(key);
@@ -44,6 +52,13 @@ export class GoHighLevelApiService {
   private static clearCache(): void {
     this.cache.clear();
     debugLogger.debug('GoHighLevelApiService', 'Cache cleared');
+  }
+
+  // Clear token data cache for a specific location (called after token refresh)
+  static clearTokenDataCache(locationId: string): void {
+    const cacheKey = `token-data-${locationId}`;
+    this.tokenDataCache.delete(cacheKey);
+    debugLogger.debug('GoHighLevelApiService', `Cleared token data cache for: ${locationId}`);
   }
 
   // Campaigns
@@ -296,12 +311,22 @@ export class GoHighLevelApiService {
     
     const token = await this.getValidToken(locationId);
     if (!token) {
-      throw new Error(`No valid OAuth token found for location ${locationId}`);
+      debugLogger.warn('GoHighLevelApiService', 'No valid token for location - returning empty array', { locationId });
+      return []; // Return empty array instead of throwing
     }
 
     try {
+      // Use status parameter as-is (API accepts lowercase 'won')
       const statusParam = status === 'all' ? '' : `&status=${status}`;
+      
       const url = `${this.API_BASE_URL}/opportunities/search?location_id=${locationId}${statusParam}&limit=100`;
+      
+      debugLogger.debug('GoHighLevelApiService', 'Fetching opportunities', { 
+        locationId, 
+        status, 
+        statusParam,
+        url: url.replace(token, '***')
+      });
       
       const response = await fetch(url, {
         method: 'GET',
@@ -322,8 +347,24 @@ export class GoHighLevelApiService {
           // Handle empty response bodies
         }
         
-        const errorMessage = errorData.error || errorData.message || 
+        const errorMessage = errorData.error || errorData.message || errorData.statusCode || 
           `API call failed: ${response.status} ${response.statusText}`;
+        
+        // Handle 401 specifically - token is invalid/expired
+        if (response.status === 401) {
+          debugLogger.error('GoHighLevelApiService', 'Token invalid or expired - refresh needed', {
+            status: response.status,
+            locationId,
+            statusFilter: status,
+            error: errorMessage
+          });
+          
+          // Clear token cache to force refresh on next call
+          this.clearTokenDataCache(locationId);
+          
+          // Return empty array instead of throwing - allows UI to show 0 gracefully
+          return [];
+        }
         
         debugLogger.error('GoHighLevelApiService', 'Opportunities API call failed', {
           status: response.status,
@@ -332,7 +373,8 @@ export class GoHighLevelApiService {
           error: errorMessage
         });
         
-        throw new Error(errorMessage);
+        // For other errors, return empty array to prevent UI errors
+        return [];
       }
 
       const data = await response.json();
@@ -347,8 +389,9 @@ export class GoHighLevelApiService {
       
       return opportunities;
     } catch (error) {
-      debugLogger.error('GoHighLevelApiService', 'Failed to get opportunities', error);
-      throw error;
+      debugLogger.error('GoHighLevelApiService', 'Failed to get opportunities', { locationId, status, error });
+      // Return empty array instead of throwing - allows UI to show 0 gracefully
+      return [];
     }
   }
 
@@ -433,161 +476,351 @@ export class GoHighLevelApiService {
     }
   }
 
-  static async getValidToken(locationId: string): Promise<string | null> {
-    const tokenData = await this.loadTokenDataFromDb(locationId);
-    if (!tokenData) {
-      debugLogger.warn('GoHighLevelApiService', 'No token found for location', { locationId });
+  /**
+   * Decode JWT token to get expiration time
+   */
+  private static getTokenExpiration(token: string): number | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonPayload);
+      return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+    } catch {
       return null;
     }
-
-    // Check if token needs refresh (5 minute buffer)
-    const buffer = 5 * 60 * 1000; // 5 minutes
-    const now = Date.now();
-    const expiresAtTime = tokenData.expiresAt ? new Date(tokenData.expiresAt).getTime() : null;
-    const needsRefresh = expiresAtTime && expiresAtTime <= (now + buffer);
-    
-    if (needsRefresh) {
-      debugLogger.info('GoHighLevelApiService', 'Token expired, attempting refresh', { 
-        locationId,
-        expiresAt: tokenData.expiresAt 
-      });
-      
-      if (tokenData.refreshToken) {
-        const refreshed = await this.refreshToken(locationId, tokenData.refreshToken, tokenData.oauthClientId);
-        if (refreshed) {
-          const newTokenData = await this.loadTokenDataFromDb(locationId);
-          if (newTokenData?.accessToken) {
-            // Check if the new token is also expired
-            if (newTokenData.expiresAt && new Date(newTokenData.expiresAt) <= new Date(Date.now() + buffer)) {
-              debugLogger.warn('GoHighLevelApiService', 'Refreshed token is also expired', { locationId });
-              return null;
-            }
-            GoHighLevelAuthService.setCredentials(newTokenData.accessToken, locationId);
-            
-            // Invalidate cache when token is refreshed so frontend fetches fresh data
-            try {
-              const { AnalyticsOrchestrator } = await import('../data/analyticsOrchestrator');
-              AnalyticsOrchestrator.invalidateCache(undefined, `ghl-token-${locationId}`);
-              debugLogger.debug('GoHighLevelApiService', 'Cache invalidated after token refresh', { locationId });
-            } catch (error) {
-              // Cache invalidation is optional, don't fail if it errors
-              debugLogger.debug('GoHighLevelApiService', 'Cache invalidation failed (non-critical)', error);
-            }
-            
-            return newTokenData.accessToken;
-          }
-        } else {
-          debugLogger.error('GoHighLevelApiService', 'Token refresh failed', { locationId });
-        }
-      } else {
-        debugLogger.warn('GoHighLevelApiService', 'No refresh token available', { locationId });
-      }
-      
-      return null;
-    }
-
-    // Token is still valid - decrypt and cache it
-    GoHighLevelAuthService.setCredentials(tokenData.accessToken, locationId);
-    return tokenData.accessToken;
   }
 
-  // ✅ New method to load complete token data from database
-  private static async loadTokenDataFromDb(locationId: string): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: string; oauthClientId?: string } | null> {
+  static async getValidToken(locationId: string): Promise<string | null> {
     try {
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('config')
-        .eq('platform', 'goHighLevel')
-        .eq('account_id', locationId)
-        .eq('connected', true)
-        .single();
-        
-      if (error || !data?.config?.tokens?.accessToken) {
+      const tokenData = await this.loadTokenDataFromDb(locationId);
+      if (!tokenData || !tokenData.accessToken) {
         debugLogger.warn('GoHighLevelApiService', 'No token found for location', { locationId });
         return null;
       }
+
+      // Check if token needs refresh (5 minute buffer)
+      const buffer = 5 * 60 * 1000; // 5 minutes
+      const now = Date.now();
       
-      // Use stored oauthClientId if available, otherwise extract from token
-      let oauthClientId = data.config.tokens.oauthClientId;
+      // Check expiration from database first, then decode JWT if needed
+      let expiresAtTime = tokenData.expiresAt ? new Date(tokenData.expiresAt).getTime() : null;
       
-      if (!oauthClientId) {
-        // Fallback: Extract sourceId (full client_id) from token if not stored
-        try {
-          const accessToken = data.config.tokens.accessToken;
-          const tokenParts = accessToken.split('.');
-          if (tokenParts.length === 3) {
-            // Browser-compatible base64 decoding
-            const base64Url = tokenParts[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(
-              atob(base64)
-                .split('')
-                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-            );
-            const payload = JSON.parse(jsonPayload);
-            // Use sourceId (full client_id) if available, otherwise fall back to base
-            oauthClientId = payload.sourceId || payload.oauthMeta?.client;
-          }
-        } catch {
-          // If we can't parse the token, continue without oauthClientId
-        }
+      // If no expiresAt in database, decode JWT to get expiration
+      if (!expiresAtTime) {
+        expiresAtTime = this.getTokenExpiration(tokenData.accessToken);
+        debugLogger.debug('GoHighLevelApiService', 'Decoded JWT expiration', { 
+          locationId, 
+          expiresAt: expiresAtTime ? new Date(expiresAtTime).toISOString() : 'unknown' 
+        });
       }
       
-      // Return tokens directly (no encryption needed for internal dev app)
-      return {
-        accessToken: data.config.tokens.accessToken,
-        refreshToken: data.config.tokens.refreshToken,
-        expiresAt: data.config.tokens.expiresAt,
-        oauthClientId
-      };
+      const needsRefresh = expiresAtTime && expiresAtTime <= (now + buffer);
+      
+      if (needsRefresh) {
+        debugLogger.info('GoHighLevelApiService', 'Token expired or expiring soon, attempting refresh', { 
+          locationId,
+          expiresAt: tokenData.expiresAt,
+          timeUntilExpiry: expiresAtTime ? expiresAtTime - now : 'unknown'
+        });
+        
+        if (tokenData.refreshToken) {
+          // Clear cache before refresh to ensure we get fresh token after refresh
+          this.clearTokenDataCache(locationId);
+          
+          const refreshed = await this.refreshToken(locationId, tokenData.refreshToken, tokenData.oauthClientId);
+          if (refreshed) {
+            // Wait a brief moment for database to update
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Load fresh token data after refresh
+            const newTokenData = await this.loadTokenDataFromDb(locationId);
+            if (newTokenData?.accessToken) {
+              // Check if the new token is also expired
+              const newExpiresAtTime = newTokenData.expiresAt ? new Date(newTokenData.expiresAt).getTime() : null;
+              if (newExpiresAtTime && newExpiresAtTime <= (now + buffer)) {
+                debugLogger.warn('GoHighLevelApiService', 'Refreshed token is also expired', { 
+                  locationId,
+                  expiresAt: newTokenData.expiresAt 
+                });
+                return null;
+              }
+              
+              GoHighLevelAuthService.setCredentials(newTokenData.accessToken, locationId);
+              
+              // Invalidate caches when token is refreshed so frontend fetches fresh data
+              try {
+                const { AnalyticsOrchestrator } = await import('../data/analyticsOrchestrator');
+                AnalyticsOrchestrator.invalidateCache(undefined, `ghl-token-${locationId}`);
+                debugLogger.debug('GoHighLevelApiService', 'Cache invalidated after token refresh', { locationId });
+              } catch (error) {
+                // Cache invalidation is optional, don't fail if it errors
+                debugLogger.debug('GoHighLevelApiService', 'Cache invalidation failed (non-critical)', error);
+              }
+              
+              debugLogger.info('GoHighLevelApiService', 'Token refreshed successfully', { locationId });
+              return newTokenData.accessToken;
+            } else {
+              debugLogger.error('GoHighLevelApiService', 'Token refresh succeeded but no new token found', { locationId });
+            }
+          } else {
+            debugLogger.error('GoHighLevelApiService', 'Token refresh failed', { locationId });
+          }
+        } else {
+          debugLogger.warn('GoHighLevelApiService', 'No refresh token available', { locationId });
+        }
+        
+        // If refresh failed, try to use existing token anyway (might still work)
+        if (tokenData.accessToken) {
+          debugLogger.warn('GoHighLevelApiService', 'Using potentially expired token due to refresh failure', { locationId });
+          GoHighLevelAuthService.setCredentials(tokenData.accessToken, locationId);
+          return tokenData.accessToken;
+        }
+        
+        return null;
+      }
+
+      // Token is still valid - use it
+      GoHighLevelAuthService.setCredentials(tokenData.accessToken, locationId);
+      return tokenData.accessToken;
     } catch (error) {
-      debugLogger.error('GoHighLevelApiService', 'Error loading token data', error);
+      debugLogger.error('GoHighLevelApiService', 'Error getting valid token', { locationId, error });
       return null;
     }
   }
 
-  // Refresh expired tokens using the sourceId (full client_id) from the token that issued it
+  // ✅ New method to load complete token data from database with caching and deduplication
+  private static async loadTokenDataFromDb(locationId: string): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: string; oauthClientId?: string } | null> {
+    const cacheKey = `token-data-${locationId}`;
+    const now = Date.now();
+
+    // Check cache first
+    const cached = this.tokenDataCache.get(cacheKey);
+    if (cached && (now - cached.timestamp) < this.TOKEN_CACHE_DURATION) {
+      debugLogger.debug('GoHighLevelApiService', `Cache hit for token data: ${locationId}`);
+      return cached.data;
+    }
+
+    // Check for pending request (deduplication)
+    if (this.pendingTokenDataRequests.has(cacheKey)) {
+      debugLogger.debug('GoHighLevelApiService', `Deduplicating token data request for: ${locationId}`);
+      return await this.pendingTokenDataRequests.get(cacheKey)!;
+    }
+
+    // Create new request
+    const requestPromise = (async () => {
+      try {
+        debugLogger.info('GoHighLevelApiService', `Fetching token data from database for: ${locationId}`);
+        
+        const { data, error } = await supabase
+          .from('integrations')
+          .select('config')
+          .eq('platform', 'goHighLevel')
+          .eq('account_id', locationId)
+          .eq('connected', true)
+          .single();
+          
+        if (error || !data?.config?.tokens?.accessToken) {
+          debugLogger.warn('GoHighLevelApiService', 'No token found for location', { locationId });
+          const result = null;
+          // Cache null result to prevent repeated queries
+          this.tokenDataCache.set(cacheKey, { data: result, timestamp: now });
+          return result;
+        }
+        
+        // Use stored oauthClientId if available, otherwise extract from token
+        let oauthClientId = data.config.tokens.oauthClientId;
+        let needsUpdate = false;
+        
+        if (!oauthClientId) {
+          // Fallback: Extract sourceId (full client_id) from token if not stored
+          try {
+            const accessToken = data.config.tokens.accessToken;
+            const tokenParts = accessToken.split('.');
+            if (tokenParts.length === 3) {
+              // Browser-compatible base64 decoding
+              const base64Url = tokenParts[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split('')
+                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              const payload = JSON.parse(jsonPayload);
+              // Use oauthMeta.client (base client_id) for refresh, not sourceId (which has suffix)
+              // Refresh tokens work with the base client_id, not the full sourceId
+              oauthClientId = payload.oauthMeta?.client || payload.sourceId?.split('-')[0] || payload.sourceId;
+              
+              // If we extracted it, mark for saving to database
+              if (oauthClientId) {
+                needsUpdate = true;
+                debugLogger.info('GoHighLevelApiService', 'Extracted oauthClientId from token, will save to database', {
+                  locationId,
+                  oauthClientId: oauthClientId.substring(0, 20) + '...'
+                });
+              }
+            }
+          } catch (error) {
+            debugLogger.debug('GoHighLevelApiService', 'Could not extract oauthClientId from token', { locationId, error });
+          }
+        }
+        
+        // If we extracted oauthClientId, save it back to the database for future use
+        if (needsUpdate && oauthClientId) {
+          try {
+            const { error: updateError } = await supabase
+              .from('integrations')
+              .update({
+                config: {
+                  ...data.config,
+                  tokens: {
+                    ...data.config.tokens,
+                    oauthClientId
+                  }
+                }
+              })
+              .eq('platform', 'goHighLevel')
+              .eq('account_id', locationId);
+              
+            if (updateError) {
+              debugLogger.warn('GoHighLevelApiService', 'Failed to save oauthClientId to database', { locationId, error: updateError });
+            } else {
+              debugLogger.info('GoHighLevelApiService', 'Saved oauthClientId to database for future token refresh', { locationId });
+            }
+          } catch (error) {
+            debugLogger.warn('GoHighLevelApiService', 'Error saving oauthClientId to database', { locationId, error });
+          }
+        }
+        
+        // Return tokens directly (no encryption needed for internal dev app)
+        const result = {
+          accessToken: data.config.tokens.accessToken,
+          refreshToken: data.config.tokens.refreshToken,
+          expiresAt: data.config.tokens.expiresAt,
+          oauthClientId
+        };
+
+        // Cache the result
+        this.tokenDataCache.set(cacheKey, { data: result, timestamp: now });
+        debugLogger.debug('GoHighLevelApiService', `Cached token data for: ${locationId}`);
+        
+        return result;
+      } catch (error) {
+        debugLogger.error('GoHighLevelApiService', 'Error loading token data', error);
+        // Cache null result on error to prevent repeated failed queries
+        this.tokenDataCache.set(cacheKey, { data: null, timestamp: now });
+        return null;
+      } finally {
+        // Always remove from pending requests
+        this.pendingTokenDataRequests.delete(cacheKey);
+      }
+    })();
+
+    this.pendingTokenDataRequests.set(cacheKey, requestPromise);
+    return await requestPromise;
+  }
+
+  // Refresh expired tokens using the app's client_id (all locations share the same app credentials)
   static async refreshToken(locationId: string, refreshToken: string, tokenOAuthClientId?: string): Promise<boolean> {
     try {
       debugLogger.info('GoHighLevelApiService', 'Refreshing token', { locationId, tokenOAuthClientId });
 
-      // Use the sourceId (full client_id) from the token that issued it
-      // The refresh token is tied to the specific client_id/client_secret pair that issued it
-      if (!tokenOAuthClientId) {
-        debugLogger.error('GoHighLevelApiService', 'No client_id found in token - cannot refresh');
-        return false;
-      }
-      
-      // Get client_secret from OAuth app credentials (all clients share the same app)
+      // Get app's OAuth credentials (all locations use the same client_id/client_secret)
       const { GoHighLevelOAuthConfigService } = await import('./goHighLevelOAuthConfigService');
       const credentials = await GoHighLevelOAuthConfigService.getOAuthCredentials();
       
-      let clientSecret: string;
+      // Priority 1: Use app's client_id from oauth_credentials (correct for all locations)
+      let clientId: string | undefined = credentials?.clientId;
+      let clientSecret: string | undefined = credentials?.clientSecret;
       
-      if (credentials) {
-        clientSecret = credentials.clientSecret;
-        debugLogger.info('GoHighLevelApiService', 'Using sourceId from token with secret from database', {
-          locationId,
-          sourceId: tokenOAuthClientId.substring(0, 20) + '...'
-        });
-      } else {
-        // Fallback to environment variables
+      // Priority 2: Fallback to environment variables
+      if (!clientId) {
+        clientId = import.meta.env.VITE_GHL_CLIENT_ID;
+      }
+      if (!clientSecret) {
         clientSecret = import.meta.env.VITE_GHL_CLIENT_SECRET;
-        
-        if (!clientSecret) {
-          debugLogger.error('GoHighLevelApiService', 'Missing client_secret (neither database nor env vars)');
-          return false;
-        }
-        
-        debugLogger.info('GoHighLevelApiService', 'Using sourceId from token with secret from env vars', {
-          locationId,
-          sourceId: tokenOAuthClientId.substring(0, 20) + '...'
-        });
       }
       
-      // Use the sourceId (full client_id) from the token with the shared client_secret
-      return this.refreshTokenWithCredentials(locationId, refreshToken, tokenOAuthClientId, clientSecret);
+      if (!clientId || !clientSecret) {
+        debugLogger.error('GoHighLevelApiService', 'Missing client_id or client_secret for refresh', {
+          locationId,
+          hasClientId: !!clientId,
+          hasClientSecret: !!clientSecret
+        });
+        return false;
+      }
+      
+      // Try both base and full client_id - some tokens may require full, some may require base
+      const baseClientId = clientId.includes('-') ? clientId.split('-')[0] : clientId;
+      
+      // Extract client_id from refresh token's sourceId (token may have been issued with different client_id)
+      let tokenClientId: string | undefined;
+      try {
+        const tokenParts = refreshToken.split('.');
+        if (tokenParts.length === 3) {
+          const base64Url = tokenParts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const payload = JSON.parse(jsonPayload);
+          tokenClientId = payload.sourceId || payload.oauthMeta?.clientKey;
+          if (tokenClientId) {
+            debugLogger.debug('GoHighLevelApiService', 'Extracted client_id from refresh token', {
+              locationId,
+              tokenClientId: tokenClientId.substring(0, 30) + '...'
+            });
+          }
+        }
+      } catch (error) {
+        debugLogger.debug('GoHighLevelApiService', 'Could not extract client_id from refresh token', { locationId });
+      }
+      
+      // Try client_id from token FIRST (token may have been issued with different client_id)
+      if (tokenClientId && tokenClientId !== clientId) {
+        debugLogger.info('GoHighLevelApiService', 'Attempting refresh with client_id from token', {
+          locationId,
+          clientId: tokenClientId.substring(0, 30) + '...'
+        });
+        
+        let success = await this.refreshTokenWithCredentials(locationId, refreshToken, tokenClientId, clientSecret);
+        if (success) {
+          return true;
+        }
+      }
+      
+      // Try full client_id from credentials
+      if (clientId.includes('-') && clientId !== baseClientId) {
+        debugLogger.info('GoHighLevelApiService', 'Attempting refresh with full client_id from credentials', {
+          locationId,
+          clientId: clientId.substring(0, 30) + '...'
+        });
+        
+        let success = await this.refreshTokenWithCredentials(locationId, refreshToken, clientId, clientSecret);
+        if (success) {
+          return true;
+        }
+      }
+      
+      // Finally try base client_id
+      debugLogger.info('GoHighLevelApiService', 'Attempting refresh with base client_id', {
+        locationId,
+        clientId: baseClientId.substring(0, 30) + '...'
+      });
+      
+      return await this.refreshTokenWithCredentials(locationId, refreshToken, baseClientId, clientSecret);
     } catch (error) {
       debugLogger.error('GoHighLevelApiService', 'Error refreshing token', error);
       return false;
@@ -616,11 +849,29 @@ export class GoHighLevelApiService {
       
       if (!response.ok) {
         const errorText = await response.text();
+        let errorData: any;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        
         debugLogger.error('GoHighLevelApiService', 'Token refresh failed', { 
           status: response.status, 
           statusText: response.statusText,
-          error: errorText
+          error: errorText,
+          locationId
         });
+        
+        // If refresh token is invalid, log it clearly but don't throw
+        // The calling code should handle this by prompting user to reconnect
+        if (errorData.error === 'invalid_grant' || errorData.error_description?.includes('refresh token is invalid')) {
+          debugLogger.warn('GoHighLevelApiService', 'Refresh token is invalid - location needs to be reconnected', {
+            locationId,
+            error: errorData.error_description
+          });
+        }
+        
         return false;
       }
       
