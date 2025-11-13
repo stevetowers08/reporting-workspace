@@ -209,6 +209,9 @@ export class GHLOAuthService {
         // If we can't parse, continue without oauthClientId
       }
 
+      // Calculate expiresAt timestamp
+      const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined;
+
       // Prepare the data for upsert
       const upsertData = {
         platform: 'goHighLevel',
@@ -221,7 +224,9 @@ export class GHLOAuthService {
             refreshToken: refreshToken,
             tokenType: 'Bearer',
             scope: scopes.join(' '),
-            oauthClientId // Store the sourceId (full client_id) that issued this token
+            oauthClientId, // Store the sourceId (full client_id) that issued this token
+            expiresAt, // Store in tokens for consistency with goHighLevelApiService
+            expiresIn // Also store expiresIn for reference
           },
           accountInfo: {
             id: locationId,
@@ -231,7 +236,7 @@ export class GHLOAuthService {
           lastSync: new Date().toISOString(),
           syncStatus: 'idle',
           connectedAt: new Date().toISOString(),
-          expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : undefined
+          expiresAt // Also store at config level for backward compatibility
         }
       };
 
