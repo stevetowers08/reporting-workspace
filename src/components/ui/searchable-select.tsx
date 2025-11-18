@@ -43,16 +43,31 @@ export function SearchableSelect({
     const buttonRef = React.useRef<HTMLButtonElement>(null);
     const [position, setPosition] = React.useState({ top: 0, left: 0, width: 0 });
 
-    React.useEffect(() => {
-        if (open && buttonRef.current) {
+    const updatePosition = React.useCallback(() => {
+        if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             setPosition({
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX,
+                top: rect.bottom + 4, // Small gap below button
+                left: rect.left,
                 width: rect.width
             });
         }
-    }, [open]);
+    }, []);
+
+    React.useEffect(() => {
+        if (open) {
+            updatePosition();
+            
+            // Update position on scroll or resize
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
+            
+            return () => {
+                window.removeEventListener('scroll', updatePosition, true);
+                window.removeEventListener('resize', updatePosition);
+            };
+        }
+    }, [open, updatePosition]);
 
     const dropdownContent = open && (
         <div
