@@ -104,11 +104,11 @@ export const ClientManagementTab: React.FC<ClientManagementTabProps> = ({
                           <img
                             src={client.logo_url}
                             alt={`${client.name} logo`}
-                            className="w-8 h-8 object-cover rounded border border-slate-200"
+                            className="w-8 h-8 object-cover rounded-lg border border-slate-200 shadow-sm"
                           />
                         ) : (
-                          <div className="w-8 h-8 bg-slate-100 rounded flex items-center justify-center border border-slate-200">
-                            <BarChart3 className="h-4 w-4 text-slate-500" />
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                            <BarChart3 className="h-4 w-4 text-white" />
                           </div>
                         )}
                         <div className="text-sm font-medium text-slate-900">{client.name}</div>
