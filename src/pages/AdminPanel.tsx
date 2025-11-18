@@ -109,7 +109,7 @@ const AgencyPanel = () => {
   }) => {
     try {
       // Create client with minimal data (name and logo)
-      await DatabaseService.createClient(clientData);
+      const newClient = await DatabaseService.createClient(clientData);
       setShowAddClientModal(false);
       
       // Invalidate React Query cache to refresh client data
@@ -118,14 +118,16 @@ const AgencyPanel = () => {
       // Also refresh the local client list
       await loadClients();
       
-      // Show success message
-      setShowSuccessMessage(true);
-      debugLogger.info('AgencyPanel', 'Client created with minimal data, cache invalidated and list refreshed');
+      // Increment refresh trigger to force AgencyPanel to refresh
+      setRefreshTrigger(prev => prev + 1);
       
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 3000);
+      debugLogger.info('AgencyPanel', 'Client created with minimal data, cache invalidated and list refreshed', { clientId: newClient.id });
+      
+      // Wait a brief moment for the refresh to complete, then open edit modal
+      setTimeout(async () => {
+        // Load the newly created client and open edit modal
+        await loadClientForEdit(newClient.id);
+      }, 500);
     } catch (error) {
       debugLogger.error('AGENCY', 'Failed to add client', error);
     }

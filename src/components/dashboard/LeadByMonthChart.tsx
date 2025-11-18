@@ -82,18 +82,36 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
   useEffect(() => {
     const fetchMonthlyLeads = async () => {
       try {
+        console.log('[LeadByMonthChart] Starting fetch', clientId, 'hasClient:', !!client);
         setIsLoading(true);
         setError(null);
 
         if (!client) {
+          console.warn('[LeadByMonthChart] No client data');
           setError('Client not found');
           return;
         }
 
+        console.log('[LeadByMonthChart] Client data - facebookAds:', client.accounts?.facebookAds, 'googleAds:', client.accounts?.googleAds);
+
         // Use AnalyticsOrchestrator to get monthly data (consistent with other components)
         const monthlyData = await AnalyticsOrchestrator.getMonthlyLeadsData(clientId, client);
         
+        console.log('[LeadByMonthChart] Monthly data received - hasData:', !!monthlyData, 'length:', monthlyData?.length || 0);
+        if (monthlyData && monthlyData.length > 0) {
+          console.log('[LeadByMonthChart] Sample data:', JSON.stringify(monthlyData[0], null, 2));
+          console.log('[LeadByMonthChart] Full data:', JSON.stringify(monthlyData, null, 2));
+        }
+        
+        debugLogger.info('LeadByMonthChart', 'Monthly data received', {
+          hasData: !!monthlyData,
+          dataLength: monthlyData?.length || 0,
+          sample: monthlyData?.[0]
+        });
+        
         if (!monthlyData || monthlyData.length === 0) {
+          console.warn('[LeadByMonthChart] No monthly data available');
+          debugLogger.warn('LeadByMonthChart', 'No monthly data available');
           setChartData([]);
           return;
         }
@@ -102,26 +120,38 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
         const chartData: MonthlyLeadsData[] = monthlyData.map(data => ({
           month: data.month,
           monthLabel: data.monthLabel,
-          facebookLeads: data.facebookLeads,
-          googleLeads: data.googleLeads,
-          totalLeads: data.totalLeads
+          facebookLeads: data.facebookLeads || 0,
+          googleLeads: data.googleLeads || 0,
+          totalLeads: data.totalLeads || 0
         }));
+
+        console.log('[LeadByMonthChart] Chart data prepared - length:', chartData.length, 'hasData:', chartData.some(d => d.totalLeads > 0));
+        console.log('[LeadByMonthChart] Chart data:', JSON.stringify(chartData, null, 2));
+
+        debugLogger.info('LeadByMonthChart', 'Chart data prepared', {
+          chartDataLength: chartData.length,
+          hasData: chartData.some(d => d.totalLeads > 0)
+        });
 
         setChartData(chartData);
 
       } catch (err) {
+        console.error('[LeadByMonthChart] Error fetching monthly leads', err);
         debugLogger.error('LeadByMonthChart', 'Failed to fetch monthly leads', err);
         setError(`Failed to load monthly leads data: ${err instanceof Error ? err.message : 'Unknown error'}`);
         setChartData([]);
       } finally {
         setIsLoading(false);
+        console.log('[LeadByMonthChart] Fetch completed', { isLoading: false });
       }
     };
 
     if (client) {
       fetchMonthlyLeads();
+    } else {
+      console.log('[LeadByMonthChart] Waiting for client data', { clientLoading });
     }
-  }, [clientId, client]);
+  }, [clientId, client, clientLoading]);
 
   // Memoize chart configuration for performance
   const chartConfig = useMemo(() => ({
@@ -133,7 +163,14 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
   }), []);
 
 
-  const hasData = chartData.length > 0 && chartData.some(month => month.totalLeads > 0);
+  // Check if we have chart data (even if all values are 0, we should show the chart)
+  const hasChartData = chartData.length > 0;
+  const hasNonZeroData = chartData.some(month => month.totalLeads > 0);
+
+  console.log('[LeadByMonthChart] Render state - isLoading:', isLoading, 'clientLoading:', clientLoading, 'hasChartData:', hasChartData, 'hasNonZeroData:', hasNonZeroData, 'chartDataLength:', chartData.length, 'error:', error);
+  if (chartData.length > 0) {
+    console.log('[LeadByMonthChart] First 2 chart data items:', JSON.stringify(chartData.slice(0, 2), null, 2));
+  }
 
   // Show loading state with modern spinner
   if (isLoading || clientLoading) {
@@ -174,8 +211,8 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
     );
   }
 
-  // Show message if no data with helpful guidance
-  if (!hasData || chartData.length === 0) {
+  // Show message if no chart data at all
+  if (!hasChartData) {
     return (
       <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center max-w-sm px-4">
@@ -185,7 +222,7 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
             </svg>
           </div>
           <h3 className="text-base font-semibold text-slate-700 mb-2">No Lead Data Available</h3>
-          <p className="text-slate-500 text-sm mb-3">Connect Meta Ads or Google Ads to see monthly lead trends</p>
+          <p className="text-slate-500 text-sm mb-3">No monthly data found. Connect Meta Ads or Google Ads to see monthly lead trends.</p>
           <div className="flex justify-center space-x-3 text-xs text-slate-400">
             <span className="flex items-center">
               <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
@@ -202,9 +239,9 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col min-h-0">
       {/* Chart Container */}
-      <div className="flex-1 p-0">
+      <div className="flex-1 p-0 min-h-0" style={{ minHeight: '200px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
             data={chartData} 
@@ -314,7 +351,7 @@ export const LeadByMonthChart: React.FC<LeadByMonthChartProps> = React.memo(({
       </div>
       
       {/* Simple Legend */}
-      <div className="px-4 pt-1 pb-4">
+      <div className="px-4 pt-1 pb-2 flex-shrink-0">
         <div className="flex items-center justify-center space-x-4 text-xs">
           <div className="flex items-center space-x-1">
             <div className="w-4 h-1 bg-blue-500"></div>
