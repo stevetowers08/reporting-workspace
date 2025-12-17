@@ -97,7 +97,6 @@ export class GoogleAdsReportingService extends BaseReportingService {
         client.accounts?.googleAds &&
         client.accounts.googleAds !== 'none'
       );
-      
       return {
         totalClients: googleClients.length,
         activeAccounts: googleClients.length,
@@ -264,7 +263,7 @@ export class GoogleAdsReportingService extends BaseReportingService {
           const result = batchResults[j];
           const client = batch[j];
           
-          if (result.status === 'fulfilled' && result.value.googleMetrics) {
+          if (result.status === 'fulfilled' && result.value && result.value.googleMetrics !== undefined && result.value.googleMetrics !== null) {
             const metrics = result.value.googleMetrics;
             const costPerLead = metrics.leads > 0 ? metrics.cost / metrics.leads : 0;
             const conversionRate = metrics.clicks > 0 ? (metrics.leads / metrics.clicks) * 100 : 0;
@@ -309,11 +308,6 @@ export class GoogleAdsReportingService extends BaseReportingService {
               clientId: client.id,
               accountId: client.accounts?.googleAds,
               error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-            });
-          } else if (result.status === 'fulfilled' && !result.value.googleMetrics) {
-            debugLogger.warn('GOOGLE_REPORTING', 'Client returned no metrics', {
-              clientId: client.id,
-              accountId: client.accounts?.googleAds
             });
           }
         }

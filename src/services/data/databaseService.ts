@@ -513,10 +513,21 @@ export class DatabaseService {
     try {
       debugDatabase.query('UPDATE', 'integrations');
       
+      // Get current integration to merge config
+      const currentIntegration = await supabaseHelpers.getIntegration(platform);
+      const currentConfig = currentIntegration?.config || {};
+      
+      // Merge new config with existing config
+      const mergedConfig = {
+        ...currentConfig,
+        ...config
+      };
+      
       const { error } = await supabase
         .from('integrations')
         .update({ 
-          config: supabase.raw(`config || '${JSON.stringify(config)}'::jsonb`)
+          config: mergedConfig,
+          updated_at: new Date().toISOString()
         })
         .eq('platform', platform);
 
@@ -689,15 +700,21 @@ export class DatabaseService {
         .from('google_ads_configs')
         .select('*')
         .eq('is_active', true)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
       
       if (error) {
         debugDatabase.error('getActiveGoogleAdsConfig', 'google_ads_configs', error);
         throw error;
       }
       
-      debugDatabase.success('getActiveGoogleAdsConfig', 'google_ads_configs', data);
-      return data;
+      if (!data || data.length === 0) {
+        debugLogger.warn('DatabaseService', 'No active Google Ads config found');
+        return null;
+      }
+      
+      debugDatabase.success('getActiveGoogleAdsConfig', 'google_ads_configs', data[0]);
+      return data[0];
     } catch (error) {
       debugLogger.error('DatabaseService', 'Error getting active Google Ads config', error);
       throw error;

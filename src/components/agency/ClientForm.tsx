@@ -17,7 +17,7 @@ import { GoogleSheetsOAuthService } from '@/services/auth/googleSheetsOAuthServi
 import { FileUploadService } from "@/services/config/fileUploadService";
 import { DatabaseService } from "@/services/data/databaseService";
 import { AlertCircle, BarChart3, Bot, CheckCircle, ImageIcon, Users, X } from "lucide-react";
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from "react-router-dom";
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
@@ -362,86 +362,51 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
     }
   }, [facebookAccountsLoaded, facebookAccountsLoading]);
 
-  // Load Google Ads accounts when needed with caching
+  // Load Google Ads accounts - simplified approach
   const loadGoogleAccounts = useCallback(async (forceReload = false) => {
-    debugLogger.info('ClientForm', 'loadGoogleAccounts function called', { forceReload, googleAccountsLoaded });
-    
-    if (googleAccountsLoaded && !forceReload || googleAccountsLoading) {
-      debugLogger.debug('ClientForm', 'Google accounts already loaded or loading, skipping');
+    // Prevent duplicate calls - check loading state
+    if (googleAccountsLoading) {
       return;
     }
     
-    // Check cache first
-    const cacheKey = 'googleAds_accounts_cache';
-    const cacheExpiry = 'googleAds_accounts_cache_expiry';
-    const now = Date.now();
-    const cacheTime = 5 * 60 * 1000; // 5 minutes cache
-    
-    if (!forceReload) {
-      try {
-        const cachedAccounts = localStorage.getItem(cacheKey);
-        const cachedExpiry = localStorage.getItem(cacheExpiry);
-        
-        if (cachedAccounts && cachedExpiry && (now - parseInt(cachedExpiry)) < cacheTime) {
-          debugLogger.info('ClientForm', 'Using cached Google Ads accounts');
-          const accounts = JSON.parse(cachedAccounts);
-          setConnectedAccounts(prev => {
-            const filteredPrev = prev.filter(acc => acc.platform !== 'googleAds');
-            return [...filteredPrev, ...accounts];
-          });
-          setGoogleAccountsLoaded(true);
-          return;
-        }
-      } catch (error) {
-        debugLogger.warn('ClientForm', 'Failed to read cache, fetching fresh data', error);
-      }
+    // Only skip if already loaded AND not forcing reload
+    if (googleAccountsLoaded && !forceReload) {
+      return;
     }
     
-    debugLogger.info('ClientForm', 'Loading Google Ads accounts from API');
+    // Reset loaded state if forcing reload
+    if (forceReload) {
+      setGoogleAccountsLoaded(false);
+    }
+    
     setGoogleAccountsLoading(true);
     
     try {
-      debugLogger.info('ClientForm', 'Calling GoogleAdsService.getAdAccounts');
+      // Fetch accounts directly
       const googleAccounts = await GoogleAdsService.getAdAccounts();
-      debugLogger.info('ClientForm', 'Google Ads API response received', { accountCount: googleAccounts.length });
       
+      // Map to connected accounts format
       const accounts = googleAccounts.map(account => ({
         id: account.id,
-        name: account.name,
+        name: account.name || `Google Ads Account (${account.id})`,
         platform: 'googleAds' as const
       }));
       
-      // Cache the results
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(accounts));
-        localStorage.setItem(cacheExpiry, now.toString());
-        debugLogger.info('ClientForm', 'Cached Google Ads accounts');
-      } catch (cacheError) {
-        debugLogger.warn('ClientForm', 'Failed to cache accounts', cacheError);
-      }
-      
+      // Update state - simple and direct
       setConnectedAccounts(prev => {
-        // Remove existing Google Ads accounts to avoid duplicates
-        const filteredPrev = prev.filter(acc => acc.platform !== 'googleAds');
-        return [...filteredPrev, ...accounts];
+        const filtered = prev.filter(acc => acc.platform !== 'googleAds');
+        return [...filtered, ...accounts];
       });
-      setGoogleAccountsLoaded(true);
-      debugLogger.info('ClientForm', 'Google Ads accounts loaded successfully', { accountCount: accounts.length });
-    } catch (error) {
-      debugLogger.error('ClientForm', 'Google Ads error', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load Google Ads accounts';
       
-      // Add error to connected accounts so user knows there was an issue
-      setConnectedAccounts(prev => [...prev, {
-        id: 'google_error',
-        name: `Error: ${errorMessage}`,
-        platform: 'googleAds' as const
-      }]);
       setGoogleAccountsLoaded(true);
+    } catch (error) {
+      debugLogger.error('ClientForm', 'Failed to load Google Ads accounts', error);
+      // Reset loaded state on error so it can retry
+      setGoogleAccountsLoaded(false);
     } finally {
       setGoogleAccountsLoading(false);
     }
-  }, [googleAccountsLoaded, googleAccountsLoading]);
+  }, []);
 
   // Load GoHighLevel accounts when needed (simplified for location-level OAuth)
   const loadGHLAccounts = useCallback(async () => {
@@ -905,6 +870,54 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
     return accounts;
   };
 
+  // Memoize options for Facebook Ads to ensure they update when accounts load
+  const facebookAdsOptions = useMemo(() => {
+    const platform = 'facebookAds';
+    const accounts = connectedAccounts.filter(account => account.platform === platform);
+    const currentAccountId = formData.accounts.facebookAds;
+    const hasCurrentAccount = accounts.some(acc => acc.id === currentAccountId);
+    
+    // If current account is not in loaded accounts but exists, add it
+    if (currentAccountId && currentAccountId !== 'none' && !hasCurrentAccount) {
+      accounts.unshift({
+        id: currentAccountId,
+        name: `Facebook Ads Account (${currentAccountId})`,
+        platform: 'facebookAds' as const
+      });
+    }
+    
+    return [
+      { value: "none", label: "None" },
+      ...accounts.map(account => ({
+        value: account.id,
+        label: account.name
+      }))
+    ];
+  }, [connectedAccounts, formData.accounts.facebookAds]);
+
+  // Memoize options for Google Ads - simple and direct
+  const googleAdsOptions = useMemo(() => {
+    const accounts = connectedAccounts.filter(acc => acc.platform === 'googleAds');
+    const currentAccountId = formData.accounts.googleAds;
+    
+    // Add current account if not in list
+    if (currentAccountId && currentAccountId !== 'none' && !accounts.some(acc => acc.id === currentAccountId)) {
+      accounts.unshift({
+        id: currentAccountId,
+        name: `Google Ads Account (${currentAccountId})`,
+        platform: 'googleAds' as const
+      });
+    }
+    
+    return [
+      { value: "none", label: "None" },
+      ...accounts.map(acc => ({ 
+        value: acc.id, 
+        label: `${acc.name} (${acc.id})` 
+      }))
+    ];
+  }, [connectedAccounts, formData.accounts.googleAds]);
+
   // Synchronous version for UI rendering
   const isIntegrationConnectedSync = (platform: string): boolean => {
     debugLogger.debug('ClientForm', 'Checking integration status', { platform, accounts: formData.accounts });
@@ -990,8 +1003,9 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
       
       // Load Google Ads accounts if we have a Google Ads account ID
       if (initialData.accounts?.googleAds && initialData.accounts.googleAds !== 'none') {
-        debugLogger.info('ClientForm', 'Loading Google Ads accounts for existing account ID', initialData.accounts.googleAds);
-        loadGoogleAccounts();
+        if (!googleAccountsLoaded && !googleAccountsLoading) {
+          loadGoogleAccounts();
+        }
       }
       
       // Load GoHighLevel accounts if we have a GoHighLevel account ID
@@ -1000,7 +1014,25 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
         loadGHLAccounts();
       }
     }
-  }, [initialData, isIntegrationConnected, loadFacebookAccounts, loadGHLAccounts, loadGoogleAccounts]);
+  }, [initialData, isIntegrationConnected, loadFacebookAccounts, loadGHLAccounts]);
+
+  // Pre-load accounts when entering edit mode for connected integrations
+  useEffect(() => {
+    if (editingIntegrations.facebookAds && integrationStatusLoaded && integrationStatus.facebookAds && !facebookAccountsLoaded && !facebookAccountsLoading) {
+      debugLogger.info('ClientForm', 'Pre-loading Facebook accounts for edit mode');
+      loadFacebookAccounts();
+    }
+  }, [editingIntegrations.facebookAds, integrationStatusLoaded, integrationStatus.facebookAds, facebookAccountsLoaded, facebookAccountsLoading, loadFacebookAccounts]);
+
+  // Load accounts when entering edit mode
+  useEffect(() => {
+    if (editingIntegrations.googleAds && integrationStatusLoaded && integrationStatus.googleAds) {
+      if (!googleAccountsLoaded && !googleAccountsLoading) {
+        loadGoogleAccounts();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingIntegrations.googleAds, integrationStatusLoaded, integrationStatus.googleAds]);
 
   // Load conversion actions when Facebook Ads account changes
   useEffect(() => {
@@ -1178,13 +1210,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                     <div>
                       <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
                       <SearchableSelect
-                        options={[
-                          { value: "none", label: "None" },
-                          ...getAvailableAccounts('facebookAds').map(account => ({
-                            value: account.id,
-                            label: account.name
-                          }))
-                        ]}
+                        options={facebookAdsOptions}
                         value={(() => {
                           const pendingValue = pendingChanges.facebookAds ?? formData.accounts.facebookAds;
                           return typeof pendingValue === 'string' ? pendingValue : "none";
@@ -1194,8 +1220,13 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         searchPlaceholder="Search accounts..."
                         className="mt-1"
                         onOpenChange={(open) => {
-                          if (open && !facebookAccountsLoaded && !facebookAccountsLoading) {
-                            loadFacebookAccounts();
+                          if (open) {
+                            if (!facebookAccountsLoaded && !facebookAccountsLoading) {
+                              loadFacebookAccounts();
+                            } else if (facebookAccountsLoaded && getAvailableAccounts('facebookAds').length <= 1) {
+                              // Reload if we only have the current account (might be stale)
+                              loadFacebookAccounts(true);
+                            }
                           }
                         }}
                       />
@@ -1340,13 +1371,7 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                     <div>
                       <Label className="text-xs font-medium text-gray-600">Ad Account</Label>
                       <SearchableSelect
-                        options={[
-                          { value: "none", label: "None" },
-                          ...getAvailableAccounts('googleAds').map(account => ({
-                            value: account.id,
-                            label: account.name
-                          }))
-                        ]}
+                        options={googleAdsOptions}
                         value={(() => {
                           const pendingValue = pendingChanges.googleAds ?? formData.accounts.googleAds;
                           return typeof pendingValue === 'string' ? pendingValue : "none";
@@ -1356,8 +1381,15 @@ export const ClientForm: React.FC<ClientFormProps> = React.memo(({
                         searchPlaceholder="Search accounts..."
                         className="mt-1"
                         onOpenChange={(open) => {
-                          if (open && !googleAccountsLoaded && !googleAccountsLoading) {
-                            loadGoogleAccounts(true); // Force reload to get latest accounts
+                          if (open && !googleAccountsLoading) {
+                            const currentAccounts = connectedAccounts.filter(acc => acc.platform === 'googleAds');
+                            const onlyManagerAccount = currentAccounts.length === 1 && currentAccounts[0].name === 'Manager Account';
+                            
+                            if (!googleAccountsLoaded) {
+                              loadGoogleAccounts(false);
+                            } else if (onlyManagerAccount) {
+                              loadGoogleAccounts(true); // Force reload
+                            }
                           }
                         }}
                       />

@@ -237,7 +237,7 @@ export const supabaseHelpers = {
       .from('clients')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {throw error;}
     return data;
@@ -291,9 +291,9 @@ export const supabaseHelpers = {
       .from('integrations')
       .select('*')
       .eq('platform', platform)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') {throw error;}
+    if (error) {throw error;}
     return data;
   },
 

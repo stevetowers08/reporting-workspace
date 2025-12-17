@@ -1553,7 +1553,10 @@ export class AnalyticsOrchestrator {
           new Promise<null>((_, reject) => {
             setTimeout(() => reject(new Error(`Main metrics timeout after ${MAIN_METRICS_TIMEOUT}ms`)), MAIN_METRICS_TIMEOUT);
           })
-        ]).catch(() => null);
+        ]).catch((error) => {
+          debugLogger.error('AnalyticsOrchestrator', 'getAccountMetrics failed', error);
+          return null;
+        });
 
         // Extract main metrics
         if (!mainMetricsResult) {

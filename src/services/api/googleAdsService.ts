@@ -511,43 +511,22 @@ export class GoogleAdsService {
    * Get Google Ads accounts - using new accounts service
    */
   static async getAdAccounts(): Promise<GoogleAdsAccount[]> {
-    const cacheKey = 'googleAds_accounts';
-    
-    // Check cache first
-    const cachedData = this.getCachedData<GoogleAdsAccount[]>(cacheKey);
-    if (cachedData) {
-      return cachedData;
-    }
-
     try {
-      debugLogger.debug('GoogleAdsService', 'Fetching accounts using new service');
-      
-      // Import the new accounts service
+      // Import and call the accounts service
       const { listAccessibleCustomers } = await import('@/services/googleAds/accountsService');
-      
-      // Get accounts using the new service
       const accounts = await listAccessibleCustomers();
       
-      debugLogger.debug('GoogleAdsService', 'Successfully fetched accounts', { 
-        accountCount: accounts.length 
-      });
-
-      // Convert to our interface format
-      const formattedAccounts = accounts.map(account => ({
+      // Convert to interface format
+      return accounts.map(account => ({
         id: account.id,
         name: account.name || account.descriptiveName || `Account ${account.id}`,
         status: 'enabled',
         currency: 'USD',
         timezone: 'UTC'
       }));
-
-      // Cache the results
-      this.setCachedData(cacheKey, formattedAccounts);
-      
-      return formattedAccounts;
     } catch (error) {
       debugLogger.error('GoogleAdsService', 'Error getting accounts', error);
-      return [];
+      throw error;
     }
   }
 
@@ -619,26 +598,40 @@ export class GoogleAdsService {
   }
 
   /**
-   * Get developer token from environment (like V1 implementation)
+   * Get developer token from database (checks integrations table first, then google_ads_configs, then environment)
    */
   private static async getDeveloperToken(): Promise<string | null> {
     try {
-      // Get developer token from environment variable (V1 approach)
-      const developerToken = import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN;
-      
-      if (!developerToken) {
-        debugLogger.warn('GoogleAdsService', 'Google Ads developer token not configured in environment');
-        return null;
+      // Check integrations table first (where the full token is stored)
+      const { supabase } = await import('@/lib/supabase');
+      const { data: integration } = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('platform', 'googleAds')
+        .eq('connected', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (integration?.config?.developer_token) {
+        const devToken = integration.config.developer_token;
+        if (typeof devToken === 'string' && devToken.length >= 15) {
+          return devToken;
+        }
       }
 
-      debugLogger.debug('GoogleAdsService', 'Developer token retrieved from environment', { 
-        hasToken: !!developerToken, 
-        tokenLength: developerToken.length 
-      });
-      return developerToken;
+      // Fallback to google_ads_configs table
+      const { DatabaseService } = await import('@/services/data/databaseService');
+      const config = await DatabaseService.getActiveGoogleAdsConfig();
+      
+      if (config?.developer_token && config.developer_token.length >= 15) {
+        return config.developer_token;
+      }
+      
+      // Fallback to environment variable
+      return import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || null;
     } catch (error) {
-      debugLogger.error('GoogleAdsService', 'Failed to get developer token from environment', error);
-      return null;
+      debugLogger.error('GoogleAdsService', 'Failed to get developer token', error);
+      return import.meta.env.VITE_GOOGLE_ADS_DEVELOPER_TOKEN || null;
     }
   }
 

@@ -406,22 +406,25 @@ export class FacebookAdsService {
           isActive: account.account_status === 1
         }));
 
-        // Filter to only show active accounts (optional)
-        const activeAccounts = processedAccounts.filter(acc => acc.isActive);
-        
+        // Include all accounts (not just active) so users can see all available accounts
+        // Account status: 1=ACTIVE, 2=DISABLED, 3=PENDING_RISK_REVIEW, 7=PENDING_SETTLEMENT, etc.
         debugLogger.info('FacebookAdsService', 'Ad accounts processed', {
           total: processedAccounts.length,
-          active: activeAccounts.length
+          active: processedAccounts.filter(acc => acc.isActive).length,
+          byStatus: processedAccounts.reduce((acc, account) => {
+            acc[account.account_status] = (acc[account.account_status] || 0) + 1;
+            return acc;
+          }, {} as Record<number, number>)
         });
         
         // Cache the results in Supabase for future use
         try {
-          await this.cacheAdAccounts(activeAccounts);
+          await this.cacheAdAccounts(processedAccounts);
         } catch (error) {
           debugLogger.warn('FacebookAdsService', 'Failed to cache ad accounts', error);
         }
         
-        return activeAccounts;
+        return processedAccounts;
         
       } catch (error) {
         debugLogger.error('FacebookAdsService', 'Error fetching ad accounts from Facebook API', error);
@@ -667,22 +670,24 @@ export class FacebookAdsService {
           isActive: account.account_status === 1
         }));
 
-        // Filter to only show active accounts (optional)
-        const activeAccounts = processedAccounts.filter(acc => acc.isActive);
-        
+        // Include all accounts (not just active) so users can see all available accounts
         debugLogger.info('FacebookAdsService', 'Ad accounts refreshed', {
           total: processedAccounts.length,
-          active: activeAccounts.length
+          active: processedAccounts.filter(acc => acc.isActive).length,
+          byStatus: processedAccounts.reduce((acc, account) => {
+            acc[account.account_status] = (acc[account.account_status] || 0) + 1;
+            return acc;
+          }, {} as Record<number, number>)
         });
         
         // Cache the results in Supabase for future use
         try {
-          await this.cacheAdAccounts(activeAccounts);
+          await this.cacheAdAccounts(processedAccounts);
         } catch (error) {
           debugLogger.warn('FacebookAdsService', 'Failed to cache refreshed ad accounts', error);
         }
         
-        return activeAccounts;
+        return processedAccounts;
         
       } catch (error) {
         debugLogger.error('FacebookAdsService', 'Error refreshing ad accounts from Facebook API', error);
