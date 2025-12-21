@@ -47,9 +47,12 @@ export const InternalAgencyHeader: React.FC<InternalAgencyHeaderProps> = ({
             
             <div className="flex items-center gap-2">
               <img
-                src="/logos/tulen. (7).png"
+                src="/logos/tulen-favicon-192x192.png"
                 alt="Tulen Agency logo"
                 className="h-10 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
               <p className="text-xs text-slate-400">Internal Dashboard</p>
             </div>
@@ -202,9 +205,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <img
-                src="/logos/tulen. (7).png"
+                src="/logos/tulen-favicon-192x192.png"
                 alt="Tulen Agency"
                 className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
             {/* Venue Logo and Date - Top Right */}
@@ -273,9 +279,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           {/* Left: Tulen Logo */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <img
-              src="/logos/tulen. (7).png"
+              src="/logos/tulen-favicon-192x192.png"
               alt="Tulen Agency"
               className="h-10 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
 

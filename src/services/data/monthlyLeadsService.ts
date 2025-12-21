@@ -71,19 +71,21 @@ export class MonthlyLeadsService {
   }
 
   /**
-   * Calculate date range for last 5 complete months
+   * Calculate date range for last 5 months including previous month
+   * Uses UTC to ensure consistent behavior across different server timezones
    */
   private static calculateDateRange(): { startDate: string; endDate: string } {
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
-    const currentYear = today.getFullYear();
+    const utcYear = today.getUTCFullYear();
+    const utcMonth = today.getUTCMonth(); // 0-11
 
-    // Start: 5 months ago, first day
-    const startDate = new Date(currentYear, currentMonth - 5, 1);
+    // Start: 5 months ago, first day (using UTC)
+    const startDate = new Date(Date.UTC(utcYear, utcMonth - 5, 1));
     const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    // End: Last day of previous month
-    const endDate = new Date(currentYear, currentMonth, 0);
+    // End: Last day of previous month (to include previous month data)
+    // Use UTC to avoid timezone shifts that could exclude the previous month
+    const endDate = new Date(Date.UTC(utcYear, utcMonth, 0));
     const endDateStr = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
     return { startDate: startDateStr, endDate: endDateStr };
@@ -165,20 +167,33 @@ export class MonthlyLeadsService {
     facebookData: Record<string, number>,
     googleData: Record<string, number>
   ): MonthlyLeadsData[] {
-    // Generate all months in the 5-month range
-    // Use the same calculation as calculateDateRange to avoid timezone issues
+    // Generate all months in the 5-month range including previous month
+    // Use UTC to avoid timezone issues - ensures consistent month calculation regardless of server timezone
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
-    const currentYear = today.getFullYear();
+    const utcYear = today.getUTCFullYear();
+    const utcMonth = today.getUTCMonth(); // 0-11
     
     const allMonths: string[] = [];
     
-    // Generate 5 months starting from 5 months ago
+    // Generate 5 months starting from 5 months ago, including previous month
+    // This ensures we show: [5 months ago, 4 months ago, 3 months ago, 2 months ago, previous month]
+    // Use UTC to match how the APIs calculate months
     for (let i = 0; i < 5; i++) {
-      const monthDate = new Date(currentYear, currentMonth - 5 + i, 1);
-      const year = monthDate.getFullYear();
-      const month = monthDate.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
-      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      // Calculate month using UTC to avoid timezone shifts
+      let year = utcYear;
+      let month = utcMonth - 5 + i;
+      
+      // Handle year rollover
+      while (month < 0) {
+        month += 12;
+        year -= 1;
+      }
+      while (month >= 12) {
+        month -= 12;
+        year += 1;
+      }
+      
+      const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
       allMonths.push(monthStr);
     }
 
