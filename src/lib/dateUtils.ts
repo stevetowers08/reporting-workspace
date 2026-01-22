@@ -30,13 +30,18 @@ export function getDateRange(period: string): DateRange {
         end: endDate.toISOString().split('T')[0],
         period: '30d' // Include period for API preset optimization
       };
-    case 'lastMonth':
-      // For lastMonth, let the API handle it with date_preset
+    case 'lastMonth': {
+      // Calculate actual dates for last month (first day to last day of previous month)
+      const lastMonthStart = new Date();
+      const lastMonthEnd = new Date();
+      lastMonthStart.setMonth(lastMonthEnd.getMonth() - 1, 1); // First day of previous month
+      lastMonthEnd.setDate(0); // Last day of previous month
       return {
-        start: '',
-        end: '',
+        start: lastMonthStart.toISOString().split('T')[0],
+        end: lastMonthEnd.toISOString().split('T')[0],
         period: 'lastMonth'
       };
+    }
     case '90d':
       startDate.setDate(endDate.getDate() - 90);
       break;
