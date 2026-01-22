@@ -2,6 +2,7 @@ import { AgencyHeader } from "@/components/dashboard/AgencyHeader";
 import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { GoogleTabContent, LeadsTabContent, MetaTabContent, SummaryTabContent } from "@/components/dashboard/tabs";
 import { PDFExportOptionsModal } from "@/components/export/PDFExportOptionsModal";
+import { ShareLinkModal } from "@/components/share/ShareLinkModal";
 import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
@@ -114,6 +115,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // Enhanced loading states
   const { startLoading: _startLoading, stopLoading: _stopLoading, isLoading: _isDashboardLoading } = useLoading('dashboard');
@@ -131,6 +133,10 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   
   // Check if this is a shared view (no agency header)
   const isSharedView = searchParams.get('shared') === 'true';
+
+  // Check share type - 'lastMonth' locks the date selector
+  const shareType = searchParams.get('type');
+  const isDateLocked = isShared && shareType === 'lastMonth';
   
   // ✅ FIX: Initialize all callbacks and memos AFTER all hooks
   const handleTabChange = useCallback((tab: string) => {
@@ -159,13 +165,18 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
           end: endDate.toISOString().split('T')[0],
           period: '30d'
         };
-      case 'lastMonth':
-        // For lastMonth, let the API handle it with date_preset
+      case 'lastMonth': {
+        // Calculate actual dates for last month (first day to last day of previous month)
+        const lastMonthStart = new Date();
+        const lastMonthEnd = new Date();
+        lastMonthStart.setMonth(lastMonthEnd.getMonth() - 1, 1); // First day of previous month
+        lastMonthEnd.setDate(0); // Last day of previous month
         return {
-          start: '',
-          end: '',
+          start: lastMonthStart.toISOString().split('T')[0],
+          end: lastMonthEnd.toISOString().split('T')[0],
           period: 'lastMonth'
         };
+      }
       case '90d':
         startDate.setDate(endDate.getDate() - 90);
         break;
@@ -198,8 +209,15 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
 
   // Memoize date range to ensure React Query detects changes
   const dateRange = useMemo(() => getDateRange(selectedPeriod), [selectedPeriod, getDateRange]);
-  
+
   const queryClient = useQueryClient();
+
+  // Lock period to 'lastMonth' when shared with type=lastMonth
+  useEffect(() => {
+    if (isDateLocked && selectedPeriod !== 'lastMonth') {
+      setSelectedPeriod('lastMonth');
+    }
+  }, [isDateLocked, selectedPeriod]);
 
   // Invalidate cache when date range changes
   useEffect(() => {
@@ -339,11 +357,8 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   }));
 
   const handleShare = useCallback(() => {
-    if (typeof window !== 'undefined' && actualClientId) {
-      const shareUrl = `${window.location.origin}/share/${actualClientId}`;
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        // Could show a toast notification here
-      });
+    if (actualClientId) {
+      setShowShareModal(true);
     }
   }, [actualClientId]);
 
@@ -453,6 +468,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         activeTab={activeTab}
         onTabChange={handleTabChange}
         tabSettings={clientData?.services?.tabSettings}
+        isDateLocked={isDateLocked}
       />
 
       {/* Main Content */}
@@ -538,6 +554,14 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         dateRange={dateRange}
         availableTabs={availableTabs}
         isExporting={exportingPDF}
+      />
+
+      {/* Share Link Modal */}
+      <ShareLinkModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        clientId={actualClientId || ''}
+        clientName={clientData?.name || ''}
       />
     </div>
     </LazyComponentErrorBoundary>

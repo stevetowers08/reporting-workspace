@@ -134,6 +134,7 @@ interface ClientFacingHeaderProps {
     leads?: boolean;
   };
   className?: string;
+  isDateLocked?: boolean; // When true, hide date selector (for lastMonth share links)
 }
 
 export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
@@ -143,8 +144,15 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   activeTab,
   onTabChange,
   tabSettings,
-  className = ''
+  className = '',
+  isDateLocked = false
 }) => {
+  // Get the month name for locked date display
+  const getLockedMonthLabel = () => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return lastMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
   // Helper function to get actual date range
   const getDateRange = (period: string) => {
     const formatDate = (date: Date) => {
@@ -257,20 +265,26 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           
           {/* Date Selector Row - Below Tabs */}
           <div className="flex justify-center w-full">
-            <select
-              value={selectedPeriod}
-              onChange={(e) => onPeriodChange(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 w-full max-w-[200px] shadow-sm appearance-none cursor-pointer"
-              style={{ color: '#0f172a' }}
-            >
-              <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
-              <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
-              <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
-              <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
-              <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
-              <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
-              <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
-            </select>
+            {isDateLocked ? (
+              <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 w-full max-w-[200px] shadow-sm text-center">
+                {getLockedMonthLabel()} Report
+              </div>
+            ) : (
+              <select
+                value={selectedPeriod}
+                onChange={(e) => onPeriodChange(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 w-full max-w-[200px] shadow-sm appearance-none cursor-pointer"
+                style={{ color: '#0f172a' }}
+              >
+                <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
+                <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
+                <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
+                <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
+                <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
+                <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
+                <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
+              </select>
+            )}
           </div>
         </div>
 
@@ -309,20 +323,26 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
           {/* Right: Period Selector and Client Branding */}
           <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0 ml-auto">
             <div className="flex flex-col gap-1">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => onPeriodChange(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 hover:border-slate-400 transition-colors w-28 lg:w-32 shadow-sm appearance-none cursor-pointer"
-                style={{ color: '#0f172a' }}
-              >
-                <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
-                <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
-                <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
-                <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
-                <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
-                <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
-                <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
-              </select>
+              {isDateLocked ? (
+                <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 w-28 lg:w-36 shadow-sm text-center">
+                  {getLockedMonthLabel()} Report
+                </div>
+              ) : (
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => onPeriodChange(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 hover:border-slate-400 transition-colors w-28 lg:w-32 shadow-sm appearance-none cursor-pointer"
+                  style={{ color: '#0f172a' }}
+                >
+                  <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
+                  <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
+                  <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
+                  <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
+                  <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
+                  <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
+                  <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
+                </select>
+              )}
             </div>
             
             {/* Client Branding */}
