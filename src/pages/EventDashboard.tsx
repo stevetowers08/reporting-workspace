@@ -3,6 +3,7 @@ import { ClientFacingHeader } from "@/components/dashboard/UnifiedHeader";
 import { GoogleTabContent, LeadsTabContent, MetaTabContent, SummaryTabContent } from "@/components/dashboard/tabs";
 import { PDFExportOptionsModal } from "@/components/export/PDFExportOptionsModal";
 import { ShareLinkModal } from "@/components/share/ShareLinkModal";
+import { GroupBreadcrumb } from "@/components/groups/GroupBadge";
 import { EnhancedPageLoader, useLoading } from "@/components/ui/EnhancedLoadingSystem";
 import { Button } from "@/components/ui/button-simple";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,9 +11,10 @@ import { Tabs, TabsContent } from "@/components/ui/tabs-simple";
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAvailableClients, useClientData } from '@/hooks/useDashboardQueries';
+import { useClientGroups } from '@/hooks/useClientGroups';
 import { simpleClientPDFService } from '@/services/export/simpleClientPDFService';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
 interface EventDashboardProps {
   isShared?: boolean;
@@ -111,6 +113,7 @@ const LazyComponentErrorBoundary = ({ children }: { children: React.ReactNode })
 const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clientId }) => {
   // ✅ FIX: Initialize ALL hooks first to prevent TDZ issues
   const { clientId: urlClientId } = useParams<{ clientId: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const [exportingPDF, setExportingPDF] = useState(false);
@@ -243,6 +246,7 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
   // ✅ FIX: Declare clientData BEFORE using it in callbacks to prevent TDZ
   const { data: clientData, isLoading: clientLoading, error: clientError } = useClientData(actualClientId);
   const { data: availableClients, isLoading: clientsLoading, error: clientsError } = useAvailableClients();
+  const { groups: clientGroups, isLoading: groupsLoading } = useClientGroups(actualClientId);
 
   // Get available tabs based on tabSettings
   const availableTabs = useMemo(() => {
@@ -470,6 +474,16 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         tabSettings={clientData?.services?.tabSettings}
         isDateLocked={isDateLocked}
       />
+
+      {/* Group Context - Shows groups this client belongs to */}
+      {!groupsLoading && clientGroups.length > 0 && (
+        <div className="px-4 sm:px-6 md:px-8 lg:px-10 pt-4 pb-0">
+          <GroupBreadcrumb 
+            groups={clientGroups}
+            onGroupClick={(group) => navigate(`/agency/groups/${group.id}/edit`)}
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-4 sm:py-6 md:py-8">

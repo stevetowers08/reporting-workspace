@@ -20,6 +20,11 @@ import FacebookAdsReporting from "@/pages/FacebookAdsReporting";
 import Fallback from "@/pages/Fallback";
 import { GHLCallbackPage } from "@/pages/GHLCallbackPage";
 import GoogleAdsConfigPage from "@/pages/GoogleAdsConfigPage";
+import GroupsListPage from "@/pages/GroupsListPage";
+import GroupEditPage from "@/pages/GroupEditPage";
+import GroupReportPage from "@/pages/GroupReportPage";
+import SharedGroupView from "@/pages/SharedGroupView";
+import SharedClientView from "@/pages/SharedClientView";
 import { HealthCheck } from "@/pages/health";
 import { TokenRefreshService } from "@/services/auth/TokenRefreshService";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -270,15 +275,24 @@ const App = () => {
                     <Route path="/agency/ai-insights" element={<AgencyPanel />} />
                     <Route path="/agency/clients/:clientId/edit" element={<ClientEditPage />} />
                     <Route path="/agency/google-ads-config" element={<GoogleAdsConfigPage />} />
+                    <Route path="/agency/groups" element={<GroupsListPage />} />
+                    <Route path="/agency/groups/:groupId/edit" element={<GroupEditPage />} />
+                    <Route path="/agency/groups/:groupId/report" element={<GroupReportPage />} />
                     <Route path="/ad-accounts" element={<AdAccountsOverview />} />
                     <Route path="/reporting" element={<FacebookAdsReporting />} />
                     <Route path="/api-testing" element={<APITestingPage />} />
                     <Route path="/oauth/callback" element={<GHLCallbackPage />} />
+                    {/* Legacy share route - redirect to new token-based routes */}
                     <Route path="/share/:clientId" element={
                       <Suspense fallback={<DashboardSkeleton />}>
                         <EventDashboard isShared={true} />
                       </Suspense>
                     } />
+                    
+                    {/* New token-based share routes */}
+                    <Route path="/share/g/:token" element={<SharedGroupView />} />
+                    <Route path="/share/c/:token" element={<SharedClientView />} />
+                    <Route path="/share/g/:token/client/:clientId" element={<SharedClientView />} />
                     <Route path="/health" element={<HealthCheckPage />} />
                     {/* Fallback for unknown routes */}
                     <Route path="*" element={<Fallback />} />

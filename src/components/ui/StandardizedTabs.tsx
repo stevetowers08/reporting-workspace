@@ -1,6 +1,6 @@
 import { LogoManager } from '@/components/ui/LogoManager';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs-simple';
-import { BarChart3, Users } from 'lucide-react';
+import { BarChart3, Users, FolderOpen } from 'lucide-react';
 import React, { useRef } from 'react';
 
 interface TabItem {
@@ -130,6 +130,12 @@ export const AGENCY_TABS: TabItem[] = [
     label: 'Venue Management',
     shortLabel: 'V',
     icon: <Users size={16} />
+  },
+  {
+    value: 'groups',
+    label: 'Groups',
+    shortLabel: 'G',
+    icon: <FolderOpen size={16} />
   },
   {
     value: 'integrations',

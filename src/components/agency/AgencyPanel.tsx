@@ -1,5 +1,6 @@
 import { AIInsightsTab } from '@/components/agency/AIInsightsTab';
 import { ClientManagementTab } from '@/components/agency/ClientManagementTab';
+import { GroupsManagementTab } from '@/components/agency/GroupsManagementTab';
 import { IntegrationManagementTab } from '@/components/agency/IntegrationManagementTab';
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import { AGENCY_TABS, StandardizedTabs } from '@/components/ui/StandardizedTabs';
@@ -31,6 +32,7 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
   const getActiveTabFromPath = (pathname: string): string => {
     if (pathname.includes('/integrations')) {return 'integrations';}
     if (pathname.includes('/ai-insights')) {return 'ai-insights';}
+    if (pathname.includes('/groups')) {return 'groups';}
     if (pathname.includes('/clients')) {return 'clients';}
     return 'clients'; // default
   };
@@ -209,6 +211,11 @@ export const AgencyPanel: React.FC<AgencyPanelProps> = ({
               onDeleteClient={handleDeleteClient}
               onOpenClient={handleOpenClient}
             />
+          </TabsContent>
+
+          {/* Groups Tab */}
+          <TabsContent value="groups" className="mt-0">
+            <GroupsManagementTab />
           </TabsContent>
 
           {/* Integrations Tab */}
