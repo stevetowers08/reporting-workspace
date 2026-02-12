@@ -475,10 +475,10 @@ const EventDashboard: React.FC<EventDashboardProps> = ({ isShared = false, clien
         isDateLocked={isDateLocked}
       />
 
-      {/* Group Context - Shows groups this client belongs to */}
-      {!groupsLoading && clientGroups.length > 0 && (
+      {/* Group Context - Shows groups this client belongs to (hidden in shared view) */}
+      {!isShared && !groupsLoading && clientGroups.length > 0 && (
         <div className="px-4 sm:px-6 md:px-8 lg:px-10 pt-4 pb-0">
-          <GroupBreadcrumb 
+          <GroupBreadcrumb
             groups={clientGroups}
             onGroupClick={(group) => navigate(`/agency/groups/${group.id}/edit`)}
           />

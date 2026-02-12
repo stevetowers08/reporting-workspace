@@ -176,14 +176,14 @@ const SharedGroupView: React.FC = () => {
   if (!selectedClient) return null;
 
   return (
-    <div className="min-h-screen">
-      {/* Group context header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+    <div className="min-h-screen bg-slate-50">
+      {/* Group context header - Compact design */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {/* Group Logo */}
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
                 {group.logo_url ? (
                   <img
                     src={group.logo_url}
@@ -194,21 +194,21 @@ const SharedGroupView: React.FC = () => {
                   <Users className="h-4 w-4" />
                 )}
               </div>
-              <div>
-                <div className="text-xs opacity-90">Group Report</div>
-                <div className="font-semibold">{group.name}</div>
+              <div className="leading-tight">
+                <div className="text-[10px] opacity-80 uppercase tracking-wide font-medium">Group Report</div>
+                <div className="text-sm font-semibold">{group.name}</div>
               </div>
             </div>
 
             {/* Venue Selector Dropdown */}
             {clients.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-sm opacity-90">Venue:</span>
+                <span className="text-xs opacity-90 font-medium">Venue:</span>
                 <div className="relative">
                   <select
                     value={selectedClientId}
                     onChange={(e) => handleVenueChange(e.target.value)}
-                    className="h-9 pl-3 pr-10 border border-white/30 rounded-lg text-sm bg-white/10 backdrop-blur-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/50 appearance-none cursor-pointer min-w-[200px]"
+                    className="h-8 pl-2.5 pr-9 border border-white/30 rounded-lg text-xs bg-white/10 backdrop-blur-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/50 appearance-none cursor-pointer min-w-[180px] hover:bg-white/15 transition-colors"
                   >
                     {clients.map((client) => (
                       <option key={client.id} value={client.id} className="text-slate-900">
@@ -216,24 +216,24 @@ const SharedGroupView: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ChevronDown className="h-4 w-4 opacity-70" />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Group Description */}
+          {/* Group Description - More compact */}
           {group.description && (
-            <div className="mt-2 text-sm opacity-90">
+            <div className="mt-1.5 text-xs opacity-85 leading-snug">
               {group.description}
             </div>
           )}
         </div>
       </div>
 
-      {/* Dashboard */}
+      {/* Dashboard - No extra spacing */}
       <Suspense
         fallback={
           <div className="flex items-center justify-center h-screen">
