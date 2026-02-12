@@ -24,12 +24,12 @@ export const GroupsManagementTab: React.FC<GroupsManagementTabProps> = ({
   const { groups, isLoading, createGroup, deleteGroup } = useGroups();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [sharingGroup, setSharingGroup] = useState<Group | null>(null);
+  const [sharingGroupId, setSharingGroupId] = useState<string | null>(null);
   const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
   const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
 
-  // Hook for sharing functionality
-  const { generateShareLink, revokeShareLink } = useGroup(sharingGroup?.id);
+  // Hook for sharing functionality - fetches group with clients
+  const { group: sharingGroup } = useGroup(sharingGroupId);
 
   const filteredGroups = groups
     .filter(group => 
@@ -213,7 +213,7 @@ export const GroupsManagementTab: React.FC<GroupsManagementTabProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSharingGroup(group)}
+                  onClick={() => setSharingGroupId(group.id)}
                   className="flex-1 h-8 text-slate-600 hover:text-green-600 hover:bg-green-50"
                 >
                   <Share2 className="h-3.5 w-3.5 mr-1.5" />
@@ -264,12 +264,8 @@ export const GroupsManagementTab: React.FC<GroupsManagementTabProps> = ({
       {sharingGroup && (
         <ShareLinkModal
           isOpen={!!sharingGroup}
-          onClose={() => setSharingGroup(null)}
-          resourceType="group"
-          resourceName={sharingGroup.name}
-          existingShareUrl={sharingGroup.shareable_link}
-          onGenerateLink={generateShareLink}
-          onRevokeLink={sharingGroup.shareable_link ? revokeShareLink : undefined}
+          onClose={() => setSharingGroupId(null)}
+          group={sharingGroup}
         />
       )}
     </div>
