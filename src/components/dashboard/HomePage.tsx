@@ -1,5 +1,6 @@
 import { AgencyHeader } from '@/components/dashboard/AgencyHeader';
 import EditClientModal from '@/components/modals/EditClientModal';
+import { ShareLinkModal } from '@/components/share/ShareLinkModal';
 import { LogoManager } from '@/components/ui/LogoManager';
 import { PageLoader } from '@/components/ui/UnifiedLoadingSystem';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import {
     BarChart3,
     Edit,
     Plus,
+    Share2,
     Users
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -51,6 +53,7 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
 }) => {
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [sharingClient, setSharingClient] = useState<Client | null>(null);
 
   // Use shared integration status hook instead of local state and direct database calls
   const { data: integrationStatus, isLoading: integrationStatusLoading } = useIntegrationStatus();
@@ -201,18 +204,33 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
                   onClick={() => onClientSelect(client.id)}
                 >
                   <CardContent className="p-3">
-                    {/* Edit Button - positioned like agency page */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute top-2 right-2 h-6 w-6 p-0 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                      onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        handleEditClient(client);
-                      }}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
+                    {/* Action Buttons - appear on hover */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-slate-500 hover:text-green-600 hover:bg-green-50"
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          setSharingClient(client);
+                        }}
+                        title="Share link"
+                      >
+                        <Share2 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          handleEditClient(client);
+                        }}
+                        title="Edit venue"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </div>
                     
                     <div className="flex items-center gap-3 mb-3">
                       {client.logo_url ? (
@@ -306,6 +324,16 @@ export const HomePage: React.FC<HomePageProps> = React.memo(({
           onUpdateClient={handleUpdateClient}
           onCreateClient={handleCreateClient}
           client={editingClient}
+        />
+      )}
+
+      {/* Share Link Modal */}
+      {sharingClient && (
+        <ShareLinkModal
+          isOpen={!!sharingClient}
+          onClose={() => setSharingClient(null)}
+          clientId={sharingClient.id}
+          clientName={sharingClient.name}
         />
       )}
     </div>
