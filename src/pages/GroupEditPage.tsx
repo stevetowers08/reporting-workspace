@@ -341,15 +341,13 @@ const GroupEditPage: React.FC = () => {
       </main>
 
       {/* Share Modal */}
-      <ShareLinkModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        resourceType="group"
-        resourceName={group.name}
-        existingShareUrl={group.shareable_link}
-        onGenerateLink={generateShareLink}
-        onRevokeLink={group.shareable_link ? revokeShareLink : undefined}
-      />
+      {group && (
+        <ShareLinkModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          group={group}
+        />
+      )}
     </div>
   );
 };

@@ -157,12 +157,13 @@ const SharedGroupView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
+      {/* Header with Venue Selector */}
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+              {/* Group Logo */}
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
                 {group.logo_url ? (
                   <img
                     src={group.logo_url}
@@ -170,86 +171,126 @@ const SharedGroupView: React.FC = () => {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  group.name.charAt(0).toUpperCase()
+                  <Users className="h-5 w-5" />
                 )}
               </div>
+
+              {/* Group Name */}
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{group.name}</h1>
-                <p className="text-sm text-gray-500">
-                  {clients.length} {clients.length === 1 ? 'client' : 'clients'}
-                </p>
+                <div className="text-xs text-slate-500 uppercase tracking-wide">Group</div>
+                <h1 className="text-base font-semibold text-slate-900">{group.name}</h1>
               </div>
             </div>
+
+            {/* Venue Selector Dropdown */}
+            {clients.length > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-500">Select Venue:</span>
+                <div className="relative">
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleViewClient(e.target.value);
+                      }
+                    }}
+                    className="h-9 pl-3 pr-10 border border-slate-300 rounded-lg text-sm bg-white text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer min-w-[200px]"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Choose a venue...
+                    </option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg
+                      className="h-4 w-4 text-slate-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       {/* Description */}
       {group.description && (
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <p className="text-gray-600">{group.description}</p>
+        <div className="bg-blue-50 border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <p className="text-sm text-slate-600">{group.description}</p>
           </div>
         </div>
       )}
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">Venues in this Group</h2>
+          <p className="text-sm text-slate-500">Select a venue from the dropdown above or click below</p>
+        </div>
+
         {clients.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">No clients in this group</p>
-          </div>
+          <Card className="border-2 border-dashed border-slate-300 bg-slate-50">
+            <CardContent className="p-12 text-center">
+              <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+              <p className="text-slate-500">No venues in this group</p>
+            </CardContent>
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-3 grid-cols-4">
             {clients.map((client) => (
               <Card
                 key={client.id}
-                className="hover:shadow-lg transition-shadow cursor-pointer group"
+                className="cursor-pointer border-slate-200 hover:shadow-md transition-shadow group"
                 onClick={() => handleViewClient(client.id)}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shrink-0">
-                      {client.logo_url ? (
-                        <img
-                          src={client.logo_url}
-                          alt={client.name}
-                          className="w-full h-full object-cover rounded-lg"
-                        />
-                      ) : (
-                        client.name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            client.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : client.status === 'paused'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {client.status}
-                        </span>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3 mb-3">
+                    {client.logo_url ? (
+                      <img
+                        src={client.logo_url}
+                        alt={`${client.name} logo`}
+                        className="w-8 h-8 object-cover rounded-lg border border-slate-200"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="h-4 w-4 text-white" />
                       </div>
-                    </div>
-
-                    <div className="text-gray-400 group-hover:text-blue-600 transition-colors">
-                      <ArrowRight className="h-5 w-5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-semibold text-slate-900 truncate">
+                        {client.name}
+                      </h3>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center gap-1.5">
-                      <BarChart3 className="h-4 w-4" />
-                      <span>View Dashboard</span>
-                    </div>
-                    <ExternalLink className="h-4 w-4" />
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        client.status === 'active'
+                          ? 'bg-green-100 text-green-700'
+                          : client.status === 'paused'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {client.status}
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
                   </div>
                 </CardContent>
               </Card>
@@ -259,9 +300,9 @@ const SharedGroupView: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t mt-auto">
+      <footer className="bg-white border-t border-slate-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-xs text-slate-400">
             Shared via Marketing Analytics Dashboard
           </p>
         </div>
