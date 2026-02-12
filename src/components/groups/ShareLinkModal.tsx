@@ -28,7 +28,7 @@ export const ShareLinkModal: React.FC<ShareLinkModalProps> = ({
   };
 
   const generateShareUrl = (type: ShareType): string => {
-    const baseUrl = `${window.location.origin}/share/group/${group.id}`;
+    const baseUrl = `${window.location.origin}/share/g/${group.id}`;
     if (type === 'lastMonth') {
       return `${baseUrl}?type=lastMonth`;
     }

@@ -599,18 +599,29 @@ export async function getShareTokensForResource(
 
 /**
  * Get shared group data for public viewing
+ * Accepts either a share token or a group ID (for internal sharing)
  */
-export async function getSharedGroupData(token: string): Promise<SharedGroupData | null> {
+export async function getSharedGroupData(tokenOrId: string): Promise<SharedGroupData | null> {
   debug.log('getSharedGroupData called');
-  
-  const validation = await validateShareToken(token);
-  
-  if (!validation || !validation.valid || validation.token.resource_type !== 'group') {
+
+  // Try to validate as a token first
+  const validation = await validateShareToken(tokenOrId);
+
+  let groupWithClients: GroupWithClients | null = null;
+
+  if (validation && validation.valid && validation.token.resource_type === 'group') {
+    // Valid token - use the validated resource
+    groupWithClients = validation.resource as GroupWithClients;
+  } else {
+    // Not a valid token - try treating it as a group ID (for internal sharing)
+    debug.log('Not a valid token, trying as group ID');
+    groupWithClients = await getGroupWithClients(tokenOrId);
+  }
+
+  if (!groupWithClients) {
     return null;
   }
-  
-  const groupWithClients = validation.resource as GroupWithClients;
-  
+
   return {
     group: {
       id: groupWithClients.id,
