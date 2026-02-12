@@ -206,7 +206,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
 
   return (
     <header className={`bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-40 ${className}`}>
-      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-3 sm:py-4 md:py-5">
+      <div className="px-4 sm:px-6 md:px-8 lg:px-10 py-2 sm:py-2.5 md:py-3">
         {/* Mobile Layout */}
         <div className="flex flex-col gap-3 md:hidden">
           {/* Top Row: Logo and Venue/Date (Top Right) */}
@@ -295,7 +295,7 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
             <img
               src="/logos/tulen-favicon-192x192.png"
               alt="Tulen Agency"
-              className="h-10 object-contain"
+              className="h-8 object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -346,25 +346,25 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
             </div>
             
             {/* Client Branding */}
-            <div className="flex items-center gap-2 lg:gap-3 pl-3 lg:pl-4 border-l border-slate-200">
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2 lg:gap-2.5">
+            <div className="flex items-center gap-2 lg:gap-2.5 pl-3 lg:pl-3.5 border-l border-slate-200">
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-2">
                   {clientData?.logo_url ? (
                     <img
                       src={clientData.logo_url}
                       alt={`${clientData.name} logo`}
-                      className="w-9 h-9 lg:w-11 lg:h-11 object-cover rounded-lg border border-slate-200 shadow-sm"
+                      className="w-8 h-8 lg:w-9 lg:h-9 object-cover rounded-lg border border-slate-200 shadow-sm"
                     />
                   ) : (
-                    <div className="w-9 h-9 lg:w-11 lg:h-11 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                      <BarChart3 className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+                    <div className="w-8 h-8 lg:w-9 lg:h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <BarChart3 className="h-4 w-4 text-white" />
                     </div>
                   )}
                   <div className="flex flex-col items-start">
-                    <h2 className="text-sm lg:text-base font-semibold text-slate-900 leading-tight whitespace-nowrap">
+                    <h2 className="text-xs lg:text-sm font-semibold text-slate-900 leading-tight whitespace-nowrap">
                       {clientData?.name || 'Dashboard'}
                     </h2>
-                    <p className="text-xs text-slate-500 leading-tight whitespace-nowrap">
+                    <p className="text-[10px] lg:text-xs text-slate-500 leading-tight whitespace-nowrap">
                       {getDateRange(selectedPeriod)}
                     </p>
                   </div>
