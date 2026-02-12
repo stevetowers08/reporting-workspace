@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button-simple';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress-simple';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 import { DevAPITester, ServiceTestResults, TestResult } from '../../tests/dev-helpers/api-tester';
 
 interface TestSummary {
@@ -14,6 +16,7 @@ interface TestSummary {
 }
 
 export const APITestingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [testSummary, setTestSummary] = useState<TestSummary | null>(null);
@@ -104,12 +107,30 @@ export const APITestingPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">API Testing Dashboard</h1>
-        <p className="text-gray-600 mb-6">
-          Test all API connections and identify issues with Google Ads and Go High Level integrations.
-        </p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 mb-8">
+        <div className="max-w-6xl mx-auto px-8">
+          <div className="flex items-center h-14">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/agency')}
+              className="text-slate-600"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Agency
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="p-8 max-w-6xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-4">API Testing Dashboard</h1>
+          <p className="text-gray-600 mb-6">
+            Test all API connections and identify issues with Google Ads and Go High Level integrations.
+          </p>
         
         {/* Test Summary */}
         {testSummary && (
@@ -240,6 +261,7 @@ export const APITestingPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
+      </div>
       </div>
     </div>
   );
