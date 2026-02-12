@@ -9,10 +9,10 @@ import {
   Lock,
   Loader2,
   AlertCircle,
-  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button-simple';
 import { Input } from '@/components/ui/input';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { getSharedGroupData, verifySharePassword } from '@/services/data/groupService';
 import { SharedGroupData } from '@/types/groups';
 
@@ -204,22 +204,15 @@ const SharedGroupView: React.FC = () => {
             {clients.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs opacity-90 font-medium">Venue:</span>
-                <div className="relative">
-                  <select
-                    value={selectedClientId}
-                    onChange={(e) => handleVenueChange(e.target.value)}
-                    className="h-8 pl-2.5 pr-9 border border-white/30 rounded-lg text-xs bg-white/10 backdrop-blur-sm text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/50 appearance-none cursor-pointer min-w-[180px] hover:bg-white/15 transition-colors"
-                  >
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id} className="text-slate-900">
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                  </div>
-                </div>
+                <CustomSelect
+                  options={clients.map(client => ({
+                    value: client.id,
+                    label: client.name
+                  }))}
+                  value={selectedClientId}
+                  onChange={handleVenueChange}
+                  variant="gradient"
+                />
               </div>
             )}
           </div>

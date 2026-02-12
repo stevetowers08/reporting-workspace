@@ -1,6 +1,7 @@
 import { DASHBOARD_TABS, StandardizedTabs } from '@/components/ui/StandardizedTabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button-simple';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { ArrowLeft, BarChart3, FileDown, Settings, Share2, Users } from 'lucide-react';
 import React from 'react';
 
@@ -147,6 +148,17 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
   className = '',
   isDateLocked = false
 }) => {
+  // Period options for the dropdown
+  const periodOptions = [
+    { value: '7d', label: 'Last 7 days' },
+    { value: '14d', label: 'Last 14 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: 'lastMonth', label: 'Last month' },
+    { value: '90d', label: 'Last 90 days' },
+    { value: '3m', label: 'Last 3 months' },
+    { value: '1y', label: 'Last year' },
+  ];
+
   // Get the month name for locked date display
   const getLockedMonthLabel = () => {
     const now = new Date();
@@ -270,20 +282,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                 {getLockedMonthLabel()} Report
               </div>
             ) : (
-              <select
+              <CustomSelect
+                options={periodOptions}
                 value={selectedPeriod}
-                onChange={(e) => onPeriodChange(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 w-full max-w-[200px] shadow-sm appearance-none cursor-pointer"
-                style={{ color: '#0f172a' }}
-              >
-                <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
-                <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
-                <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
-                <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
-                <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
-                <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
-                <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
-              </select>
+                onChange={onPeriodChange}
+                className="w-full max-w-[200px]"
+              />
             )}
           </div>
         </div>
@@ -328,20 +332,12 @@ export const ClientFacingHeader: React.FC<ClientFacingHeaderProps> = ({
                   {getLockedMonthLabel()} Report
                 </div>
               ) : (
-                <select
+                <CustomSelect
+                  options={periodOptions}
                   value={selectedPeriod}
-                  onChange={(e) => onPeriodChange(e.target.value)}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-900 hover:border-slate-400 transition-colors w-28 lg:w-32 shadow-sm appearance-none cursor-pointer"
-                  style={{ color: '#0f172a' }}
-                >
-                  <option value="7d" style={{ color: '#0f172a' }}>Last 7 days</option>
-                  <option value="14d" style={{ color: '#0f172a' }}>Last 14 days</option>
-                  <option value="30d" style={{ color: '#0f172a' }}>Last 30 days</option>
-                  <option value="lastMonth" style={{ color: '#0f172a' }}>Last month</option>
-                  <option value="90d" style={{ color: '#0f172a' }}>Last 90 days</option>
-                  <option value="3m" style={{ color: '#0f172a' }}>Last 3 months</option>
-                  <option value="1y" style={{ color: '#0f172a' }}>Last year</option>
-                </select>
+                  onChange={onPeriodChange}
+                  className="w-28 lg:w-32"
+                />
               )}
             </div>
             
