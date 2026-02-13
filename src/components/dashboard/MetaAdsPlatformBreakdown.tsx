@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { EventDashboardData } from '@/services/data/eventMetricsService';
-import { Users, DollarSign } from 'lucide-react';
+import { Users } from 'lucide-react';
 import React from 'react';
 
 interface MetaAdsPlatformBreakdownProps {
@@ -59,11 +59,12 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
   };
 
   const formatCurrency = (value: number) => {
+    if (!value || value <= 0) return '-';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(value);
   };
 
@@ -80,7 +81,7 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
       </div>
       <div>
         <div className="space-y-6">
-          {/* Meta vs Instagram */}
+          {/* Facebook vs Instagram */}
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Facebook vs Instagram</h3>
@@ -94,30 +95,14 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
               </div>
             </div>
             {/* CPL Stats for Platforms */}
-            <div className="grid grid-cols-2 gap-4 mt-3">
-              <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                  <span className="text-xs text-slate-600">Facebook CPL</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-900">
-                    {facebookVsInstagram.facebookCpl > 0 ? formatCurrency(facebookVsInstagram.facebookCpl) : '-'}
-                  </span>
-                </div>
+            <div className="flex items-center justify-center gap-6 mt-3 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                <span>CPL: {formatCurrency(facebookVsInstagram.facebookCpl)}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-pink-500"></div>
-                  <span className="text-xs text-slate-600">Instagram CPL</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-900">
-                    {facebookVsInstagram.instagramCpl > 0 ? formatCurrency(facebookVsInstagram.instagramCpl) : '-'}
-                  </span>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+                <span>CPL: {formatCurrency(facebookVsInstagram.instagramCpl)}</span>
               </div>
             </div>
           </div>
@@ -136,14 +121,8 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
                     <div className="w-24 bg-slate-200 rounded-full h-2">
                       <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${adPlacements.feed}%` }}></div>
                     </div>
-                    <span className="text-xs text-slate-500 w-8">{adPlacements.feed}%</span>
+                    <span className="text-xs text-slate-500">{adPlacements.feed}% ({formatCurrency(adPlacements.feedCpl)})</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded">
-                  <span className="text-xs text-slate-500">CPL:</span>
-                  <span className="text-xs font-medium text-slate-900">
-                    {adPlacements.feedCpl > 0 ? formatCurrency(adPlacements.feedCpl) : '-'}
-                  </span>
                 </div>
               </div>
               
@@ -155,14 +134,8 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
                     <div className="w-24 bg-slate-200 rounded-full h-2">
                       <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${adPlacements.stories}%` }}></div>
                     </div>
-                    <span className="text-xs text-slate-500 w-8">{adPlacements.stories}%</span>
+                    <span className="text-xs text-slate-500">{adPlacements.stories}% ({formatCurrency(adPlacements.storiesCpl)})</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded">
-                  <span className="text-xs text-slate-500">CPL:</span>
-                  <span className="text-xs font-medium text-slate-900">
-                    {adPlacements.storiesCpl > 0 ? formatCurrency(adPlacements.storiesCpl) : '-'}
-                  </span>
                 </div>
               </div>
               
@@ -174,14 +147,8 @@ export const MetaAdsPlatformBreakdown: React.FC<MetaAdsPlatformBreakdownProps> =
                     <div className="w-24 bg-slate-200 rounded-full h-2">
                       <div className="bg-pink-500 h-2 rounded-full" style={{ width: `${adPlacements.reels}%` }}></div>
                     </div>
-                    <span className="text-xs text-slate-500 w-8">{adPlacements.reels}%</span>
+                    <span className="text-xs text-slate-500">{adPlacements.reels}% ({formatCurrency(adPlacements.reelsCpl)})</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded">
-                  <span className="text-xs text-slate-500">CPL:</span>
-                  <span className="text-xs font-medium text-slate-900">
-                    {adPlacements.reelsCpl > 0 ? formatCurrency(adPlacements.reelsCpl) : '-'}
-                  </span>
                 </div>
               </div>
             </div>
