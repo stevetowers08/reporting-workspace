@@ -165,7 +165,7 @@ async function getCustomerClientAccounts(
       FROM customer_client
     `;
 
-    const url = `https://googleads.googleapis.com/v22/customers/${managerCustomerId}/googleAds:search`;
+    const url = `https://googleads.googleapis.com/v23/customers/${managerCustomerId}/googleAds:search`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -274,7 +274,7 @@ async function getCustomerClientAccounts(
  */
 async function getAccessibleCustomers(accessToken: string, developerToken: string): Promise<CommonGoogleAdsAccount[]> {
   try {
-    const url = `https://googleads.googleapis.com/v22/customers:listAccessibleCustomers`;
+    const url = `https://googleads.googleapis.com/v23/customers:listAccessibleCustomers`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -370,7 +370,7 @@ async function _getAccountDetails(
     `;
 
     const response = await fetch(
-      `https://googleads.googleapis.com/v22/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:search`,
       {
         method: 'POST',
         headers: {

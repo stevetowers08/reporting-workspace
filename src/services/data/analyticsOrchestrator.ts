@@ -791,7 +791,7 @@ export class AnalyticsOrchestrator {
           })
         });
 
-        const mainMetricsUrl = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+        const mainMetricsUrl = `https://graph.facebook.com/v24.0/${accountId}/insights?${params}`;
         
         const breakdownTimeoutId: { id?: NodeJS.Timeout } = {};
         const [mainMetricsResult, demographicsResult, platformBreakdownResult] = await Promise.allSettled([
@@ -1127,7 +1127,7 @@ export class AnalyticsOrchestrator {
         limit: '1000'
       });
 
-      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+      const url = `https://graph.facebook.com/v24.0/${accountId}/insights?${params}`;
       const response = await this.makeFacebookApiCall(url);
       
       debugLogger.info('AnalyticsOrchestrator', 'Facebook demographics API response', {
@@ -1163,7 +1163,7 @@ export class AnalyticsOrchestrator {
         limit: '1000'
       });
 
-      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+      const url = `https://graph.facebook.com/v24.0/${accountId}/insights?${params}`;
       const response = await this.makeFacebookApiCall(url);
       
       return response.data || [];
@@ -1230,15 +1230,28 @@ export class AnalyticsOrchestrator {
   }
 
   /**
-   * Process platform breakdown data
+   * Process platform breakdown data with leads and spend tracking for CPL calculation
    */
   private static processPlatformBreakdownData(insightsData: any[]): any {
-    const platforms = {
+    // Track leads per platform/placement
+    const platformLeads = {
       facebook: 0,
       instagram: 0
     };
     
-    const placements = {
+    const placementLeads = {
+      feed: 0,
+      stories: 0,
+      reels: 0
+    };
+
+    // Track spend per platform/placement for CPL calculation
+    const platformSpend = {
+      facebook: 0,
+      instagram: 0
+    };
+    
+    const placementSpend = {
       feed: 0,
       stories: 0,
       reels: 0
@@ -1254,55 +1267,97 @@ export class AnalyticsOrchestrator {
       totalLeads += leads;
       totalSpend += spend;
 
-      // Process platforms (Facebook vs Instagram) - use leads
-      if (insight.publisher_platform) {
-        if (insight.publisher_platform === 'facebook') {
-          platforms.facebook += leads;
-        } else if (insight.publisher_platform === 'instagram') {
-          platforms.instagram += leads;
+      const publisherPlatform = insight.publisher_platform;
+      const platformPosition = insight.platform_position?.toLowerCase() || '';
+
+      // Process platforms (Facebook vs Instagram)
+      if (publisherPlatform) {
+        if (publisherPlatform === 'facebook') {
+          platformLeads.facebook += leads;
+          platformSpend.facebook += spend;
+        } else if (publisherPlatform === 'instagram') {
+          platformLeads.instagram += leads;
+          platformSpend.instagram += spend;
         }
       }
 
-      // Process placements (feed, stories, reels) - use leads for consistency
-      if (insight.platform_position) {
-        const position = insight.platform_position.toLowerCase();
-        if (position.includes('feed')) {
-          placements.feed += leads;
-        } else if (position.includes('story')) {
-          placements.stories += leads;
-        } else if (position.includes('reel')) {
-          placements.reels += leads;
+      // Process placements (feed, stories, reels)
+      if (platformPosition) {
+        if (platformPosition.includes('feed')) {
+          placementLeads.feed += leads;
+          placementSpend.feed += spend;
+        } else if (platformPosition.includes('story')) {
+          placementLeads.stories += leads;
+          placementSpend.stories += spend;
+        } else if (platformPosition.includes('reel')) {
+          placementLeads.reels += leads;
+          placementSpend.reels += spend;
         }
       }
     });
 
-    // Convert to percentages (same logic as V1)
+    // Convert to percentages and calculate CPL
     const facebookVsInstagram = {
       facebook: 0,
-      instagram: 0
+      instagram: 0,
+      facebookLeads: platformLeads.facebook,
+      instagramLeads: platformLeads.instagram,
+      facebookSpend: Math.round(platformSpend.facebook * 100) / 100,
+      instagramSpend: Math.round(platformSpend.instagram * 100) / 100,
+      facebookCpl: 0,
+      instagramCpl: 0
     };
     
     const adPlacements = {
       feed: 0,
       stories: 0,
-      reels: 0
+      reels: 0,
+      feedLeads: placementLeads.feed,
+      storiesLeads: placementLeads.stories,
+      reelsLeads: placementLeads.reels,
+      feedSpend: Math.round(placementSpend.feed * 100) / 100,
+      storiesSpend: Math.round(placementSpend.stories * 100) / 100,
+      reelsSpend: Math.round(placementSpend.reels * 100) / 100,
+      feedCpl: 0,
+      storiesCpl: 0,
+      reelsCpl: 0
     };
 
     if (totalLeads > 0) {
-      const facebookTotal = platforms.facebook + platforms.instagram;
+      // Calculate percentages for platforms
+      const facebookTotal = platformLeads.facebook + platformLeads.instagram;
       if (facebookTotal > 0) {
-        facebookVsInstagram.facebook = Math.round((platforms.facebook / facebookTotal) * 100);
-        facebookVsInstagram.instagram = Math.round((platforms.instagram / facebookTotal) * 100);
+        facebookVsInstagram.facebook = Math.round((platformLeads.facebook / facebookTotal) * 100);
+        facebookVsInstagram.instagram = Math.round((platformLeads.instagram / facebookTotal) * 100);
       }
 
-      const placementsTotal = placements.feed + placements.stories + placements.reels;
+      // Calculate CPL for platforms
+      if (platformLeads.facebook > 0) {
+        facebookVsInstagram.facebookCpl = Math.round((platformSpend.facebook / platformLeads.facebook) * 100) / 100;
+      }
+      if (platformLeads.instagram > 0) {
+        facebookVsInstagram.instagramCpl = Math.round((platformSpend.instagram / platformLeads.instagram) * 100) / 100;
+      }
+
+      // Calculate percentages for placements
+      const placementsTotal = placementLeads.feed + placementLeads.stories + placementLeads.reels;
       if (placementsTotal > 0) {
-        adPlacements.feed = Math.round((placements.feed / placementsTotal) * 100);
-        adPlacements.stories = Math.round((placements.stories / placementsTotal) * 100);
-        adPlacements.reels = Math.round((placements.reels / placementsTotal) * 100);
+        adPlacements.feed = Math.round((placementLeads.feed / placementsTotal) * 100);
+        adPlacements.stories = Math.round((placementLeads.stories / placementsTotal) * 100);
+        adPlacements.reels = Math.round((placementLeads.reels / placementsTotal) * 100);
+      }
+
+      // Calculate CPL for placements
+      if (placementLeads.feed > 0) {
+        adPlacements.feedCpl = Math.round((placementSpend.feed / placementLeads.feed) * 100) / 100;
+      }
+      if (placementLeads.stories > 0) {
+        adPlacements.storiesCpl = Math.round((placementSpend.stories / placementLeads.stories) * 100) / 100;
+      }
+      if (placementLeads.reels > 0) {
+        adPlacements.reelsCpl = Math.round((placementSpend.reels / placementLeads.reels) * 100) / 100;
       }
     }
-
 
     return {
       facebookVsInstagram,

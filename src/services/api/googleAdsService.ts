@@ -13,7 +13,7 @@ export interface GoogleAdsAccount {
 }
 
 export class GoogleAdsService {
-  private static readonly API_VERSION = 'v22';
+  private static readonly API_VERSION = 'v23';
   private static readonly BASE_URL = `https://googleads.googleapis.com/${this.API_VERSION}`;
   
   // Enhanced rate limiter with dynamic quota adaptation
